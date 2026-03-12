@@ -181,15 +181,15 @@ function InviteModal({ roles, callerRole, callerCds, onClose, onSuccess, showToa
     if (!form.role_id)            return setError("Please select a role");
     setSaving(true);
     try {
-      const result = await sbAdminCreateUser(form.email, form.password);
+      // ── FIX: pass cds_number as third argument so Edge Function receives it ──
+      const result = await sbAdminCreateUser(
+        form.email,
+        form.password,
+        form.cds_number.trim().toUpperCase()
+      );
       const uid = result?.user?.id || result?.id;
       if (uid) {
         await sbAssignRole(uid, parseInt(form.role_id));
-        await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${KEY}`, "Prefer": "return=minimal" },
-          body: JSON.stringify({ cds_number: form.cds_number.trim().toUpperCase() }),
-        });
       }
       showToast("User created successfully!", "success");
       onSuccess(); onClose();
