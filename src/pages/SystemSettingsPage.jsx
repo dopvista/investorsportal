@@ -16,9 +16,9 @@ const focusGreen = e => e.target.style.borderColor = C.green;
 const blurGray   = e => e.target.style.borderColor = C.gray200;
 
 const DEFAULT_SLIDES = [
-  { label: "DSE Investors Portal", title: "Secure Investing",   sub: "Your assets are protected with DSE.",          image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1280&q=80", color: "#064e3b", overlay: 0.35 },
-  { label: "DSE Investors Portal", title: "Smart Portfolio",    sub: "Track all your holdings in one place.",        image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1280&q=80", color: "#1e3a5f", overlay: 0.35 },
-  { label: "DSE Investors Portal", title: "Real-time Data",     sub: "Stay ahead of the market with live insights.", image: "https://images.unsplash.com/photo-1642790551116-18a150d248c6?auto=format&fit=crop&w=1280&q=80", color: "#3b1f5e", overlay: 0.35 },
+  { label: "Investors Portal", title: "Secure Investing",   sub: "Your assets are protected with us.",          image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1280&q=80", color: "#064e3b", overlay: 0.35 },
+  { label: "Investors Portal", title: "Smart Portfolio",    sub: "Track all your holdings in one place.",        image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1280&q=80", color: "#1e3a5f", overlay: 0.35 },
+  { label: "Investors Portal", title: "Real-time Data",     sub: "Stay ahead of the market with live insights.", image: "https://images.unsplash.com/photo-1642790551116-18a150d248c6?auto=format&fit=crop&w=1280&q=80", color: "#3b1f5e", overlay: 0.35 },
 ];
 
 const DEFAULT_SETTINGS = { interval: 5000, animated: true, slides: DEFAULT_SLIDES };
@@ -444,7 +444,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Text</div>
 
                   <Field label="Label (small gold text)">
-                    <input style={inp()} placeholder="e.g. DSE Investors Portal"
+                    <input style={inp()} placeholder="e.g. Investors Portal"
                       value={slide.label || ""}
                       onChange={e => setSlideField(idx, "label", e.target.value)}
                       onFocus={focusGreen} onBlur={blurGray} />
@@ -459,7 +459,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
 
                   <Field label="Subtitle">
                     <textarea style={{ ...inp(), resize: "vertical", minHeight: 64, lineHeight: 1.5 }}
-                      placeholder="e.g. Your assets are protected with DSE."
+                      placeholder="e.g. Your assets are protected with us."
                       value={slide.sub || ""}
                       onChange={e => setSlideField(idx, "sub", e.target.value)}
                       onFocus={focusGreen} onBlur={blurGray} />
