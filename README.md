@@ -1,2 +1,2 @@
-# dse-investors-portal
-dse-investors-portal
+# investorsportal
+investorsportal
