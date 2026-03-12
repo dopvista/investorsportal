@@ -252,7 +252,9 @@ export default function App() {
     </div>
   );
 
-  if (!profile) return (
+  // ── FIX: gate on missing required fields, not just null profile ──
+  const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
+  if (profileIncomplete) return (
     <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />
   );
 
