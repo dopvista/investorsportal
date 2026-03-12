@@ -117,8 +117,8 @@ export default function ResetPasswordPage({ onDone }) {
 
         {/* ── Header ── */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <img src={logo} alt="DSE" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-          <div style={{ fontWeight: 700, fontSize: 13, color: C.gray400, marginBottom: 6 }}>DSE Investors Portal</div>
+          <img src={logo} alt="Investors Portal" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
+          <div style={{ fontWeight: 700, fontSize: 13, color: C.gray400, marginBottom: 6 }}>Investors Portal</div>
           <div style={{ fontWeight: 800, fontSize: 20, color: C.text }}>Set New Password</div>
           <div style={{ fontSize: 13, color: C.gray400, marginTop: 4 }}>
             Choose a strong password for your account
