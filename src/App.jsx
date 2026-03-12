@@ -462,9 +462,33 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ margin: "0 16px 12px", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 7, height: 7, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Supabase connected</span>
+          <div
+            style={{
+              margin: "0 16px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 7,
+                height: 7,
+                background: C.green,
+                borderRadius: "50%",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                color: "rgba(255,255,255,0.4)",
+                fontSize: 11,
+              }}
+            >
+              Supabase connected
+            </span>
           </div>
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
