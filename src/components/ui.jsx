@@ -583,9 +583,9 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       const data = await file.arrayBuffer();
       const wb   = XLSX.read(data, { type: "array", cellDates: true });
 
-      // ── Sheet name check — must use the official DSE template ──────
+      // ── Sheet name check — must use the official import template ───
       if (!wb.SheetNames.includes(REQUIRED_SHEET)) {
-        alert("Invalid file.\n\nPlease use the official DSE Investors Portal import template.\nCustom Excel files are not accepted.");
+        alert("Invalid file.\n\nPlease use the official Investors Portal import template.\nCustom Excel files are not accepted.");
         setParsing(false);
         if (fileRef.current) fileRef.current.value = "";
         return;
@@ -800,7 +800,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       )}
       {rows.length > 0 && (
         <div>
-          {/* Header row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
               ✅ Preview — {rows.length} rows ready to import
@@ -811,8 +810,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               </div>
             )}
           </div>
-
-          {/* Table */}
           <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 10, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
               <thead>
@@ -824,8 +821,8 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               </thead>
               <tbody>
                 {pagedRows.map((r, i) => {
-                  const globalIdx    = (previewPage - 1) * PAGE_SIZE + i;
-                  const displayDate  = r.date && r.date.includes("-") ? r.date.split("-").reverse().join("/") : r.date;
+                  const globalIdx   = (previewPage - 1) * PAGE_SIZE + i;
+                  const displayDate = r.date && r.date.includes("-") ? r.date.split("-").reverse().join("/") : r.date;
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 === 0 ? C.white : C.gray50 }}>
                       <td style={{ padding: "7px 10px", color: C.gray400, textAlign: "center" }}>{globalIdx + 1}</td>
@@ -842,42 +839,25 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
           {totalPages > 1 && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10 }}>
               <button onClick={() => setPreviewPage(1)} disabled={previewPage === 1}
-                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                «
-              </button>
+                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
               <button onClick={() => setPreviewPage(p => Math.max(1, p - 1))} disabled={previewPage === 1}
-                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                ‹ Prev
-              </button>
+                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
               {Array.from({ length: totalPages }, (_, idx) => idx + 1)
                 .filter(p => p === 1 || p === totalPages || Math.abs(p - previewPage) <= 1)
-                .reduce((acc, p, i, arr) => {
-                  if (i > 0 && arr[i - 1] !== p - 1) acc.push("...");
-                  acc.push(p);
-                  return acc;
-                }, [])
+                .reduce((acc, p, i, arr) => { if (i > 0 && arr[i-1] !== p-1) acc.push("..."); acc.push(p); return acc; }, [])
                 .map((p, i) => p === "..." ? (
                   <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400, padding: "0 2px" }}>…</span>
                 ) : (
                   <button key={p} onClick={() => setPreviewPage(p)}
-                    style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${p === previewPage ? C.navy : C.gray200}`, background: p === previewPage ? C.navy : C.white, color: p === previewPage ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === previewPage ? 700 : 500, fontFamily: "inherit", minWidth: 32 }}>
-                    {p}
-                  </button>
-                ))
-              }
+                    style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${p === previewPage ? C.navy : C.gray200}`, background: p === previewPage ? C.navy : C.white, color: p === previewPage ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === previewPage ? 700 : 500, fontFamily: "inherit", minWidth: 32 }}>{p}</button>
+                ))}
               <button onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))} disabled={previewPage === totalPages}
-                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                Next ›
-              </button>
+                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
               <button onClick={() => setPreviewPage(totalPages)} disabled={previewPage === totalPages}
-                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                »
-              </button>
+                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
             </div>
           )}
         </div>
@@ -901,7 +881,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       onClose={onClose} maxWidth={640} lockBackdrop={importing}
       footer={
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-          {/* Progress bar — only shown while importing */}
           {importing && (
             <div style={{ width: "100%" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.gray600, marginBottom: 5 }}>
@@ -916,7 +895,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               )}
             </div>
           )}
-          {/* Action buttons — hidden while importing */}
           {!importing && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <div>{step === "preview" && <Btn variant="secondary" onClick={resetToUpload}>← Back</Btn>}</div>
