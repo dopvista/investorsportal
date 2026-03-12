@@ -34,6 +34,8 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
               cds_number: p.cds_number || "",
               phone:      p.phone      || "",
             });
+            // ── FIX: lock CDS when pre-assigned by admin ──
+            if (p.cds_number) setCdsLocked(true);
           }
         }
       } catch (_) {}
