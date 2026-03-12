@@ -150,8 +150,8 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img src={logo} alt="DSE" style={{ width: 52, height: 52, borderRadius: 13, objectFit: "cover", marginBottom: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-          <div style={{ fontWeight: 800, fontSize: 18, color: C.text }}>DSE Investors Portal</div>
+          <img src={logo} alt="Investors Portal" style={{ width: 52, height: 52, borderRadius: 13, objectFit: "cover", marginBottom: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
+          <div style={{ fontWeight: 800, fontSize: 18, color: C.text }}>Investors Portal</div>
           <div style={{ fontWeight: 600, fontSize: 13, color: C.gray400, marginTop: 2 }}>Complete Your Profile</div>
           <div style={{ fontSize: 12, color: C.navy, fontWeight: 700, marginTop: 6, background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 8, padding: "7px 14px", letterSpacing: "0.01em" }}>
             {email}
