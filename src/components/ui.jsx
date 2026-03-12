@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
 
-// ─── DSE Brand Colors ─────────────────────────────────────────────
+// ─── App Brand Colors ─────────────────────────────────────────────
 export const C = {
   navy: "#0B1F3A",
   navyLight: "#132844",
