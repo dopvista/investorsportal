@@ -6,7 +6,7 @@ import logo from "../assets/logo.jpg";
 // Fallback slides used when no settings are loaded
 const DEFAULT_SLIDES = [
   { id: 1, title: "Market Insights", sub: "Real-time data at your fingertips.", color: C.navy, image: "https://images.unsplash.com/photo-1611974717482-480928224732?auto=format&fit=crop&q=80" },
-  { id: 2, title: "Secure Investing", sub: "Your assets are protected with DSE.", color: "#064e3b", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80" },
+  { id: 2, title: "Secure Investing", sub: "Your assets are protected with us.", color: "#064e3b", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80" },
   { id: 3, title: "Digital Future", sub: "Managing investments has never been easier.", color: "#78350f", image: "https://images.unsplash.com/photo-1551288049-bbda38a5f9a2?auto=format&fit=crop&q=80" },
 ];
 
@@ -192,8 +192,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
           <div style={{ width: "100%", maxWidth: "312px", margin: "0 auto" }}>
             {/* Header */}
             <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <img src={logo} alt="DSE" style={{ width: 48, height: 48, borderRadius: 13, objectFit: "cover", marginBottom: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }} />
-              <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>DSE Investors Portal</div>
+              <img src={logo} alt="Investors Portal" style={{ width: 48, height: 48, borderRadius: 13, objectFit: "cover", marginBottom: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }} />
+              <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Investors Portal</div>
               <div style={{ fontSize: 12, color: C.gray400, marginTop: 3 }}>{view === "login" ? "Sign in to your account" : "Reset your password"}</div>
               {view === "reset" && (
                 <div style={{ marginTop: 8, background: `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: C.gold, fontWeight: 600 }}>
