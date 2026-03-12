@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { sbGet, getSession, sbSignOut, sbGetProfile, sbGetMyRole, sbGetSiteSettings } from "./lib/supabase";
 import { C, Toast } from "./components/ui";
 import CompaniesPage from "./pages/CompaniesPage";
@@ -24,36 +24,55 @@ const NAV = [
 // ── Role display config ────────────────────────────────────────────
 export { ROLE_META } from "./lib/constants";
 
+const INITIAL_TOAST = { msg: "", type: "" };
+const EMPTY_ARRAY = [];
+
 export default function App() {
   const [session, setSession] = useState(undefined);
   const [profile, setProfile] = useState(undefined);
   const [role, setRole] = useState(null);
   const [tab, setTab] = useState("companies");
   const [loginSettings, setLoginSettings] = useState(null);
-  const [companies, setCompanies] = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [companies, setCompanies] = useState(EMPTY_ARRAY);
+  const [transactions, setTransactions] = useState(EMPTY_ARRAY);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(null);
-  const [toast, setToast] = useState({ msg: "", type: "" });
-  const [recoveryMode, setRecoveryMode] = useState(false); // ← password reset flow
+  const [toast, setToast] = useState(INITIAL_TOAST);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
-  const showToast = (msg, type = "success") => {
+  const toastTimerRef = useRef(null);
+
+  const resetAppState = useCallback(() => {
+    setSession(null);
+    setProfile(undefined);
+    setRole(null);
+    setCompanies(EMPTY_ARRAY);
+    setTransactions(EMPTY_ARRAY);
+    setTab("companies");
+    setLoading(true);
+    setDbError(null);
+  }, []);
+
+  const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast({ msg: "", type: "" }), 3500);
-  };
+
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(INITIAL_TOAST);
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // ── Auto logout after 5 minutes of inactivity ────────────────────
   useIdleLogout({
     enabled: !!session && !recoveryMode,
     onLogout: () => {
-      setSession(null);
-      setProfile(undefined);
-      setRole(null);
-      setCompanies([]);
-      setTransactions([]);
-      setTab("companies");
-      setLoading(true);
-      setDbError(null);
+      resetAppState();
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
   });
@@ -63,7 +82,6 @@ export default function App() {
     const hash = window.location.hash;
     const search = window.location.search;
 
-    // ── Old hash-based recovery flow ──────────────────────────────
     if (hash.includes("type=recovery")) {
       const params = new URLSearchParams(hash.replace("#", ""));
       const accessToken = params.get("access_token");
@@ -76,19 +94,19 @@ export default function App() {
       }
     }
 
-    // ── New PKCE code-based recovery flow ─────────────────────────
-    // Supabase sends: ?code=xxx&type=recovery (or redirects with code)
     const qp = new URLSearchParams(search);
     const code = qp.get("code");
     const type = qp.get("type");
+
     if (code && type === "recovery") {
       window.history.replaceState(null, "", window.location.pathname);
-      // Exchange code for session via PKCE token endpoint
+
       const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
       const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": KEY },
+        headers: { "Content-Type": "application/json", apikey: KEY },
         body: JSON.stringify({ auth_code: code }),
       })
         .then(r => r.json())
@@ -98,7 +116,6 @@ export default function App() {
             setRecoveryMode(true);
             setSession(null);
           } else {
-            // fallback — treat as normal session load
             const s = getSession();
             setSession(s || null);
           }
@@ -107,6 +124,7 @@ export default function App() {
           const s = getSession();
           setSession(s || null);
         });
+
       return;
     }
 
@@ -114,83 +132,111 @@ export default function App() {
     setSession(s || null);
   }, []);
 
-  // ── Load profile + role + data once session confirmed ────────────
-  // Load login page settings + subscribe to realtime changes
+  // ── Load login page settings + subscribe to realtime changes ─────
   useEffect(() => {
-    sbGetSiteSettings("login_page")
-      .then(data => {
-        if (data) setLoginSettings(data);
-      })
-      .catch(() => {});
+    const loadLoginSettings = () => {
+      sbGetSiteSettings("login_page")
+        .then(data => {
+          if (data) setLoginSettings(data);
+        })
+        .catch(() => {});
+    };
+
+    loadLoginSettings();
 
     try {
-      const handleFocus = () => {
-        sbGetSiteSettings("login_page")
-          .then(data => {
-            if (data) setLoginSettings(data);
-          })
-          .catch(() => {});
-      };
-
-      window.addEventListener("focus", handleFocus);
+      window.addEventListener("focus", loadLoginSettings);
 
       const bc = new BroadcastChannel("dse_site_settings");
-      bc.onmessage = (e) => {
+      bc.onmessage = e => {
         if (e.data?.key === "login_page" && e.data?.value) {
           setLoginSettings(e.data.value);
         }
       };
 
       return () => {
-        window.removeEventListener("focus", handleFocus);
+        window.removeEventListener("focus", loadLoginSettings);
         bc.close();
       };
     } catch {
-      // BroadcastChannel not supported — silently ignore
+      return undefined;
     }
   }, []);
 
+  // ── Load profile + role + data once session confirmed ────────────
   useEffect(() => {
     if (!session) return;
+
+    let cancelled = false;
 
     (async () => {
       try {
         const freshToken = session?.access_token;
-        const [p, r, c] = await Promise.all([
+
+        const [p, r, c, t] = await Promise.all([
           sbGetProfile(freshToken),
           sbGetMyRole(freshToken),
           sbGet("companies"),
+          sbGet("transactions"),
         ]);
 
-        const t = await sbGet("transactions");
+        if (cancelled) return;
 
         setProfile(p);
         setRole(r);
         setCompanies(c);
         setTransactions(t);
       } catch (e) {
-        setDbError(e.message);
+        if (!cancelled) {
+          setDbError(e.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
-  const handleLogin = (s) => setSession(s);
-  const handleProfileDone = (p) => setProfile(p);
+  const handleLogin = useCallback((s) => setSession(s), []);
+  const handleProfileDone = useCallback((p) => setProfile(p), []);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await sbSignOut();
-    setSession(null);
-    setProfile(undefined);
-    setRole(null);
-    setCompanies([]);
-    setTransactions([]);
-    setTab("companies");
-    // Note: loginSettings intentionally NOT reset on logout — login page should
-    // continue showing the saved slideshow settings immediately after logout
-    setLoading(true);
-    setDbError(null);
-  };
+    resetAppState();
+  }, [resetAppState]);
+
+  const filteredTransactions = useMemo(
+    () => transactions.filter(t => t.cds_number === profile?.cds_number),
+    [transactions, profile?.cds_number]
+  );
+
+  const visibleNav = useMemo(
+    () => NAV.filter(item => !role || item.roles.includes(role)),
+    [role]
+  );
+
+  const cdsCompanyCount = useMemo(
+    () => new Set(filteredTransactions.map(t => t.company_id)).size,
+    [filteredTransactions]
+  );
+
+  const counts = useMemo(
+    () => ({ companies: cdsCompanyCount, transactions: filteredTransactions.length }),
+    [cdsCompanyCount, filteredTransactions.length]
+  );
+
+  const activeNav = useMemo(
+    () => NAV.find(n => n.id === tab),
+    [tab]
+  );
+
+  const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
+  const now = useMemo(() => new Date(), []);
 
   if (recoveryMode) {
     return (
@@ -305,7 +351,7 @@ export default function App() {
         <style>{`
           @keyframes spin  { to { transform: rotate(360deg); } }
           @keyframes pulse { 0%,100% { opacity:0.4; transform:scale(0.95); } 50% { opacity:1; transform:scale(1); } }
-          @keyframes bar   { 0% { width:"0%" } 100% { width:"100%" } }
+          @keyframes bar   { 0% { width:0% } 100% { width:100% } }
         `}</style>
         <div
           style={{
@@ -395,20 +441,9 @@ export default function App() {
     );
   }
 
-  // ── FIX: gate on missing required fields, not just null profile ──
-  const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
   if (profileIncomplete) {
     return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
   }
-
-  // ── FILTERING LOGIC ONLY ──────────────────────────────────────────
-  // CDS scoping only — status filtering handled inside TransactionsPage
-  const filteredTransactions = transactions.filter(t => t.cds_number === profile?.cds_number);
-
-  const visibleNav = NAV.filter(item => !role || item.roles.includes(role));
-  const cdsCompanyCount = new Set(filteredTransactions.map(t => t.company_id)).size;
-  const counts = { companies: cdsCompanyCount, transactions: filteredTransactions.length };
-  const now = new Date();
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'Inter', system-ui, sans-serif", background: C.gray50, overflow: "hidden" }}>
@@ -578,7 +613,7 @@ export default function App() {
               {tab === "profile" && "My Profile"}
               {tab === "user-management" && "User Management"}
               {tab === "system-settings" && "System Settings"}
-              {tab !== "profile" && tab !== "user-management" && tab !== "system-settings" && NAV.find(n => n.id === tab)?.label}
+              {tab !== "profile" && tab !== "user-management" && tab !== "system-settings" && activeNav?.label}
             </div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 1 }}>
               {tab === "companies" && "Your CDS portfolio holdings"}
