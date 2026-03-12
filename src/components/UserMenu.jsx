@@ -114,7 +114,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
           </div>
 
           <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>DSE Investors Portal v1.0</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>Investors Portal v1.0</div>
           </div>
         </div>
       )}
