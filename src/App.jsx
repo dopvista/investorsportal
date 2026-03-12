@@ -446,8 +446,10 @@ export default function App() {
                 style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }}
               />
               <div>
-                <div style={{ color: C.white, fontWeight: 800, fontSize: 14, lineHeight: 1.2 }}>Investors</div>
-                <div style={{ color: C.gold, fontWeight: 700, fontSize: 15, marginTop: 1 }}>Portal</div>
+                <div style={{ fontSize: 15, lineHeight: 1.2, fontWeight: 800 }}>
+                  <span style={{ color: C.white }}>Investors</span>{" "}
+                  <span style={{ color: C.gold }}>Portal</span>
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
                   <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
                   <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 500 }}>
