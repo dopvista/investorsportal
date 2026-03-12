@@ -446,7 +446,7 @@ export default function App() {
                 style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }}
               />
               <div>
-                <div style={{ fontSize: 16, lineHeight: 1.2, fontWeight: 800 }}>
+                <div style={{ fontSize: 17, lineHeight: 1.2, fontWeight: 800 }}>
                   <span style={{ color: C.white }}>Investors</span>{" "}
                   <span style={{ color: C.gold }}>Portal</span>
                 </div>
