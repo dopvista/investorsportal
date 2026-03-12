@@ -370,7 +370,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
             <Btn variant="navy" icon="+" onClick={() => setFormModal({ open: true, company: null })}>Register Company</Btn>
           </div>
 
-          <SectionCard title={`Master Company Registry (${masterList.length})`} subtitle="All DSE-listed companies available in the system">
+          <SectionCard title={`Master Company Registry (${masterList.length})`} subtitle="All listed companies available in the system">
             {masterLoading ? (
               <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
