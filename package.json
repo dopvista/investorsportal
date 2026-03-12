@@ -1,5 +1,5 @@
 {
-  "name": "dse-investors-portal",
+  "name": "investorsportal",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
