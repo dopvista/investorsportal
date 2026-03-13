@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, memo } from "react";
 import {
   sbInsertTransaction, sbUpdateTransaction, sbDeleteTransaction,
   sbConfirmTransaction, sbVerifyTransactions, sbRejectTransactions,
+  sbUnverifyTransaction, sbUnverifyTransactions,
 } from "../lib/supabase";
 import {
   C, fmt, fmtInt, fmtSmart,
@@ -520,11 +521,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     }
   }, [rejectModal, setTransactions, showToast]);
 
-  const handleUnVerify = useCallback(async (id) => {
+  const handleUnVerify = async (id) => {
     setUnverifyingIds(prev => new Set([...prev, id]));
     try {
-      const rows = await sbUpdateTransaction(id, { status: "pending", verified_by: null, verified_at: null, rejection_comment: null });
-      if (!rows || rows.length === 0) throw new Error("Unverify failed – transaction may have been modified or you lack permission.");
+      const rows = await sbUnverifyTransaction(id);
+      if (!rows || rows.length === 0) {
+        throw new Error("Unverify failed – transaction may have been modified or you lack permission.");
+      }
       setTransactions(p => p.map(t => t.id === id ? rows[0] : t));
       showToast("Transaction unverified and returned to Pending.", "success");
     } catch (e) {
@@ -536,9 +539,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         return s;
       });
     }
-  }, [setTransactions, showToast]);
+  };
 
-  const doBulkUnverify = useCallback(async () => {
+  const doBulkUnverify = async () => {
     const ids = bulkUnverifyModal?.ids;
     if (!ids?.length) return;
 
@@ -546,22 +549,21 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setUnverifyingIds(new Set(ids));
 
     try {
-      const updatedTransactions = [...myTransactions];
-      for (const id of ids) {
-        const rows = await sbUpdateTransaction(id, { status: "pending", verified_by: null, verified_at: null, rejection_comment: null });
-        if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be unverified.`);
-        const idx = updatedTransactions.findIndex(t => t.id === id);
-        if (idx !== -1) updatedTransactions[idx] = rows[0];
+      const rows = await sbUnverifyTransactions(ids);
+      if (!rows || rows.length === 0) {
+        throw new Error("No verified transactions could be unverified.");
       }
-      setTransactions(updatedTransactions);
+
+      const rowMap = new Map(rows.map(r => [r.id, r]));
+      setTransactions(p => p.map(t => rowMap.get(t.id) || t));
       setSelected(new Set());
-      showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} unverified.`, "success");
+      showToast(`${rows.length} transaction${rows.length > 1 ? "s" : ""} unverified.`, "success");
     } catch (e) {
       showToast("Error: " + e.message, "error");
     } finally {
       setUnverifyingIds(new Set());
     }
-  }, [bulkUnverifyModal, myTransactions, setTransactions, showToast]);
+  };
 
   const handleDelete = useCallback(async () => {
     const id = deleteModal?.id;
