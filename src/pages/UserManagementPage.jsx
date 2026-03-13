@@ -1,22 +1,39 @@
 // ── src/pages/UserManagementPage.jsx ──────────────────────────────
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { sbGetAllUsers, sbGetRoles, sbAssignRole, sbDeactivateRole, sbAdminCreateUser } from "../lib/supabase";
 import { C } from "../components/ui";
 
 const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const ROLE_META = {
-  SA: { label: "Super Admin",  bg: "#0A254015", border: "#0A254040", text: "#0A2540" },
-  AD: { label: "Admin",        bg: "#1E3A5F15", border: "#1E3A5F40", text: "#1E3A5F" },
+  SA: { label: "Super Admin", bg: "#0A254015", border: "#0A254040", text: "#0A2540" },
+  AD: { label: "Admin", bg: "#1E3A5F15", border: "#1E3A5F40", text: "#1E3A5F" },
   DE: { label: "Data Entrant", bg: "#1D4ED815", border: "#1D4ED840", text: "#1D4ED8" },
-  VR: { label: "Verifier",     bg: "#065F4615", border: "#065F4640", text: "#065F46" },
-  RO: { label: "Read Only",    bg: "#37415115", border: "#37415140", text: "#374151" },
+  VR: { label: "Verifier", bg: "#065F4615", border: "#065F4640", text: "#065F46" },
+  RO: { label: "Read Only", bg: "#37415115", border: "#37415140", text: "#374151" },
 };
 
-const AVATAR_COLORS = ["#0A2540","#1E3A5F","#1D4ED8","#065F46","#374151","#7C3AED","#B45309","#0369A1"];
+const AVATAR_COLORS = ["#0A2540", "#1E3A5F", "#1D4ED8", "#065F46", "#374151", "#7C3AED", "#B45309", "#0369A1"];
 const GRID = "28px 1.5fr 0.9fr 0.8fr 0.8fr 1.1fr 1.3fr 90px 110px";
+
+function inp(extra = {}) {
+  return {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 9,
+    fontSize: 13,
+    border: `1.5px solid ${C.gray200}`,
+    outline: "none",
+    fontFamily: "inherit",
+    background: C.white,
+    color: C.text,
+    transition: "border 0.2s",
+    boxSizing: "border-box",
+    ...extra,
+  };
+}
 
 const SEARCH_INPUT_STYLE = inp({ paddingLeft: 28 });
 const SELECT_STYLE = { ...inp(), width: "auto", cursor: "pointer" };
@@ -37,37 +54,70 @@ const INVITE_BTN_STYLE = {
   whiteSpace: "nowrap",
 };
 
-function inp(extra = {}) {
-  return {
-    width: "100%",
-    padding: "9px 12px",
-    borderRadius: 9,
-    fontSize: 13,
-    border: `1.5px solid ${C.gray200}`,
-    outline: "none",
-    fontFamily: "inherit",
-    background: C.white,
-    color: C.text,
-    transition: "border 0.2s",
-    boxSizing: "border-box",
-    ...extra,
-  };
-}
-
-const focusGreen = e => { e.target.style.borderColor = C.green; };
-const blurGray = e => { e.target.style.borderColor = C.gray200; };
+const focusGreen = (e) => { e.target.style.borderColor = C.green; };
+const blurGray = (e) => { e.target.style.borderColor = C.gray200; };
 
 // ── Modal portal ───────────────────────────────────────────────────
 const Modal = memo(function Modal({ title, subtitle, onClose, children, footer }) {
   return createPortal(
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,37,64,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 20, width: "100%", maxWidth: 460, boxShadow: "0 32px 80px rgba(0,0,0,0.35)", overflow: "hidden", animation: "fadeIn 0.2s ease", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(10,37,64,0.6)",
+        backdropFilter: "blur(3px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.white,
+          borderRadius: 20,
+          width: "100%",
+          maxWidth: 460,
+          boxShadow: "0 32px 80px rgba(0,0,0,0.35)",
+          overflow: "hidden",
+          animation: "fadeIn 0.2s ease",
+          fontFamily: "'Inter', system-ui, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
+            padding: "18px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           <div>
             <div style={{ color: C.white, fontWeight: 800, fontSize: 16 }}>{title}</div>
             {subtitle && <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 600, letterSpacing: "0.02em" }}>{subtitle}</div>}
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: C.white,
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              cursor: "pointer",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            ✕
+          </button>
         </div>
         <div style={{ padding: "20px 24px 4px" }}>{children}</div>
         {footer && <div style={{ display: "flex", gap: 8, padding: "16px 24px" }}>{footer}</div>}
@@ -405,7 +455,10 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size = 
           src={avatarUrl}
           alt={name || "User"}
           style={{ width: size, height: size, borderRadius: radius, objectFit: "cover", display: "block", border: `1.5px solid ${C.gray200}` }}
-          onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+          onError={e => {
+            e.target.style.display = "none";
+            if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+          }}
         />
       ) : null}
       <div style={{ width: size, height: size, borderRadius: radius, background: `linear-gradient(135deg, ${color}, ${color}99)`, display: avatarUrl ? "none" : "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: Math.round(size * 0.35), color: "#fff" }}>{initials}</div>
@@ -442,7 +495,16 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const [changeRoleUser, setChangeRoleUser] = useState(null);
   const [toggleUser, setToggleUser] = useState(null);
 
+  const isMountedRef = useRef(true);
+  const loadReqRef = useRef(0);
+
   const isAllowed = ["SA", "AD"].includes(role);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const roleNameById = useMemo(
     () => Object.fromEntries(roles.map(r => [r.id, r.name])),
@@ -450,21 +512,31 @@ export default function UserManagementPage({ role, showToast, profile }) {
   );
 
   const loadData = useCallback(async () => {
-    try {
+    const reqId = ++loadReqRef.current;
+
+    if (isMountedRef.current) {
       setLoading(true);
       setError(null);
+    }
+
+    try {
       const [u, r] = await Promise.all([sbGetAllUsers(), sbGetRoles()]);
+      if (!isMountedRef.current || reqId !== loadReqRef.current) return;
       setUsers(u);
       setRoles(r);
     } catch (e) {
+      if (!isMountedRef.current || reqId !== loadReqRef.current) return;
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && reqId === loadReqRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    if (isAllowed) loadData();
+    if (!isAllowed) return;
+    loadData();
   }, [isAllowed, loadData]);
 
   const handleAssignRole = useCallback(async (userId, roleId) => {
@@ -489,13 +561,15 @@ export default function UserManagementPage({ role, showToast, profile }) {
   }, [showToast, loadData]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
+
     return users.filter(u => {
       const matchSearch =
-        !search ||
+        !q ||
         (u.full_name || "").toLowerCase().includes(q) ||
         (u.cds_number || "").toLowerCase().includes(q) ||
-        (u.phone || "").toLowerCase().includes(q);
+        (u.phone || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q);
 
       const matchRole = filterRole === "ALL" || u.role_code === filterRole || (filterRole === "" && !u.role_code);
       const matchStatus =
@@ -534,19 +608,23 @@ export default function UserManagementPage({ role, showToast, profile }) {
     );
   }
 
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40vh" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ textAlign: "center", color: C.gray400 }}>
-        <div style={{ width: 20, height: 20, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 10px" }} />
-        <div style={{ fontSize: 12 }}>Loading users...</div>
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40vh" }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ textAlign: "center", color: C.gray400 }}>
+          <div style={{ width: 20, height: 20, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 10px" }} />
+          <div style={{ fontSize: 12 }}>Loading users...</div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (error) return (
-    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 12, padding: 14, fontSize: 12 }}>⚠️ {error}</div>
-  );
+  if (error) {
+    return (
+      <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 12, padding: 14, fontSize: 12 }}>⚠️ {error}</div>
+    );
+  }
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -612,7 +690,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
         <div style={{ overflowX: "auto", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "8px 14px", minWidth: 900, borderBottom: `1px solid ${C.gray100}`, background: C.gray50, flexShrink: 0 }}>
-            {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h, i) => (
+            {["#", "User", "CDS Number", "Account Type", "Role", "Phone Number", "Email Address", "Created", "Actions"].map((h, i) => (
               <div key={i} style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</div>
             ))}
           </div>
@@ -708,7 +786,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
           onClose={handleCloseChangeRole}
           onSave={async (uid, rid) => {
             await handleAssignRole(uid, rid);
-            setChangeRoleUser(null);
+            if (isMountedRef.current) setChangeRoleUser(null);
           }}
           showToast={showToast}
         />
