@@ -587,6 +587,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const isAnyRejecting = rejectingIds.size > 0;
   const isAnyUnverifying = unverifyingIds.size > 0;
   const isAnyDeleting = !!deletingId || bulkDeletingIds.size > 0;
+  const hasSelection = selected.size > 0;
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -1163,15 +1164,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             gap: 8,
             flexShrink: 0,
             whiteSpace: "nowrap",
-            overflowX: "auto",
-            scrollbarWidth: "thin",
-            maxWidth: "55%",
-            paddingBottom: 2,
           }}
         >
-          <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
-
-          {selected.size > 0 && (
+          {hasSelection ? (
             <>
               {canBulkDelete && (
                 <button
@@ -1257,19 +1252,25 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
                 </button>
               )}
+
+              <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
             </>
-          )}
+          ) : (
+            <>
+              <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
 
-          {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
-            <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
-          )}
+              {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
+                <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
+              )}
 
-          {(isDE || isSAAD) && (
-            <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
-          )}
+              {(isDE || isSAAD) && (
+                <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
+              )}
 
-          {(isDE || isSAAD) && (
-            <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
+              {(isDE || isSAAD) && (
+                <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
+              )}
+            </>
           )}
         </div>
       </div>
