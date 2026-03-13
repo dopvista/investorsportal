@@ -1,9 +1,16 @@
 // ── src/pages/TransactionsPage.jsx ───────────────────────────────
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import {
-  sbInsertTransaction, sbUpdateTransaction, sbDeleteTransaction,
-  sbConfirmTransaction, sbVerifyTransactions, sbRejectTransactions,
-  sbUnverifyTransaction, sbUnverifyTransactions,
+  sbGetAllCompanies,
+  sbGetTransactions,
+  sbInsertTransaction,
+  sbUpdateTransaction,
+  sbDeleteTransaction,
+  sbConfirmTransaction,
+  sbVerifyTransactions,
+  sbRejectTransactions,
+  sbUnverifyTransaction,
+  sbUnverifyTransactions,
 } from "../lib/supabase";
 import {
   C, fmt, fmtInt, fmtSmart,
@@ -441,6 +448,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const isRO = role === "RO";
   const isSAAD = role === "SA" || role === "AD";
 
+  const isMountedRef = useRef(true);
+  const txLoadRef = useRef(0);
+  const companyLoadRef = useRef(0);
+
+  const [localCompanies, setLocalCompanies] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [pageError, setPageError] = useState(null);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState(defaultStatus);
@@ -463,6 +479,72 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [actionModal, setActionModal] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const effectiveCompanies = useMemo(
+    () => (companies?.length ? companies : localCompanies),
+    [companies, localCompanies]
+  );
+
+  const loadTransactions = useCallback(async () => {
+    const requestId = ++txLoadRef.current;
+
+    if (isMountedRef.current) {
+      setLoadingTransactions(true);
+      setPageError(null);
+    }
+
+    try {
+      const data = await sbGetTransactions();
+      if (!isMountedRef.current || requestId !== txLoadRef.current) return;
+      setTransactions(data);
+    } catch (e) {
+      if (!isMountedRef.current || requestId !== txLoadRef.current) return;
+      setPageError(e.message || "Failed to load transactions.");
+    } finally {
+      if (isMountedRef.current && requestId === txLoadRef.current) {
+        setLoadingTransactions(false);
+      }
+    }
+  }, [setTransactions]);
+
+  const loadCompanies = useCallback(async () => {
+    const requestId = ++companyLoadRef.current;
+
+    if (isMountedRef.current) {
+      setLoadingCompanies(true);
+    }
+
+    try {
+      const data = await sbGetAllCompanies();
+      if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
+      setLocalCompanies(data);
+    } catch (e) {
+      if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
+      showToast("Error loading companies: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current && requestId === companyLoadRef.current) {
+        setLoadingCompanies(false);
+      }
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
+    if (companies?.length) {
+      setLoadingCompanies(false);
+      return;
+    }
+    loadCompanies();
+  }, [companies, loadCompanies]);
+
   const isAnyConfirming = confirmingIds.size > 0;
   const isAnyVerifying = verifyingIds.size > 0;
   const isAnyRejecting = rejectingIds.size > 0;
@@ -482,8 +564,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   );
 
   const companyById = useMemo(
-    () => new Map(companies.map(c => [c.id, c])),
-    [companies]
+    () => new Map(effectiveCompanies.map(c => [c.id, c])),
+    [effectiveCompanies]
   );
 
   const stats = useMemo(() => {
@@ -641,15 +723,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (isEdit) {
         const rows = await sbUpdateTransaction(formModal.transaction.id, payload);
         if (!rows || rows.length === 0) throw new Error("Update failed – transaction may have been modified or you lack permission.");
+        if (!isMountedRef.current) return;
         setTransactions(p => p.map(t => t.id === formModal.transaction.id ? rows[0] : t));
         showToast("Transaction updated!", "success");
       } else {
         const rows = await sbInsertTransaction(payload);
+        if (!isMountedRef.current) return;
         setTransactions(p => [rows[0], ...p]);
         showToast("Transaction recorded!", "success");
       }
-      setFormModal({ open: false, transaction: null });
+      if (isMountedRef.current) {
+        setFormModal({ open: false, transaction: null });
+      }
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     }
   }, [formModal.transaction, companyById, cdsNumber, setTransactions, showToast]);
@@ -675,13 +762,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         const idx = updatedTransactions.findIndex(t => t.id === id);
         if (idx !== -1) updatedTransactions[idx] = rows[0];
       }
+      if (!isMountedRef.current) return;
       setTransactions(updatedTransactions);
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setConfirmingIds(new Set());
+      if (isMountedRef.current) {
+        setConfirmingIds(new Set());
+      }
     }
   }, [actionModal, myTransactions, setTransactions, showToast]);
 
@@ -698,13 +789,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
     try {
       await sbVerifyTransactions(ids);
+      if (!isMountedRef.current) return;
       setTransactions(p => p.map(t => ids.includes(t.id) ? { ...t, status: "verified" } : t));
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} verified!`, "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setVerifyingIds(new Set());
+      if (isMountedRef.current) {
+        setVerifyingIds(new Set());
+      }
     }
   }, [actionModal, setTransactions, showToast]);
 
@@ -716,14 +811,18 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
     try {
       await sbRejectTransactions(ids, comment);
+      if (!isMountedRef.current) return;
       setTransactions(p => p.map(t => ids.includes(t.id) ? { ...t, status: "rejected", rejection_comment: comment } : t));
       setSelected(new Set());
       setRejectModal(null);
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} rejected.`, "error");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setRejectingIds(new Set());
+      if (isMountedRef.current) {
+        setRejectingIds(new Set());
+      }
     }
   }, [rejectModal, setTransactions, showToast]);
 
@@ -734,16 +833,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!rows || rows.length === 0) {
         throw new Error("Unverify failed – transaction may have been modified or you lack permission.");
       }
+      if (!isMountedRef.current) return;
       setTransactions(p => p.map(t => t.id === id ? rows[0] : t));
       showToast("Transaction unverified and returned to Pending.", "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setUnverifyingIds(prev => {
-        const s = new Set(prev);
-        s.delete(id);
-        return s;
-      });
+      if (isMountedRef.current) {
+        setUnverifyingIds(prev => {
+          const s = new Set(prev);
+          s.delete(id);
+          return s;
+        });
+      }
     }
   }, [setTransactions, showToast]);
 
@@ -760,14 +863,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         throw new Error("No verified transactions could be unverified.");
       }
 
+      if (!isMountedRef.current) return;
+
       const rowMap = new Map(rows.map(r => [r.id, r]));
       setTransactions(p => p.map(t => rowMap.get(t.id) || t));
       setSelected(new Set());
       showToast(`${rows.length} transaction${rows.length > 1 ? "s" : ""} unverified.`, "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setUnverifyingIds(new Set());
+      if (isMountedRef.current) {
+        setUnverifyingIds(new Set());
+      }
     }
   }, [bulkUnverifyModal, setTransactions, showToast]);
 
@@ -780,12 +888,21 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
     try {
       await sbDeleteTransaction(id);
+      if (!isMountedRef.current) return;
       setTransactions(p => p.filter(t => t.id !== id));
+      setSelected(prev => {
+        const s = new Set(prev);
+        s.delete(id);
+        return s;
+      });
       showToast("Transaction deleted.", "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setDeletingId(null);
+      if (isMountedRef.current) {
+        setDeletingId(null);
+      }
     }
   }, [deleteModal, setTransactions, showToast]);
 
@@ -800,13 +917,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       for (const id of ids) {
         await sbDeleteTransaction(id);
       }
+      if (!isMountedRef.current) return;
       setTransactions(p => p.filter(t => !ids.includes(t.id)));
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} deleted.`, "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setBulkDeletingIds(new Set());
+      if (isMountedRef.current) {
+        setBulkDeletingIds(new Set());
+      }
     }
   }, [bulkDeleteModal, setTransactions, showToast]);
 
@@ -822,7 +943,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     }
 
     inserted.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (!isMountedRef.current) return;
+
     setTransactions(p => [...inserted, ...p]);
+    setImportModal(false);
     showToast(`Imported ${inserted.length} transaction${inserted.length !== 1 ? "s" : ""} successfully!`, "success");
   }, [cdsNumber, setTransactions, showToast]);
 
@@ -855,6 +980,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const showCheckbox = true;
   const showActions = !isRO;
+  const initialLoading = loadingTransactions || loadingCompanies;
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -894,14 +1020,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         <TransactionFormModal
           key={formModal.transaction?.id || "new"}
           transaction={formModal.transaction}
-          companies={companies}
+          companies={effectiveCompanies}
           onConfirm={handleFormConfirm}
           onClose={() => setFormModal({ open: false, transaction: null })}
         />
       )}
 
       {importModal && (
-        <ImportTransactionsModal companies={companies} onImport={handleImport} onClose={() => setImportModal(false)} />
+        <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={() => setImportModal(false)} />
       )}
 
       {actionModal && (
@@ -981,6 +1107,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
 
+        <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
+
         {selected.size > 0 && (
           <>
             {canBulkConfirm && (
@@ -1040,17 +1168,35 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         )}
 
         {(isDE || isSAAD) && (
-          <Btn variant="navy" icon="+" onClick={() => openFormModal(null)}>Record Transaction</Btn>
+          <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
         )}
 
         {(isDE || isSAAD) && (
-          <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)}>Import</Btn>
+          <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
         )}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
-          {stats.total === 0 ? (
+          {initialLoading ? (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+              <div style={{ fontSize: 13 }}>Loading transactions...</div>
+            </div>
+          ) : pageError ? (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: C.red }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+              <div style={{ fontWeight: 600 }}>Failed to load transactions</div>
+              <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{pageError}</div>
+              <button
+                onClick={loadTransactions}
+                style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : stats.total === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No transactions yet</div>
