@@ -5,9 +5,7 @@ import { C, fmt, fmtSmart, Btn, StatCard, SectionCard, Modal, PriceHistoryModal,
 
 export default function CompaniesPage({ companies: globalCompanies, setCompanies, transactions, showToast, role, profile, manageOnly = false }) {
   const isSA = role === "SA";
-  const isSAAD = role === "SA" || role === "AD";
   const cdsNumber = profile?.cds_number || null;
-  const currentUserId = profile?.id || null;
 
   const [activeTab, setActiveTab] = useState(manageOnly ? "manage" : "portfolio");
 
@@ -41,8 +39,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       setPortfolioLoading(false);
       return;
     }
+
     setPortfolioLoading(true);
     setPortfolioError(null);
+
     try {
       const data = await sbGetPortfolio(cdsNumber);
       setPortfolio(data);
@@ -78,6 +78,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     const priced = portfolio.filter(c => c.cds_price != null);
     const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
     const highest = priced.length ? Math.max(...priced.map(c => Number(c.cds_price))) : 0;
+
     return {
       total: portfolio.length,
       avgPrice,
@@ -169,6 +170,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         if (setCompanies) setCompanies(prev => [rows[0], ...prev]);
         showToast("Company registered!", "success");
       }
+
       setFormModal({ open: false, company: null });
     } catch (e) {
       showToast("Error: " + e.message, "error");
@@ -404,18 +406,23 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
             <StatCard label="Total Companies" value={manageStats.total} sub="In master registry" icon="🏢" color={C.navy} />
             <StatCard label="Registered Today" value={manageStats.registeredToday} sub="Added today" icon="✅" color={C.green} />
-            <StatCard label="Visible To" value="All Users" sub="Based on their transactions" icon="👁️" color={C.gold} />
-          </div>
 
-          <div style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", border: `1px solid #BFDBFE`, borderRadius: 12, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 18 }}>🔒</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: "#1D4ED8" }}>Super Admin — Master Registry</div>
-                <div style={{ fontSize: 12, color: "#3B82F6" }}>Only you can register or delete companies. Companies appear in users' Holdings automatically once they have a transaction for them.</div>
-              </div>
+            <div
+              style={{
+                background: C.white,
+                border: `1px solid ${C.gray200}`,
+                borderRadius: 12,
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 90,
+              }}
+            >
+              <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>
+                Register Company
+              </Btn>
             </div>
-            <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register Company</Btn>
           </div>
 
           <SectionCard title={`Master Company Registry (${masterList.length})`} subtitle="All listed companies available in the system">
