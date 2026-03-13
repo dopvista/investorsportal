@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { sbGet, getSession, sbSignOut, sbGetProfile, sbGetMyRole, sbGetSiteSettings } from "./lib/supabase";
 import { C, Toast } from "./components/ui";
 import CompaniesPage from "./pages/CompaniesPage";
@@ -24,55 +24,47 @@ const NAV = [
 // ── Role display config ────────────────────────────────────────────
 export { ROLE_META } from "./lib/constants";
 
-const INITIAL_TOAST = { msg: "", type: "" };
-const EMPTY_ARRAY = [];
-
 export default function App() {
   const [session, setSession] = useState(undefined);
   const [profile, setProfile] = useState(undefined);
   const [role, setRole] = useState(null);
-  const [tab, setTab] = useState("companies");
+  const [tab, setTab] = useState(() => {
+    try {
+      return localStorage.getItem("app_active_tab") || "companies";
+    } catch {
+      return "companies";
+    }
+  });
   const [loginSettings, setLoginSettings] = useState(null);
-  const [companies, setCompanies] = useState(EMPTY_ARRAY);
-  const [transactions, setTransactions] = useState(EMPTY_ARRAY);
+  const [companies, setCompanies] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(null);
-  const [toast, setToast] = useState(INITIAL_TOAST);
+  const [toast, setToast] = useState({ msg: "", type: "" });
   const [recoveryMode, setRecoveryMode] = useState(false);
 
-  const toastTimerRef = useRef(null);
-
-  const resetAppState = useCallback(() => {
-    setSession(null);
-    setProfile(undefined);
-    setRole(null);
-    setCompanies(EMPTY_ARRAY);
-    setTransactions(EMPTY_ARRAY);
-    setTab("companies");
-    setLoading(true);
-    setDbError(null);
-  }, []);
-
-  const showToast = useCallback((msg, type = "success") => {
+  const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToast(INITIAL_TOAST);
-    }, 3500);
-  }, []);
+    setTimeout(() => setToast({ msg: "", type: "" }), 3500);
+  };
 
   useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
+    try {
+      localStorage.setItem("app_active_tab", tab);
+    } catch {}
+  }, [tab]);
 
   // ── Auto logout after 5 minutes of inactivity ────────────────────
   useIdleLogout({
     enabled: !!session && !recoveryMode,
     onLogout: () => {
-      resetAppState();
+      setSession(null);
+      setProfile(undefined);
+      setRole(null);
+      setCompanies([]);
+      setTransactions([]);
+      setLoading(true);
+      setDbError(null);
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
   });
@@ -82,6 +74,7 @@ export default function App() {
     const hash = window.location.hash;
     const search = window.location.search;
 
+    // ── Old hash-based recovery flow ──────────────────────────────
     if (hash.includes("type=recovery")) {
       const params = new URLSearchParams(hash.replace("#", ""));
       const accessToken = params.get("access_token");
@@ -94,16 +87,14 @@ export default function App() {
       }
     }
 
+    // ── New PKCE code-based recovery flow ─────────────────────────
     const qp = new URLSearchParams(search);
     const code = qp.get("code");
     const type = qp.get("type");
-
     if (code && type === "recovery") {
       window.history.replaceState(null, "", window.location.pathname);
-
       const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
       const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
       fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: KEY },
@@ -124,7 +115,6 @@ export default function App() {
           const s = getSession();
           setSession(s || null);
         });
-
       return;
     }
 
@@ -134,32 +124,36 @@ export default function App() {
 
   // ── Load login page settings + subscribe to realtime changes ─────
   useEffect(() => {
-    const loadLoginSettings = () => {
-      sbGetSiteSettings("login_page")
-        .then(data => {
-          if (data) setLoginSettings(data);
-        })
-        .catch(() => {});
-    };
-
-    loadLoginSettings();
+    sbGetSiteSettings("login_page")
+      .then(data => {
+        if (data) setLoginSettings(data);
+      })
+      .catch(() => {});
 
     try {
-      window.addEventListener("focus", loadLoginSettings);
+      const handleFocus = () => {
+        sbGetSiteSettings("login_page")
+          .then(data => {
+            if (data) setLoginSettings(data);
+          })
+          .catch(() => {});
+      };
+
+      window.addEventListener("focus", handleFocus);
 
       const bc = new BroadcastChannel("dse_site_settings");
-      bc.onmessage = e => {
+      bc.onmessage = (e) => {
         if (e.data?.key === "login_page" && e.data?.value) {
           setLoginSettings(e.data.value);
         }
       };
 
       return () => {
-        window.removeEventListener("focus", loadLoginSettings);
+        window.removeEventListener("focus", handleFocus);
         bc.close();
       };
     } catch {
-      return undefined;
+      // BroadcastChannel not supported — silently ignore
     }
   }, []);
 
@@ -167,76 +161,51 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
 
-    let cancelled = false;
-
     (async () => {
       try {
         const freshToken = session?.access_token;
-
-        const [p, r, c, t] = await Promise.all([
+        const [p, r, c] = await Promise.all([
           sbGetProfile(freshToken),
           sbGetMyRole(freshToken),
           sbGet("companies"),
-          sbGet("transactions"),
         ]);
 
-        if (cancelled) return;
+        const t = await sbGet("transactions");
 
         setProfile(p);
         setRole(r);
         setCompanies(c);
         setTransactions(t);
       } catch (e) {
-        if (!cancelled) {
-          setDbError(e.message);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setDbError(e.message);
       }
+      setLoading(false);
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [session]);
 
-  const handleLogin = useCallback((s) => setSession(s), []);
-  const handleProfileDone = useCallback((p) => setProfile(p), []);
+  // ── Safety: if saved tab is not allowed for current role, fallback ──
+  useEffect(() => {
+    if (!role || !tab) return;
 
-  const handleSignOut = useCallback(async () => {
+    const visibleIds = NAV.filter(item => item.roles.includes(role)).map(item => item.id);
+    if (tab !== "profile" && !visibleIds.includes(tab)) {
+      setTab("companies");
+    }
+  }, [role, tab]);
+
+  const handleLogin = (s) => setSession(s);
+  const handleProfileDone = (p) => setProfile(p);
+
+  const handleSignOut = async () => {
     await sbSignOut();
-    resetAppState();
-  }, [resetAppState]);
-
-  const filteredTransactions = useMemo(
-    () => transactions.filter(t => t.cds_number === profile?.cds_number),
-    [transactions, profile?.cds_number]
-  );
-
-  const visibleNav = useMemo(
-    () => NAV.filter(item => !role || item.roles.includes(role)),
-    [role]
-  );
-
-  const cdsCompanyCount = useMemo(
-    () => new Set(filteredTransactions.map(t => t.company_id)).size,
-    [filteredTransactions]
-  );
-
-  const counts = useMemo(
-    () => ({ companies: cdsCompanyCount, transactions: filteredTransactions.length }),
-    [cdsCompanyCount, filteredTransactions.length]
-  );
-
-  const activeNav = useMemo(
-    () => NAV.find(n => n.id === tab),
-    [tab]
-  );
-
-  const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
-  const now = useMemo(() => new Date(), []);
+    setSession(null);
+    setProfile(undefined);
+    setRole(null);
+    setCompanies([]);
+    setTransactions([]);
+    setLoading(true);
+    setDbError(null);
+  };
 
   if (recoveryMode) {
     return (
@@ -351,7 +320,7 @@ export default function App() {
         <style>{`
           @keyframes spin  { to { transform: rotate(360deg); } }
           @keyframes pulse { 0%,100% { opacity:0.4; transform:scale(0.95); } 50% { opacity:1; transform:scale(1); } }
-          @keyframes bar   { 0% { width:0% } 100% { width:100% } }
+          @keyframes bar   { 0% { width:"0%" } 100% { width:"100%" } }
         `}</style>
         <div
           style={{
@@ -441,9 +410,17 @@ export default function App() {
     );
   }
 
+  const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
   if (profileIncomplete) {
     return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
   }
+
+  const filteredTransactions = transactions.filter(t => t.cds_number === profile?.cds_number);
+
+  const visibleNav = NAV.filter(item => !role || item.roles.includes(role));
+  const cdsCompanyCount = new Set(filteredTransactions.map(t => t.company_id)).size;
+  const counts = { companies: cdsCompanyCount, transactions: filteredTransactions.length };
+  const now = new Date();
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'Inter', system-ui, sans-serif", background: C.gray50, overflow: "hidden" }}>
@@ -613,7 +590,7 @@ export default function App() {
               {tab === "profile" && "My Profile"}
               {tab === "user-management" && "User Management"}
               {tab === "system-settings" && "System Settings"}
-              {tab !== "profile" && tab !== "user-management" && tab !== "system-settings" && activeNav?.label}
+              {tab !== "profile" && tab !== "user-management" && tab !== "system-settings" && NAV.find(n => n.id === tab)?.label}
             </div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 1 }}>
               {tab === "companies" && "Your CDS portfolio holdings"}
