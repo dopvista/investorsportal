@@ -490,6 +490,43 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [companies, localCompanies]
   );
 
+  const toolbarControlStyle = useMemo(() => ({
+    height: 36,
+    borderRadius: 8,
+    fontSize: 12,
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  }), []);
+
+  const toolbarButtonStyle = useMemo(() => ({
+    ...toolbarControlStyle,
+    padding: "0 14px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  }), [toolbarControlStyle]);
+
+  const toolbarInputStyle = useMemo(() => ({
+    ...toolbarControlStyle,
+    width: "100%",
+    border: `1.5px solid ${C.gray200}`,
+    padding: "0 10px 0 32px",
+    outline: "none",
+    color: C.text,
+  }), [toolbarControlStyle]);
+
+  const toolbarSelectStyle = useMemo(() => ({
+    ...toolbarControlStyle,
+    padding: "0 10px",
+    background: C.white,
+    cursor: "pointer",
+    outline: "none",
+    flexShrink: 0,
+  }), [toolbarControlStyle]);
+
   const loadTransactions = useCallback(async () => {
     const requestId = ++txLoadRef.current;
 
@@ -1053,127 +1090,188 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         {statCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap", flexShrink: 0 }}>
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-          <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); resetPage(); }}
-            placeholder="Search company, type, date, remarks..."
-            style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "6px 10px 6px 32px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 8,
+          flexShrink: 0,
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 0,
+            flex: 1,
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 220, maxWidth: 340, position: "relative" }}>
+            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); resetPage(); }}
+              placeholder="Search company, type, date, remarks..."
+              style={toolbarInputStyle}
+              onFocus={e => { e.target.style.borderColor = C.navy; }}
+              onBlur={e => { e.target.style.borderColor = C.gray200; }}
+            />
+          </div>
+
+          {["All", "Buy", "Sell"].map(t => (
+            <button
+              key={t}
+              onClick={() => { setTypeFilter(t); resetPage(); }}
+              style={{
+                ...toolbarButtonStyle,
+                border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`,
+                background: typeFilter === t ? C.navy : C.white,
+                color: typeFilter === t ? C.white : C.gray600,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {t}
+            </button>
+          ))}
+
+          <select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+            style={{
+              ...toolbarSelectStyle,
+              border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`,
+              color: statusFilter !== "All" ? C.navy : C.gray600,
+              fontWeight: statusFilter !== "All" ? 700 : 400,
+            }}
             onFocus={e => { e.target.style.borderColor = C.navy; }}
-            onBlur={e => { e.target.style.borderColor = C.gray200; }}
-          />
+            onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}
+          >
+            {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
         </div>
 
-        {["All", "Buy", "Sell"].map(t => (
-          <button
-            key={t}
-            onClick={() => { setTypeFilter(t); resetPage(); }}
-            style={{
-              padding: "5px 12px",
-              borderRadius: 8,
-              border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`,
-              background: typeFilter === t ? C.navy : C.white,
-              color: typeFilter === t ? C.white : C.gray600,
-              fontWeight: 600,
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            {t}
-          </button>
-        ))}
-
-        <select
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+        <div
           style={{
-            padding: "5px 10px",
-            borderRadius: 8,
-            border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`,
-            fontSize: 12,
-            fontFamily: "inherit",
-            color: statusFilter !== "All" ? C.navy : C.gray600,
-            fontWeight: statusFilter !== "All" ? 700 : 400,
-            outline: "none",
-            background: C.white,
-            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            overflowX: "auto",
+            scrollbarWidth: "thin",
+            maxWidth: "55%",
+            paddingBottom: 2,
           }}
-          onFocus={e => { e.target.style.borderColor = C.navy; }}
-          onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}
         >
-          {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+          <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
 
-        <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
+          {selected.size > 0 && (
+            <>
+              {canBulkDelete && (
+                <button
+                  onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
+                  disabled={isAnyDeleting}
+                  style={{
+                    ...toolbarButtonStyle,
+                    border: `1.5px solid #FECACA`,
+                    background: isAnyDeleting ? C.gray100 : C.redBg,
+                    color: C.red,
+                    fontWeight: 700,
+                    cursor: isAnyDeleting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
+                </button>
+              )}
 
-        {selected.size > 0 && (
-          <>
-            {canBulkConfirm && (
-              <button
-                onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
-                disabled={isAnyConfirming}
-                style={{ padding: "5px 14px", borderRadius: 8, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, fontSize: 12, cursor: isAnyConfirming ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
-              </button>
-            )}
+              {canBulkConfirm && (
+                <button
+                  onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
+                  disabled={isAnyConfirming}
+                  style={{
+                    ...toolbarButtonStyle,
+                    border: "none",
+                    background: isAnyConfirming ? C.gray200 : "#1D4ED8",
+                    color: C.white,
+                    fontWeight: 700,
+                    cursor: isAnyConfirming ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
+                </button>
+              )}
 
-            {canBulkDelete && (
-              <button
-                onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
-                disabled={isAnyDeleting}
-                style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, fontSize: 12, cursor: isAnyDeleting ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
-              </button>
-            )}
+              {canBulkVerify && (
+                <button
+                  onClick={() => handleVerify(selectedBuckets.confirmed)}
+                  disabled={isAnyVerifying}
+                  style={{
+                    ...toolbarButtonStyle,
+                    border: "none",
+                    background: isAnyVerifying ? C.gray200 : C.green,
+                    color: C.white,
+                    fontWeight: 700,
+                    cursor: isAnyVerifying ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
+                </button>
+              )}
 
-            {canBulkVerify && (
-              <button
-                onClick={() => handleVerify(selectedBuckets.confirmed)}
-                disabled={isAnyVerifying}
-                style={{ padding: "5px 14px", borderRadius: 8, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 12, cursor: isAnyVerifying ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
-              </button>
-            )}
+              {canBulkReject && (
+                <button
+                  onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
+                  disabled={isAnyRejecting}
+                  style={{
+                    ...toolbarButtonStyle,
+                    border: `1.5px solid #FECACA`,
+                    background: isAnyRejecting ? C.gray100 : C.redBg,
+                    color: C.red,
+                    fontWeight: 700,
+                    cursor: isAnyRejecting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
+                </button>
+              )}
 
-            {canBulkReject && (
-              <button
-                onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
-                disabled={isAnyRejecting}
-                style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, fontSize: 12, cursor: isAnyRejecting ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
-              </button>
-            )}
+              {canBulkUnverify && (
+                <button
+                  onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
+                  disabled={isAnyUnverifying}
+                  style={{
+                    ...toolbarButtonStyle,
+                    border: `1.5px solid ${C.gray200}`,
+                    background: isAnyUnverifying ? C.gray100 : C.white,
+                    color: C.gray600,
+                    fontWeight: 700,
+                    cursor: isAnyUnverifying ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
+                </button>
+              )}
+            </>
+          )}
 
-            {canBulkUnverify && (
-              <button
-                onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
-                disabled={isAnyUnverifying}
-                style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, fontSize: 12, cursor: isAnyUnverifying ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
-              </button>
-            )}
-          </>
-        )}
+          {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
+            <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
+          )}
 
-        {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
-          <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
-        )}
+          {(isDE || isSAAD) && (
+            <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
+          )}
 
-        {(isDE || isSAAD) && (
-          <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
-        )}
-
-        {(isDE || isSAAD) && (
-          <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
-        )}
+          {(isDE || isSAAD) && (
+            <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
+          )}
+        </div>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
