@@ -1,5 +1,5 @@
 // ── src/pages/CompaniesPage.jsx ───────────────────────────────────
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { sbInsert, sbUpdate, sbDelete, sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies } from "../lib/supabase";
 import { C, fmt, fmtSmart, Btn, StatCard, SectionCard, Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu } from "../components/ui";
 
@@ -25,6 +25,18 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [updateModal, setUpdateModal] = useState({ open: false, company: null });
   const [formModal, setFormModal] = useState({ open: false, company: null });
 
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setActiveTab(manageOnly ? "manage" : "portfolio");
+  }, [manageOnly]);
+
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
   const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -36,34 +48,52 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const loadPortfolio = useCallback(async () => {
     if (!cdsNumber) {
-      setPortfolioLoading(false);
+      if (isMountedRef.current) {
+        setPortfolio([]);
+        setPortfolioLoading(false);
+        setPortfolioError(null);
+      }
       return;
     }
 
-    setPortfolioLoading(true);
-    setPortfolioError(null);
+    if (isMountedRef.current) {
+      setPortfolioLoading(true);
+      setPortfolioError(null);
+    }
 
     try {
       const data = await sbGetPortfolio(cdsNumber);
+      if (!isMountedRef.current) return;
       setPortfolio(data);
     } catch (e) {
+      if (!isMountedRef.current) return;
       setPortfolioError(e.message);
     } finally {
-      setPortfolioLoading(false);
+      if (isMountedRef.current) {
+        setPortfolioLoading(false);
+      }
     }
   }, [cdsNumber]);
 
   const loadMasterList = useCallback(async () => {
-    setMasterLoading(true);
+    if (isMountedRef.current) {
+      setMasterLoading(true);
+    }
+
     try {
       const data = await sbGetAllCompanies();
+      if (!isMountedRef.current) return;
       setMasterList(data);
+      if (setCompanies) setCompanies(data);
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error loading companies: " + e.message, "error");
     } finally {
-      setMasterLoading(false);
+      if (isMountedRef.current) {
+        setMasterLoading(false);
+      }
     }
-  }, [showToast]);
+  }, [setCompanies, showToast]);
 
   useEffect(() => {
     loadPortfolio();
@@ -121,6 +151,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         datetime,
       });
 
+      if (!isMountedRef.current) return;
+
       setPortfolio(prev =>
         prev.map(c =>
           c.id === company.id
@@ -137,9 +169,12 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
       showToast("Price updated for your portfolio!", "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setUpdating(null);
+      if (isMountedRef.current) {
+        setUpdating(null);
+      }
     }
   }, [updateModal.company, cdsNumber, profile?.full_name, showToast]);
 
@@ -147,11 +182,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     setLoadingHistory(company.id);
     try {
       const history = await sbGetCdsPriceHistory(company.id, cdsNumber);
+      if (!isMountedRef.current) return;
       setHistoryModal({ open: true, company, history });
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error loading history: " + e.message, "error");
     } finally {
-      setLoadingHistory(null);
+      if (isMountedRef.current) {
+        setLoadingHistory(null);
+      }
     }
   }, [cdsNumber, showToast]);
 
@@ -162,10 +201,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     try {
       if (isEdit) {
         const rows = await sbUpdate("companies", editingCompany.id, { name, remarks });
+        if (!isMountedRef.current) return;
         setMasterList(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
+        if (setCompanies) {
+          setCompanies(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
+        }
         showToast("Company updated!", "success");
       } else {
         const rows = await sbInsert("companies", { name, price, remarks });
+        if (!isMountedRef.current) return;
         setMasterList(prev => [rows[0], ...prev]);
         if (setCompanies) setCompanies(prev => [rows[0], ...prev]);
         showToast("Company registered!", "success");
@@ -173,6 +217,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
       setFormModal({ open: false, company: null });
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     }
   }, [formModal.company, setCompanies, showToast]);
@@ -186,13 +231,17 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
     try {
       await sbDelete("companies", id);
+      if (!isMountedRef.current) return;
       setMasterList(prev => prev.filter(c => c.id !== id));
       if (setCompanies) setCompanies(prev => prev.filter(c => c.id !== id));
       showToast("Company deleted.", "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setDeleting(null);
+      if (isMountedRef.current) {
+        setDeleting(null);
+      }
     }
   }, [deleteModal, setCompanies, showToast]);
 
