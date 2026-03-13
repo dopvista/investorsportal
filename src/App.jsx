@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { sbGet, getSession, sbSignOut, sbGetProfile, sbGetMyRole, sbGetSiteSettings } from "./lib/supabase";
+import { useEffect, useRef, useState } from "react";
+import { getSession, sbSignOut, sbGetProfile, sbGetMyRole, sbGetSiteSettings } from "./lib/supabase";
 import { C, Toast } from "./components/ui";
 import CompaniesPage from "./pages/CompaniesPage";
 import TransactionsPage from "./pages/TransactionsPage";
@@ -43,10 +43,28 @@ export default function App() {
   const [toast, setToast] = useState({ msg: "", type: "" });
   const [recoveryMode, setRecoveryMode] = useState(false);
 
+  const toastTimerRef = useRef(null);
+
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast({ msg: "", type: "" }), 3500);
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+
+    toastTimerRef.current = setTimeout(() => {
+      setToast({ msg: "", type: "" });
+      toastTimerRef.current = null;
+    }, 3500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -63,7 +81,7 @@ export default function App() {
       setRole(null);
       setCompanies([]);
       setTransactions([]);
-      setLoading(true);
+      setLoading(false);
       setDbError(null);
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
@@ -71,116 +89,178 @@ export default function App() {
 
   // ── Check session on mount — intercepts recovery tokens (hash + PKCE) ──
   useEffect(() => {
-    const hash = window.location.hash;
-    const search = window.location.search;
+    let cancelled = false;
 
-    // ── Old hash-based recovery flow ──────────────────────────────
-    if (hash.includes("type=recovery")) {
-      const params = new URLSearchParams(hash.replace("#", ""));
-      const accessToken = params.get("access_token");
-      if (accessToken) {
-        localStorage.setItem("sb_recovery_token", accessToken);
-        window.history.replaceState(null, "", window.location.pathname);
-        setRecoveryMode(true);
-        setSession(null);
-        return;
+    const resolveSession = async () => {
+      const hash = window.location.hash;
+      const search = window.location.search;
+
+      // ── Old hash-based recovery flow ──────────────────────────────
+      if (hash.includes("type=recovery")) {
+        const params = new URLSearchParams(hash.replace("#", ""));
+        const accessToken = params.get("access_token");
+        if (accessToken) {
+          localStorage.setItem("sb_recovery_token", accessToken);
+          window.history.replaceState(null, "", window.location.pathname);
+          if (!cancelled) {
+            setRecoveryMode(true);
+            setSession(null);
+            setLoading(false);
+          }
+          return;
+        }
       }
-    }
 
-    // ── New PKCE code-based recovery flow ─────────────────────────
-    const qp = new URLSearchParams(search);
-    const code = qp.get("code");
-    const type = qp.get("type");
-    if (code && type === "recovery") {
-      window.history.replaceState(null, "", window.location.pathname);
-      const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-      const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: KEY },
-        body: JSON.stringify({ auth_code: code }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.access_token) {
+      // ── New PKCE code-based recovery flow ─────────────────────────
+      const qp = new URLSearchParams(search);
+      const code = qp.get("code");
+      const type = qp.get("type");
+
+      if (code && type === "recovery") {
+        window.history.replaceState(null, "", window.location.pathname);
+
+        const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+        const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        try {
+          const res = await fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: KEY },
+            body: JSON.stringify({ auth_code: code }),
+          });
+
+          const data = await res.json();
+
+          if (cancelled) return;
+
+          if (data?.access_token) {
             localStorage.setItem("sb_recovery_token", data.access_token);
             setRecoveryMode(true);
             setSession(null);
-          } else {
-            const s = getSession();
-            setSession(s || null);
+            setLoading(false);
+            return;
           }
-        })
-        .catch(() => {
-          const s = getSession();
-          setSession(s || null);
-        });
-      return;
-    }
+        } catch {}
 
-    const s = getSession();
-    setSession(s || null);
+        const s = await Promise.resolve(getSession());
+        if (!cancelled) {
+          setSession(s || null);
+        }
+        return;
+      }
+
+      const s = await Promise.resolve(getSession());
+      if (!cancelled) {
+        setSession(s || null);
+      }
+    };
+
+    resolveSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Load login page settings + subscribe to realtime changes ─────
   useEffect(() => {
-    sbGetSiteSettings("login_page")
-      .then(data => {
-        if (data) setLoginSettings(data);
-      })
-      .catch(() => {});
+    let cancelled = false;
+    let bc;
+
+    const loadLoginSettings = async () => {
+      try {
+        const data = await sbGetSiteSettings("login_page");
+        if (!cancelled && data) {
+          setLoginSettings(data);
+        }
+      } catch {}
+    };
+
+    loadLoginSettings();
 
     try {
       const handleFocus = () => {
-        sbGetSiteSettings("login_page")
-          .then(data => {
-            if (data) setLoginSettings(data);
-          })
-          .catch(() => {});
+        loadLoginSettings();
       };
 
       window.addEventListener("focus", handleFocus);
 
-      const bc = new BroadcastChannel("dse_site_settings");
+      bc = new BroadcastChannel("dse_site_settings");
       bc.onmessage = (e) => {
-        if (e.data?.key === "login_page" && e.data?.value) {
+        if (!cancelled && e.data?.key === "login_page" && e.data?.value) {
           setLoginSettings(e.data.value);
         }
       };
 
       return () => {
+        cancelled = true;
         window.removeEventListener("focus", handleFocus);
-        bc.close();
+        if (bc) bc.close();
       };
     } catch {
-      // BroadcastChannel not supported — silently ignore
+      return () => {
+        cancelled = true;
+      };
     }
   }, []);
 
-  // ── Load profile + role + data once session confirmed ────────────
+  // ── Load profile + role + core settings once session confirmed ───
   useEffect(() => {
-    if (!session) return;
+    let cancelled = false;
 
-    (async () => {
+    const loadAppCore = async () => {
+      if (session === undefined) return;
+
+      if (!session) {
+        if (!cancelled) {
+          setProfile(undefined);
+          setRole(null);
+          setCompanies([]);
+          setTransactions([]);
+          setDbError(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setLoading(true);
+        setDbError(null);
+      }
+
       try {
         const freshToken = session?.access_token;
-        const [p, r, c] = await Promise.all([
+
+        const [p, r] = await Promise.all([
           sbGetProfile(freshToken),
           sbGetMyRole(freshToken),
-          sbGet("companies"),
         ]);
 
-        const t = await sbGet("transactions");
+        if (cancelled) return;
 
         setProfile(p);
         setRole(r);
-        setCompanies(c);
-        setTransactions(t);
+
+        // Keep app boot light:
+        // do not fetch all companies / all transactions here.
+        setCompanies([]);
+        setTransactions([]);
       } catch (e) {
-        setDbError(e.message);
+        if (!cancelled) {
+          setDbError(e?.message || "Failed to load application data.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    })();
+    };
+
+    loadAppCore();
+
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   // ── Safety: if saved tab is not allowed for current role, fallback ──
@@ -193,7 +273,11 @@ export default function App() {
     }
   }, [role, tab]);
 
-  const handleLogin = (s) => setSession(s);
+  const handleLogin = (s) => {
+    setDbError(null);
+    setSession(s);
+  };
+
   const handleProfileDone = (p) => setProfile(p);
 
   const handleSignOut = async () => {
@@ -203,7 +287,7 @@ export default function App() {
     setRole(null);
     setCompanies([]);
     setTransactions([]);
-    setLoading(true);
+    setLoading(false);
     setDbError(null);
   };
 
