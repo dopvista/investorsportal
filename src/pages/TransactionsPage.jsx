@@ -26,11 +26,11 @@ const STATUS = {
 
 const defaultStatus = "All";
 const statusOptions = [
-  ["All","All Statuses"],
-  ["pending","🕐 Pending"],
-  ["confirmed","✅ Confirmed"],
-  ["verified","✔️ Verified"],
-  ["rejected","✖ Rejected"],
+  ["All", "All Statuses"],
+  ["pending", "🕐 Pending"],
+  ["confirmed", "✅ Confirmed"],
+  ["verified", "✔️ Verified"],
+  ["rejected", "✖ Rejected"],
 ];
 
 // ── Spinner ────────────────────────────────────────────────────────
@@ -38,17 +38,19 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
   return (
     <>
       <style>{`@keyframes _txSpin { to { transform: rotate(360deg); } }`}</style>
-      <span style={{
-        display: "inline-block",
-        width: size,
-        height: size,
-        border: `2px solid ${color}33`,
-        borderTop: `2px solid ${color}`,
-        borderRadius: "50%",
-        animation: "_txSpin 0.65s linear infinite",
-        flexShrink: 0,
-        ...style,
-      }} />
+      <span
+        style={{
+          display: "inline-block",
+          width: size,
+          height: size,
+          border: `2px solid ${color}33`,
+          borderTop: `2px solid ${color}`,
+          borderRadius: "50%",
+          animation: "_txSpin 0.65s linear infinite",
+          flexShrink: 0,
+          ...style,
+        }}
+      />
     </>
   );
 });
@@ -56,11 +58,21 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
 const StatusBadge = memo(function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.pending;
   return (
-    <span style={{
-      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
-      whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4,
-    }}>
+    <span
+      style={{
+        background: s.bg,
+        color: s.color,
+        border: `1px solid ${s.border}`,
+        padding: "3px 10px",
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
       {s.icon} {s.label}
     </span>
   );
@@ -102,8 +114,8 @@ function RejectModal({ count, onConfirm, onClose }) {
             placeholder="Explain why this transaction is being rejected..."
             rows={4}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, boxSizing: "border-box" }}
-            onFocus={e => e.target.style.borderColor = C.red}
-            onBlur={e => e.target.style.borderColor = C.gray200}
+            onFocus={e => { e.target.style.borderColor = C.red; }}
+            onBlur={e => { e.target.style.borderColor = C.gray200; }}
           />
           <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>This comment will be visible to the Data Entrant.</div>
         </div>
@@ -243,15 +255,182 @@ const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
       onClick={onClick}
       disabled={disabled}
       style={{
-        width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`,
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: `1.5px solid ${active ? C.navy : C.gray200}`,
         background: active ? C.navy : disabled ? C.gray50 : C.white,
         color: active ? C.white : disabled ? C.gray400 : C.gray600,
-        fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer",
-        fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: active ? 700 : 500,
+        fontSize: 12,
+        cursor: disabled ? "default" : "pointer",
+        fontFamily: "inherit",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
       {label}
     </button>
+  );
+});
+
+const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
+  const isPending = transaction.status === "pending";
+  const isConfirmed = transaction.status === "confirmed";
+  const isVerified = transaction.status === "verified";
+  const isRejected = transaction.status === "rejected";
+
+  return {
+    canConfirm: (isDE || isSAAD) && (isPending || isRejected),
+    canEdit: isSAAD || (isDE && (isPending || isRejected)),
+    canDelete: isDE ? (isPending || isRejected) : isSAAD,
+    canUnVerify: isSAAD && isVerified,
+    canVerify: (isVR || isSAAD) && isConfirmed,
+    canReject: (isVR || isSAAD) && isConfirmed,
+    isPending,
+    isConfirmed,
+    isVerified,
+    isRejected,
+  };
+};
+
+const TransactionRow = memo(function TransactionRow({
+  transaction,
+  globalIdx,
+  selected,
+  onToggleOne,
+  onOpenFormModal,
+  onOpenRejectModal,
+  onOpenDeleteModal,
+  onHandleConfirm,
+  onHandleVerify,
+  onHandleUnverify,
+  confirmingIds,
+  verifyingIds,
+  rejectingIds,
+  unverifyingIds,
+  deletingId,
+  bulkDeletingIds,
+  isDE,
+  isVR,
+  isSAAD,
+  showCheckbox,
+  showActions,
+}) {
+  const gt = Number(transaction.total || 0) + Number(transaction.fees || 0);
+  const isBuy = transaction.type === "Buy";
+  const isChecked = selected.has(transaction.id);
+
+  const perms = getRowPermissions({ transaction, isDE, isVR, isSAAD });
+
+  const isRowConfirming = confirmingIds.has(transaction.id);
+  const isRowVerifying = verifyingIds.has(transaction.id);
+  const isRowRejecting = rejectingIds.has(transaction.id);
+  const isRowUnverifying = unverifyingIds.has(transaction.id);
+  const isRowDeleting = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
+  const isRowBusy = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
+
+  const rowActions = [
+    ...(perms.canEdit ? [{ icon: "✏️", label: "Edit", disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify ? [{ icon: isRowVerifying ? null : "✔️", label: isRowVerifying ? "Verifying..." : "Verify", disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject ? [{ icon: isRowRejecting ? null : "✖", label: isRowRejecting ? "Rejecting..." : "Reject", danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify ? [{ icon: isRowUnverifying ? null : "↩️", label: isRowUnverifying ? "Unverifying..." : "UnVerify", danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete ? [{ icon: isRowDeleting ? null : "🗑️", label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+  ];
+
+  return (
+    <tr
+      style={{
+        borderBottom: `1px solid ${C.gray100}`,
+        transition: "background 0.15s, opacity 0.2s",
+        background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent",
+        opacity: isRowBusy ? 0.6 : 1,
+        pointerEvents: isRowBusy ? "none" : "auto",
+      }}
+      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
+      onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
+    >
+      {showCheckbox && (
+        <td style={{ padding: "7px 10px" }}>
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => onToggleOne(transaction.id)}
+            disabled={isRowBusy}
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }}
+          />
+        </td>
+      )}
+
+      <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
+      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(transaction.date)}</td>
+      <td style={{ padding: "7px 10px", minWidth: 100 }}>
+        <div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{transaction.company_name}</div>
+      </td>
+      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+          {isBuy ? "▲ Buy" : "▼ Sell"}
+        </span>
+      </td>
+      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right" }}>{fmtInt(transaction.qty)}</td>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
+      </td>
+      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{fmt(transaction.total)}</td>
+      <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
+        {transaction.fees ? fmt(transaction.fees) : <span style={{ color: C.gray400 }}>—</span>}
+      </td>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+          {fmt(gt)}
+        </span>
+      </td>
+      <td style={{ padding: "7px 10px", color: C.gray600, maxWidth: 130, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {transaction.remarks || <span style={{ color: C.gray400 }}>—</span>}
+      </td>
+      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+        <StatusBadge status={transaction.status} />
+        {perms.isRejected && transaction.rejection_comment && (
+          <div style={{ fontSize: 10, color: C.red, marginTop: 3, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
+            💬 {transaction.rejection_comment}
+          </div>
+        )}
+      </td>
+
+      {showActions && (
+        <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+          {perms.canConfirm && (
+            <button
+              onClick={() => onHandleConfirm(transaction.id, transaction.company_name, transaction.status)}
+              disabled={isRowBusy}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 7,
+                border: "none",
+                background: isRowConfirming ? C.gray100 : "#EFF6FF",
+                color: isRowConfirming ? C.gray400 : "#1D4ED8",
+                fontWeight: 700,
+                fontSize: 11,
+                cursor: isRowBusy ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                marginRight: rowActions.length ? 6 : 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                minWidth: 80,
+                justifyContent: "center",
+              }}
+            >
+              {isRowConfirming
+                ? <><Spinner size={11} color={C.gray400} /> Confirming</>
+                : "✅ Confirm"}
+            </button>
+          )}
+          {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
+        </td>
+      )}
+    </tr>
   );
 });
 
@@ -325,6 +504,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const filtered = useMemo(() => {
     let list = myTransactions;
+
     if (typeFilter !== "All") list = list.filter(t => t.type === typeFilter);
     if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
 
@@ -350,12 +530,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
+
   const paginated = useMemo(
     () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
     [filtered, safePage, pageSize]
   );
 
   const resetPage = useCallback(() => setPage(1), []);
+
+  const resetFilters = useCallback(() => {
+    setSearch("");
+    setTypeFilter("All");
+    setStatusFilter(defaultStatus);
+    setPage(1);
+  }, []);
 
   const totals = useMemo(() => ({
     buyAmount: filtered.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.total || 0), 0),
@@ -389,30 +577,45 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     });
   }, []);
 
-  const selectedIdsArray = useMemo(() => [...selected], [selected]);
+  const selectedBuckets = useMemo(() => {
+    const pendingRejected = [];
+    const confirmed = [];
+    const verified = [];
+    const deletable = [];
 
-  const selectedPendingRejected = useMemo(
-    () => selectedIdsArray.filter(id => {
+    for (const id of selected) {
       const t = txById.get(id);
-      return t && (t.status === "pending" || t.status === "rejected");
-    }),
-    [selectedIdsArray, txById]
-  );
+      if (!t) continue;
 
-  const selectedDeletable = useMemo(
-    () => (isSAAD ? selectedIdsArray.filter(id => txById.has(id)) : selectedPendingRejected),
-    [selectedIdsArray, txById, isSAAD, selectedPendingRejected]
-  );
+      if (t.status === "pending" || t.status === "rejected") pendingRejected.push(id);
+      if (t.status === "confirmed") confirmed.push(id);
+      if (t.status === "verified") verified.push(id);
 
-  const selectedConfirmed = useMemo(
-    () => selectedIdsArray.filter(id => txById.get(id)?.status === "confirmed"),
-    [selectedIdsArray, txById]
-  );
+      if (isSAAD || t.status === "pending" || t.status === "rejected") {
+        deletable.push(id);
+      }
+    }
 
-  const selectedVerified = useMemo(
-    () => selectedIdsArray.filter(id => txById.get(id)?.status === "verified"),
-    [selectedIdsArray, txById]
-  );
+    return { pendingRejected, confirmed, verified, deletable };
+  }, [selected, txById, isSAAD]);
+
+  const canBulkConfirm = (isDE || isSAAD) && selectedBuckets.pendingRejected.length > 0;
+  const canBulkDelete = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
+  const canBulkVerify = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkReject = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkUnverify = isSAAD && selectedBuckets.verified.length > 0;
+
+  const openFormModal = useCallback((transaction = null) => {
+    setFormModal({ open: true, transaction });
+  }, []);
+
+  const openRejectModal = useCallback((ids) => {
+    setRejectModal({ ids });
+  }, []);
+
+  const openDeleteModal = useCallback((transaction) => {
+    setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name });
+  }, []);
 
   const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, remarks, total }) => {
     const isEdit = !!formModal.transaction;
@@ -521,7 +724,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     }
   }, [rejectModal, setTransactions, showToast]);
 
-  const handleUnVerify = async (id) => {
+  const handleUnVerify = useCallback(async (id) => {
     setUnverifyingIds(prev => new Set([...prev, id]));
     try {
       const rows = await sbUnverifyTransaction(id);
@@ -539,9 +742,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         return s;
       });
     }
-  };
+  }, [setTransactions, showToast]);
 
-  const doBulkUnverify = async () => {
+  const doBulkUnverify = useCallback(async () => {
     const ids = bulkUnverifyModal?.ids;
     if (!ids?.length) return;
 
@@ -563,7 +766,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       setUnverifyingIds(new Set());
     }
-  };
+  }, [bulkUnverifyModal, setTransactions, showToast]);
 
   const handleDelete = useCallback(async () => {
     const id = deleteModal?.id;
@@ -729,20 +932,25 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             onChange={e => { setSearch(e.target.value); resetPage(); }}
             placeholder="Search company, type, date, remarks..."
             style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "6px 10px 6px 32px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
-            onFocus={e => e.target.style.borderColor = C.navy}
-            onBlur={e => e.target.style.borderColor = C.gray200}
+            onFocus={e => { e.target.style.borderColor = C.navy; }}
+            onBlur={e => { e.target.style.borderColor = C.gray200; }}
           />
         </div>
 
-        {["All","Buy","Sell"].map(t => (
+        {["All", "Buy", "Sell"].map(t => (
           <button
             key={t}
             onClick={() => { setTypeFilter(t); resetPage(); }}
             style={{
-              padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`,
+              padding: "5px 12px",
+              borderRadius: 8,
+              border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`,
               background: typeFilter === t ? C.navy : C.white,
               color: typeFilter === t ? C.white : C.gray600,
-              fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
             {t}
@@ -753,78 +961,83 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
           style={{
-            padding: "5px 10px", borderRadius: 8,
+            padding: "5px 10px",
+            borderRadius: 8,
             border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`,
-            fontSize: 12, fontFamily: "inherit",
+            fontSize: 12,
+            fontFamily: "inherit",
             color: statusFilter !== "All" ? C.navy : C.gray600,
             fontWeight: statusFilter !== "All" ? 700 : 400,
-            outline: "none", background: C.white, cursor: "pointer",
+            outline: "none",
+            background: C.white,
+            cursor: "pointer",
           }}
-          onFocus={e => e.target.style.borderColor = C.navy}
-          onBlur={e => e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200}
+          onFocus={e => { e.target.style.borderColor = C.navy; }}
+          onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}
         >
           {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
 
         {selected.size > 0 && (
           <>
-            {(isDE || isSAAD) && selectedPendingRejected.length > 0 && (
+            {canBulkConfirm && (
               <button
-                onClick={() => setActionModal({ action: "confirm", ids: selectedPendingRejected, company: null })}
+                onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
                 disabled={isAnyConfirming}
                 style={{ padding: "5px 14px", borderRadius: 8, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, fontSize: 12, cursor: isAnyConfirming ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
               >
-                {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedPendingRejected.length}`}
+                {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
               </button>
             )}
 
-            {(isDE || isSAAD) && selectedDeletable.length > 0 && (
+            {canBulkDelete && (
               <button
-                onClick={() => setBulkDeleteModal({ ids: selectedDeletable })}
+                onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
                 disabled={isAnyDeleting}
                 style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, fontSize: 12, cursor: isAnyDeleting ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
               >
-                {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedDeletable.length}`}
+                {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
               </button>
             )}
 
-            {(isVR || isSAAD) && selectedConfirmed.length > 0 && (
-              <>
-                <button
-                  onClick={() => handleVerify(selectedConfirmed)}
-                  disabled={isAnyVerifying}
-                  style={{ padding: "5px 14px", borderRadius: 8, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 12, cursor: isAnyVerifying ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedConfirmed.length}`}
-                </button>
-                <button
-                  onClick={() => setRejectModal({ ids: selectedConfirmed })}
-                  disabled={isAnyRejecting}
-                  style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, fontSize: 12, cursor: isAnyRejecting ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedConfirmed.length}`}
-                </button>
-              </>
+            {canBulkVerify && (
+              <button
+                onClick={() => handleVerify(selectedBuckets.confirmed)}
+                disabled={isAnyVerifying}
+                style={{ padding: "5px 14px", borderRadius: 8, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 12, cursor: isAnyVerifying ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
+              </button>
             )}
 
-            {isSAAD && selectedVerified.length > 0 && (
+            {canBulkReject && (
               <button
-                onClick={() => setBulkUnverifyModal({ ids: selectedVerified })}
+                onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
+                disabled={isAnyRejecting}
+                style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, fontSize: 12, cursor: isAnyRejecting ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
+              </button>
+            )}
+
+            {canBulkUnverify && (
+              <button
+                onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
                 disabled={isAnyUnverifying}
                 style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, fontSize: 12, cursor: isAnyUnverifying ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
               >
-                {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedVerified.length}`}
+                {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
               </button>
             )}
           </>
         )}
 
         {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
-          <Btn variant="secondary" onClick={() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); resetPage(); }}>Reset</Btn>
+          <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
         )}
 
         {(isDE || isSAAD) && (
-          <Btn variant="navy" icon="+" onClick={() => setFormModal({ open: true, transaction: null })}>Record Transaction</Btn>
+          <Btn variant="navy" icon="+" onClick={() => openFormModal(null)}>Record Transaction</Btn>
         )}
 
         {(isDE || isSAAD) && (
@@ -846,7 +1059,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <div style={{ fontWeight: 600 }}>No results found</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
               <button
-                onClick={() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); resetPage(); }}
+                onClick={resetFilters}
                 style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
               >
                 Reset Filters
@@ -889,127 +1102,32 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   </thead>
 
                   <tbody>
-                    {paginated.map((t, i) => {
-                      const gt = Number(t.total || 0) + Number(t.fees || 0);
-                      const isBuy = t.type === "Buy";
-                      const isPending = t.status === "pending";
-                      const isConfirmed = t.status === "confirmed";
-                      const isVerified = t.status === "verified";
-                      const isRejected = t.status === "rejected";
-                      const globalIdx = (safePage - 1) * pageSize + i + 1;
-
-                      const canConfirm = (isDE || isSAAD) && (isPending || isRejected);
-                      const canEdit = isSAAD || (isDE && (isPending || isRejected));
-                      const canDelete = isDE ? (isPending || isRejected) : isSAAD;
-                      const canUnVerify = isSAAD && isVerified;
-                      const canVerify = (isVR || isSAAD) && isConfirmed;
-                      const canReject = (isVR || isSAAD) && isConfirmed;
-                      const isChecked = selected.has(t.id);
-
-                      const isRowConfirming = confirmingIds.has(t.id);
-                      const isRowVerifying = verifyingIds.has(t.id);
-                      const isRowRejecting = rejectingIds.has(t.id);
-                      const isRowUnverifying = unverifyingIds.has(t.id);
-                      const isRowDeleting = deletingId === t.id || bulkDeletingIds.has(t.id);
-                      const isRowBusy = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
-
-                      const rowActions = [
-                        ...(canEdit ? [{ icon: "✏️", label: "Edit", disabled: isRowBusy, onClick: () => setFormModal({ open: true, transaction: t }) }] : []),
-                        ...(canVerify ? [{ icon: isRowVerifying ? null : "✔️", label: isRowVerifying ? "Verifying..." : "Verify", disabled: isRowBusy, onClick: () => handleVerify([t.id], t.company_name) }] : []),
-                        ...(canReject ? [{ icon: isRowRejecting ? null : "✖", label: isRowRejecting ? "Rejecting..." : "Reject", danger: true, disabled: isRowBusy, onClick: () => setRejectModal({ ids: [t.id] }) }] : []),
-                        ...(canUnVerify ? [{ icon: isRowUnverifying ? null : "↩️", label: isRowUnverifying ? "Unverifying..." : "UnVerify", danger: true, disabled: isRowBusy, onClick: () => handleUnVerify(t.id) }] : []),
-                        ...(canDelete ? [{ icon: isRowDeleting ? null : "🗑️", label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => setDeleteModal({ id: t.id, type: t.type, company: t.company_name }) }] : []),
-                      ];
-
-                      return (
-                        <tr
-                          key={t.id}
-                          style={{
-                            borderBottom: `1px solid ${C.gray100}`,
-                            transition: "background 0.15s, opacity 0.2s",
-                            background: isRejected ? "#FFF5F5" : isVerified ? "#F9FFFB" : "transparent",
-                            opacity: isRowBusy ? 0.6 : 1,
-                            pointerEvents: isRowBusy ? "none" : "auto",
-                          }}
-                          onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = isRejected ? "#FFF0F0" : isVerified ? "#F0FDF4" : C.gray50; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isRejected ? "#FFF5F5" : isVerified ? "#F9FFFB" : "transparent"; }}
-                        >
-                          {showCheckbox && (
-                            <td style={{ padding: "7px 10px" }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleOne(t.id)}
-                                disabled={isRowBusy}
-                                style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }}
-                              />
-                            </td>
-                          )}
-
-                          <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
-                          <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(t.date)}</td>
-                          <td style={{ padding: "7px 10px", minWidth: 100 }}>
-                            <div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{t.company_name}</div>
-                          </td>
-                          <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-                            <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
-                              {isBuy ? "▲ Buy" : "▼ Sell"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right" }}>{fmtInt(t.qty)}</td>
-                          <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(t.price)}</span>
-                          </td>
-                          <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{fmt(t.total)}</td>
-                          <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
-                            {t.fees ? fmt(t.fees) : <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
-                              {fmt(gt)}
-                            </span>
-                          </td>
-                          <td style={{ padding: "7px 10px", color: C.gray600, maxWidth: 130, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {t.remarks || <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-                            <StatusBadge status={t.status} />
-                            {isRejected && t.rejection_comment && (
-                              <div style={{ fontSize: 10, color: C.red, marginTop: 3, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.rejection_comment}>
-                                💬 {t.rejection_comment}
-                              </div>
-                            )}
-                          </td>
-
-                          {showActions && (
-                            <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
-                              {canConfirm && (
-                                <button
-                                  onClick={() => handleConfirm(t.id, t.company_name, t.status)}
-                                  disabled={isRowBusy}
-                                  style={{
-                                    padding: "4px 10px", borderRadius: 7, border: "none",
-                                    background: isRowConfirming ? C.gray100 : "#EFF6FF",
-                                    color: isRowConfirming ? C.gray400 : "#1D4ED8",
-                                    fontWeight: 700, fontSize: 11,
-                                    cursor: isRowBusy ? "not-allowed" : "pointer",
-                                    fontFamily: "inherit",
-                                    marginRight: rowActions.length ? 6 : 0,
-                                    display: "inline-flex", alignItems: "center", gap: 5,
-                                    minWidth: 80, justifyContent: "center",
-                                  }}
-                                >
-                                  {isRowConfirming
-                                    ? <><Spinner size={11} color={C.gray400} /> Confirming</>
-                                    : "✅ Confirm"}
-                                </button>
-                              )}
-                              {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
+                    {paginated.map((transaction, i) => (
+                      <TransactionRow
+                        key={transaction.id}
+                        transaction={transaction}
+                        globalIdx={(safePage - 1) * pageSize + i + 1}
+                        selected={selected}
+                        onToggleOne={toggleOne}
+                        onOpenFormModal={openFormModal}
+                        onOpenRejectModal={openRejectModal}
+                        onOpenDeleteModal={openDeleteModal}
+                        onHandleConfirm={handleConfirm}
+                        onHandleVerify={handleVerify}
+                        onHandleUnverify={handleUnVerify}
+                        confirmingIds={confirmingIds}
+                        verifyingIds={verifyingIds}
+                        rejectingIds={rejectingIds}
+                        unverifyingIds={unverifyingIds}
+                        deletingId={deletingId}
+                        bulkDeletingIds={bulkDeletingIds}
+                        isDE={isDE}
+                        isVR={isVR}
+                        isSAAD={isSAAD}
+                        showCheckbox={showCheckbox}
+                        showActions={showActions}
+                      />
+                    ))}
                   </tbody>
 
                   <tfoot>
@@ -1018,13 +1136,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{fontSize:10}}>▲</span>{fmt(totals.buyAmount)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{fontSize:10}}>▼</span>{fmt(totals.sellAmount)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyAmount)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellAmount)}</div>
                       </td>
                       <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, textAlign: "right", fontSize: 13 }}>{fmt(totals.fees)}</td>
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{fontSize:10}}>▲</span>{fmt(totals.buyGrand)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{fontSize:10}}>▼</span>{fmt(totals.sellGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
                       <td colSpan={1 + 1 + (showActions ? 1 : 0)} />
                     </tr>
