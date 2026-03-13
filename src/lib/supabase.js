@@ -61,7 +61,9 @@ async function extractError(res, rlsMessage) {
     } else {
       msg = j.message || j.hint || j.details || errText;
     }
-  } catch { /* keep raw text */ }
+  } catch {
+    // keep raw text
+  }
   return msg;
 }
 
@@ -75,27 +77,70 @@ const headers = (token) => ({
 
 // ── Session helpers ────────────────────────────────────────────────
 export function getSession() {
-  try { return JSON.parse(localStorage.getItem("sb_session") || "null"); }
-  catch { return null; }
+  try {
+    return JSON.parse(localStorage.getItem("sb_session") || "null");
+  } catch {
+    return null;
+  }
 }
 function saveSession(s) { localStorage.setItem("sb_session", JSON.stringify(s)); }
-function clearSession()  { localStorage.removeItem("sb_session"); }
-function token()         { return getSession()?.access_token || KEY; }
+function clearSession() { localStorage.removeItem("sb_session"); }
+function token()        { return getSession()?.access_token || KEY; }
 
 // ── Auto-refresh expired token ─────────────────────────────────────
 async function refreshSession() {
   const session      = getSession();
   const refreshToken = session?.refresh_token;
-  if (!refreshToken) { clearSession(); return null; }
+
+  if (!refreshToken) {
+    clearSession();
+    return null;
+  }
+
   const res = await fetch(`${BASE}/auth/v1/token?grant_type=refresh_token`, {
     method:  "POST",
     headers: { "Content-Type": "application/json", "apikey": KEY },
     body:    JSON.stringify({ refresh_token: refreshToken }),
   });
-  if (!res.ok) { clearSession(); return null; }
+
+  if (!res.ok) {
+    clearSession();
+    return null;
+  }
+
   const data = await res.json();
   saveSession(data);
   return data.access_token;
+}
+
+// ── Shared fetch with one auth retry ───────────────────────────────
+async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request failed") {
+  let res = await fetch(url, options);
+
+  if (res.status === 401) {
+    const newToken = await refreshSession();
+    if (!newToken) {
+      throw new Error("Session expired. Please log in again.");
+    }
+
+    const nextHeaders = {
+      ...(options.headers || {}),
+      apikey: KEY,
+      Authorization: `Bearer ${newToken}`,
+    };
+
+    res = await fetch(url, {
+      ...options,
+      headers: nextHeaders,
+    });
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || fallbackMsg);
+  }
+
+  return res;
 }
 
 // ── AUTH ───────────────────────────────────────────────────────────
@@ -147,47 +192,50 @@ export async function sbResetPassword(email) {
 
 export async function sbGet(table, params = {}) {
   const q = new URLSearchParams(params).toString();
-  let res = await fetch(`${BASE}/rest/v1/${table}${q ? "?" + q : ""}`, {
-    headers: headers(token()),
-  });
-  if (res.status === 401) {
-    const newToken = await refreshSession();
-    if (!newToken) throw new Error("Session expired. Please log in again.");
-    res = await fetch(`${BASE}/rest/v1/${table}${q ? "?" + q : ""}`, {
-      headers: headers(newToken),
-    });
-  }
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/${table}${q ? "?" + q : ""}`,
+    { headers: headers(token()) },
+    `Failed to fetch ${table}`
+  );
   return res.json();
 }
 
 export async function sbInsert(table, data) {
-  const res = await fetch(`${BASE}/rest/v1/${table}`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/${table}`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify(data),
+    },
+    `Failed to insert into ${table}`
+  );
   return res.json();
 }
 
 export async function sbUpdate(table, id, data) {
-  const res = await fetch(`${BASE}/rest/v1/${table}?id=eq.${id}`, {
-    method:  "PATCH",
-    headers: headers(token()),
-    body:    JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/${table}?id=eq.${id}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify(data),
+    },
+    `Failed to update ${table}`
+  );
   return res.json();
 }
 
 export async function sbDelete(table, id) {
-  const res = await fetch(`${BASE}/rest/v1/${table}?id=eq.${id}`, {
-    method:  "DELETE",
-    headers: { ...headers(token()), "Prefer": "return=minimal" },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return true;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/${table}?id=eq.${id}`,
+    {
+      method:  "DELETE",
+      headers: { ...headers(token()), "Prefer": "return=minimal" },
+    },
+    `Failed to delete from ${table}`
+  );
+  return res.ok;
 }
 
 // ── PROFILE ────────────────────────────────────────────────────────
@@ -197,56 +245,77 @@ export async function sbGetProfile(sessionToken) {
   const uid     = sessionToken
     ? JSON.parse(atob(sessionToken.split(".")[1])).sub
     : session?.user?.id;
+
   if (!uid) return null;
+
   const tok = sessionToken || token();
-  const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
-    headers: headers(tok),
-  });
-  if (!res.ok) return null;
+
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/profiles?id=eq.${uid}`,
+    { headers: headers(tok) },
+    "Failed to fetch profile"
+  );
+
   const rows = await res.json();
   return rows[0] || null;
 }
 
 export async function sbUpsertProfile(data) {
   const uid = getSession()?.user?.id;
-  const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
-    method:  "PATCH",
-    headers: headers(token()),
-    body:    JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const res2 = await fetch(`${BASE}/rest/v1/profiles`, {
+
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/profiles?id=eq.${uid}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify(data),
+    },
+    "Failed to update profile"
+  );
+
+  const rows = await res.json();
+
+  if (rows?.[0]) return rows[0];
+
+  const res2 = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/profiles`,
+    {
       method:  "POST",
       headers: headers(token()),
       body:    JSON.stringify({ ...data, id: uid }),
-    });
-    if (!res2.ok) throw new Error(await res2.text());
-    const rows = await res2.json();
-    return rows[0];
-  }
-  const rows = await res.json();
-  return rows[0];
+    },
+    "Failed to create profile"
+  );
+
+  const rows2 = await res2.json();
+  return rows2[0];
 }
 
 // ── ROLES ──────────────────────────────────────────────────────────
 
 export async function sbGetMyRole(sessionToken) {
   const tok = sessionToken || token();
-  const res = await fetch(`${BASE}/rest/v1/rpc/get_my_role`, {
-    method:  "POST",
-    headers: headers(tok),
-    body:    JSON.stringify({}),
-  });
-  if (!res.ok) return null;
+
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_my_role`,
+    {
+      method:  "POST",
+      headers: headers(tok),
+      body:    JSON.stringify({}),
+    },
+    "Failed to fetch role"
+  );
+
   const data = await res.json();
   return data || null;
 }
 
 export async function sbGetRoles() {
-  const res = await fetch(`${BASE}/rest/v1/roles?order=id.asc`, {
-    headers: headers(token()),
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/roles?order=id.asc`,
+    { headers: headers(token()) },
+    "Failed to fetch roles"
+  );
   return res.json();
 }
 
@@ -256,10 +325,12 @@ export async function sbGetAllUsers() {
     headers: headers(token()),
     body:    JSON.stringify({}),
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Failed to fetch users");
   }
+
   return res.json();
 }
 
@@ -272,10 +343,12 @@ export async function sbAssignRole(userId, roleId) {
       target_role_id: roleId,
     }),
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Failed to assign role");
   }
+
   return true;
 }
 
@@ -285,10 +358,12 @@ export async function sbDeactivateRole(userId) {
     headers: headers(token()),
     body:    JSON.stringify({ target_user_id: userId }),
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Failed to deactivate user");
   }
+
   return true;
 }
 
@@ -306,6 +381,7 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
       cds_number: cdsNumber || null,
     }),
   });
+
   const data = await parseResponse(res, "Failed to create user");
   return data;
 }
@@ -314,29 +390,34 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 
 export async function sbGetTransactions() {
   const url = `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`;
-  const res = await fetch(url, { headers: headers(token()) });
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(url, { headers: headers(token()) }, "Failed to fetch transactions");
   return res.json();
 }
 
 export async function sbInsertTransaction(data) {
   const uid = getSession()?.user?.id;
-  const res = await fetch(`${BASE}/rest/v1/transactions`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      ...data,
-      status:     "pending",
-      created_by: uid,
-    }),
-  });
-  if (!res.ok) throw new Error(await res.text());
+
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        ...data,
+        status:     "pending",
+        created_by: uid,
+      }),
+    },
+    "Failed to create transaction"
+  );
+
   return res.json();
 }
 
 export async function sbConfirmTransaction(id) {
   const uid  = getSession()?.user?.id;
   const body = { status: "confirmed" };
+
   if (uid) {
     body.confirmed_by = uid;
     body.confirmed_at = new Date().toISOString();
@@ -363,6 +444,7 @@ export async function sbVerifyTransactions(ids) {
   const uid    = getSession()?.user?.id;
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
   const body   = { status: "verified" };
+
   if (uid) {
     body.verified_by = uid;
     body.verified_at = new Date().toISOString();
@@ -392,6 +474,7 @@ export async function sbRejectTransactions(ids, comment) {
     status:            "rejected",
     rejection_comment: comment,
   };
+
   if (uid) {
     body.rejected_by = uid;
     body.rejected_at = new Date().toISOString();
@@ -437,11 +520,16 @@ export async function sbDeleteTransaction(id) {
     method:  "DELETE",
     headers: { ...headers(token()), "Prefer": "count=exact" },
   });
+
   if (!res.ok) throw new Error(await res.text());
 
   const range    = res.headers.get("Content-Range") || "";
   const affected = parseInt(range.split("/")[1] ?? "0", 10);
-  if (affected === 0) throw new Error("Delete was not permitted. You may not have permission to delete this transaction.");
+
+  if (affected === 0) {
+    throw new Error("Delete was not permitted. You may not have permission to delete this transaction.");
+  }
+
   return true;
 }
 
@@ -505,14 +593,16 @@ export async function sbGetPortfolio(cdsNumber) {
 
     if (rpcRes.status !== 404) throw new Error(await rpcRes.text());
   } catch (e) {
-    if (!e.message?.includes("404")) console.warn("[sbGetPortfolio] RPC unavailable, using fallback:", e.message);
+    if (!e.message?.includes("404")) {
+      console.warn("[sbGetPortfolio] RPC unavailable, using fallback:", e.message);
+    }
   }
 
-  const txRes = await fetch(
+  const txRes = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
-    { headers: headers(token()) }
+    { headers: headers(token()) },
+    "Failed to fetch portfolio transactions"
   );
-  if (!txRes.ok) throw new Error(await txRes.text());
   const txRows = await txRes.json();
 
   const ids = [...new Set(txRows.map(t => t.company_id).filter(Boolean))];
@@ -521,11 +611,17 @@ export async function sbGetPortfolio(cdsNumber) {
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
 
   const [coRes, prRes] = await Promise.all([
-    fetch(`${BASE}/rest/v1/companies?id=in.${idList}&order=name.asc`,                  { headers: headers(token()) }),
-    fetch(`${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}`, { headers: headers(token()) }),
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/companies?id=in.${idList}&order=name.asc`,
+      { headers: headers(token()) },
+      "Failed to fetch companies"
+    ),
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}`,
+      { headers: headers(token()) },
+      "Failed to fetch CDS prices"
+    ),
   ]);
-  if (!coRes.ok) throw new Error(await coRes.text());
-  if (!prRes.ok) throw new Error(await prRes.text());
 
   const [companies, prices] = await Promise.all([coRes.json(), prRes.json()]);
   const priceMap = Object.fromEntries(prices.map(p => [p.company_id, p]));
@@ -586,19 +682,20 @@ export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newP
 }
 
 export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
-  const res = await fetch(
+  const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/cds_price_history?company_id=eq.${companyId}&cds_number=eq.${encodeURIComponent(cdsNumber)}&order=created_at.desc`,
-    { headers: headers(token()) }
+    { headers: headers(token()) },
+    "Failed to fetch CDS price history"
   );
-  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function sbGetAllCompanies() {
-  const res = await fetch(`${BASE}/rest/v1/companies?order=name.asc`, {
-    headers: headers(token()),
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/companies?order=name.asc`,
+    { headers: headers(token()) },
+    "Failed to fetch companies"
+  );
   return res.json();
 }
 
@@ -611,7 +708,9 @@ export async function sbGetSiteSettings(key = "login_page") {
     `${BASE}/rest/v1/site_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
     { headers: headers(KEY) }
   );
+
   if (!res.ok) throw new Error(await res.text());
+
   const rows = await res.json();
   return rows[0]?.value ?? null;
 }
@@ -635,8 +734,12 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
 
   if (!patchRes.ok) {
     let msg = `PATCH failed HTTP ${patchRes.status}`;
-    try { const j = await patchRes.json(); msg = j.message || j.hint || JSON.stringify(j); }
-    catch { msg = await patchRes.text().catch(() => msg); }
+    try {
+      const j = await patchRes.json();
+      msg = j.message || j.hint || JSON.stringify(j);
+    } catch {
+      msg = await patchRes.text().catch(() => msg);
+    }
     throw new Error(msg);
   }
 
@@ -656,12 +759,18 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
         body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
       }
     );
+
     if (!insertRes.ok) {
       let msg = `INSERT failed HTTP ${insertRes.status}`;
-      try { const j = await insertRes.json(); msg = j.message || j.hint || JSON.stringify(j); }
-      catch { msg = await insertRes.text().catch(() => msg); }
+      try {
+        const j = await insertRes.json();
+        msg = j.message || j.hint || JSON.stringify(j);
+      } catch {
+        msg = await insertRes.text().catch(() => msg);
+      }
       throw new Error(msg);
     }
+
     return insertRes.json();
   }
 
@@ -684,6 +793,7 @@ export async function sbUploadSlideImage(blob, slideIndex, session) {
       body: blob,
     }
   );
+
   if (!uploadRes.ok) {
     const err = await uploadRes.json().catch(() => ({}));
     throw new Error(err.message || "Image upload failed");
