@@ -15,7 +15,9 @@ function getPwChanges(uid) {
     const today = new Date().toDateString();
     if (raw.date !== today) return { date: today, count: 0 };
     return raw;
-  } catch { return { date: new Date().toDateString(), count: 0 }; }
+  } catch {
+    return { date: new Date().toDateString(), count: 0 };
+  }
 }
 function incrementPwChanges(uid) {
   const data = getPwChanges(uid);
@@ -60,19 +62,46 @@ const COUNTRIES = [
 const GENDERS = ["Male", "Female", "Prefer not to say"];
 
 function calcCompletion(form, avatarPreview) {
-  const fields = [form.full_name, form.phone, form.nationality, form.postal_address, form.national_id, form.date_of_birth, form.gender, avatarPreview];
+  const fields = [
+    form.full_name,
+    form.phone,
+    form.nationality,
+    form.postal_address,
+    form.national_id,
+    form.date_of_birth,
+    form.gender,
+    avatarPreview,
+  ];
   return Math.round((fields.filter(f => f && String(f).trim()).length / fields.length) * 100);
 }
 
+const profileToForm = (profile) => ({
+  full_name:      profile?.full_name      || "",
+  phone:          profile?.phone          || "",
+  nationality:    profile?.nationality    || "",
+  postal_address: profile?.postal_address || "",
+  national_id:    profile?.national_id    || "",
+  date_of_birth:  profile?.date_of_birth  || "",
+  gender:         profile?.gender         || "",
+});
+
 // ── Shared input styles ───────────────────────────────────────────
 const inp = (extra = {}) => ({
-  width: "100%", padding: "8px 11px", borderRadius: 8, fontSize: 13,
-  border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
-  background: C.white, color: C.text, transition: "border 0.2s",
-  boxSizing: "border-box", ...extra,
+  width: "100%",
+  padding: "8px 11px",
+  borderRadius: 8,
+  fontSize: 13,
+  border: `1.5px solid ${C.gray200}`,
+  outline: "none",
+  fontFamily: "inherit",
+  background: C.white,
+  color: C.text,
+  transition: "border 0.2s",
+  boxSizing: "border-box",
+  ...extra,
 });
-const focusGreen = (e) => e.target.style.borderColor = C.green;
-const blurGray   = (e) => e.target.style.borderColor = C.gray200;
+const focusGreen = (e) => { e.target.style.borderColor = C.green; };
+const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
 // ── Section card ──────────────────────────────────────────────────
 function Section({ title, icon, children }) {
@@ -101,51 +130,88 @@ function Field({ label, required, children }) {
 
 // ── Searchable country dropdown ───────────────────────────────────
 function CountrySelect({ value, onChange }) {
-  const [open, setOpen]     = useState(false);
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref                 = useRef();
+  const ref = useRef();
 
-  const filtered = useMemo(() =>
-    COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase())), [search]);
+  const filtered = useMemo(
+    () => COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase())),
+    [search]
+  );
 
   useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <div onClick={() => { setOpen(o => !o); setSearch(""); }} style={{
-        ...inp(), display: "flex", alignItems: "center", justifyContent: "space-between",
-        cursor: "pointer", userSelect: "none",
-        borderColor: open ? C.green : C.gray200,
-      }}>
+      <div
+        onClick={() => { setOpen(o => !o); setSearch(""); }}
+        style={{
+          ...inp(),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          userSelect: "none",
+          borderColor: open ? C.green : C.gray200,
+        }}
+      >
         <span style={{ color: value ? C.text : "#9ca3af" }}>{value || "Select country"}</span>
         <span style={{ fontSize: 10, color: C.gray400, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
       </div>
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0,
-          background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10,
-          zIndex: 9999, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden",
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 3px)",
+            left: 0,
+            right: 0,
+            background: C.white,
+            border: `1.5px solid ${C.green}`,
+            borderRadius: 10,
+            zIndex: 9999,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            overflow: "hidden",
+          }}
+        >
           <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-            <input autoFocus placeholder="🔍 Search country..." value={search}
+            <input
+              autoFocus
+              placeholder="🔍 Search country..."
+              value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", padding: "6px 8px", borderRadius: 7, fontSize: 12, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "6px 8px", borderRadius: 7, fontSize: 12, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
-            {filtered.length === 0
-              ? <div style={{ padding: "10px 12px", color: C.gray400, fontSize: 12 }}>No results</div>
-              : filtered.map((c, i) => (
-                <div key={c} onClick={() => { onChange(c); setOpen(false); setSearch(""); }}
-                  style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", background: c === value ? `${C.green}12` : "transparent", color: c === value ? C.green : C.text, fontWeight: c === value ? 700 : 400, borderBottom: i === 0 && c === "Tanzania" ? `1px solid ${C.gray100}` : "none" }}
+            {filtered.length === 0 ? (
+              <div style={{ padding: "10px 12px", color: C.gray400, fontSize: 12 }}>No results</div>
+            ) : (
+              filtered.map((c, i) => (
+                <div
+                  key={c}
+                  onClick={() => { onChange(c); setOpen(false); setSearch(""); }}
+                  style={{
+                    padding: "7px 12px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    background: c === value ? `${C.green}12` : "transparent",
+                    color: c === value ? C.green : C.text,
+                    fontWeight: c === value ? 700 : 400,
+                    borderBottom: i === 0 && c === "Tanzania" ? `1px solid ${C.gray100}` : "none",
+                  }}
                   onMouseEnter={e => { if (c !== value) e.currentTarget.style.background = C.gray50; }}
-                  onMouseLeave={e => { if (c !== value) e.currentTarget.style.background = "transparent"; }}>
+                  onMouseLeave={e => { if (c !== value) e.currentTarget.style.background = "transparent"; }}
+                >
                   {c === "Tanzania" ? "🇹🇿 " : ""}{c}{c === value && <span style={{ float: "right" }}>✓</span>}
                 </div>
-              ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -155,15 +221,15 @@ function CountrySelect({ value, onChange }) {
 
 // ── Change Password Modal ─────────────────────────────────────────
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
-  const [step, setStep]           = useState("send");
-  const [otp, setOtp]             = useState("");
-  const [newPw, setNewPw]         = useState("");
+  const [step, setStep] = useState("send");
+  const [otp, setOtp] = useState("");
+  const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState("");
-  const [show, setShow]           = useState({ new: false, confirm: false });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [show, setShow] = useState({ new: false, confirm: false });
   const [countdown, setCountdown] = useState(0);
-  const remaining                 = remainingPwChanges(uid);
+  const remaining = remainingPwChanges(uid);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -174,43 +240,104 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const strength = (p) => {
     if (!p) return { score: 0, label: "", color: C.gray200 };
     let s = 0;
-    if (p.length >= 8) s++; if (/[A-Z]/.test(p)) s++; if (/[0-9]/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p)) s++;
-    return [{ score:0,label:"",color:C.gray200 },{ score:1,label:"Weak",color:"#ef4444" },{ score:2,label:"Fair",color:"#f97316" },{ score:3,label:"Good",color:"#eab308" },{ score:4,label:"Strong",color:C.green }][s];
+    if (p.length >= 8) s++;
+    if (/[A-Z]/.test(p)) s++;
+    if (/[0-9]/.test(p)) s++;
+    if (/[^A-Za-z0-9]/.test(p)) s++;
+    return [
+      { score: 0, label: "", color: C.gray200 },
+      { score: 1, label: "Weak", color: "#ef4444" },
+      { score: 2, label: "Fair", color: "#f97316" },
+      { score: 3, label: "Good", color: "#eab308" },
+      { score: 4, label: "Strong", color: C.green },
+    ][s];
   };
   const pw = strength(newPw);
 
-  const mInp = (extra = {}) => ({ width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", background: C.white, color: C.text, transition: "border 0.2s", boxSizing: "border-box", ...extra });
+  const mInp = (extra = {}) => ({
+    width: "100%",
+    padding: "10px 13px",
+    borderRadius: 9,
+    fontSize: 14,
+    border: `1.5px solid ${C.gray200}`,
+    outline: "none",
+    fontFamily: "inherit",
+    background: C.white,
+    color: C.text,
+    transition: "border 0.2s",
+    boxSizing: "border-box",
+    ...extra,
+  });
 
   const handleSendOtp = async () => {
-    if (remaining <= 0) { setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`); return; }
-    setError(""); setLoading(true);
+    if (remaining <= 0) {
+      setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`);
+      return;
+    }
+    setError("");
+    setLoading(true);
     try {
-      const res = await fetch(`${BASE}/auth/v1/otp`, { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email, type: "email" }) });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error_description || d.message || "Failed to send code"); }
-      setStep("verify"); setCountdown(300);
-    } catch (e) { setError(e.message); } finally { setLoading(false); }
+      const res = await fetch(`${BASE}/auth/v1/otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: KEY },
+        body: JSON.stringify({ email, type: "email" }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error_description || d.message || "Failed to send code");
+      }
+      setStep("verify");
+      setCountdown(300);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyAndUpdate = async () => {
     setError("");
-    if (otp.length < 8)              return setError("Enter the 8-digit code from your email");
-    if (newPw.length < 6)            return setError("Password must be at least 6 characters");
-    if (newPw !== confirmPw)         return setError("Passwords do not match");
+    if (otp.length < 8) return setError("Enter the 8-digit code from your email");
+    if (newPw.length < 6) return setError("Password must be at least 6 characters");
+    if (newPw !== confirmPw) return setError("Passwords do not match");
     if (remainingPwChanges(uid) <= 0) return setError("Daily limit reached");
     setLoading(true);
+
     try {
-      const verifyRes  = await fetch(`${BASE}/auth/v1/verify`, { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email, token: otp, type: "email" }) });
+      const verifyRes = await fetch(`${BASE}/auth/v1/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: KEY },
+        body: JSON.stringify({ email, token: otp, type: "email" }),
+      });
       const verifyText = await verifyRes.text();
-      if (!verifyRes.ok) { let d = {}; try { d = JSON.parse(verifyText); } catch(_){} throw new Error(d.error_description || d.message || "Invalid or expired code"); }
+      if (!verifyRes.ok) {
+        let d = {};
+        try { d = JSON.parse(verifyText); } catch {}
+        throw new Error(d.error_description || d.message || "Invalid or expired code");
+      }
+
       const tok = session?.access_token;
       if (!tok) throw new Error("Session expired. Please sign in again.");
-      const updateRes = await fetch(`${BASE}/auth/v1/user`, { method: "PUT", headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}` }, body: JSON.stringify({ password: newPw }) });
-      if (!updateRes.ok) { const d = await updateRes.json().catch(() => ({})); throw new Error(d.error_description || d.message || "Failed to update password"); }
+
+      const updateRes = await fetch(`${BASE}/auth/v1/user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
+        body: JSON.stringify({ password: newPw }),
+      });
+      if (!updateRes.ok) {
+        const d = await updateRes.json().catch(() => ({}));
+        throw new Error(d.error_description || d.message || "Failed to update password");
+      }
+
       incrementPwChanges(uid);
       setStep("done");
       showToast(`Password updated! ${remainingPwChanges(uid)} change${remainingPwChanges(uid) !== 1 ? "s" : ""} remaining today.`, "success");
       setTimeout(() => onClose(), 2500);
-    } catch (e) { setError(e.message); } finally { setLoading(false); }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -256,7 +383,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
                   </div>
                   {newPw && (
                     <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
-                      {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
+                      {[1, 2, 3, 4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
                       <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
                     </div>
                   )}
@@ -299,115 +426,183 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
 // ── Main ProfilePage ──────────────────────────────────────────────
 export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp }) {
   const email = emailProp || session?.user?.email || session?.email || profile?.email || "";
+  const isMountedRef = useRef(true);
+  const cdsCountReqRef = useRef(0);
 
-  const [form, setForm] = useState({
-    full_name:      profile?.full_name      || "",
-    phone:          profile?.phone          || "",
-    nationality:    profile?.nationality    || "",
-    postal_address: profile?.postal_address || "",
-    national_id:    profile?.national_id    || "",
-    date_of_birth:  profile?.date_of_birth  || "",
-    gender:         profile?.gender         || "",
-  });
-
-  const [avatarPreview,   setAvatarPreview]   = useState(profile?.avatar_url || null);
-  const [cropSrc,         setCropSrc]         = useState(null);
+  const [form, setForm] = useState(() => profileToForm(profile));
+  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null);
+  const [cropSrc, setCropSrc] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [saving,          setSaving]          = useState(false);
-  const [showPwModal,     setShowPwModal]     = useState(false);
-  const [cdsUserCount,    setCdsUserCount]    = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [cdsUserCount, setCdsUserCount] = useState(1);
   const fileRef = useRef();
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setForm(profileToForm(profile));
+    setAvatarPreview(profile?.avatar_url || null);
+  }, [
+    profile?.full_name,
+    profile?.phone,
+    profile?.nationality,
+    profile?.postal_address,
+    profile?.national_id,
+    profile?.date_of_birth,
+    profile?.gender,
+    profile?.avatar_url,
+  ]);
+
   // Clean up old generic key
-  useEffect(() => { localStorage.removeItem("dse_pw_changes"); }, []);
+  useEffect(() => {
+    try {
+      localStorage.removeItem("dse_pw_changes");
+    } catch {}
+  }, []);
 
   // Fetch CDS user count via RPC (bypasses RLS)
   useEffect(() => {
-    if (!profile?.cds_number) return;
+    const reqId = ++cdsCountReqRef.current;
+
+    if (!profile?.cds_number) {
+      if (isMountedRef.current && reqId === cdsCountReqRef.current) {
+        setCdsUserCount(1);
+      }
+      return;
+    }
+
     const tok = session?.access_token || KEY;
+
     fetch(`${BASE}/rest/v1/rpc/get_cds_user_count`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}` },
+      headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
       body: JSON.stringify({ cds: profile.cds_number }),
     })
       .then(r => r.json())
-      .then(count => setCdsUserCount(typeof count === "number" ? count : 1))
-      .catch(() => setCdsUserCount(1));
-  }, [profile?.cds_number]);
+      .then(count => {
+        if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return;
+        setCdsUserCount(typeof count === "number" ? count : 1);
+      })
+      .catch(() => {
+        if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return;
+        setCdsUserCount(1);
+      });
+  }, [profile?.cds_number, session?.access_token]);
 
-  const accountType     = cdsUserCount > 1 ? "Corporate" : "Individual";
-  const completion      = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
+  const accountType = cdsUserCount > 1 ? "Corporate" : "Individual";
+  const completion = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
   const completionColor = completion >= 80 ? C.green : completion >= 50 ? "#f59e0b" : C.red;
-  const roleMeta        = ROLE_META[role] || { label: role || "User", color: C.gray400 };
-  const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const lastSaved       = profile?.updated_at
+  const roleMeta = ROLE_META[role] || { label: role || "User", color: C.gray400 };
+  const initials = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const lastSaved = profile?.updated_at
     ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { showToast("Image must be under 10MB", "error"); return; }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("Image must be under 10MB", "error");
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (ev) => setCropSrc(ev.target.result);
+    reader.onload = (ev) => {
+      if (!isMountedRef.current) return;
+      setCropSrc(ev.target.result);
+    };
     reader.readAsDataURL(file);
     e.target.value = "";
-  };
+  }, [showToast]);
 
-  const handleCropConfirm = async (blob) => {
+  const handleCropConfirm = useCallback(async (blob) => {
     setCropSrc(null);
     setUploadingAvatar(true);
+
     try {
       const uid = session?.user?.id || profile?.id;
       const tok = session?.access_token || KEY;
+
       const uploadRes = await fetch(`${BASE}/storage/v1/object/avatars/${uid}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
         body: blob,
       });
-      if (!uploadRes.ok) { const err = await uploadRes.json().catch(() => ({})); throw new Error(err.message || "Upload failed"); }
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.message || "Upload failed");
+      }
+
       const publicUrl = `${BASE}/storage/v1/object/public/avatars/${uid}?t=${Date.now()}`;
+
       const patchRes = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify({ avatar_url: publicUrl }),
       });
       if (!patchRes.ok) throw new Error("Failed to save avatar URL");
+
       const rows = await patchRes.json();
+
+      if (!isMountedRef.current) return;
+
       setProfile(rows[0] || { ...profile, avatar_url: publicUrl });
       setAvatarPreview(publicUrl);
       showToast("Profile picture updated!", "success");
     } catch (err) {
+      if (!isMountedRef.current) return;
       showToast("Upload failed: " + err.message, "error");
     } finally {
-      setUploadingAvatar(false);
+      if (isMountedRef.current) {
+        setUploadingAvatar(false);
+      }
     }
-  };
+  }, [profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
-  const handleSave = async () => {
-    if (!form.full_name.trim()) { showToast("Full name is required", "error"); return; }
-    if (!form.phone.trim())     { showToast("Phone number is required", "error"); return; }
+  const handleSave = useCallback(async () => {
+    if (!form.full_name.trim()) {
+      showToast("Full name is required", "error");
+      return;
+    }
+    if (!form.phone.trim()) {
+      showToast("Phone number is required", "error");
+      return;
+    }
+
     setSaving(true);
+
     try {
       const tok = session?.access_token || KEY;
       const uid = session?.user?.id || profile?.id;
+
       const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
+
       const rows = await res.json();
+
+      if (!isMountedRef.current) return;
+
       setProfile(rows[0] || { ...profile, ...form });
       showToast("Profile saved successfully!", "success");
     } catch (e) {
+      if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      setSaving(false);
+      if (isMountedRef.current) {
+        setSaving(false);
+      }
     }
-  };
+  }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
   const uid = session?.user?.id || profile?.id;
 
@@ -423,11 +618,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         .pcol { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
       `}</style>
 
-      {/* Modals */}
-      {cropSrc     && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
+      {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
       {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
 
-      {/* Header */}
       <div style={{ marginBottom: 6, flexShrink: 0 }}>
         <div style={{ fontSize: 12, color: C.gray400 }}>
           Manage your personal information and security settings
@@ -435,25 +628,32 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         </div>
       </div>
 
-      {/* Two-column grid */}
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
-
-        {/* ── LEFT COLUMN ── */}
         <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
-
-          {/* Profile card */}
           <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
             <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
             <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
-
-              {/* Avatar */}
               <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
-                <div style={{
-                  width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`,
-                  boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative",
-                }} onClick={() => !uploadingAvatar && fileRef.current.click()}>
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    border: `3px solid ${C.white}`,
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
+                    background: avatarPreview ? "transparent" : C.navy,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: C.white,
+                    position: "relative",
+                  }}
+                  onClick={() => !uploadingAvatar && fileRef.current?.click()}
+                >
                   {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
                   {uploadingAvatar && (
                     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
@@ -461,7 +661,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     </div>
                   )}
                 </div>
-                <div onClick={() => fileRef.current.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
+                <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
               </div>
 
@@ -494,7 +694,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
           </div>
 
-          {/* Account Type */}
           <Section title="Account Type" icon="🏦">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
               <div>
@@ -515,19 +714,32 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
           </Section>
 
-          {/* Security */}
           <Section title="Security" icon="🔐">
-            <button onClick={() => setShowPwModal(true)} style={{
-              width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`,
-              background: C.white, color: C.text, fontWeight: 600, fontSize: 12,
-              cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-            }}
+            <button
+              onClick={() => setShowPwModal(true)}
+              style={{
+                width: "100%",
+                padding: "7px",
+                borderRadius: 8,
+                border: `1.5px solid ${C.gray200}`,
+                background: C.white,
+                color: C.text,
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+              }}
               onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}>
+              onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
+            >
               🔑 Change Password
             </button>
             <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
-              {[1,2,3].map(i => (
+              {[1, 2, 3].map(i => (
                 <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
               ))}
               <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
@@ -535,18 +747,14 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
           </Section>
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
         <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
-
           <Section title="Account Information" icon="👤">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Full Name" required>
-                <input style={inp()} type="text" placeholder="e.g. Michael Luzigah"
-                  value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
               </Field>
               <Field label="Phone Number" required>
-                <input style={inp()} type="tel" placeholder="e.g. +255713262087"
-                  value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
               </Field>
               <Field label="Gender">
                 <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
@@ -559,8 +767,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </Field>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Field label="National ID (NIDA)">
-                  <input style={inp()} type="text" placeholder="e.g. 19820618114670000123"
-                    value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                 </Field>
               </div>
             </div>
@@ -573,14 +780,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </Field>
               <div style={{ alignSelf: "start" }}>
                 <Field label="Postal Address">
-                  <input style={inp({ padding: "5px 10px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam"
-                    value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  <input style={inp({ padding: "5px 10px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                 </Field>
               </div>
             </div>
           </Section>
 
-          {/* Photo tip */}
           <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
             <div>
@@ -589,15 +794,27 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
           </div>
 
-          {/* Save Changes — bottom of right column */}
           <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
             {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
-            <button onClick={handleSave} disabled={saving} style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9,
-              border: "none", background: saving ? C.gray200 : C.green, color: C.white,
-              fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer",
-              fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44`,
-            }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "9px 20px",
+                borderRadius: 9,
+                border: "none",
+                background: saving ? C.gray200 : C.green,
+                color: C.white,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: saving ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                boxShadow: saving ? "none" : `0 4px 12px ${C.green}44`,
+              }}
+            >
               {saving
                 ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
                 : <>💾 Save Changes</>}
