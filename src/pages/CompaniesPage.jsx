@@ -26,6 +26,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [formModal, setFormModal] = useState({ open: false, company: null });
 
   const isMountedRef = useRef(true);
+  const portfolioReqRef = useRef(0);
+  const masterReqRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -47,11 +49,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
   const loadPortfolio = useCallback(async () => {
+    const reqId = ++portfolioReqRef.current;
+
     if (!cdsNumber) {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && reqId === portfolioReqRef.current) {
         setPortfolio([]);
-        setPortfolioLoading(false);
         setPortfolioError(null);
+        setPortfolioLoading(false);
       }
       return;
     }
@@ -63,37 +67,38 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
     try {
       const data = await sbGetPortfolio(cdsNumber);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
       setPortfolio(data);
     } catch (e) {
-      if (!isMountedRef.current) return;
-      setPortfolioError(e.message);
+      if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
+      setPortfolioError(e.message || "Failed to load portfolio.");
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && reqId === portfolioReqRef.current) {
         setPortfolioLoading(false);
       }
     }
   }, [cdsNumber]);
 
   const loadMasterList = useCallback(async () => {
+    const reqId = ++masterReqRef.current;
+
     if (isMountedRef.current) {
       setMasterLoading(true);
     }
 
     try {
       const data = await sbGetAllCompanies();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       setMasterList(data);
-      if (setCompanies) setCompanies(data);
     } catch (e) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       showToast("Error loading companies: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && reqId === masterReqRef.current) {
         setMasterLoading(false);
       }
     }
-  }, [setCompanies, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     loadPortfolio();
@@ -202,16 +207,14 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (isEdit) {
         const rows = await sbUpdate("companies", editingCompany.id, { name, remarks });
         if (!isMountedRef.current) return;
+
         setMasterList(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
-        if (setCompanies) {
-          setCompanies(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
-        }
         showToast("Company updated!", "success");
       } else {
         const rows = await sbInsert("companies", { name, price, remarks });
         if (!isMountedRef.current) return;
+
         setMasterList(prev => [rows[0], ...prev]);
-        if (setCompanies) setCompanies(prev => [rows[0], ...prev]);
         showToast("Company registered!", "success");
       }
 
@@ -220,7 +223,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     }
-  }, [formModal.company, setCompanies, showToast]);
+  }, [formModal.company, showToast]);
 
   const confirmDelete = useCallback(async () => {
     const id = deleteModal?.id;
@@ -232,8 +235,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     try {
       await sbDelete("companies", id);
       if (!isMountedRef.current) return;
+
       setMasterList(prev => prev.filter(c => c.id !== id));
-      if (setCompanies) setCompanies(prev => prev.filter(c => c.id !== id));
       showToast("Company deleted.", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -243,7 +246,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         setDeleting(null);
       }
     }
-  }, [deleteModal, setCompanies, showToast]);
+  }, [deleteModal, showToast]);
 
   return (
     <div>
