@@ -142,8 +142,8 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   const description = isVerify
     ? `Verifying will mark ${count > 1 ? "these transactions" : "this transaction"} as verified and finalize them.`
     : action === "confirm-rejected"
-    ? "This transaction was previously rejected. Confirming will resubmit it to the Verifier for review."
-    : "Confirming will send this transaction to the Verifier for review.";
+      ? "This transaction was previously rejected. Confirming will resubmit it to the Verifier for review."
+      : "Confirming will send this transaction to the Verifier for review.";
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
@@ -284,7 +284,7 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   return {
     canConfirm: (isDE || isSAAD) && (isPending || isRejected),
     canEdit: isSAAD || (isDE && (isPending || isRejected)),
-    canDelete: isDE ? (isPending || isRejected) : isSAAD,
+    canDelete: isDE ? (isPending || isRejected) : (isSAAD && !isVerified),
     canUnVerify: isSAAD && isVerified,
     canVerify: (isVR || isSAAD) && isConfirmed,
     canReject: (isVR || isSAAD) && isConfirmed,
@@ -591,7 +591,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (t.status === "confirmed") confirmed.push(id);
       if (t.status === "verified") verified.push(id);
 
-      if (isSAAD || t.status === "pending" || t.status === "rejected") {
+      if (
+        (isSAAD && t.status !== "verified") ||
+        (!isSAAD && (t.status === "pending" || t.status === "rejected"))
+      ) {
         deletable.push(id);
       }
     }
