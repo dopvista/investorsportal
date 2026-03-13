@@ -1166,96 +1166,96 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             whiteSpace: "nowrap",
           }}
         >
-          {hasSelection ? (
-            <>
-              {canBulkDelete && (
-                <button
-                  onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
-                  disabled={isAnyDeleting}
-                  style={{
-                    ...toolbarButtonStyle,
-                    border: `1.5px solid #FECACA`,
-                    background: isAnyDeleting ? C.gray100 : C.redBg,
-                    color: C.red,
-                    fontWeight: 700,
-                    cursor: isAnyDeleting ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
-                </button>
-              )}
-
-              {canBulkConfirm && (
-                <button
-                  onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
-                  disabled={isAnyConfirming}
-                  style={{
-                    ...toolbarButtonStyle,
-                    border: "none",
-                    background: isAnyConfirming ? C.gray200 : "#1D4ED8",
-                    color: C.white,
-                    fontWeight: 700,
-                    cursor: isAnyConfirming ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
-                </button>
-              )}
-
-              {canBulkVerify && (
-                <button
-                  onClick={() => handleVerify(selectedBuckets.confirmed)}
-                  disabled={isAnyVerifying}
-                  style={{
-                    ...toolbarButtonStyle,
-                    border: "none",
-                    background: isAnyVerifying ? C.gray200 : C.green,
-                    color: C.white,
-                    fontWeight: 700,
-                    cursor: isAnyVerifying ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
-                </button>
-              )}
-
-              {canBulkReject && (
-                <button
-                  onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
-                  disabled={isAnyRejecting}
-                  style={{
-                    ...toolbarButtonStyle,
-                    border: `1.5px solid #FECACA`,
-                    background: isAnyRejecting ? C.gray100 : C.redBg,
-                    color: C.red,
-                    fontWeight: 700,
-                    cursor: isAnyRejecting ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
-                </button>
-              )}
-
-              {canBulkUnverify && (
-                <button
-                  onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
-                  disabled={isAnyUnverifying}
-                  style={{
-                    ...toolbarButtonStyle,
-                    border: `1.5px solid ${C.gray200}`,
-                    background: isAnyUnverifying ? C.gray100 : C.white,
-                    color: C.gray600,
-                    fontWeight: 700,
-                    cursor: isAnyUnverifying ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
-                </button>
-              )}
-
-              <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
-            </>
-          ) : (
+         {hasSelection ? (
+          <>
+            {canBulkConfirm && (
+              <button
+                onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
+                disabled={isAnyConfirming}
+                style={{
+                  ...toolbarButtonStyle,
+                  border: "none",
+                  background: isAnyConfirming ? C.gray200 : "#1D4ED8",
+                  color: C.white,
+                  fontWeight: 700,
+                  cursor: isAnyConfirming ? "not-allowed" : "pointer",
+                }}
+              >
+                {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
+              </button>
+            )}
+        
+            {canBulkVerify && (
+              <button
+                onClick={() => handleVerify(selectedBuckets.confirmed)}
+                disabled={isAnyVerifying}
+                style={{
+                  ...toolbarButtonStyle,
+                  border: "none",
+                  background: isAnyVerifying ? C.gray200 : C.green,
+                  color: C.white,
+                  fontWeight: 700,
+                  cursor: isAnyVerifying ? "not-allowed" : "pointer",
+                }}
+              >
+                {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
+              </button>
+            )}
+        
+            {canBulkReject && (
+              <button
+                onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
+                disabled={isAnyRejecting}
+                style={{
+                  ...toolbarButtonStyle,
+                  border: `1.5px solid #FECACA`,
+                  background: isAnyRejecting ? C.gray100 : C.redBg,
+                  color: C.red,
+                  fontWeight: 700,
+                  cursor: isAnyRejecting ? "not-allowed" : "pointer",
+                }}
+              >
+                {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
+              </button>
+            )}
+        
+            {canBulkUnverify && (
+              <button
+                onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
+                disabled={isAnyUnverifying}
+                style={{
+                  ...toolbarButtonStyle,
+                  border: `1.5px solid ${C.gray200}`,
+                  background: isAnyUnverifying ? C.gray100 : C.white,
+                  color: C.gray600,
+                  fontWeight: 700,
+                  cursor: isAnyUnverifying ? "not-allowed" : "pointer",
+                }}
+              >
+                {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
+              </button>
+            )}
+        
+            {canBulkDelete && (
+              <button
+                onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
+                disabled={isAnyDeleting}
+                style={{
+                  ...toolbarButtonStyle,
+                  border: `1.5px solid #FECACA`,
+                  background: isAnyDeleting ? C.gray100 : C.redBg,
+                  color: C.red,
+                  fontWeight: 700,
+                  cursor: isAnyDeleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
+              </button>
+            )}
+        
+            <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
+          </>
+        ) : (         
             <>
               <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
 
