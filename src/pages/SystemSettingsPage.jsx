@@ -6,30 +6,38 @@ import { sbGetSiteSettings, sbSaveSiteSettings, sbUploadSlideImage } from "../li
 import CompaniesPage from "./CompaniesPage";
 
 const inp = (extra = {}) => ({
-  width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
-  border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
-  background: C.white, color: C.text, transition: "border 0.2s",
-  boxSizing: "border-box", ...extra,
+  width: "100%",
+  padding: "9px 12px",
+  borderRadius: 9,
+  fontSize: 13,
+  border: `1.5px solid ${C.gray200}`,
+  outline: "none",
+  fontFamily: "inherit",
+  background: C.white,
+  color: C.text,
+  transition: "border 0.2s",
+  boxSizing: "border-box",
+  ...extra,
 });
 
-const focusGreen = e => e.target.style.borderColor = C.green;
-const blurGray   = e => e.target.style.borderColor = C.gray200;
+const focusGreen = e => { e.target.style.borderColor = C.green; };
+const blurGray = e => { e.target.style.borderColor = C.gray200; };
 
 const DEFAULT_SLIDES = [
-  { label: "Investors Portal", title: "Secure Investing",   sub: "Your assets are protected with us.",          image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1280&q=80", color: "#064e3b", overlay: 0.35 },
-  { label: "Investors Portal", title: "Smart Portfolio",    sub: "Track all your holdings in one place.",        image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1280&q=80", color: "#1e3a5f", overlay: 0.35 },
-  { label: "Investors Portal", title: "Real-time Data",     sub: "Stay ahead of the market with live insights.", image: "https://images.unsplash.com/photo-1642790551116-18a150d248c6?auto=format&fit=crop&w=1280&q=80", color: "#3b1f5e", overlay: 0.35 },
+  { label: "Investors Portal", title: "Secure Investing", sub: "Your assets are protected with us.", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1280&q=80", color: "#064e3b", overlay: 0.35 },
+  { label: "Investors Portal", title: "Smart Portfolio", sub: "Track all your holdings in one place.", image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1280&q=80", color: "#1e3a5f", overlay: 0.35 },
+  { label: "Investors Portal", title: "Real-time Data", sub: "Stay ahead of the market with live insights.", image: "https://images.unsplash.com/photo-1642790551116-18a150d248c6?auto=format&fit=crop&w=1280&q=80", color: "#3b1f5e", overlay: 0.35 },
 ];
 
 const DEFAULT_SETTINGS = { interval: 5000, animated: true, slides: DEFAULT_SLIDES };
 
 const COLOR_PRESETS = [
   { label: "Forest", value: "#064e3b" },
-  { label: "Navy",   value: "#1e3a5f" },
+  { label: "Navy", value: "#1e3a5f" },
   { label: "Purple", value: "#3b1f5e" },
-  { label: "Gold",   value: "#78350f" },
-  { label: "Slate",  value: "#1e293b" },
-  { label: "Teal",   value: "#134e4a" },
+  { label: "Gold", value: "#78350f" },
+  { label: "Slate", value: "#1e293b" },
+  { label: "Teal", value: "#134e4a" },
 ];
 
 const Field = memo(function Field({ label, children, hint }) {
@@ -95,6 +103,9 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   const [cropIdx, setCropIdx] = useState(null);
   const [uploading, setUploading] = useState(null);
 
+  const isMountedRef = useRef(true);
+  const loadReqRef = useRef(0);
+
   const fileRef0 = useRef();
   const fileRef1 = useRef();
   const fileRef2 = useRef();
@@ -103,11 +114,16 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   const isSA = role === "SA";
   const animated = settings.animated ?? true;
   const intervalSec = useMemo(() => (settings.interval / 1000).toFixed(0), [settings.interval]);
-  const activeSlideData = settings.slides[activeSlide];
   const resetSlides = useMemo(() => {
     const userDefaults = settings.defaults;
     return DEFAULT_SLIDES.map((s, i) => userDefaults?.[i] ? { ...userDefaults[i] } : { ...s });
   }, [settings.defaults]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const broadcastSettings = useCallback((value) => {
     try {
@@ -118,19 +134,34 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   }, []);
 
   const loadSettings = useCallback(async () => {
+    const reqId = ++loadReqRef.current;
+
+    if (isMountedRef.current) {
+      setLoading(true);
+    }
+
     try {
       const data = await sbGetSiteSettings("login_page");
-      if (data) setSettings(prev => ({ ...DEFAULT_SETTINGS, ...data }));
+      if (!isMountedRef.current || reqId !== loadReqRef.current) return;
+      if (data) {
+        setSettings({ ...DEFAULT_SETTINGS, ...data });
+      } else {
+        setSettings(DEFAULT_SETTINGS);
+      }
     } catch (e) {
+      if (!isMountedRef.current || reqId !== loadReqRef.current) return;
       showToast("Failed to load settings: " + e.message, "error");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && reqId === loadReqRef.current) {
+        setLoading(false);
+      }
     }
   }, [showToast]);
 
   useEffect(() => {
+    if (!isSA) return;
     loadSettings();
-  }, [loadSettings]);
+  }, [isSA, loadSettings]);
 
   const setSlideField = useCallback((idx, field, value) => {
     setSettings(prev => ({
@@ -156,10 +187,12 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
       const tok = session?.access_token;
       if (!tok) throw new Error("Session expired");
       await sbSaveSiteSettings("login_page", newSettings, tok);
+      if (!isMountedRef.current) return;
       if (setLoginSettings) setLoginSettings({ ...newSettings });
       broadcastSettings({ ...newSettings });
       showToast(`Slide ${idx + 1} default image updated!`, "success");
     } catch (err) {
+      if (!isMountedRef.current) return;
       showToast("Failed to save default: " + err.message, "error");
     }
   }, [settings, session?.access_token, setLoginSettings, broadcastSettings, showToast]);
@@ -174,6 +207,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
 
     const reader = new FileReader();
     reader.onload = ev => {
+      if (!isMountedRef.current) return;
       setCropSrc(ev.target.result);
       setCropIdx(idx);
     };
@@ -183,18 +217,24 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
 
   const handleCropConfirm = useCallback(async (blob) => {
     const idx = cropIdx;
+    if (idx == null) return;
+
     setCropSrc(null);
     setUploading(idx);
 
     try {
       const url = await sbUploadSlideImage(blob, idx + 1, session);
+      if (!isMountedRef.current) return;
       setSlideField(idx, "image", url);
       showToast(`Slide ${idx + 1} image uploaded!`, "success");
     } catch (err) {
+      if (!isMountedRef.current) return;
       showToast("Upload failed: " + err.message, "error");
     } finally {
-      setUploading(null);
-      setCropIdx(null);
+      if (isMountedRef.current) {
+        setUploading(null);
+        setCropIdx(null);
+      }
     }
   }, [cropIdx, session, setSlideField, showToast]);
 
@@ -204,13 +244,17 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
       const tok = session?.access_token;
       if (!tok) throw new Error("Session expired — please refresh the page.");
       await sbSaveSiteSettings("login_page", settings, tok);
+      if (!isMountedRef.current) return;
       if (setLoginSettings) setLoginSettings({ ...settings });
       broadcastSettings({ ...settings });
       showToast("Settings saved! Login page updated.", "success");
     } catch (err) {
+      if (!isMountedRef.current) return;
       showToast("Save failed: " + err.message, "error");
     } finally {
-      setSaving(false);
+      if (isMountedRef.current) {
+        setSaving(false);
+      }
     }
   }, [session?.access_token, settings, setLoginSettings, broadcastSettings, showToast]);
 
@@ -266,7 +310,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
             borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit",
             textAlign: "left", width: "100%", transition: "all 0.15s",
             background: activeMenu === item.id ? `${C.navy}10` : "transparent",
-            color:      activeMenu === item.id ? C.navy : C.gray400,
+            color: activeMenu === item.id ? C.navy : C.gray400,
             fontWeight: activeMenu === item.id ? 700 : 500, fontSize: 12,
             borderLeft: activeMenu === item.id ? `3px solid ${C.navy}` : "3px solid transparent",
           }}>
@@ -326,7 +370,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                   flex: 1, padding: "12px 8px", border: "none", cursor: "pointer",
                   fontFamily: "inherit", fontSize: 12,
                   fontWeight: activeSlide === i ? 700 : 500,
-                  color:      activeSlide === i ? C.navy : C.gray400,
+                  color: activeSlide === i ? C.navy : C.gray400,
                   background: activeSlide === i ? C.white : C.gray50,
                   borderBottom: activeSlide === i ? `2px solid ${C.navy}` : "2px solid transparent",
                   transition: "all 0.15s",
@@ -352,8 +396,8 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                         border: `2px dashed ${C.gray200}`,
                         cursor: uploading === idx ? "wait" : "pointer"
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = C.green}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = C.gray200}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; }}
                     >
                       {slide.image && <img src={slide.image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />}
 
@@ -543,7 +587,10 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
           imageSrc={cropSrc}
           slideIndex={(cropIdx ?? 0) + 1}
           onConfirm={handleCropConfirm}
-          onCancel={() => { setCropSrc(null); setCropIdx(null); }}
+          onCancel={() => {
+            setCropSrc(null);
+            setCropIdx(null);
+          }}
         />
       )}
     </div>
