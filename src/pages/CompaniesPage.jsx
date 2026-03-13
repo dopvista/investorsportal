@@ -420,7 +420,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               }}
             >
               <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>
-                Register Company
+                Register New Company
               </Btn>
             </div>
           </div>
