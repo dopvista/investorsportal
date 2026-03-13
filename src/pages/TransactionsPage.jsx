@@ -691,8 +691,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const canBulkUnverify = isSAAD && selectedBuckets.verified.length > 0;
 
   const openFormModal = useCallback((transaction = null) => {
+    if (loadingCompanies) return;
     setFormModal({ open: true, transaction });
-  }, []);
+  }, [loadingCompanies]);
 
   const openRejectModal = useCallback((ids) => {
     setRejectModal({ ids });
@@ -980,7 +981,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const showCheckbox = true;
   const showActions = !isRO;
-  const initialLoading = loadingTransactions || loadingCompanies;
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -1178,7 +1178,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
-          {initialLoading ? (
+          {loadingTransactions ? (
             <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
