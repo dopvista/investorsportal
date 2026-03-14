@@ -541,7 +541,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     }));
 
     const hasFinancials = withWeights.some((c) => c.currentPrice > 0 && c.netShares > 0);
-    const activeCompanies = withWeights.filter((c) => c.netShares > 0 || c.marketValue > 0);
+    const activeCompanies = withWeights
+      .filter((c) => c.netShares > 0 || c.marketValue > 0)
+      .sort((a, b) => b.marketValue - a.marketValue);
 
     const unrealizedGL = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
@@ -852,6 +854,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     <Th right>Shares Held</Th>
                     <Th right>Current Invested Capital</Th>
                     <Th right>Cost Allocation %</Th>
+                    <Th right>Market Value</Th>
                     <Th right>Unrealized Gain / Loss</Th>
                     <Th right>Status</Th>
                   </tr>
@@ -906,6 +909,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                           <span style={{ fontSize: 11, color: C.gray500 }}>{(c.costWeight || 0).toFixed(1)}%</span>
                         </div>
                       </Td>
+                      <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
                       <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
                         {c.currentPrice > 0 ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL) : "—"}
                       </Td>
@@ -938,6 +942,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
                       100%
+                    </td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                      {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
                     </td>
                     <td
                       style={{
