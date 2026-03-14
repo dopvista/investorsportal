@@ -186,7 +186,8 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
           onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); }}
           onFocus={focusGreen}
           onBlur={blurGray}
-          autoComplete="off"
+          autoComplete="new-password"
+          name={`cds-search-${Math.random()}`}
         />
         {searching && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: C.gray400 }}>...</span>}
       </div>
@@ -221,51 +222,66 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
         </div>
       )}
 
-      {/* SA: no results → offer to create new */}
+      {/* SA: no results → compact create form */}
       {showCreate && !isAdmin && query.trim().length > 2 && !selected && (
-        <div style={{ marginTop: 6, padding: "12px 14px", borderRadius: 9, background: "#fffbeb", border: `1.5px solid ${C.gold}40` }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>
-            No CDS found for "{query}" — create a new record?
+        <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 9, background: "#fffbeb", border: `1.5px solid ${C.gold}40` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+            <span>✨</span> Not found — create new CDS record
           </div>
           {createError && (
-            <div style={{ fontSize: 12, color: "#dc2626", marginBottom: 8, background: "#fef2f2", padding: "6px 10px", borderRadius: 7 }}>⚠️ {createError}</div>
+            <div style={{ fontSize: 11, color: "#dc2626", marginBottom: 6, background: "#fef2f2", padding: "5px 9px", borderRadius: 6 }}>⚠️ {createError}</div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, marginBottom: 3, textTransform: "uppercase" }}>CDS Number *</div>
-              <input style={inp({ fontSize: 12, padding: "7px 10px" })} placeholder="CDS-XXXXXX"
-                value={createForm.cdsNumber}
-                onChange={e => setCreateForm(f => ({ ...f, cdsNumber: e.target.value.toUpperCase() }))}
-                onFocus={focusGreen} onBlur={blurGray}
-              />
+          {/* Row 1: CDS number with CDS- prefix + Owner name */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <div style={{ flex: "0 0 auto" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Number *</div>
+              <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", background: C.white, transition: "border 0.2s" }}
+                onFocus={e => e.currentTarget.style.borderColor = C.green}
+                onBlur={e => e.currentTarget.style.borderColor = C.gray200}
+              >
+                <span style={{ padding: "6px 6px 6px 9px", fontSize: 12, fontWeight: 700, color: C.navy, background: C.navy + "0a", borderRight: `1px solid ${C.gray200}`, whiteSpace: "nowrap", userSelect: "none" }}>CDS-</span>
+                <input
+                  style={{ border: "none", outline: "none", padding: "6px 9px", fontSize: 12, fontFamily: "inherit", width: 80, background: "transparent", color: C.text }}
+                  placeholder="647305"
+                  value={createForm.cdsNumber.replace(/^CDS-/i, "")}
+                  onChange={e => setCreateForm(f => ({ ...f, cdsNumber: "CDS-" + e.target.value.replace(/[^0-9A-Za-z]/g, "").toUpperCase() }))}
+                  autoComplete="off"
+                />
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, marginBottom: 3, textTransform: "uppercase" }}>Owner Name *</div>
-              <input style={inp({ fontSize: 12, padding: "7px 10px" })} placeholder="Full name"
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Owner Name *</div>
+              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="Full name"
                 value={createForm.cdsName}
                 onChange={e => setCreateForm(f => ({ ...f, cdsName: e.target.value }))}
                 onFocus={focusGreen} onBlur={blurGray}
+                autoComplete="off"
               />
             </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, marginBottom: 3, textTransform: "uppercase" }}>Phone</div>
-              <input style={inp({ fontSize: 12, padding: "7px 10px" })} placeholder="+255..."
+          </div>
+          {/* Row 2: Phone + Email */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Phone</div>
+              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="+255..."
                 value={createForm.phone}
                 onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))}
                 onFocus={focusGreen} onBlur={blurGray}
+                autoComplete="off"
               />
             </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, marginBottom: 3, textTransform: "uppercase" }}>Email</div>
-              <input style={inp({ fontSize: 12, padding: "7px 10px" })} placeholder="owner@email.com"
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div>
+              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="owner@email.com"
                 value={createForm.email}
                 onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
                 onFocus={focusGreen} onBlur={blurGray}
+                autoComplete="off"
               />
             </div>
           </div>
           <button onClick={handleCreate} disabled={creating}
-            style={{ width: "100%", padding: "8px", borderRadius: 9, border: "none", background: creating ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 12, cursor: creating ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            style={{ width: "100%", padding: "7px", borderRadius: 8, border: "none", background: creating ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 12, cursor: creating ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
             {creating ? "Creating..." : "✚ Create & Select CDS"}
           </button>
         </div>
