@@ -20,7 +20,6 @@ const ROLE_META = {
 };
 
 const AVATAR_COLORS = ["#0A2540", "#1E3A5F", "#1D4ED8", "#065F46", "#374151", "#7C3AED", "#B45309", "#0369A1"];
-// Widened last column to fit 3 action buttons
 const GRID = "28px 1.5fr 0.9fr 0.8fr 0.8fr 1.1fr 1.3fr 90px 145px";
 
 function inp(extra = {}) {
@@ -45,10 +44,18 @@ const focusGreen = (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
 // ── Modal portal ───────────────────────────────────────────────────
-const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, maxWidth = 460 }) {
+const Modal = memo(function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  maxWidth = 460,
+  closeOnBackdrop = true,
+}) {
   return createPortal(
     <div
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
       style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,37,64,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
     >
       <div
@@ -101,8 +108,6 @@ const Field = memo(function Field({ label, required, hint, children }) {
 });
 
 // ── CDS search box (search-as-you-type + create) ───────────────────
-// callerRole: "SA" can create new CDS. "AD" can only assign from pool.
-// adCdsList: AD's own CDS pool (filtered locally, no RPC needed)
 function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Search by CDS number or owner name..." }) {
   const [query, setQuery]         = useState("");
   const [results, setResults]     = useState([]);
@@ -117,7 +122,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
 
   const isAdmin = callerRole === "AD";
 
-  // AD searches within their own pool locally
   const adFiltered = useMemo(() => {
     if (!isAdmin || !query.trim()) return isAdmin ? adCdsList : [];
     const q = query.toLowerCase();
@@ -127,7 +131,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
     );
   }, [isAdmin, adCdsList, query]);
 
-  // SA searches the master registry via RPC
   useEffect(() => {
     if (isAdmin) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -208,7 +211,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
         {searching && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: C.gray400 }}>...</span>}
       </div>
 
-      {/* Results dropdown */}
       {displayResults.length > 0 && !selected && (
         <div style={{ border: `1.5px solid ${C.green}`, borderRadius: 9, marginTop: 4, overflow: "hidden", maxHeight: 200, overflowY: "auto", background: C.white, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
           {displayResults.map(c => (
@@ -225,7 +227,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
         </div>
       )}
 
-      {/* Selected CDS confirmation */}
       {selected && (
         <div style={{ marginTop: 6, padding: "8px 12px", borderRadius: 9, background: `${C.green}0d`, border: `1.5px solid ${C.green}30`, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 16 }}>✅</span>
@@ -238,7 +239,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
         </div>
       )}
 
-      {/* SA: no results → compact create form */}
       {showCreate && !isAdmin && query.trim().length > 2 && !selected && (
         <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 9, background: "#fffbeb", border: `1.5px solid ${C.gold}40` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
@@ -247,7 +247,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
           {createError && (
             <div style={{ fontSize: 11, color: "#dc2626", marginBottom: 6, background: "#fef2f2", padding: "5px 9px", borderRadius: 6 }}>⚠️ {createError}</div>
           )}
-          {/* Row 1: CDS number with CDS- prefix + Owner name */}
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <div style={{ flex: "0 0 auto" }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Number *</div>
@@ -283,7 +282,6 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
               />
             </div>
           </div>
-          {/* Row 2: Phone + Email */}
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Phone</div>
@@ -332,14 +330,14 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Manage CDS (view/add/remove CDS for a user)
+// MODAL — Manage CDS
 // ═══════════════════════════════════════════════════════
 function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, onRefresh }) {
   const [userCdsList, setUserCdsList] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedCds, setSelectedCds] = useState(null);
   const [assigning, setAssigning]     = useState(false);
-  const [removeTarget, setRemoveTarget] = useState(null); // CDS being removed
+  const [removeTarget, setRemoveTarget] = useState(null);
   const isSA = callerRole === "SA";
   const isAD = callerRole === "AD";
 
@@ -348,7 +346,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
     try {
       const list = await sbGetUserCDS(user.id);
       setUserCdsList(list || []);
-    } catch (e) {
+    } catch {
       showToast("Failed to load CDS list", "error");
     } finally {
       setLoadingList(false);
@@ -374,7 +372,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
   }, [selectedCds, user, loadUserCds, onRefresh, showToast]);
 
   const handleRemove = useCallback(async (cdsEntry) => {
-    // If caller is SA and target is AD, check cascade
     if (isSA && user.role_code === "AD") {
       setRemoveTarget(cdsEntry);
       return;
@@ -389,7 +386,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
     }
   }, [isSA, user, loadUserCds, onRefresh, showToast]);
 
-  // AD's pool — passed in so search works locally
   const adPool = isAD ? callerCdsList : [];
 
   return (
@@ -401,7 +397,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
         maxWidth={520}
         footer={<button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Close</button>}
       >
-        {/* Assigned CDS list */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Assigned CDS</div>
           {loadingList ? (
@@ -432,7 +427,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           )}
         </div>
 
-        {/* Add CDS */}
         <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
@@ -456,7 +450,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
         </div>
       </Modal>
 
-      {/* Cascade remove confirmation — only SA removing from AD */}
       {removeTarget && (
         <CascadeRemoveModal
           admin={user}
@@ -475,19 +468,18 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Cascade Remove (SA removes CDS from AD)
+// MODAL — Cascade Remove
 // ═══════════════════════════════════════════════════════
 function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
   const [affectedUsers, setAffectedUsers] = useState([]);
   const [loading, setLoading]             = useState(true);
   const [saving, setSaving]               = useState(false);
-  const [cascade, setCascade]             = useState(null); // null = not decided, true/false = decided
+  const [cascade, setCascade]             = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
         const users = await sbGetCDSAssignedUsers(cdsEntry.cds_id);
-        // Exclude the admin themselves
         setAffectedUsers((users || []).filter(u => u.user_id !== admin.id));
       } catch {
         setAffectedUsers([]);
@@ -502,7 +494,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
     setSaving(true);
     try {
       if (affectedUsers.length > 0 && cascade !== null) {
-        // Use cascade RPC which handles both admin + sub-users
         await sbRemoveCDSFromAdminCascade(admin.id, cdsEntry.cds_id, cascade);
         showToast(
           cascade
@@ -511,7 +502,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
           "success"
         );
       } else {
-        // No sub-users — simple remove
         await sbRemoveCDS(admin.id, cdsEntry.cds_id);
         showToast(`${cdsEntry.cds_number} removed from ${admin.full_name}`, "success");
       }
@@ -553,7 +543,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
             ⚠️ <strong>{affectedUsers.length} user{affectedUsers.length > 1 ? "s" : ""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
           </div>
 
-          {/* Affected users list */}
           <div style={{ maxHeight: 140, overflowY: "auto", marginBottom: 14, border: `1px solid ${C.gray200}`, borderRadius: 9, overflow: "hidden" }}>
             {affectedUsers.map((u, i) => (
               <div key={u.user_id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: i % 2 ? C.gray50 : C.white, borderBottom: i < affectedUsers.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
@@ -566,7 +555,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
             ))}
           </div>
 
-          {/* Cascade choice */}
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>What to do with their access?</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
             {[
@@ -594,7 +582,7 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Change Role (unchanged)
+// MODAL — Change Role
 // ═══════════════════════════════════════════════════════
 function ChangeRoleModal({ user, roles, callerRole, onClose, onSave, showToast }) {
   const available = useMemo(
@@ -655,7 +643,7 @@ function ChangeRoleModal({ user, roles, callerRole, onClose, onSave, showToast }
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Toggle Status (unchanged)
+// MODAL — Toggle Status
 // ═══════════════════════════════════════════════════════
 function ToggleStatusModal({ user, onClose, onConfirm, showToast }) {
   const [saving, setSaving] = useState(false);
@@ -692,13 +680,12 @@ function ToggleStatusModal({ user, onClose, onConfirm, showToast }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Invite User (updated CDS field)
+// MODAL — Invite User
 // ═══════════════════════════════════════════════════════
 function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, showToast }) {
   const isAdmin = callerRole === "AD";
   const [form, setForm]         = useState({ email: "", password: "", role_id: "" });
   const [selectedCds, setSelectedCds] = useState(
-    // AD pre-selects their first CDS automatically
     isAdmin && callerCdsList?.length === 1 ? callerCdsList[0] : null
   );
   const [saving, setSaving]     = useState(false);
@@ -719,11 +706,11 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   const passwordChecks = useMemo(() => {
     const pw = form.password;
     return [
-      { label: "8+ characters",  ok: pw.length >= 8 },
-      { label: "Uppercase",      ok: /[A-Z]/.test(pw) },
-      { label: "Lowercase",      ok: /[a-z]/.test(pw) },
-      { label: "Number",         ok: /[0-9]/.test(pw) },
-      { label: "Special char",   ok: /[^A-Za-z0-9]/.test(pw) },
+      { label: "8+ characters", ok: pw.length >= 8 },
+      { label: "Uppercase", ok: /[A-Z]/.test(pw) },
+      { label: "Lowercase", ok: /[a-z]/.test(pw) },
+      { label: "Number", ok: /[0-9]/.test(pw) },
+      { label: "Special char", ok: /[^A-Za-z0-9]/.test(pw) },
     ];
   }, [form.password]);
 
@@ -731,14 +718,14 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
 
   const handleSubmit = useCallback(async () => {
     setError("");
-    if (!form.email.trim())    return setError("Email is required");
+    if (!form.email.trim()) return setError("Email is required");
     if (!form.password.trim()) return setError("Temporary password is required.");
 
     const pwErrors = [];
-    if (form.password.length < 8)           pwErrors.push("at least 8 characters");
-    if (!/[A-Z]/.test(form.password))        pwErrors.push("one uppercase letter");
-    if (!/[a-z]/.test(form.password))        pwErrors.push("one lowercase letter");
-    if (!/[0-9]/.test(form.password))        pwErrors.push("one number");
+    if (form.password.length < 8) pwErrors.push("at least 8 characters");
+    if (!/[A-Z]/.test(form.password)) pwErrors.push("one uppercase letter");
+    if (!/[a-z]/.test(form.password)) pwErrors.push("one lowercase letter");
+    if (!/[0-9]/.test(form.password)) pwErrors.push("one number");
     if (!/[^A-Za-z0-9]/.test(form.password)) pwErrors.push("one special character");
     if (pwErrors.length > 0) return setError("Password must contain: " + pwErrors.join(", ") + ".");
     if (!selectedCds) return setError("Please select a CDS account");
@@ -751,7 +738,6 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       const uid = result?.user?.id || result?.id;
       if (uid) {
         await sbAssignRole(uid, parseInt(form.role_id, 10));
-        // Also assign the CDS in the new user_cds table
         const cdsId = selectedCds.id || selectedCds.cds_id;
         if (cdsId) await sbAssignCDS(uid, cdsId).catch(() => {});
       }
@@ -766,7 +752,11 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   }, [form, selectedCds, onClose, onSuccess, showToast]);
 
   return (
-    <Modal title="Invite New User" subtitle="Create an account and assign a role" onClose={onClose}
+    <Modal
+      title="Invite New User"
+      subtitle="Create an account and assign a role"
+      onClose={onClose}
+      closeOnBackdrop={false}
       footer={<><CancelBtn onClose={onClose} /><ConfirmBtn onClick={handleSubmit} label="Create & Invite" saving={saving} /></>}
     >
       {error && (
@@ -776,16 +766,19 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       )}
 
       <Field label="Email Address" required>
-        <input style={inp()} type="email" placeholder="user@example.com"
-          value={form.email} onChange={e => set("email", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+        <input
+          style={inp()}
+          type="email"
+          placeholder="user@example.com"
+          value={form.email}
+          onChange={e => set("email", e.target.value)}
+          onFocus={focusGreen}
+          onBlur={blurGray}
         />
       </Field>
 
-      {/* CDS field — smart search/create for SA, pool-limited for AD */}
       <Field label="CDS Account" required hint={isAdmin ? "Select from your assigned CDS accounts" : "Search existing CDS or create a new one"}>
         {isAdmin && callerCdsList?.length <= 1 && selectedCds ? (
-          // AD with single CDS — show locked
           <div style={{ padding: "9px 12px", borderRadius: 9, background: `${C.green}08`, border: `1.5px solid ${C.green}30`, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 13 }}>🔒</span>
             <div style={{ flex: 1 }}>
@@ -807,37 +800,46 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
 
       <Field label="Temporary Password" required hint="Share this with the user — they can change it after first login">
-        <input style={inp()} type="password" placeholder="Min 8 chars, upper, lower, number, symbol"
-          value={form.password} onChange={e => set("password", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+        <input
+          style={inp()}
+          type="password"
+          placeholder="Min 8 chars, upper, lower, number, symbol"
+          value={form.password}
+          onChange={e => set("password", e.target.value)}
+          onFocus={focusGreen}
+          onBlur={blurGray}
         />
         {form.password.length > 0 && (
           <div
             style={{
               display: "flex",
-              gap: 4,
+              gap: 3,
               flexWrap: "nowrap",
-              overflowX: "auto",
               marginTop: 6,
-              paddingBottom: 2,
-              scrollbarWidth: "thin",
               whiteSpace: "nowrap",
+              alignItems: "center",
             }}
           >
             {passwordChecks.map(c => (
               <span
                 key={c.label}
                 style={{
-                  flexShrink: 0,
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  padding: "2px 7px",
+                  textAlign: "center",
+                  fontSize: 9,
+                  lineHeight: 1.15,
+                  fontWeight: 700,
+                  padding: "2px 4px",
                   borderRadius: 999,
                   background: c.ok ? "#dcfce7" : "#fee2e2",
                   color: c.ok ? "#166534" : "#991b1b",
                   border: `1px solid ${c.ok ? "#bbf7d0" : "#fecaca"}`,
                 }}
+                title={`${c.ok ? "✓" : "✗"} ${c.label}`}
               >
                 {c.ok ? "✓" : "✗"} {c.label}
               </span>
@@ -849,8 +851,10 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       <Field label="Assign Role" required>
         <select
           style={{ ...inp(), cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 }}
-          value={form.role_id} onChange={e => set("role_id", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+          value={form.role_id}
+          onChange={e => set("role_id", e.target.value)}
+          onFocus={focusGreen}
+          onBlur={blurGray}
         >
           <option value="">Select a role...</option>
           {allowedRoles.map(r => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
@@ -860,14 +864,14 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   );
 }
 
-// ── Role badge (unchanged) ─────────────────────────────────────────
+// ── Role badge ─────────────────────────────────────────────────────
 const RoleBadge = memo(function RoleBadge({ code }) {
   const m = ROLE_META[code];
   if (!m) return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "#fffbeb", border: "1px solid #fde68a", color: "#b45309" }}>No Role</span>;
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: m.bg, border: `1px solid ${m.border}`, color: m.text, whiteSpace: "nowrap" }}>{m.label}</span>;
 });
 
-// ── User avatar (unchanged) ────────────────────────────────────────
+// ── User avatar ────────────────────────────────────────────────────
 const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size = 34 }) {
   const initials = useMemo(() => (name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(), [name]);
   const color    = useMemo(() => AVATAR_COLORS[(name || "").charCodeAt(0) % AVATAR_COLORS.length], [name]);
@@ -886,7 +890,7 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size = 
   );
 });
 
-// ── Stat card (unchanged) ──────────────────────────────────────────
+// ── Stat card ──────────────────────────────────────────────────────
 const StatCard = memo(function StatCard({ label, value, color, icon }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 90 }}>
@@ -905,7 +909,7 @@ const StatCard = memo(function StatCard({ label, value, color, icon }) {
 export default function UserManagementPage({ role, showToast, profile }) {
   const [users, setUsers]               = useState([]);
   const [roles, setRoles]               = useState([]);
-  const [callerCdsList, setCallerCdsList] = useState([]); // current user's CDS pool
+  const [callerCdsList, setCallerCdsList] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
@@ -914,7 +918,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const [inviteOpen, setInviteOpen]     = useState(false);
   const [changeRoleUser, setChangeRoleUser] = useState(null);
   const [toggleUser, setToggleUser]     = useState(null);
-  const [manageCdsUser, setManageCdsUser] = useState(null); // NEW
+  const [manageCdsUser, setManageCdsUser] = useState(null);
 
   const isMountedRef = useRef(true);
   const loadReqRef   = useRef(0);
@@ -943,7 +947,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
     }
   }, []);
 
-  // Load caller's own CDS pool (needed for AD constraints)
   useEffect(() => {
     if (!isAllowed || !profile?.id) return;
     sbGetUserCDS(profile.id)
@@ -1032,7 +1035,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
       <style>{`
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin   { to { transform: rotate(360deg); } }
-        .um-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .um-scroll::-webkit-scrollbar { width: 4px; }
         .um-scroll::-webkit-scrollbar-track { background: transparent; }
         .um-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .um-scroll { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
@@ -1040,7 +1043,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         select option { font-weight: 500; }
       `}</style>
 
-      {/* Stats strip (unchanged) */}
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexShrink: 0, flexWrap: "wrap" }}>
         <StatCard label="Total Users"   value={stats.total}           color="#0A2540" icon="👥" />
         <StatCard label="Active"        value={stats.activeCount}     color={C.green} icon="✅" />
@@ -1050,13 +1052,12 @@ export default function UserManagementPage({ role, showToast, profile }) {
         <StatCard label="Verifiers"     value={stats.rCounts.VR || 0} color="#065F46" icon="✔️" />
       </div>
 
-      {/* Filters + invite (unchanged) */}
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexShrink: 0, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
           <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: C.gray400, pointerEvents: "none" }}>🔍</span>
           <input placeholder="Search by name, CDS or phone..." value={search} onChange={e => setSearch(e.target.value)} style={SEARCH_INPUT_STYLE} onFocus={focusGreen} onBlur={blurGray} />
         </div>
-        <select value={filterRole}   onChange={e => setFilterRole(e.target.value)}   onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
+        <select value={filterRole} onChange={e => setFilterRole(e.target.value)} onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
           <option value="ALL">All Roles</option>
           {Object.entries(ROLE_META).map(([c, m]) => <option key={c} value={c}>{m.label}</option>)}
           <option value="">No Role</option>
@@ -1075,7 +1076,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         >+ Invite User</button>
       </div>
 
-      {/* Table */}
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
         <div style={{ overflowX: "auto", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "8px 14px", minWidth: 940, borderBottom: `1px solid ${C.gray100}`, background: C.gray50, flexShrink: 0 }}>
@@ -1119,7 +1119,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                   {user.assigned_at ? new Date(user.assigned_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
                 </div>
 
-                {/* Actions — 3 buttons: Role · CDS · Status */}
                 <div style={{ display: "flex", gap: 4 }}>
                   <button onClick={() => setChangeRoleUser(user)}
                     style={{ padding: "4px 7px", borderRadius: 7, border: `1px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", whiteSpace: "nowrap" }}
@@ -1127,7 +1126,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                     onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
                   >✏️ Role</button>
 
-                  {/* NEW — Manage CDS button */}
                   <button onClick={() => setManageCdsUser(user)}
                     style={{ padding: "4px 7px", borderRadius: 7, border: `1px solid ${C.navy}25`, background: C.navy + "08", color: C.navy, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", whiteSpace: "nowrap" }}
                     onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
@@ -1148,15 +1146,22 @@ export default function UserManagementPage({ role, showToast, profile }) {
         </div>
       </div>
 
-      {/* Modals */}
       {inviteOpen && (
-        <InviteModal roles={roles} callerRole={role} callerCdsList={callerCdsList}
-          onClose={handleCloseInvite} onSuccess={loadData} showToast={showToast}
+        <InviteModal
+          roles={roles}
+          callerRole={role}
+          callerCdsList={callerCdsList}
+          onClose={handleCloseInvite}
+          onSuccess={loadData}
+          showToast={showToast}
         />
       )}
 
       {changeRoleUser && (
-        <ChangeRoleModal user={changeRoleUser} roles={roles} callerRole={role}
+        <ChangeRoleModal
+          user={changeRoleUser}
+          roles={roles}
+          callerRole={role}
           onClose={handleCloseChangeRole}
           onSave={async (uid, rid) => { await handleAssignRole(uid, rid); if (isMountedRef.current) setChangeRoleUser(null); }}
           showToast={showToast}
@@ -1167,7 +1172,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         <ToggleStatusModal user={toggleUser} onClose={handleCloseToggle} onConfirm={handleToggleActive} showToast={showToast} />
       )}
 
-      {/* NEW — Manage CDS modal */}
       {manageCdsUser && (
         <ManageCDSModal
           user={manageCdsUser}
