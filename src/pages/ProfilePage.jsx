@@ -3,6 +3,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { C } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
+import { sbSwitchActiveCDS, sbGetUserCDS } from "../lib/supabase";
 
 const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -63,14 +64,8 @@ const GENDERS = ["Male", "Female", "Prefer not to say"];
 
 function calcCompletion(form, avatarPreview) {
   const fields = [
-    form.full_name,
-    form.phone,
-    form.nationality,
-    form.postal_address,
-    form.national_id,
-    form.date_of_birth,
-    form.gender,
-    avatarPreview,
+    form.full_name, form.phone, form.nationality, form.postal_address,
+    form.national_id, form.date_of_birth, form.gender, avatarPreview,
   ];
   return Math.round((fields.filter(f => f && String(f).trim()).length / fields.length) * 100);
 }
@@ -85,25 +80,15 @@ const profileToForm = (profile) => ({
   gender:         profile?.gender         || "",
 });
 
-// ── Shared input styles ───────────────────────────────────────────
 const inp = (extra = {}) => ({
-  width: "100%",
-  padding: "8px 11px",
-  borderRadius: 8,
-  fontSize: 13,
-  border: `1.5px solid ${C.gray200}`,
-  outline: "none",
-  fontFamily: "inherit",
-  background: C.white,
-  color: C.text,
-  transition: "border 0.2s",
-  boxSizing: "border-box",
-  ...extra,
+  width: "100%", padding: "8px 11px", borderRadius: 8, fontSize: 13,
+  border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
+  background: C.white, color: C.text, transition: "border 0.2s",
+  boxSizing: "border-box", ...extra,
 });
 const focusGreen = (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
-// ── Section card ──────────────────────────────────────────────────
 function Section({ title, icon, children }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 6 }}>
@@ -116,7 +101,6 @@ function Section({ title, icon, children }) {
   );
 }
 
-// ── Field wrapper ─────────────────────────────────────────────────
 function Field({ label, required, children }) {
   return (
     <div style={{ marginBottom: 6 }}>
@@ -128,7 +112,6 @@ function Field({ label, required, children }) {
   );
 }
 
-// ── Searchable country dropdown ───────────────────────────────────
 function CountrySelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -140,78 +123,38 @@ function CountrySelect({ value, onChange }) {
   );
 
   useEffect(() => {
-    const h = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <div
-        onClick={() => { setOpen(o => !o); setSearch(""); }}
-        style={{
-          ...inp(),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          userSelect: "none",
-          borderColor: open ? C.green : C.gray200,
-        }}
+      <div onClick={() => { setOpen(o => !o); setSearch(""); }}
+        style={{ ...inp(), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none", borderColor: open ? C.green : C.gray200 }}
       >
         <span style={{ color: value ? C.text : "#9ca3af" }}>{value || "Select country"}</span>
         <span style={{ fontSize: 10, color: C.gray400, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
       </div>
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 3px)",
-            left: 0,
-            right: 0,
-            background: C.white,
-            border: `1.5px solid ${C.green}`,
-            borderRadius: 10,
-            zIndex: 9999,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            overflow: "hidden",
-          }}
-        >
+        <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, zIndex: 9999, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
           <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-            <input
-              autoFocus
-              placeholder="🔍 Search country..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+            <input autoFocus placeholder="🔍 Search country..." value={search} onChange={e => setSearch(e.target.value)}
               style={{ width: "100%", padding: "6px 8px", borderRadius: 7, fontSize: 12, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
             />
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {filtered.length === 0 ? (
               <div style={{ padding: "10px 12px", color: C.gray400, fontSize: 12 }}>No results</div>
-            ) : (
-              filtered.map((c, i) => (
-                <div
-                  key={c}
-                  onClick={() => { onChange(c); setOpen(false); setSearch(""); }}
-                  style={{
-                    padding: "7px 12px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    background: c === value ? `${C.green}12` : "transparent",
-                    color: c === value ? C.green : C.text,
-                    fontWeight: c === value ? 700 : 400,
-                    borderBottom: i === 0 && c === "Tanzania" ? `1px solid ${C.gray100}` : "none",
-                  }}
-                  onMouseEnter={e => { if (c !== value) e.currentTarget.style.background = C.gray50; }}
-                  onMouseLeave={e => { if (c !== value) e.currentTarget.style.background = "transparent"; }}
-                >
-                  {c === "Tanzania" ? "🇹🇿 " : ""}{c}{c === value && <span style={{ float: "right" }}>✓</span>}
-                </div>
-              ))
-            )}
+            ) : filtered.map((c, i) => (
+              <div key={c} onClick={() => { onChange(c); setOpen(false); setSearch(""); }}
+                style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", background: c === value ? `${C.green}12` : "transparent", color: c === value ? C.green : C.text, fontWeight: c === value ? 700 : 400, borderBottom: i === 0 && c === "Tanzania" ? `1px solid ${C.gray100}` : "none" }}
+                onMouseEnter={e => { if (c !== value) e.currentTarget.style.background = C.gray50; }}
+                onMouseLeave={e => { if (c !== value) e.currentTarget.style.background = "transparent"; }}
+              >
+                {c === "Tanzania" ? "🇹🇿 " : ""}{c}{c === value && <span style={{ float: "right" }}>✓</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -219,7 +162,6 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Change Password Modal ─────────────────────────────────────────
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
@@ -255,44 +197,24 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const pw = strength(newPw);
 
   const mInp = (extra = {}) => ({
-    width: "100%",
-    padding: "10px 13px",
-    borderRadius: 9,
-    fontSize: 14,
-    border: `1.5px solid ${C.gray200}`,
-    outline: "none",
-    fontFamily: "inherit",
-    background: C.white,
-    color: C.text,
-    transition: "border 0.2s",
-    boxSizing: "border-box",
-    ...extra,
+    width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 14,
+    border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
+    background: C.white, color: C.text, transition: "border 0.2s",
+    boxSizing: "border-box", ...extra,
   });
 
   const handleSendOtp = async () => {
-    if (remaining <= 0) {
-      setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`);
-      return;
-    }
-    setError("");
-    setLoading(true);
+    if (remaining <= 0) { setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`); return; }
+    setError(""); setLoading(true);
     try {
       const res = await fetch(`${BASE}/auth/v1/otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: KEY },
         body: JSON.stringify({ email, type: "email" }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error_description || d.message || "Failed to send code");
-      }
-      setStep("verify");
-      setCountdown(300);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error_description || d.message || "Failed to send code"); }
+      setStep("verify"); setCountdown(300);
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   const handleVerifyAndUpdate = async () => {
@@ -302,7 +224,6 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     if (newPw !== confirmPw) return setError("Passwords do not match");
     if (remainingPwChanges(uid) <= 0) return setError("Daily limit reached");
     setLoading(true);
-
     try {
       const verifyRes = await fetch(`${BASE}/auth/v1/verify`, {
         method: "POST",
@@ -310,34 +231,20 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
         body: JSON.stringify({ email, token: otp, type: "email" }),
       });
       const verifyText = await verifyRes.text();
-      if (!verifyRes.ok) {
-        let d = {};
-        try { d = JSON.parse(verifyText); } catch {}
-        throw new Error(d.error_description || d.message || "Invalid or expired code");
-      }
-
+      if (!verifyRes.ok) { let d = {}; try { d = JSON.parse(verifyText); } catch {} throw new Error(d.error_description || d.message || "Invalid or expired code"); }
       const tok = session?.access_token;
       if (!tok) throw new Error("Session expired. Please sign in again.");
-
       const updateRes = await fetch(`${BASE}/auth/v1/user`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
         body: JSON.stringify({ password: newPw }),
       });
-      if (!updateRes.ok) {
-        const d = await updateRes.json().catch(() => ({}));
-        throw new Error(d.error_description || d.message || "Failed to update password");
-      }
-
+      if (!updateRes.ok) { const d = await updateRes.json().catch(() => ({})); throw new Error(d.error_description || d.message || "Failed to update password"); }
       incrementPwChanges(uid);
       setStep("done");
       showToast(`Password updated! ${remainingPwChanges(uid)} change${remainingPwChanges(uid) !== 1 ? "s" : ""} remaining today.`, "success");
       setTimeout(() => onClose(), 2500);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   return (
@@ -352,10 +259,8 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
             </div>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
-
           <div style={{ padding: "24px" }}>
             {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
-
             {step === "send" && (
               <>
                 <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>For security, we'll send a one-time verification code to your email before allowing a password change.</p>
@@ -369,7 +274,6 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
                 {remaining <= 0 && <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>Daily limit reached. Try again tomorrow.</div>}
               </>
             )}
-
             {step === "verify" && (
               <>
                 <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.</p>
@@ -383,7 +287,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
                   </div>
                   {newPw && (
                     <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
-                      {[1, 2, 3, 4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
+                      {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
                       <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
                     </div>
                   )}
@@ -402,12 +306,11 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
                 </div>
                 <div style={{ textAlign: "center", marginTop: 12 }}>
                   <button onClick={countdown > 0 ? null : handleSendOtp} disabled={countdown > 0} style={{ background: "none", border: "none", fontSize: 12, color: countdown > 0 ? C.gray400 : C.green, cursor: countdown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {countdown > 0 ? `Resend in ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, "0")}` : "Resend code"}
+                    {countdown > 0 ? `Resend in ${Math.floor(countdown/60)}:${String(countdown%60).padStart(2,"0")}` : "Resend code"}
                   </button>
                 </div>
               </>
             )}
-
             {step === "done" && (
               <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
                 <div style={{ width: 64, height: 64, background: `${C.green}15`, border: `2px solid ${C.green}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
@@ -424,62 +327,46 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
 }
 
 // ── Main ProfilePage ──────────────────────────────────────────────
-export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp }) {
+export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onCdsSwitched }) {
   const email = emailProp || session?.user?.email || session?.email || profile?.email || "";
-  const isMountedRef = useRef(true);
-  const cdsCountReqRef = useRef(0);
+  const isMountedRef    = useRef(true);
+  const cdsCountReqRef  = useRef(0);
 
-  const [form, setForm] = useState(() => profileToForm(profile));
+  const [form, setForm]                   = useState(() => profileToForm(profile));
   const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null);
-  const [cropSrc, setCropSrc] = useState(null);
+  const [cropSrc, setCropSrc]             = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [showPwModal, setShowPwModal] = useState(false);
-  const [cdsUserCount, setCdsUserCount] = useState(1);
+  const [saving, setSaving]               = useState(false);
+  const [showPwModal, setShowPwModal]     = useState(false);
+  const [cdsUserCount, setCdsUserCount]   = useState(1);
+  // ── CDS switch state ──
+  const [switchTarget, setSwitchTarget]   = useState(null);
+  const [switching, setSwitching]         = useState(false);
   const fileRef = useRef();
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
 
   useEffect(() => {
     setForm(profileToForm(profile));
     setAvatarPreview(profile?.avatar_url || null);
   }, [
-    profile?.full_name,
-    profile?.phone,
-    profile?.nationality,
-    profile?.postal_address,
-    profile?.national_id,
-    profile?.date_of_birth,
-    profile?.gender,
-    profile?.avatar_url,
+    profile?.full_name, profile?.phone, profile?.nationality,
+    profile?.postal_address, profile?.national_id,
+    profile?.date_of_birth, profile?.gender, profile?.avatar_url,
   ]);
 
-  // Clean up old generic key
-  useEffect(() => {
-    try {
-      localStorage.removeItem("dse_pw_changes");
-    } catch {}
-  }, []);
+  useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
-  // Fetch CDS user count via RPC (bypasses RLS)
+  // Fetch CDS user count (for account type display)
   useEffect(() => {
     const reqId = ++cdsCountReqRef.current;
-
     if (!profile?.cds_number) {
-      if (isMountedRef.current && reqId === cdsCountReqRef.current) {
-        setCdsUserCount(1);
-      }
+      if (isMountedRef.current && reqId === cdsCountReqRef.current) setCdsUserCount(1);
       return;
     }
-
     const tok = session?.access_token || KEY;
-
     fetch(`${BASE}/rest/v1/rpc/get_cds_user_count`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
@@ -490,68 +377,68 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return;
         setCdsUserCount(typeof count === "number" ? count : 1);
       })
-      .catch(() => {
-        if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return;
-        setCdsUserCount(1);
-      });
+      .catch(() => { if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return; setCdsUserCount(1); });
   }, [profile?.cds_number, session?.access_token]);
 
-  const accountType = cdsUserCount > 1 ? "Corporate" : "Individual";
-  const completion = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
+  const accountType    = cdsUserCount > 1 ? "Corporate" : "Individual";
+  const completion     = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
   const completionColor = completion >= 80 ? C.green : completion >= 50 ? "#f59e0b" : C.red;
-  const roleMeta = ROLE_META[role] || { label: role || "User", color: C.gray400 };
-  const initials = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const lastSaved = profile?.updated_at
+  const roleMeta       = ROLE_META[role] || { label: role || "User", color: C.gray400 };
+  const initials       = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const lastSaved      = profile?.updated_at
     ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
+
+  // Active CDS number from App.jsx prop — always current
+  const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
+
+  // ── CDS switch handler ────────────────────────────────────────
+  const handleSwitchCDS = useCallback(async () => {
+    if (!switchTarget || !uid) return;
+    setSwitching(true);
+    try {
+      await sbSwitchActiveCDS(uid, switchTarget.cds_id);
+      const updatedList = await sbGetUserCDS(uid).catch(() => cdsList);
+      onCdsSwitched?.(switchTarget, updatedList);
+      showToast(`Switched to ${switchTarget.cds_number}`, "success");
+    } catch (e) {
+      showToast(e.message || "Failed to switch CDS", "error");
+    } finally {
+      setSwitching(false);
+      setSwitchTarget(null);
+    }
+  }, [switchTarget, cdsList, onCdsSwitched, showToast]);
 
   const handleFileSelect = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      showToast("Image must be under 10MB", "error");
-      return;
-    }
+    if (file.size > 10 * 1024 * 1024) { showToast("Image must be under 10MB", "error"); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (!isMountedRef.current) return;
-      setCropSrc(ev.target.result);
-    };
+    reader.onload = (ev) => { if (!isMountedRef.current) return; setCropSrc(ev.target.result); };
     reader.readAsDataURL(file);
     e.target.value = "";
   }, [showToast]);
 
   const handleCropConfirm = useCallback(async (blob) => {
-    setCropSrc(null);
-    setUploadingAvatar(true);
-
+    setCropSrc(null); setUploadingAvatar(true);
     try {
-      const uid = session?.user?.id || profile?.id;
+      const uid2 = session?.user?.id || profile?.id;
       const tok = session?.access_token || KEY;
-
-      const uploadRes = await fetch(`${BASE}/storage/v1/object/avatars/${uid}`, {
+      const uploadRes = await fetch(`${BASE}/storage/v1/object/avatars/${uid2}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
         body: blob,
       });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}));
-        throw new Error(err.message || "Upload failed");
-      }
-
-      const publicUrl = `${BASE}/storage/v1/object/public/avatars/${uid}?t=${Date.now()}`;
-
-      const patchRes = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
+      if (!uploadRes.ok) { const err = await uploadRes.json().catch(() => ({})); throw new Error(err.message || "Upload failed"); }
+      const publicUrl = `${BASE}/storage/v1/object/public/avatars/${uid2}?t=${Date.now()}`;
+      const patchRes = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify({ avatar_url: publicUrl }),
       });
       if (!patchRes.ok) throw new Error("Failed to save avatar URL");
-
       const rows = await patchRes.json();
-
       if (!isMountedRef.current) return;
-
       setProfile(rows[0] || { ...profile, avatar_url: publicUrl });
       setAvatarPreview(publicUrl);
       showToast("Profile picture updated!", "success");
@@ -559,48 +446,32 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       if (!isMountedRef.current) return;
       showToast("Upload failed: " + err.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setUploadingAvatar(false);
-      }
+      if (isMountedRef.current) setUploadingAvatar(false);
     }
   }, [profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
   const handleSave = useCallback(async () => {
-    if (!form.full_name.trim()) {
-      showToast("Full name is required", "error");
-      return;
-    }
-    if (!form.phone.trim()) {
-      showToast("Phone number is required", "error");
-      return;
-    }
-
+    if (!form.full_name.trim()) { showToast("Full name is required", "error"); return; }
+    if (!form.phone.trim()) { showToast("Phone number is required", "error"); return; }
     setSaving(true);
-
     try {
       const tok = session?.access_token || KEY;
-      const uid = session?.user?.id || profile?.id;
-
-      const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid}`, {
+      const uid2 = session?.user?.id || profile?.id;
+      const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
-
       const rows = await res.json();
-
       if (!isMountedRef.current) return;
-
       setProfile(rows[0] || { ...profile, ...form });
       showToast("Profile saved successfully!", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setSaving(false);
-      }
+      if (isMountedRef.current) setSaving(false);
     }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
@@ -621,6 +492,51 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
       {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
 
+      {/* ── CDS Switch Confirmation Modal ── */}
+      {switchTarget && (
+        <>
+          <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
+          <div style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease" }}>
+              <div style={{ background: C.navy, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
+                  <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
+                </div>
+                <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              </div>
+              <div style={{ padding: "20px 22px" }}>
+                <div style={{ textAlign: "center", marginBottom: 18 }}>
+                  <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
+                  {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
+                  <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+                    <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
+                  </div>
+                  <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
+                    <div style={{ fontWeight: 800, color: C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+                  <button onClick={handleSwitchCDS} disabled={switching} style={{ flex: 2, padding: "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                    {switching
+                      ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</>
+                      : "Yes, Switch Account"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div style={{ marginBottom: 6, flexShrink: 0 }}>
         <div style={{ fontSize: 12, color: C.gray400 }}>
           Manage your personal information and security settings
@@ -629,29 +545,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+        {/* ── Left column ── */}
         <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
+
+          {/* Profile card */}
           <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
             <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
             <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
               <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
                 <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    border: `3px solid ${C.white}`,
-                    boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
-                    background: avatarPreview ? "transparent" : C.navy,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    cursor: "pointer",
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: C.white,
-                    position: "relative",
-                  }}
+                  style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative" }}
                   onClick={() => !uploadingAvatar && fileRef.current?.click()}
                 >
                   {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
@@ -675,12 +579,18 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </span>
               </div>
 
+              {/* ── Active CDS chip — shows active CDS + count badge ── */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid #bbf7d0`, borderRadius: 8, padding: "5px 8px", marginBottom: 8 }}>
                 <span>🔒</span>
-                <div>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>CDS Number</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{profile?.cds_number || "—"}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
                 </div>
+                {cdsList.length > 1 && (
+                  <span style={{ fontSize: 9, fontWeight: 700, background: C.navy + "12", border: `1px solid ${C.navy}20`, color: C.navy, borderRadius: 20, padding: "1px 6px", whiteSpace: "nowrap" }}>
+                    {cdsList.length} CDS
+                  </span>
+                )}
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
@@ -704,42 +614,58 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
             <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}>
-                <span>👤</span>
-                <span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span>
+                <span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span>
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-                <span>🏢</span>
-                <span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
+                <span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
               </div>
             </div>
           </Section>
 
+          {/* ── My CDS Accounts — only shown when user has multiple CDS ── */}
+          {cdsList.length > 1 && (
+            <Section title="My CDS Accounts" icon="🔒">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {cdsList.map(c => {
+                  const isActive = c.cds_number === activeCdsNumber;
+                  return (
+                    <div key={c.cds_id || c.cds_number}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 9, background: isActive ? `${C.green}0a` : C.gray50, border: `1.5px solid ${isActive ? C.green + "30" : C.gray200}` }}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: 7, background: isActive ? C.green + "18" : C.navy + "0f", border: `1px solid ${isActive ? C.green + "30" : C.navy + "15"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>🔒</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                        <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
+                      </div>
+                      {isActive ? (
+                        <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                      ) : (
+                        <button
+                          onClick={() => setSwitchTarget(c)}
+                          style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 7, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
+                          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                        >Switch</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 10, color: C.gray400, marginTop: 8, lineHeight: 1.4 }}>
+                Switching changes the active account system-wide.
+              </div>
+            </Section>
+          )}
+
           <Section title="Security" icon="🔐">
             <button
               onClick={() => setShowPwModal(true)}
-              style={{
-                width: "100%",
-                padding: "7px",
-                borderRadius: 8,
-                border: `1.5px solid ${C.gray200}`,
-                background: C.white,
-                color: C.text,
-                fontWeight: 600,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-              }}
+              style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
               onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
               onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
-            >
-              🔑 Change Password
-            </button>
+            >🔑 Change Password</button>
             <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
-              {[1, 2, 3].map(i => (
+              {[1,2,3].map(i => (
                 <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
               ))}
               <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
@@ -747,6 +673,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
           </Section>
         </div>
 
+        {/* ── Right column ── */}
         <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
           <Section title="Account Information" icon="👤">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -799,21 +726,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <button
               onClick={handleSave}
               disabled={saving}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "9px 20px",
-                borderRadius: 9,
-                border: "none",
-                background: saving ? C.gray200 : C.green,
-                color: C.white,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: saving ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                boxShadow: saving ? "none" : `0 4px 12px ${C.green}44`,
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}
             >
               {saving
                 ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
