@@ -970,35 +970,37 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {metrics.totalNetShares}
-                    </td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {fmt(metrics.investedCapital)}
-                    </td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
-                      100%
-                    </td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "9px 12px",
-                        fontWeight: 800,
-                        fontSize: 13,
-                        color: metrics.unrealizedGL >= 0 ? C.green : C.red,
-                        textAlign: "right",
-                      }}
-                    >
-                      {metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? "+" : "") + fmt(metrics.unrealizedGL) : "—"}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
+                {metrics.companyMetrics.length > 1 && (
+                  <tfoot>
+                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                      <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                      <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                        {metrics.totalNetShares}
+                      </td>
+                      <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                        {fmt(metrics.investedCapital)}
+                      </td>
+                      <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
+                        100%
+                      </td>
+                      <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                        {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "9px 12px",
+                          fontWeight: 800,
+                          fontSize: 13,
+                          color: metrics.unrealizedGL >= 0 ? C.green : C.red,
+                          textAlign: "right",
+                        }}
+                      >
+                        {metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? "+" : "") + fmt(metrics.unrealizedGL) : "—"}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
