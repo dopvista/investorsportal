@@ -227,7 +227,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   const [expanded,     setExpanded]     = useState(null); // "companies" | "portfolio" | "gain" | null
 
   const isSAAD   = ["SA", "AD"].includes(role);
-  const roleMeta = ROLE_META[role] || { label: role || "User", color: C.gray400 };
+
 
   const myTxns = useMemo(
     () => transactions.filter(t => t.cds_number === profile?.cds_number),
@@ -337,10 +337,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     setExpanded(prev => prev === key ? null : key);
   }, []);
 
-  const today = new Date().toLocaleDateString("en-GB", {
-    weekday: "long", day: "2-digit", month: "long", year: "numeric",
-  });
-
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       <style>{`
@@ -348,30 +344,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
         @keyframes dashFadeIn   { from { opacity:0; } to { opacity:1; } }
       `}</style>
-
-      {/* ── Welcome strip ─────────────────────────────────────────── */}
-      <div style={{
-        background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)",
-        borderRadius: 16, padding: "20px 28px", marginBottom: 22,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        position: "relative", overflow: "hidden",
-      }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "22px 22px", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: `radial-gradient(circle, ${C.green}22 0%, transparent 70%)`, pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 6 }}>
-            Welcome back, {profile?.full_name?.split(" ")[0] || "Investor"} 👋
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ background: roleMeta.color + "28", color: roleMeta.color, padding: "2px 10px", borderRadius: 20, fontWeight: 700, fontSize: 11, border: `1px solid ${roleMeta.color}30` }}>
-              {roleMeta.label}
-            </span>
-            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>·</span>
-            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>{today}</span>
-          </div>
-        </div>
-
-      </div>
 
       {/* ── Stat Cards ────────────────────────────────────────────── */}
       <div style={{
