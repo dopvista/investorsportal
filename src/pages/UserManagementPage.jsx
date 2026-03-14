@@ -690,11 +690,13 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   );
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
+  const [passwordEditable, setPasswordEditable] = useState(false);
 
   useEffect(() => {
     setForm({ email: "", password: "", role_id: "" });
     setError("");
     setSaving(false);
+    setPasswordEditable(false);
     setSelectedCds(isAdmin && callerCdsList?.length === 1 ? callerCdsList[0] : null);
   }, [isAdmin, callerCdsList]);
 
@@ -805,9 +807,21 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
           type="password"
           placeholder="Min 8 chars, upper, lower, number, symbol"
           value={form.password}
-          onChange={e => set("password", e.target.value)}
-          onFocus={focusGreen}
+          readOnly={!passwordEditable}
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="invite_temp_password"
+          id="invite_temp_password"
+          data-lpignore="true"
+          data-form-type="other"
+          onFocus={(e) => {
+            setPasswordEditable(true);
+            focusGreen(e);
+          }}
           onBlur={blurGray}
+          onChange={e => set("password", e.target.value)}
         />
         {form.password.length > 0 && (
           <div
