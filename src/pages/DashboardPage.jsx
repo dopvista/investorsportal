@@ -206,7 +206,12 @@ function SnapCard({
 }
 
 // ── Operational stat card ──────────────────────────────────────────
-function StatCard({ icon, label, value, subLabel, accent, onClick, active, navigates, loading }) {
+function StatCard({ icon, label, value, subLabel, accent, accentBg, onClick, active, navigates, loading }) {
+  const isColored = active && accentBg;
+  const hdrText   = isColored ? C.white                    : C.text;
+  const hdrSub    = isColored ? "rgba(255,255,255,0.65)"   : C.gray500;
+  const hdrHint   = isColored ? "rgba(255,255,255,0.45)"   : C.gray400;
+
   return (
     <div
       onClick={onClick}
@@ -214,74 +219,62 @@ function StatCard({ icon, label, value, subLabel, accent, onClick, active, navig
         background: C.white,
         border: `1.5px solid ${active ? accent : C.gray200}`,
         borderRadius: 14,
-        padding: "16px 18px",
+        overflow: "hidden",
         cursor: onClick ? "pointer" : "default",
         transition: "all 0.18s ease",
         position: "relative",
-        overflow: "hidden",
-        boxShadow: active ? `0 4px 20px ${accent}22` : "0 1px 4px rgba(0,0,0,0.04)",
+        boxShadow: active ? `0 4px 20px ${accent}33` : "0 1px 4px rgba(0,0,0,0.04)",
       }}
       onMouseEnter={(e) => {
         if (!onClick) return;
         e.currentTarget.style.borderColor = accent;
-        e.currentTarget.style.boxShadow = `0 4px 20px ${accent}22`;
+        e.currentTarget.style.boxShadow = `0 4px 20px ${accent}33`;
         e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
         if (!onClick) return;
         e.currentTarget.style.borderColor = active ? accent : C.gray200;
-        e.currentTarget.style.boxShadow = active ? `0 4px 20px ${accent}22` : "0 1px 4px rgba(0,0,0,0.04)";
+        e.currentTarget.style.boxShadow = active ? `0 4px 20px ${accent}33` : "0 1px 4px rgba(0,0,0,0.04)";
         e.currentTarget.style.transform = "none";
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          background: active ? accent : "transparent",
-          borderRadius: "14px 14px 0 0",
-          transition: "background 0.18s",
-        }}
-      />
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 11,
-            background: accent + "18",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 19,
-          }}
-        >
-          {icon}
-        </div>
-        {navigates && <span style={{ fontSize: 13, color: C.gray400, marginTop: 2 }}>→</span>}
-        {!navigates && onClick && (
-          <span
-            style={{
+      {/* Colored header band when active */}
+      <div style={{
+        padding: "16px 18px 14px",
+        background: isColored
+          ? `linear-gradient(135deg, ${accentBg}ee, ${accentBg}bb)`
+          : "transparent",
+        transition: "background 0.2s",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 11,
+            background: isColored ? "rgba(255,255,255,0.18)" : accent + "18",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 19, transition: "background 0.2s",
+          }}>
+            {icon}
+          </div>
+          {navigates && (
+            <span style={{ fontSize: 13, color: isColored ? "rgba(255,255,255,0.6)" : C.gray400, marginTop: 2 }}>→</span>
+          )}
+          {!navigates && onClick && (
+            <span style={{
               fontSize: 12,
-              color: active ? accent : C.gray400,
-              marginTop: 2,
-              display: "inline-block",
+              color: isColored ? "rgba(255,255,255,0.9)" : (active ? accent : C.gray500),
+              marginTop: 2, display: "inline-block",
               transform: active ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
-            }}
-          >
-            ▾
-          </span>
-        )}
+              fontWeight: active ? 700 : 400,
+            }}>▾</span>
+          )}
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: hdrText, lineHeight: 1, transition: "color 0.2s" }}>
+          {loading ? <span style={{ fontSize: 14, color: isColored ? "rgba(255,255,255,0.3)" : C.gray300 }}>—</span> : value}
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: hdrSub, marginTop: 5, transition: "color 0.2s" }}>{label}</div>
+        {subLabel && <div style={{ fontSize: 11, color: hdrHint, marginTop: 2, transition: "color 0.2s" }}>{subLabel}</div>}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, lineHeight: 1 }}>
-        {loading ? <span style={{ fontSize: 14, color: C.gray300 }}>—</span> : value}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: C.gray500, marginTop: 5 }}>{label}</div>
-      {subLabel && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{subLabel}</div>}
     </div>
   );
 }
@@ -843,38 +836,44 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
         }}
       >
+        {/* 1 — Companies */}
         <StatCard
           icon="🏢"
           label="Companies"
           value={loading ? "—" : metrics.totalCompanies}
           subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
           accent={C.navy}
+          accentBg="#0B1F3A"
           onClick={() => toggleExpand("companies")}
           active={expanded === "companies"}
           loading={loading}
         />
-        <StatCard
-          icon="⏳"
-          label="Unverified Transactions"
-          value={loading ? "—" : metrics.pending}
-          subLabel={metrics.pending > 0 ? "awaiting action" : "all verified"}
-          accent="#f59e0b"
-          onClick={() => onNavigate("transactions")}
-          navigates
-          loading={loading}
-        />
+        {/* 2 — Total Users (SA/AD only) */}
         {isSAAD && (
           <StatCard
             icon="👥"
             label="Total Users"
             value={loading ? "—" : (userCount ?? "—")}
             subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
-            accent={C.navy}
+            accent={C.green}
+            accentBg={C.green}
             onClick={() => toggleExpand("users")}
             active={expanded === "users"}
             loading={loading}
           />
         )}
+        {/* 3 — Unverified Transactions */}
+        <StatCard
+          icon="⏳"
+          label="Unverified Transactions"
+          value={loading ? "—" : metrics.pending}
+          subLabel={metrics.pending > 0 ? "awaiting action" : "all verified"}
+          accent="#f59e0b"
+          accentBg="#f59e0b"
+          onClick={() => onNavigate("transactions")}
+          navigates
+          loading={loading}
+        />
       </div>
 
       {expanded === "companies" && (
