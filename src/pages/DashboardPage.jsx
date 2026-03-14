@@ -103,7 +103,19 @@ function Badge({ value, positive }) {
 }
 
 // ── Snapshot card (top strip) ──────────────────────────────────────
-function SnapCard({ label, value, sub, dark, accent, expandable, expanded, onToggle, loading, children }) {
+function SnapCard({
+  label,
+  value,
+  sub,
+  dark,
+  accent,
+  expandable,
+  expanded,
+  onToggle,
+  loading,
+  children,
+  hoverable,
+}) {
   return (
     <div
       style={{
@@ -112,7 +124,24 @@ function SnapCard({ label, value, sub, dark, accent, expandable, expanded, onTog
         borderRadius: 14,
         overflow: "hidden",
         boxShadow: expanded ? `0 4px 20px ${accent || C.green}22` : "0 1px 4px rgba(0,0,0,0.04)",
-        transition: "border-color 0.18s, box-shadow 0.18s",
+        transition: "all 0.18s ease",
+        cursor: expandable ? "pointer" : "default",
+      }}
+      onMouseEnter={(e) => {
+        if (!hoverable) return;
+        e.currentTarget.style.borderColor = accent || C.green;
+        e.currentTarget.style.boxShadow = `0 4px 20px ${(accent || C.green)}22`;
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        if (!hoverable) return;
+        e.currentTarget.style.borderColor = expanded
+          ? (accent || C.green)
+          : (dark ? "#1e3a5f" : C.gray200);
+        e.currentTarget.style.boxShadow = expanded
+          ? `0 4px 20px ${(accent || C.green)}22`
+          : "0 1px 4px rgba(0,0,0,0.04)";
+        e.currentTarget.style.transform = "none";
       }}
     >
       <div
@@ -123,7 +152,9 @@ function SnapCard({ label, value, sub, dark, accent, expandable, expanded, onTog
           userSelect: "none",
         }}
         onMouseEnter={(e) => {
-          if (expandable) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : C.gray50 + "80";
+          if (expandable) {
+            e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : C.gray50 + "80";
+          }
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent";
@@ -323,14 +354,12 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   const isSAAD = ["SA", "AD"].includes(role);
 
-  // Mirror TransactionsPage: filter by CDS when available, else show all
   const cds = profile?.cds_number || null;
   const myTxns = useMemo(
     () => (cds ? transactions.filter((t) => t.cds_number === cds) : transactions),
     [transactions, cds]
   );
 
-  // ── Fetch all data ────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -361,7 +390,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     };
   }, [profile?.cds_number, isSAAD, showToast]);
 
-  // ── Pre-group verified transactions by company for faster metrics ─
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
     let grossBuyCapital = 0;
@@ -390,7 +418,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     return { map, grossBuyCapital, pending };
   }, [myTxns]);
 
-  // ── Core metrics — running weighted-average ledger ───────────────
   const metrics = useMemo(() => {
     const total = myTxns.length;
     const pending = groupedVerifiedByCompany.pending;
@@ -545,14 +572,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           ? portfolio.length
           : txnCompanyCount;
 
-    const currentInvestedCapital = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
+    const investedCapital = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
 
     return {
       pending,
       total,
       totalCompanies,
       totalMarketValue,
-      currentInvestedCapital,
+      investedCapital,
       grossBuyCapital,
       unrealizedGL,
       unrealizedRetPct,
@@ -599,7 +626,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             metrics.hasFinancials
               ? fmtShort(metrics.totalMarketValue)
               : metrics.hasCostData
-                ? fmtShort(metrics.currentInvestedCapital)
+                ? fmtShort(metrics.investedCapital)
                 : metrics.total > 0
                   ? `${metrics.total} txns`
                   : "—"
@@ -614,9 +641,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         />
 
         <SnapCard
-          label="Current Invested Capital"
+          label="Invested Capital"
           loading={loading}
-          value={metrics.hasCostData ? fmtShort(metrics.currentInvestedCapital) : "—"}
+          value={metrics.hasCostData ? fmtShort(metrics.investedCapital) : "—"}
           sub={metrics.hasCostData ? "Cost of currently held shares" : "No verified buy transactions"}
         />
 
@@ -655,6 +682,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           expandable={metrics.hasRealized}
           expanded={expanded === "realized"}
           onToggle={() => toggleExpand("realized")}
+          hoverable
         />
       </div>
 
@@ -906,7 +934,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                       {metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0)}
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {fmt(metrics.currentInvestedCapital)}
+                      {fmt(metrics.investedCapital)}
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
                       100%
@@ -961,7 +989,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <tr>
                   <Th>Company</Th>
                   <Th right>Shares Held</Th>
-                  <Th right>Average Cost</Th>
+                  <Th right>Invested Capital</Th>
                   <Th right>Current Price</Th>
                   <Th right>Market Value</Th>
                   <Th right>Unrealized Gain / Loss</Th>
@@ -994,7 +1022,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                       </div>
                     </Td>
                     <Td right>{fmt(c.netShares)}</Td>
-                    <Td right>{c.avgCost > 0 ? fmt(c.avgCost) : "—"}</Td>
+                    <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
                     <Td right bold color={c.currentPrice > 0 ? C.green : C.gray400}>
                       {c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}
                     </Td>
