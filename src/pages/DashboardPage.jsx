@@ -704,7 +704,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     <Th right>Cost of Shares Sold</Th>
                     <Th right>Sale Proceeds</Th>
                     <Th right>Realized Gain / Loss</Th>
-                    <Th right>Unrealized Return %</Th>
+                    <Th right>Realized Return %</Th>
                     <Th right>Days Held</Th>
                   </tr>
                 </thead>
@@ -1080,8 +1080,17 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                  <td colSpan={4} style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
+                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
                     TOTAL
+                  </td>
+                  <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                    {fmt(metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0))}
+                  </td>
+                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>
+                    {fmt(metrics.investedCapital)}
+                  </td>
+                  <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
+                    —
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>
                     {fmt(metrics.totalMarketValue)}
