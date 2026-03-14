@@ -339,9 +339,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [saving, setSaving]               = useState(false);
   const [showPwModal, setShowPwModal]     = useState(false);
   const [cdsUserCount, setCdsUserCount]   = useState(1);
-  // ── CDS switch state ──
+  // ── CDS switch + expand state ──
   const [switchTarget, setSwitchTarget]   = useState(null);
   const [switching, setSwitching]         = useState(false);
+  const [cdsExpanded, setCdsExpanded]     = useState(false);
   const fileRef = useRef();
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
