@@ -1,5 +1,5 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { C } from "../components/ui";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers } from "../lib/supabase";
 
@@ -104,7 +104,7 @@ function Badge({ value, positive }) {
 }
 
 // ── Snapshot card (top strip) ──────────────────────────────────────
-function SnapCard({
+const SnapCard = memo(function SnapCard({
   label, value, sub, dark, accent, accentBg,
   expandable, expanded, onToggle, loading, children, hoverable,
 }) {
@@ -187,10 +187,10 @@ function SnapCard({
       )}
     </div>
   );
-}
+});
 
 // ── Operational stat card ──────────────────────────────────────────
-function StatCard({ icon, label, value, subLabel, accent, accentBg, onClick, active, navigates, loading }) {
+const StatCard = memo(function StatCard({ icon, label, value, subLabel, accent, accentBg, onClick, active, navigates, loading }) {
   const isColored = active && accentBg;
   const hdrText   = isColored ? C.white                    : C.text;
   const hdrSub    = isColored ? "rgba(255,255,255,0.65)"   : C.gray500;
@@ -261,10 +261,10 @@ function StatCard({ icon, label, value, subLabel, accent, accentBg, onClick, act
       </div>
     </div>
   );
-}
+});
 
 // ── Expand panel wrapper (for stat cards) ─────────────────────────
-function ExpandPanel({ title, onClose, accentColor, children }) {
+const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, children }) {
   const border  = accentColor || C.gray200;
   const closeBg = accentColor ? accentColor + "18" : C.gray100;
   const closeClr = accentColor || C.gray500;
@@ -304,7 +304,7 @@ function ExpandPanel({ title, onClose, accentColor, children }) {
       {children}
     </div>
   );
-}
+});
 
 // ── Spinner ────────────────────────────────────────────────────────
 function Spinner() {
@@ -541,11 +541,12 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     const totalPortfolioGL = unrealizedGL + totalRealizedGLAll;
     const totalPortfolioRetPct = totalCurrentCost > 0 ? (totalPortfolioGL / totalCurrentCost) * 100 : 0;
 
-    const totalRealizedGL = withWeights.reduce((s, c) => s + c.realizedGL, 0);
+    // Use loop-accumulated totals — no redundant reduce needed
+    const totalRealizedGL   = totalRealizedGLAll;
     const totalSaleProceeds = withWeights.reduce((s, c) => s + c.totalSaleProceeds, 0);
-    const totalCostBasis = withWeights.reduce((s, c) => s + c.totalCostBasis, 0);
-    const totalSharesSold = withWeights.reduce((s, c) => s + c.totalSharesSold, 0);
-    const hasRealized = totalRealizedGL !== 0;
+    const totalCostBasis    = withWeights.reduce((s, c) => s + c.totalCostBasis, 0);
+    const totalSharesSold   = withWeights.reduce((s, c) => s + c.totalSharesSold, 0);
+    const hasRealized       = totalRealizedGL !== 0;
 
     const totalBuyTransactionCount = activeCompanies.reduce((s, c) => s + c.buyTransactionCount, 0);
 
@@ -565,6 +566,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           : txnCompanyCount;
 
     const investedCapital = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
+
+    // Precompute derived values used in render — avoids inline reduce/filter in JSX
+    const realizedCompanies = withWeights.filter((c) => c.realizedTrades.length > 0);
+    const totalNetShares    = activeCompanies.reduce((s, c) => s + c.netShares, 0);
 
     return {
       pending,
@@ -586,6 +591,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       hasCostData,
       companyMetrics: activeCompanies,
       allPortfolio: withWeights,
+      realizedCompanies,
+      totalNetShares,
       totalBuyTransactionCount,
       avgFirstBuyDays,
     };
@@ -594,6 +601,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   const toggleExpand = useCallback((key) => {
     setExpanded((prev) => (prev === key ? null : key));
   }, []);
+
+  // Stable handlers — prevents memoized cards from re-rendering on parent state change
+  const onToggleRealized   = useCallback(() => toggleExpand("realized"),   [toggleExpand]);
+  const onToggleCompanies  = useCallback(() => toggleExpand("companies"),  [toggleExpand]);
+  const onToggleUsers      = useCallback(() => toggleExpand("users"),      [toggleExpand]);
+  const onNavTransactions  = useCallback(() => onNavigate("transactions"), [onNavigate]);
+  const onNavUserMgmt      = useCallback(() => onNavigate("user-management"), [onNavigate]);
+  const onCloseExpand      = useCallback(() => setExpanded(null),          []);
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
@@ -704,16 +719,16 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           accentBg={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
           expandable={metrics.hasRealized}
           expanded={expanded === "realized"}
-          onToggle={() => toggleExpand("realized")}
+          onToggle={onToggleRealized}
           hoverable
         />
       </div>
 
       {expanded === "realized" && (
-        <ExpandPanel title="📤 Realized Gain / Loss — Closed Positions" accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red} onClose={() => setExpanded(null)}>
+        <ExpandPanel title="📤 Realized Gain / Loss — Closed Positions" accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red} onClose={onCloseExpand}>
           {loading ? (
             <Spinner />
-          ) : metrics.allPortfolio.filter((c) => c.realizedTrades.length > 0).length === 0 ? (
+          ) : metrics.realizedCompanies.length === 0 ? (
             <Empty msg="No realized trades found." />
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -730,9 +745,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   </tr>
                 </thead>
                 <tbody>
-                  {metrics.allPortfolio
-                    .filter((c) => c.realizedTrades.length > 0)
-                    .map((c, i) => (
+                  {metrics.realizedCompanies.map((c, i) => (
                       <tr
                         key={c.id}
                         style={{
@@ -834,7 +847,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
           accent={C.navy}
           accentBg="#0B1F3A"
-          onClick={() => toggleExpand("companies")}
+          onClick={onToggleCompanies}
           active={expanded === "companies"}
           loading={loading}
         />
@@ -847,7 +860,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
             accent="#2563eb"
             accentBg="#2563eb"
-            onClick={() => toggleExpand("users")}
+            onClick={onToggleUsers}
             active={expanded === "users"}
             loading={loading}
           />
@@ -860,14 +873,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           subLabel={metrics.pending > 0 ? "awaiting action" : "all verified"}
           accent="#f59e0b"
           accentBg="#f59e0b"
-          onClick={() => onNavigate("transactions")}
+          onClick={onNavTransactions}
           navigates
           loading={loading}
         />
       </div>
 
       {expanded === "companies" && (
-        <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={() => setExpanded(null)}>
+        <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
           {loading ? (
             <Spinner />
           ) : metrics.companyMetrics.length === 0 ? (
@@ -962,7 +975,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                     <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0)}
+                      {metrics.totalNetShares}
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
                       {fmt(metrics.investedCapital)}
@@ -994,7 +1007,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       )}
 
       {expanded === "users" && (
-        <ExpandPanel title="👥 Users — CDS Account" accentColor="#2563eb" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="👥 Users — CDS Account" accentColor="#2563eb" onClose={onCloseExpand}>
           {loading ? (
             <Spinner />
           ) : cdsUsers.length === 0 ? (
@@ -1054,7 +1067,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               {/* Navigation link to User Management */}
               <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
                 <button
-                  onClick={() => onNavigate("user-management")}
+                  onClick={onNavUserMgmt}
                   style={{ background: "none", border: `1.5px solid ${C.navy}`, color: C.navy, borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.navy; }}
@@ -1195,7 +1208,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     )}
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                    {fmt(metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0))}
+                    {fmt(metrics.totalNetShares)}
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>
                     {fmt(metrics.investedCapital)}
