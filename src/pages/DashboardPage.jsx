@@ -1,5 +1,5 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { C } from "../components/ui";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers } from "../lib/supabase";
 
@@ -353,6 +353,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   const [expanded, setExpanded] = useState(null); // "companies" | "realized" | null
 
   const isSAAD = ["SA", "AD"].includes(role);
+  const snapRef = useRef(null); // ref to snapshot strip — scroll target on collapse
 
   const cds = profile?.cds_number || null;
   const myTxns = useMemo(
@@ -602,7 +603,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   }, [portfolio, myTxns, groupedVerifiedByCompany]);
 
   const toggleExpand = useCallback((key) => {
-    setExpanded((prev) => (prev === key ? null : key));
+    setExpanded((prev) => {
+      const closing = prev === key;
+      if (closing && snapRef.current) {
+        // Scroll smoothly back to the top of the dashboard on collapse
+        snapRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return closing ? null : key;
+    });
   }, []);
 
   return (
@@ -613,6 +621,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       `}</style>
 
       <div
+        ref={snapRef}
         style={{
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
@@ -860,7 +869,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   </tr>
                 </thead>
                 <tbody>
-                  {metrics.companyMetrics.map((c, i) => (
+                  {metrics.companyMetrics.slice(0, 5).map((c, i) => (
                     <tr
                       key={c.id}
                       style={{
@@ -977,10 +986,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             justifyContent: "space-between",
           }}
         >
-          <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top Holdings by Market Value</div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
           <div style={{ fontSize: 11, color: C.gray400 }}>
             {metrics.hasFinancials
-              ? `${metrics.companyMetrics.length} companies · market value ${fmtShort(metrics.totalMarketValue)}`
+              ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`
               : "Set prices in Portfolio to compute market values"}
           </div>
         </div>
