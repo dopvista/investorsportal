@@ -368,8 +368,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     let pending = 0;
 
     for (const t of myTxns) {
-      const s = statusOf(t);
-
       if (!isCompletedNonPending(t)) pending++;
 
       if (!isVerified(t)) continue;
@@ -399,7 +397,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     const grossBuyCapital = groupedVerifiedByCompany.grossBuyCapital;
     const hasCostData = grossBuyCapital > 0;
 
-    // Fallback company count from transaction history
     const txnCompanyCount = new Set(myTxns.map((t) => t.company_id).filter(Boolean)).size;
 
     let totalMarketValue = 0;
@@ -548,14 +545,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           ? portfolio.length
           : txnCompanyCount;
 
-    const currentCostBasis = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
+    const currentInvestedCapital = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
 
     return {
       pending,
       total,
       totalCompanies,
       totalMarketValue,
-      currentCostBasis,
+      currentInvestedCapital,
       grossBuyCapital,
       unrealizedGL,
       unrealizedRetPct,
@@ -595,14 +592,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         }}
       >
         <SnapCard
-          label="Portfolio Value"
+          label="Market Value"
           dark
           loading={loading}
           value={
             metrics.hasFinancials
               ? fmtShort(metrics.totalMarketValue)
               : metrics.hasCostData
-                ? fmtShort(metrics.currentCostBasis)
+                ? fmtShort(metrics.currentInvestedCapital)
                 : metrics.total > 0
                   ? `${metrics.total} txns`
                   : "—"
@@ -617,9 +614,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         />
 
         <SnapCard
-          label="Current Cost Basis"
+          label="Current Invested Capital"
           loading={loading}
-          value={metrics.hasCostData ? fmtShort(metrics.currentCostBasis) : "—"}
+          value={metrics.hasCostData ? fmtShort(metrics.currentInvestedCapital) : "—"}
           sub={metrics.hasCostData ? "Cost of currently held shares" : "No verified buy transactions"}
         />
 
@@ -630,7 +627,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           sub={
             metrics.hasFinancials
               ? metrics.avgFirstBuyDays
-                ? `avg ${metrics.avgFirstBuyDays}d since first buy`
+                ? `avg ${metrics.avgFirstBuyDays}d`
                 : "open positions"
               : "Set prices in Portfolio to compute"
           }
@@ -638,7 +635,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         />
 
         <SnapCard
-          label="Unrealized Return"
+          label="Unrealized Return %"
           loading={loading}
           value={
             metrics.hasFinancials
@@ -650,7 +647,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         />
 
         <SnapCard
-          label="Realized Gains"
+          label="Realized Gain / Loss"
           loading={loading}
           value={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL) : "—"}
           sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
@@ -662,7 +659,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       </div>
 
       {expanded === "realized" && (
-        <ExpandPanel title="📤 Realized Gains — Closed Positions" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="📤 Realized Gain / Loss — Closed Positions" onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : metrics.allPortfolio.filter((c) => c.realizedTrades.length > 0).length === 0 ? (
@@ -673,11 +670,11 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <thead>
                   <tr>
                     <Th>Company</Th>
-                    <Th right>Qty Sold</Th>
+                    <Th right>Shares Held</Th>
                     <Th right>Cost of Shares Sold</Th>
                     <Th right>Sale Proceeds</Th>
                     <Th right>Realized Gain / Loss</Th>
-                    <Th right>Return %</Th>
+                    <Th right>Unrealized Return %</Th>
                     <Th right>Days Held</Th>
                   </tr>
                 </thead>
@@ -790,9 +787,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         />
         <StatCard
           icon="⏳"
-          label="Pending Transactions"
+          label="Unverified Transactions"
           value={loading ? "—" : metrics.pending}
-          subLabel={metrics.pending > 0 ? "unverified transactions" : "all verified"}
+          subLabel={metrics.pending > 0 ? "awaiting action" : "all verified"}
           accent="#f59e0b"
           onClick={() => onNavigate("transactions")}
           navigates
@@ -801,8 +798,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         {isSAAD && (
           <StatCard
             icon="👥"
-            label="Total Users"
-            value={loading ? "—" : userCount ?? "—"}
+            label="Total Companies"
+            value={loading ? "—" : (userCount ?? "—")}
             subLabel="system users"
             accent={C.navy}
             onClick={() => onNavigate("user-management")}
@@ -813,7 +810,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       </div>
 
       {expanded === "companies" && (
-        <ExpandPanel title="🏢 Active Positions" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="🏢 Companies" onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : metrics.companyMetrics.length === 0 ? (
@@ -824,10 +821,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <thead>
                   <tr>
                     <Th>Company</Th>
-                    <Th right>Total Shares</Th>
-                    <Th right>Buy Transactions</Th>
-                    <Th right>Current Cost Basis</Th>
-                    <Th right>% Weight</Th>
+                    <Th right>Shares Held</Th>
+                    <Th right>Current Invested Capital</Th>
+                    <Th right>Cost Allocation %</Th>
                     <Th right>Unrealized Gain / Loss</Th>
                     <Th right>Status</Th>
                   </tr>
@@ -856,20 +852,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                         </div>
                       </Td>
                       <Td right>{fmt(c.netShares)}</Td>
-                      <Td right>
-                        <span
-                          style={{
-                            background: C.navy + "12",
-                            color: C.navy,
-                            borderRadius: 20,
-                            padding: "2px 10px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {c.buyTransactionCount}
-                        </span>
-                      </Td>
                       <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
                       <Td right>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
@@ -919,14 +901,12 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 </tbody>
                 <tfoot>
                   <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                    <td colSpan={2} style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
-                      TOTAL
+                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                      {metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0)}
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {metrics.totalBuyTransactionCount}
-                    </td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                      {fmt(metrics.currentCostBasis)}
+                      {fmt(metrics.currentInvestedCapital)}
                     </td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>
                       100%
@@ -980,14 +960,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               <thead>
                 <tr>
                   <Th>Company</Th>
-                  <Th right>Net Shares</Th>
-                  <Th right>Avg Cost</Th>
+                  <Th right>Shares Held</Th>
+                  <Th right>Average Cost</Th>
                   <Th right>Current Price</Th>
                   <Th right>Market Value</Th>
-                  <Th right>Unrealized G/L</Th>
-                  <Th right>Return %</Th>
-                  <Th right>Since First Buy</Th>
-                  <Th right>Weight</Th>
+                  <Th right>Unrealized Gain / Loss</Th>
+                  <Th right>Unrealized Return %</Th>
+                  <Th right>Days Held</Th>
+                  <Th right>Portfolio Weight %</Th>
                 </tr>
               </thead>
               <tbody>
