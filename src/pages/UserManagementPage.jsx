@@ -20,7 +20,6 @@ const ROLE_META = {
 };
 
 const AVATAR_COLORS = ["#0A2540", "#1E3A5F", "#1D4ED8", "#065F46", "#374151", "#7C3AED", "#B45309", "#0369A1"];
-// Widened last column to fit 3 action buttons
 const GRID = "28px 1.5fr 0.9fr 0.8fr 0.8fr 1.1fr 1.3fr 90px 145px";
 
 function inp(extra = {}) {
@@ -44,11 +43,33 @@ const INVITE_BTN_STYLE   = {
 const focusGreen = (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
+const normalizeCdsToken = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/^CDS-/i, "")
+    .replace(/[^0-9A-Z]/g, "");
+
+const normalizeCdsNumber = (value) => {
+  const token = normalizeCdsToken(value);
+  return token ? `CDS-${token}` : "";
+};
+
+const isCompleteSixDigitCds = (value) => normalizeCdsToken(value).length === 6;
+
 // ── Modal portal ───────────────────────────────────────────────────
-const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, maxWidth = 460 }) {
+const Modal = memo(function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  maxWidth = 460,
+  closeOnBackdrop = true,
+}) {
   return createPortal(
     <div
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
       style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,37,64,0.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
     >
       <div
@@ -100,98 +121,126 @@ const Field = memo(function Field({ label, required, hint, children }) {
   );
 });
 
-// ── CDS search box ─────────────────────────────────────────────────
-// SA: searches master registry, can create new CDS.
-// AD: filters own pool locally, CANNOT create or search outside pool.
-// excludeCdsIds / excludeCdsNumbers: already-assigned entries to hide.
+// ── CDS search box (search-as-you-type + create) ───────────────────
 function CDSSearchBox({
   callerRole,
   adCdsList = [],
   excludeCdsIds = [],
   excludeCdsNumbers = [],
   onSelect,
-  placeholder = "Search by CDS number or owner name...",
+  placeholder = "Search by CDS number or owner name..."
 }) {
-  const [query, setQuery]         = useState("");
-  const [results, setResults]     = useState([]);
-  const [rawResults, setRawResults] = useState([]); // unfiltered — to detect "found but excluded"
-  const [searching, setSearching] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ cdsNumber: "", cdsName: "", phone: "", email: "" });
-  const [creating, setCreating]   = useState(false);
+  const [query, setQuery]             = useState("");
+  const [results, setResults]         = useState([]);
+  const [rawResults, setRawResults]   = useState([]);
+  const [searching, setSearching]     = useState(false);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [createForm, setCreateForm]   = useState({ cdsNumber: "", cdsName: "", phone: "", email: "" });
+  const [creating, setCreating]       = useState(false);
   const [createError, setCreateError] = useState("");
-  const [selected, setSelected]   = useState(null);
+  const [selected, setSelected]       = useState(null);
+  const [editable, setEditable]       = useState(false);
   const debounceRef = useRef(null);
 
   const isAdmin = callerRole === "AD";
+  const queryToken = useMemo(() => normalizeCdsToken(query), [query]);
+  const queryIsCompleteSix = queryToken.length === 6;
 
-  const excludedIds  = useMemo(() => new Set((excludeCdsIds || []).map(String)), [excludeCdsIds]);
-  const excludedNums = useMemo(() => new Set((excludeCdsNumbers || []).map(v => String(v).toUpperCase())), [excludeCdsNumbers]);
-  const isExcluded   = useCallback((c) => {
-    const id  = String(c?.id ?? c?.cds_id ?? "");
-    const num = String(c?.cds_number || "").toUpperCase();
-    return (id && excludedIds.has(id)) || (num && excludedNums.has(num));
-  }, [excludedIds, excludedNums]);
+  const excludedIds = useMemo(
+    () => new Set((excludeCdsIds || []).map(v => String(v))),
+    [excludeCdsIds]
+  );
 
-  // AD: filter own pool locally — no RPC needed, no create allowed
+  const excludedNumbers = useMemo(
+    () => new Set((excludeCdsNumbers || []).map(v => normalizeCdsToken(v)).filter(Boolean)),
+    [excludeCdsNumbers]
+  );
+
+  const isExcluded = useCallback((cds) => {
+    const id = cds?.id ?? cds?.cds_id;
+    const number = normalizeCdsToken(cds?.cds_number);
+    return (id != null && excludedIds.has(String(id))) || (number && excludedNumbers.has(number));
+  }, [excludedIds, excludedNumbers]);
+
+  useEffect(() => {
+    if (!showCreate || !queryIsCompleteSix) return;
+    setCreateForm(f => ({
+      ...f,
+      cdsNumber: normalizeCdsNumber(queryToken),
+    }));
+  }, [showCreate, queryIsCompleteSix, queryToken]);
+
   const adFiltered = useMemo(() => {
-    if (!isAdmin) return [];
-    if (!query.trim()) return [];
+    if (!isAdmin || !query.trim()) return [];
     const q = query.toLowerCase();
-    return adCdsList.filter(c =>
-      !isExcluded(c) && (
+    return adCdsList.filter(c => {
+      if (isExcluded(c)) return false;
+      return (
         c.cds_number?.toLowerCase().includes(q) ||
         c.cds_name?.toLowerCase().includes(q)
-      )
-    );
+      );
+    });
   }, [isAdmin, adCdsList, query, isExcluded]);
 
-  // SA: search master registry via RPC, apply exclude filter
   useEffect(() => {
     if (isAdmin) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) { setResults([]); setRawResults([]); setShowCreate(false); return; }
+
+    if (!query.trim()) {
+      setResults([]);
+      setRawResults([]);
+      setShowCreate(false);
+      return;
+    }
 
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
         const rows = await sbSearchCDS(query);
-        const all  = rows || [];
-        const filtered = all.filter(c => !isExcluded(c));
+        const all = rows || [];
+        const filteredRows = all.filter(c => !isExcluded(c));
+
         setRawResults(all);
-        setResults(filtered);
-        // Only show "create" when genuinely not found — NOT when found-but-excluded
-        setShowCreate(filtered.length === 0 && all.length === 0);
+        setResults(filteredRows);
+
+        const shouldOfferCreate =
+          queryIsCompleteSix &&
+          all.length === 0 &&
+          !excludedNumbers.has(queryToken);
+
+        setShowCreate(shouldOfferCreate);
       } catch {
-        setResults([]); setRawResults([]);
+        setResults([]);
+        setRawResults([]);
+        setShowCreate(false);
       } finally {
         setSearching(false);
       }
     }, 300);
 
     return () => clearTimeout(debounceRef.current);
-  }, [query, isAdmin, isExcluded]);
-
-  // foundButExcluded: SA searched, found rows, but ALL are already assigned
-  const foundButExcluded = !isAdmin && !selected && query.trim().length > 2 && rawResults.length > 0 && results.length === 0;
-
-  // queryMatchesExcluded: RPC returned 0 rows BUT the raw query matches an already-assigned CDS
-  // (handles cases where the RPC does prefix/exact match but user typed the number without "CDS-")
-  const queryMatchesExcluded = useMemo(() => {
-    if (isAdmin || !showCreate || !query.trim()) return false;
-    const q = query.toUpperCase().replace(/^CDS-/, "").trim();
-    return [...excludedNums].some(n => {
-      const n2 = n.replace(/^CDS-/, "");
-      return n2 === q || n2.includes(q) || q.includes(n2);
-    });
-  }, [isAdmin, showCreate, query, excludedNums]);
+  }, [query, isAdmin, isExcluded, queryIsCompleteSix, queryToken, excludedNumbers]);
 
   const displayResults = isAdmin ? adFiltered : results;
+
+  const foundButExcluded = useMemo(() => {
+    if (isAdmin || !queryIsCompleteSix || selected) return false;
+    if (!rawResults.length || results.length > 0) return false;
+    return rawResults.some(c => normalizeCdsToken(c?.cds_number) === queryToken);
+  }, [isAdmin, queryIsCompleteSix, selected, rawResults, results.length, queryToken]);
+
+  const exactExcludedMatch = useMemo(() => {
+    if (isAdmin || !queryIsCompleteSix || selected) return false;
+    return excludedNumbers.has(queryToken);
+  }, [isAdmin, queryIsCompleteSix, selected, excludedNumbers, queryToken]);
+
+  const showAlreadyAssigned = !selected && queryIsCompleteSix && (foundButExcluded || exactExcludedMatch);
 
   const handleSelect = (cds) => {
     setSelected(cds);
     setQuery(cds.cds_number);
-    setResults([]); setRawResults([]);
+    setResults([]);
+    setRawResults([]);
     setShowCreate(false);
     onSelect(cds);
   };
@@ -221,16 +270,31 @@ function CDSSearchBox({
           type="text"
           placeholder={placeholder}
           value={query}
-          onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); }}
-          onFocus={focusGreen}
+          readOnly={!editable}
+          inputMode="search"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="cds_lookup"
+          id="cds_lookup"
+          data-lpignore="true"
+          data-form-type="other"
+          onFocus={(e) => {
+            setEditable(true);
+            focusGreen(e);
+          }}
           onBlur={blurGray}
-          autoComplete="new-password"
-          name={`cds-search-${Math.random()}`}
+          onChange={e => {
+            setQuery(e.target.value);
+            setSelected(null);
+            setCreateError("");
+            onSelect(null);
+          }}
         />
         {searching && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: C.gray400 }}>...</span>}
       </div>
 
-      {/* Results dropdown */}
       {displayResults.length > 0 && !selected && (
         <div style={{ border: `1.5px solid ${C.green}`, borderRadius: 9, marginTop: 4, overflow: "hidden", maxHeight: 200, overflowY: "auto", background: C.white, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
           {displayResults.map(c => (
@@ -247,21 +311,18 @@ function CDSSearchBox({
         </div>
       )}
 
-      {/* AD: searched but nothing in pool */}
       {isAdmin && !selected && query.trim().length > 1 && adFiltered.length === 0 && (
         <div style={{ marginTop: 5, padding: "8px 11px", borderRadius: 8, background: C.gray50, border: `1px solid ${C.gray200}`, fontSize: 11, color: C.gray400 }}>
           🔍 No matching CDS in your pool
         </div>
       )}
 
-      {/* SA: found but all already assigned */}
-      {(foundButExcluded || queryMatchesExcluded) && !selected && (
+      {showAlreadyAssigned && (
         <div style={{ marginTop: 5, padding: "8px 11px", borderRadius: 8, background: "#f0fdf4", border: `1px solid #bbf7d0`, fontSize: 11, color: C.green, display: "flex", alignItems: "center", gap: 6 }}>
           <span>✅</span> Already assigned to this user
         </div>
       )}
 
-      {/* Selected CDS confirmation */}
       {selected && (
         <div style={{ marginTop: 6, padding: "8px 12px", borderRadius: 9, background: `${C.green}0d`, border: `1.5px solid ${C.green}30`, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 16 }}>✅</span>
@@ -274,8 +335,7 @@ function CDSSearchBox({
         </div>
       )}
 
-      {/* SA only: genuinely not found → compact create form (only when NOT already-assigned locally) */}
-      {showCreate && !isAdmin && !queryMatchesExcluded && query.trim().length > 2 && !selected && (
+      {showCreate && !isAdmin && queryIsCompleteSix && !selected && !showAlreadyAssigned && (
         <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 9, background: "#fffbeb", border: `1.5px solid ${C.gold}40` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
             <span>✨</span> Not found — create new CDS record
@@ -283,7 +343,6 @@ function CDSSearchBox({
           {createError && (
             <div style={{ fontSize: 11, color: "#dc2626", marginBottom: 6, background: "#fef2f2", padding: "5px 9px", borderRadius: 6 }}>⚠️ {createError}</div>
           )}
-          {/* Row 1: CDS number with CDS- prefix + Owner name */}
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <div style={{ flex: "0 0 auto" }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Number *</div>
@@ -296,39 +355,63 @@ function CDSSearchBox({
                   style={{ border: "none", outline: "none", padding: "6px 9px", fontSize: 12, fontFamily: "inherit", width: 80, background: "transparent", color: C.text }}
                   placeholder="647305"
                   value={createForm.cdsNumber.replace(/^CDS-/i, "")}
-                  onChange={e => setCreateForm(f => ({ ...f, cdsNumber: "CDS-" + e.target.value.replace(/[^0-9A-Za-z]/g, "").toUpperCase() }))}
+                  onChange={e => setCreateForm(f => ({ ...f, cdsNumber: "CDS-" + e.target.value.replace(/[^0-9A-Za-z]/g, "").toUpperCase().slice(0, 6) }))}
                   autoComplete="off"
                 />
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Owner Name *</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="Full name"
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                placeholder="Full name"
                 value={createForm.cdsName}
                 onChange={e => setCreateForm(f => ({ ...f, cdsName: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                name="cds_owner_name"
+                data-lpignore="true"
               />
             </div>
           </div>
-          {/* Row 2: Phone + Email */}
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Phone</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="+255..."
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                placeholder="+255..."
                 value={createForm.phone}
                 onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="cds_owner_phone"
+                data-lpignore="true"
               />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="owner@email.com"
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                type="email"
+                placeholder="owner@email.com"
                 value={createForm.email}
                 onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="cds_owner_email"
+                data-lpignore="true"
               />
             </div>
           </div>
@@ -342,141 +425,24 @@ function CDSSearchBox({
   );
 }
 
-// ── CDSPoolPicker — accordion select from AD's CDS pool ──────────
-// mode: "single" (ManageCDSModal) | "multi" (InviteModal)
-// excludeCdsIds: already-assigned entries to hide
-function CDSPoolPicker({ pool = [], excludeCdsIds = [], excludeCdsNumbers = [], mode = "single", onSelect, onSelectMulti }) {
-  const [open, setOpen]     = useState(false);
-  const [selected, setSelected] = useState([]); // array of cds objects
-
-  const excludedIds  = useMemo(() => new Set((excludeCdsIds || []).map(String)), [excludeCdsIds]);
-  const excludedNums = useMemo(() => new Set((excludeCdsNumbers || []).map(v => String(v).toUpperCase())), [excludeCdsNumbers]);
-
-  const available = useMemo(() =>
-    pool.filter(c => {
-      const id  = String(c?.id ?? c?.cds_id ?? "");
-      const num = String(c?.cds_number || "").toUpperCase();
-      return !(id && excludedIds.has(id)) && !(num && excludedNums.has(num));
-    }),
-    [pool, excludedIds, excludedNums]
-  );
-
-  const toggle = (cds) => {
-    if (mode === "single") {
-      const already = selected[0]?.cds_number === cds.cds_number;
-      const next = already ? [] : [cds];
-      setSelected(next);
-      onSelect?.(next[0] || null);
-      setOpen(false);
-    } else {
-      setSelected(prev => {
-        const exists = prev.some(c => c.cds_number === cds.cds_number);
-        const next = exists ? prev.filter(c => c.cds_number !== cds.cds_number) : [...prev, cds];
-        onSelectMulti?.(next);
-        return next;
-      });
-    }
-  };
-
-  const label = selected.length === 0
-    ? "Select CDS account" + (mode === "multi" ? "s" : "") + " ▾"
-    : mode === "single"
-      ? selected[0].cds_number
-      : `${selected.length} CDS selected ▾`;
-
-  const labelColor = selected.length > 0 ? C.text : "#9ca3af";
-
-  return (
-    <div>
-      {/* Trigger */}
-      <div
-        onClick={() => available.length > 0 && setOpen(o => !o)}
-        style={{
-          ...inp(),
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          cursor: available.length > 0 ? "pointer" : "not-allowed",
-          userSelect: "none",
-          borderColor: open ? C.green : C.gray200,
-          borderRadius: open ? "9px 9px 0 0" : 9,
-          background: available.length === 0 ? C.gray50 : C.white,
-          transition: "border-radius 0.15s, border 0.15s",
-        }}
-      >
-        <span style={{ fontSize: 13, color: labelColor }}>{label}</span>
-        <span style={{ fontSize: 10, color: C.gray400, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
-      </div>
-
-      {/* Dropdown list */}
-      {open && (
-        <div style={{ border: `1.5px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 9px 9px", background: C.white, overflow: "hidden", boxShadow: "0 6px 16px rgba(0,0,0,0.08)" }}>
-          {available.length === 0 ? (
-            <div style={{ padding: "10px 14px", fontSize: 12, color: C.gray400 }}>No available CDS in your pool</div>
-          ) : available.map((c, i) => {
-            const isSelected = selected.some(s => s.cds_number === c.cds_number);
-            return (
-              <div
-                key={c.id || c.cds_id || c.cds_number}
-                onClick={() => toggle(c)}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", cursor: "pointer", background: isSelected ? `${C.green}09` : "transparent", borderBottom: i < available.length - 1 ? `1px solid ${C.gray100}` : "none", transition: "background 0.1s" }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
-                onMouseLeave={e => { e.currentTarget.style.background = isSelected ? `${C.green}09` : "transparent"; }}
-              >
-                {/* Checkbox / radio */}
-                <div style={{ width: 16, height: 16, borderRadius: mode === "single" ? "50%" : 4, border: `2px solid ${isSelected ? C.green : C.gray300}`, background: isSelected ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
-                  {isSelected && <span style={{ color: C.white, fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{c.cds_number}</div>
-                  <div style={{ fontSize: 11, color: C.gray400 }}>{c.cds_name || "—"}</div>
-                </div>
-              </div>
-            );
-          })}
-          {mode === "multi" && selected.length > 0 && (
-            <div style={{ padding: "7px 14px", borderTop: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setOpen(false)}
-                style={{ padding: "4px 12px", borderRadius: 7, border: "none", background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-              >Done</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Multi-select chips */}
-      {mode === "multi" && selected.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-          {selected.map(c => (
-            <span key={c.cds_number} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${C.green}12`, border: `1px solid ${C.green}30`, borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 700, color: C.green }}>
-              🔒 {c.cds_number}
-              <button onClick={() => toggle(c)} style={{ background: "none", border: "none", cursor: "pointer", color: C.green, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════
-// MODAL — Manage CDS (view/add/remove CDS for a user)
+// MODAL — Manage CDS
 // ═══════════════════════════════════════════════════════
 function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, onRefresh }) {
-  const [userCdsList, setUserCdsList] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const [selectedCds, setSelectedCds] = useState(null);
-  const [assigning, setAssigning]     = useState(false);
-  const [removeTarget, setRemoveTarget] = useState(null); // CDS being removed
+  const [userCdsList, setUserCdsList]   = useState([]);
+  const [loadingList, setLoadingList]   = useState(true);
+  const [selectedCds, setSelectedCds]   = useState(null);
+  const [assigning, setAssigning]       = useState(false);
+  const [removeTarget, setRemoveTarget] = useState(null);
   const isSA = callerRole === "SA";
   const isAD = callerRole === "AD";
 
-  // silent=true → skip loading indicator; used for background re-syncs after optimistic updates
   const loadUserCds = useCallback(async (silent = false) => {
     if (!silent) setLoadingList(true);
     try {
       const list = await sbGetUserCDS(user.id);
       setUserCdsList(list || []);
-    } catch (e) {
+    } catch {
       if (!silent) showToast("Failed to load CDS list", "error");
     } finally {
       if (!silent) setLoadingList(false);
@@ -488,27 +454,38 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
   const handleAssign = useCallback(async () => {
     if (!selectedCds) return showToast("Select a CDS to assign", "error");
 
-    // Optimistic: add to list immediately for instant feedback
+    const selectedId = String(selectedCds.id ?? selectedCds.cds_id ?? "");
+    const selectedNumber = normalizeCdsToken(selectedCds.cds_number);
+
+    const alreadyAssigned = userCdsList.some(c =>
+      String(c.cds_id ?? "") === selectedId ||
+      normalizeCdsToken(c.cds_number) === selectedNumber
+    );
+
+    if (alreadyAssigned) {
+      setSelectedCds(null);
+      return showToast("This CDS is already assigned to the user", "error");
+    }
+
     const optimistic = {
-      cds_id:     selectedCds.id || selectedCds.cds_id,
+      cds_id: selectedCds.id || selectedCds.cds_id,
       cds_number: selectedCds.cds_number,
-      cds_name:   selectedCds.cds_name || "",
-      phone:      selectedCds.phone || "",
-      is_active:  userCdsList.length === 0, // first CDS becomes active
+      cds_name: selectedCds.cds_name || "",
+      phone: selectedCds.phone || "",
+      is_active: userCdsList.length === 0,
     };
+
     setUserCdsList(prev => [...prev, optimistic]);
     setSelectedCds(null);
     setAssigning(true);
 
     try {
       await sbAssignCDS(user.id, selectedCds.id || selectedCds.cds_id);
-      showToast(`${selectedCds.cds_number} assigned`, "success");
-      // Silent background sync — no loading flash, optimistic data already shown
-      loadUserCds(true);
+      showToast(`${selectedCds.cds_number} assigned to ${user.full_name}`, "success");
+      await loadUserCds(true);
       onRefresh?.();
     } catch (e) {
-      // Rollback on failure
-      setUserCdsList(prev => prev.filter(c => c.cds_id !== optimistic.cds_id));
+      setUserCdsList(prev => prev.filter(c => String(c.cds_id) !== String(optimistic.cds_id)));
       showToast(e.message || "Failed to assign CDS", "error");
     } finally {
       setAssigning(false);
@@ -516,26 +493,25 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
   }, [selectedCds, user, userCdsList, loadUserCds, onRefresh, showToast]);
 
   const handleRemove = useCallback(async (cdsEntry) => {
-    // SA removing from AD → cascade check first
     if (isSA && user.role_code === "AD") {
       setRemoveTarget(cdsEntry);
       return;
     }
-    // Optimistic: remove from list immediately
+
     const snapshot = [...userCdsList];
-    setUserCdsList(prev => prev.filter(c => c.cds_id !== cdsEntry.cds_id));
+    setUserCdsList(prev => prev.filter(c => String(c.cds_id) !== String(cdsEntry.cds_id)));
+
     try {
       await sbRemoveCDS(user.id, cdsEntry.cds_id);
       showToast(`${cdsEntry.cds_number} removed`, "success");
-      loadUserCds(true); // silent background sync — no flash
+      await loadUserCds(true);
       onRefresh?.();
     } catch (e) {
-      setUserCdsList(snapshot); // rollback
+      setUserCdsList(snapshot);
       showToast(e.message || "Failed to remove CDS", "error");
     }
   }, [isSA, user, userCdsList, loadUserCds, onRefresh, showToast]);
 
-  // AD's pool — passed in so search works locally
   const adPool = isAD ? callerCdsList : [];
 
   return (
@@ -547,7 +523,6 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
         maxWidth={520}
         footer={<button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Close</button>}
       >
-        {/* Assigned CDS list */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Assigned CDS</div>
           {loadingList ? (
@@ -578,48 +553,36 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           )}
         </div>
 
-        {/* Add CDS */}
         <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
-            {isSA ? "Assign CDS" : "Assign from your pool"}
+            {isSA ? "Assign CDS" : "Assign CDS from your pool"}
           </div>
-
-          {/* SA: full search + create | AD: pool picker only (no search outside pool, no create) */}
-          {isSA ? (
-            <CDSSearchBox
-              callerRole={callerRole}
-              adCdsList={[]}
-              excludeCdsIds={userCdsList.map(c => c.cds_id)}
-              excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
-              onSelect={setSelectedCds}
-              placeholder="Search CDS number or owner name..."
-            />
-          ) : (
-            <CDSPoolPicker
-              pool={adPool}
-              excludeCdsIds={userCdsList.map(c => c.cds_id)}
-              excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
-              mode="single"
-              onSelect={setSelectedCds}
-            />
-          )}
-
+          <CDSSearchBox
+            callerRole={callerRole}
+            adCdsList={adPool}
+            excludeCdsIds={userCdsList.map(c => c.cds_id)}
+            excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
+            onSelect={setSelectedCds}
+            placeholder={isSA ? "Search CDS number or owner name..." : "Search your CDS accounts..."}
+          />
           {selectedCds && (
             <button
               onClick={handleAssign}
               disabled={assigning}
               style={{ marginTop: 10, width: "100%", padding: "9px", borderRadius: 9, border: "none", background: assigning ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: assigning ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: assigning ? "none" : `0 2px 10px ${C.green}44`, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
             >
-              {assigning
-                ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />Assigning...</>
-                : `Assign ${selectedCds.cds_number}`}
+              {assigning ? (
+                <>
+                  <div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                  Assigning...
+                </>
+              ) : `Assign ${selectedCds.cds_number}`}
             </button>
           )}
         </div>
       </Modal>
 
-      {/* Cascade remove confirmation — only SA removing from AD */}
       {removeTarget && (
         <CascadeRemoveModal
           admin={user}
@@ -627,7 +590,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           onClose={() => setRemoveTarget(null)}
           onDone={async () => {
             setRemoveTarget(null);
-            await loadUserCds(true); // silent — cascade modal already showed toast
+            await loadUserCds(true);
             onRefresh?.();
           }}
           showToast={showToast}
@@ -638,19 +601,18 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Cascade Remove (SA removes CDS from AD)
+// MODAL — Cascade Remove
 // ═══════════════════════════════════════════════════════
 function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
   const [affectedUsers, setAffectedUsers] = useState([]);
   const [loading, setLoading]             = useState(true);
   const [saving, setSaving]               = useState(false);
-  const [cascade, setCascade]             = useState(null); // null = not decided, true/false = decided
+  const [cascade, setCascade]             = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
         const users = await sbGetCDSAssignedUsers(cdsEntry.cds_id);
-        // Exclude the admin themselves
         setAffectedUsers((users || []).filter(u => u.user_id !== admin.id));
       } catch {
         setAffectedUsers([]);
@@ -665,7 +627,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
     setSaving(true);
     try {
       if (affectedUsers.length > 0 && cascade !== null) {
-        // Use cascade RPC which handles both admin + sub-users
         await sbRemoveCDSFromAdminCascade(admin.id, cdsEntry.cds_id, cascade);
         showToast(
           cascade
@@ -674,7 +635,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
           "success"
         );
       } else {
-        // No sub-users — simple remove
         await sbRemoveCDS(admin.id, cdsEntry.cds_id);
         showToast(`${cdsEntry.cds_number} removed from ${admin.full_name}`, "success");
       }
@@ -716,7 +676,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
             ⚠️ <strong>{affectedUsers.length} user{affectedUsers.length > 1 ? "s" : ""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
           </div>
 
-          {/* Affected users list */}
           <div style={{ maxHeight: 140, overflowY: "auto", marginBottom: 14, border: `1px solid ${C.gray200}`, borderRadius: 9, overflow: "hidden" }}>
             {affectedUsers.map((u, i) => (
               <div key={u.user_id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: i % 2 ? C.gray50 : C.white, borderBottom: i < affectedUsers.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
@@ -729,7 +688,6 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
             ))}
           </div>
 
-          {/* Cascade choice */}
           <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>What to do with their access?</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
             {[
@@ -757,7 +715,7 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Change Role (unchanged)
+// MODAL — Change Role
 // ═══════════════════════════════════════════════════════
 function ChangeRoleModal({ user, roles, callerRole, onClose, onSave, showToast }) {
   const available = useMemo(
@@ -818,7 +776,7 @@ function ChangeRoleModal({ user, roles, callerRole, onClose, onSave, showToast }
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Toggle Status (unchanged)
+// MODAL — Toggle Status
 // ═══════════════════════════════════════════════════════
 function ToggleStatusModal({ user, onClose, onConfirm, showToast }) {
   const [saving, setSaving] = useState(false);
@@ -855,18 +813,25 @@ function ToggleStatusModal({ user, onClose, onConfirm, showToast }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Invite User (updated CDS field)
+// MODAL — Invite User
 // ═══════════════════════════════════════════════════════
 function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, showToast }) {
   const isAdmin = callerRole === "AD";
-  const [form, setForm]             = useState({ email: "", password: "", role_id: "" });
-  // SA: single CDS via search. AD single CDS: auto-locked. AD multi CDS: accordion multi-select.
-  const [selectedCds, setSelectedCds]         = useState(
+  const [form, setForm]         = useState({ email: "", password: "", role_id: "" });
+  const [selectedCds, setSelectedCds] = useState(
     isAdmin && callerCdsList?.length === 1 ? callerCdsList[0] : null
   );
-  const [selectedCdsMulti, setSelectedCdsMulti] = useState([]); // AD multi-select
-  const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+  const [passwordEditable, setPasswordEditable] = useState(false);
+
+  useEffect(() => {
+    setForm({ email: "", password: "", role_id: "" });
+    setError("");
+    setSaving(false);
+    setPasswordEditable(false);
+    setSelectedCds(isAdmin && callerCdsList?.length === 1 ? callerCdsList[0] : null);
+  }, [isAdmin, callerCdsList]);
 
   const allowedRoles = useMemo(
     () => (isAdmin ? roles.filter(r => r.code !== "SA") : roles),
@@ -876,11 +841,11 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   const passwordChecks = useMemo(() => {
     const pw = form.password;
     return [
-      { label: "8+ characters",  ok: pw.length >= 8 },
-      { label: "Uppercase",      ok: /[A-Z]/.test(pw) },
-      { label: "Lowercase",      ok: /[a-z]/.test(pw) },
-      { label: "Number",         ok: /[0-9]/.test(pw) },
-      { label: "Special char",   ok: /[^A-Za-z0-9]/.test(pw) },
+      { label: "8+ characters", ok: pw.length >= 8 },
+      { label: "Uppercase", ok: /[A-Z]/.test(pw) },
+      { label: "Lowercase", ok: /[a-z]/.test(pw) },
+      { label: "Number", ok: /[0-9]/.test(pw) },
+      { label: "Special char", ok: /[^A-Za-z0-9]/.test(pw) },
     ];
   }, [form.password]);
 
@@ -888,36 +853,28 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
 
   const handleSubmit = useCallback(async () => {
     setError("");
-    if (!form.email.trim())    return setError("Email is required");
+    if (!form.email.trim()) return setError("Email is required");
     if (!form.password.trim()) return setError("Temporary password is required.");
 
     const pwErrors = [];
-    if (form.password.length < 8)           pwErrors.push("at least 8 characters");
-    if (!/[A-Z]/.test(form.password))        pwErrors.push("one uppercase letter");
-    if (!/[a-z]/.test(form.password))        pwErrors.push("one lowercase letter");
-    if (!/[0-9]/.test(form.password))        pwErrors.push("one number");
+    if (form.password.length < 8) pwErrors.push("at least 8 characters");
+    if (!/[A-Z]/.test(form.password)) pwErrors.push("one uppercase letter");
+    if (!/[a-z]/.test(form.password)) pwErrors.push("one lowercase letter");
+    if (!/[0-9]/.test(form.password)) pwErrors.push("one number");
     if (!/[^A-Za-z0-9]/.test(form.password)) pwErrors.push("one special character");
     if (pwErrors.length > 0) return setError("Password must contain: " + pwErrors.join(", ") + ".");
-    // CDS validation: SA needs selectedCds, AD multi needs at least one
-    const adMultiMode = isAdmin && (callerCdsList?.length ?? 0) > 1;
-    const cdsReady = adMultiMode ? selectedCdsMulti.length > 0 : !!selectedCds;
-    if (!cdsReady) return setError("Please select at least one CDS account");
+    if (!selectedCds) return setError("Please select a CDS account");
     if (!form.role_id) return setError("Please select a role");
 
     setSaving(true);
     try {
-      // Use first selected CDS number for profile.cds_number
-      const primaryCds = adMultiMode ? selectedCdsMulti[0] : selectedCds;
-      const result = await sbAdminCreateUser(form.email, form.password, primaryCds.cds_number);
+      const cdsNumber = selectedCds.cds_number;
+      const result = await sbAdminCreateUser(form.email, form.password, cdsNumber);
       const uid = result?.user?.id || result?.id;
       if (uid) {
         await sbAssignRole(uid, parseInt(form.role_id, 10));
-        // Assign ALL selected CDS accounts — first becomes active automatically
-        const cdsToAssign = adMultiMode ? selectedCdsMulti : [selectedCds];
-        for (const cds of cdsToAssign) {
-          const cdsId = cds.id || cds.cds_id;
-          if (cdsId) await sbAssignCDS(uid, cdsId).catch(() => {});
-        }
+        const cdsId = selectedCds.id || selectedCds.cds_id;
+        if (cdsId) await sbAssignCDS(uid, cdsId).catch(() => {});
       }
       showToast("User created successfully!", "success");
       onSuccess();
@@ -930,7 +887,11 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   }, [form, selectedCds, onClose, onSuccess, showToast]);
 
   return (
-    <Modal title="Invite New User" subtitle="Create an account and assign a role" onClose={onClose}
+    <Modal
+      title="Invite New User"
+      subtitle="Create an account and assign a role"
+      onClose={onClose}
+      closeOnBackdrop={false}
       footer={<><CancelBtn onClose={onClose} /><ConfirmBtn onClick={handleSubmit} label="Create & Invite" saving={saving} /></>}
     >
       {error && (
@@ -940,23 +901,19 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       )}
 
       <Field label="Email Address" required>
-        <input style={inp()} type="email" placeholder="user@example.com"
-          value={form.email} onChange={e => set("email", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+        <input
+          style={inp()}
+          type="email"
+          placeholder="user@example.com"
+          value={form.email}
+          onChange={e => set("email", e.target.value)}
+          onFocus={focusGreen}
+          onBlur={blurGray}
         />
       </Field>
 
-      {/* CDS field:
-          SA             → CDSSearchBox (search + create)
-          AD, 1 CDS      → locked auto-selected chip
-          AD, 2+ CDS     → CDSPoolPicker accordion (multi-select) */}
-      <Field label="CDS Account" required hint={
-        isAdmin
-          ? (callerCdsList?.length === 1 ? "Auto-assigned from your account" : "Select one or more CDS from your pool")
-          : "Search existing CDS or create a new one"
-      }>
-        {isAdmin && callerCdsList?.length === 1 && selectedCds ? (
-          // AD with single CDS — locked chip
+      <Field label="CDS Account" required hint={isAdmin ? "Select from your assigned CDS accounts" : "Search existing CDS or create a new one"}>
+        {isAdmin && callerCdsList?.length <= 1 && selectedCds ? (
           <div style={{ padding: "9px 12px", borderRadius: 9, background: `${C.green}08`, border: `1.5px solid ${C.green}30`, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 13 }}>🔒</span>
             <div style={{ flex: 1 }}>
@@ -965,20 +922,12 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
             </div>
             <span style={{ fontSize: 10, fontWeight: 700, color: C.green }}>Auto-selected</span>
           </div>
-        ) : isAdmin && (callerCdsList?.length ?? 0) > 1 ? (
-          // AD with multiple CDS — accordion multi-select from pool
-          <CDSPoolPicker
-            pool={callerCdsList || []}
-            mode="multi"
-            onSelectMulti={setSelectedCdsMulti}
-          />
         ) : (
-          // SA — full search + create
           <CDSSearchBox
             callerRole={callerRole}
-            adCdsList={[]}
+            adCdsList={callerCdsList || []}
             onSelect={setSelectedCds}
-            placeholder="Search CDS number or owner name..."
+            placeholder={isAdmin ? "Select from your CDS accounts..." : "Search CDS number or owner name..."}
           />
         )}
       </Field>
@@ -986,14 +935,59 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
 
       <Field label="Temporary Password" required hint="Share this with the user — they can change it after first login">
-        <input style={inp()} type="password" placeholder="Min 8 chars, upper, lower, number, symbol"
-          value={form.password} onChange={e => set("password", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+        <input
+          style={inp()}
+          type="password"
+          placeholder="Min 8 chars, upper, lower, number, symbol"
+          value={form.password}
+          readOnly={!passwordEditable}
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="invite_temp_password"
+          id="invite_temp_password"
+          data-lpignore="true"
+          data-form-type="other"
+          onFocus={(e) => {
+            setPasswordEditable(true);
+            focusGreen(e);
+          }}
+          onBlur={blurGray}
+          onChange={e => set("password", e.target.value)}
         />
         {form.password.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 3,
+              flexWrap: "nowrap",
+              marginTop: 6,
+              whiteSpace: "nowrap",
+              alignItems: "center",
+            }}
+          >
             {passwordChecks.map(c => (
-              <span key={c.label} style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5, background: c.ok ? "#dcfce7" : "#fee2e2", color: c.ok ? "#166534" : "#991b1b" }}>
+              <span
+                key={c.label}
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  textAlign: "center",
+                  fontSize: 9,
+                  lineHeight: 1.15,
+                  fontWeight: 700,
+                  padding: "2px 4px",
+                  borderRadius: 999,
+                  background: c.ok ? "#dcfce7" : "#fee2e2",
+                  color: c.ok ? "#166534" : "#991b1b",
+                  border: `1px solid ${c.ok ? "#bbf7d0" : "#fecaca"}`,
+                }}
+                title={`${c.ok ? "✓" : "✗"} ${c.label}`}
+              >
                 {c.ok ? "✓" : "✗"} {c.label}
               </span>
             ))}
@@ -1004,8 +998,10 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
       <Field label="Assign Role" required>
         <select
           style={{ ...inp(), cursor: "pointer", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 32 }}
-          value={form.role_id} onChange={e => set("role_id", e.target.value)}
-          onFocus={focusGreen} onBlur={blurGray}
+          value={form.role_id}
+          onChange={e => set("role_id", e.target.value)}
+          onFocus={focusGreen}
+          onBlur={blurGray}
         >
           <option value="">Select a role...</option>
           {allowedRoles.map(r => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
@@ -1015,14 +1011,14 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   );
 }
 
-// ── Role badge (unchanged) ─────────────────────────────────────────
+// ── Role badge ─────────────────────────────────────────────────────
 const RoleBadge = memo(function RoleBadge({ code }) {
   const m = ROLE_META[code];
   if (!m) return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "#fffbeb", border: "1px solid #fde68a", color: "#b45309" }}>No Role</span>;
   return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: m.bg, border: `1px solid ${m.border}`, color: m.text, whiteSpace: "nowrap" }}>{m.label}</span>;
 });
 
-// ── User avatar (unchanged) ────────────────────────────────────────
+// ── User avatar ────────────────────────────────────────────────────
 const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size = 34 }) {
   const initials = useMemo(() => (name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(), [name]);
   const color    = useMemo(() => AVATAR_COLORS[(name || "").charCodeAt(0) % AVATAR_COLORS.length], [name]);
@@ -1041,7 +1037,7 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size = 
   );
 });
 
-// ── Stat card (unchanged) ──────────────────────────────────────────
+// ── Stat card ──────────────────────────────────────────────────────
 const StatCard = memo(function StatCard({ label, value, color, icon }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 90 }}>
@@ -1058,18 +1054,18 @@ const StatCard = memo(function StatCard({ label, value, color, icon }) {
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════
 export default function UserManagementPage({ role, showToast, profile }) {
-  const [users, setUsers]               = useState([]);
-  const [roles, setRoles]               = useState([]);
-  const [callerCdsList, setCallerCdsList] = useState([]); // current user's CDS pool
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [search, setSearch]             = useState("");
-  const [filterRole, setFilterRole]     = useState("ALL");
-  const [filterStatus, setFilterStatus] = useState("ALL");
-  const [inviteOpen, setInviteOpen]     = useState(false);
+  const [users, setUsers]                 = useState([]);
+  const [roles, setRoles]                 = useState([]);
+  const [callerCdsList, setCallerCdsList] = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
+  const [search, setSearch]               = useState("");
+  const [filterRole, setFilterRole]       = useState("ALL");
+  const [filterStatus, setFilterStatus]   = useState("ALL");
+  const [inviteOpen, setInviteOpen]       = useState(false);
   const [changeRoleUser, setChangeRoleUser] = useState(null);
-  const [toggleUser, setToggleUser]     = useState(null);
-  const [manageCdsUser, setManageCdsUser] = useState(null); // NEW
+  const [toggleUser, setToggleUser]       = useState(null);
+  const [manageCdsUser, setManageCdsUser] = useState(null);
 
   const isMountedRef = useRef(true);
   const loadReqRef   = useRef(0);
@@ -1098,7 +1094,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
     }
   }, []);
 
-  // Load caller's own CDS pool (needed for AD constraints)
   useEffect(() => {
     if (!isAllowed || !profile?.id) return;
     sbGetUserCDS(profile.id)
@@ -1148,11 +1143,11 @@ export default function UserManagementPage({ role, showToast, profile }) {
     return { total, activeCount, noRoleCount, rCounts };
   }, [users]);
 
-  const handleOpenInvite       = useCallback(() => setInviteOpen(true), []);
-  const handleCloseInvite      = useCallback(() => setInviteOpen(false), []);
-  const handleCloseChangeRole  = useCallback(() => setChangeRoleUser(null), []);
-  const handleCloseToggle      = useCallback(() => setToggleUser(null), []);
-  const handleCloseManageCds   = useCallback(() => setManageCdsUser(null), []);
+  const handleOpenInvite      = useCallback(() => setInviteOpen(true), []);
+  const handleCloseInvite     = useCallback(() => setInviteOpen(false), []);
+  const handleCloseChangeRole = useCallback(() => setChangeRoleUser(null), []);
+  const handleCloseToggle     = useCallback(() => setToggleUser(null), []);
+  const handleCloseManageCds  = useCallback(() => setManageCdsUser(null), []);
 
   if (!isAllowed) {
     return (
@@ -1195,7 +1190,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         select option { font-weight: 500; }
       `}</style>
 
-      {/* Stats strip (unchanged) */}
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexShrink: 0, flexWrap: "wrap" }}>
         <StatCard label="Total Users"   value={stats.total}           color="#0A2540" icon="👥" />
         <StatCard label="Active"        value={stats.activeCount}     color={C.green} icon="✅" />
@@ -1205,13 +1199,12 @@ export default function UserManagementPage({ role, showToast, profile }) {
         <StatCard label="Verifiers"     value={stats.rCounts.VR || 0} color="#065F46" icon="✔️" />
       </div>
 
-      {/* Filters + invite (unchanged) */}
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexShrink: 0, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
           <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: C.gray400, pointerEvents: "none" }}>🔍</span>
           <input placeholder="Search by name, CDS or phone..." value={search} onChange={e => setSearch(e.target.value)} style={SEARCH_INPUT_STYLE} onFocus={focusGreen} onBlur={blurGray} />
         </div>
-        <select value={filterRole}   onChange={e => setFilterRole(e.target.value)}   onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
+        <select value={filterRole} onChange={e => setFilterRole(e.target.value)} onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
           <option value="ALL">All Roles</option>
           {Object.entries(ROLE_META).map(([c, m]) => <option key={c} value={c}>{m.label}</option>)}
           <option value="">No Role</option>
@@ -1230,7 +1223,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         >+ Invite User</button>
       </div>
 
-      {/* Table */}
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
         <div style={{ overflowX: "auto", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "8px 14px", minWidth: 940, borderBottom: `1px solid ${C.gray100}`, background: C.gray50, flexShrink: 0 }}>
@@ -1274,7 +1266,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                   {user.assigned_at ? new Date(user.assigned_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
                 </div>
 
-                {/* Actions — 3 buttons: Role · CDS · Status */}
                 <div style={{ display: "flex", gap: 4 }}>
                   <button onClick={() => setChangeRoleUser(user)}
                     style={{ padding: "4px 7px", borderRadius: 7, border: `1px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", whiteSpace: "nowrap" }}
@@ -1282,7 +1273,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                     onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
                   >✏️ Role</button>
 
-                  {/* NEW — Manage CDS button */}
                   <button onClick={() => setManageCdsUser(user)}
                     style={{ padding: "4px 7px", borderRadius: 7, border: `1px solid ${C.navy}25`, background: C.navy + "08", color: C.navy, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", whiteSpace: "nowrap" }}
                     onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
@@ -1303,15 +1293,22 @@ export default function UserManagementPage({ role, showToast, profile }) {
         </div>
       </div>
 
-      {/* Modals */}
       {inviteOpen && (
-        <InviteModal roles={roles} callerRole={role} callerCdsList={callerCdsList}
-          onClose={handleCloseInvite} onSuccess={loadData} showToast={showToast}
+        <InviteModal
+          roles={roles}
+          callerRole={role}
+          callerCdsList={callerCdsList}
+          onClose={handleCloseInvite}
+          onSuccess={loadData}
+          showToast={showToast}
         />
       )}
 
       {changeRoleUser && (
-        <ChangeRoleModal user={changeRoleUser} roles={roles} callerRole={role}
+        <ChangeRoleModal
+          user={changeRoleUser}
+          roles={roles}
+          callerRole={role}
           onClose={handleCloseChangeRole}
           onSave={async (uid, rid) => { await handleAssignRole(uid, rid); if (isMountedRef.current) setChangeRoleUser(null); }}
           showToast={showToast}
@@ -1322,7 +1319,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
         <ToggleStatusModal user={toggleUser} onClose={handleCloseToggle} onConfirm={handleToggleActive} showToast={showToast} />
       )}
 
-      {/* NEW — Manage CDS modal */}
       {manageCdsUser && (
         <ManageCDSModal
           user={manageCdsUser}
