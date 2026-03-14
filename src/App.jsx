@@ -9,16 +9,18 @@ import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import SystemSettingsPage from "./pages/SystemSettingsPage";
+import DashboardPage from "./pages/DashboardPage";
 import UserMenu from "./components/UserMenu";
 import useIdleLogout from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
 
 // ── Role-based nav visibility ──────────────────────────────────────
 const NAV = [
-  { id: "companies", label: "Portfolio", icon: "📊", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "transactions", label: "Transactions", icon: "📋", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "user-management", label: "User Management", icon: "👥", roles: ["SA", "AD"] },
-  { id: "system-settings", label: "System Settings", icon: "⚙️", roles: ["SA"] },
+  { id: "dashboard",       label: "Dashboard",       icon: "🏠", roles: ["SA", "AD", "DE", "VR", "RO"] },
+  { id: "companies",       label: "Portfolio",        icon: "📊", roles: ["SA", "AD", "DE", "VR", "RO"] },
+  { id: "transactions",    label: "Transactions",     icon: "📋", roles: ["SA", "AD", "DE", "VR", "RO"] },
+  { id: "user-management", label: "User Management",  icon: "👥", roles: ["SA", "AD"] },
+  { id: "system-settings", label: "System Settings",  icon: "⚙️", roles: ["SA"] },
 ];
 
 // ── Role display config ────────────────────────────────────────────
@@ -30,9 +32,9 @@ export default function App() {
   const [role, setRole] = useState(null);
   const [tab, setTab] = useState(() => {
     try {
-      return localStorage.getItem("app_active_tab") || "companies";
+      return localStorage.getItem("app_active_tab") || "dashboard";
     } catch {
-      return "companies";
+      return "dashboard";
     }
   });
   const [loginSettings, setLoginSettings] = useState(null);
@@ -269,7 +271,7 @@ export default function App() {
 
     const visibleIds = NAV.filter(item => item.roles.includes(role)).map(item => item.id);
     if (tab !== "profile" && !visibleIds.includes(tab)) {
-      setTab("companies");
+      setTab("dashboard");
     }
   }, [role, tab]);
 
@@ -506,6 +508,17 @@ export default function App() {
   const counts = { companies: cdsCompanyCount, transactions: filteredTransactions.length };
   const now = new Date();
 
+  // ── Tab header meta ────────────────────────────────────────────────
+  const TAB_META = {
+    dashboard:        { title: "Dashboard",       sub: "Your portfolio overview and key metrics" },
+    companies:        { title: "Portfolio",        sub: "Your CDS portfolio holdings" },
+    transactions:     { title: "Transactions",     sub: "Record and view all buy/sell activity" },
+    profile:          { title: "My Profile",       sub: "Manage your personal information" },
+    "user-management":{ title: "User Management",  sub: "Manage system users and assign roles" },
+    "system-settings":{ title: "System Settings",  sub: "Configure portal appearance and behaviour" },
+  };
+  const currentMeta = TAB_META[tab] || { title: NAV.find(n => n.id === tab)?.label || tab, sub: "" };
+
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'Inter', system-ui, sans-serif", background: C.gray50, overflow: "hidden" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -671,17 +684,10 @@ export default function App() {
         >
           <div>
             <div style={{ fontWeight: 800, fontSize: 18, color: C.text }}>
-              {tab === "profile" && "My Profile"}
-              {tab === "user-management" && "User Management"}
-              {tab === "system-settings" && "System Settings"}
-              {tab !== "profile" && tab !== "user-management" && tab !== "system-settings" && NAV.find(n => n.id === tab)?.label}
+              {currentMeta.title}
             </div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 1 }}>
-              {tab === "companies" && "Your CDS portfolio holdings"}
-              {tab === "transactions" && "Record and view all buy/sell activity"}
-              {tab === "profile" && "Manage your personal information"}
-              {tab === "user-management" && "Manage system users and assign roles"}
-              {tab === "system-settings" && "Configure portal appearance and behaviour"}
+              {currentMeta.sub}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -746,6 +752,15 @@ export default function App() {
         </div>
 
         <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto" }}>
+          {tab === "dashboard" && (
+            <DashboardPage
+              profile={profile}
+              role={role}
+              session={session}
+              showToast={showToast}
+              onNavigate={setTab}
+            />
+          )}
           {tab === "companies" && (
             <CompaniesPage
               companies={companies}
