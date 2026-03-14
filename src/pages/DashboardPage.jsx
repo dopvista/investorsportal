@@ -475,10 +475,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                         </div>
                       </Td>
                       <Td>{fmt(c.totalSharesSold)}</Td>
-                      <Td>{fmtShort(c.totalCostBasis)}</Td>
-                      <Td>{fmtShort(c.totalSaleProceeds)}</Td>
+                      <Td>{fmt(c.totalCostBasis)}</Td>
+                      <Td>{fmt(c.totalSaleProceeds)}</Td>
                       <Td bold color={c.totalRealizedGL >= 0 ? C.green : C.red}>
-                        {(c.totalRealizedGL >= 0 ? "+" : "") + fmtShort(c.totalRealizedGL)}
+                        {(c.totalRealizedGL >= 0 ? "+" : "") + fmt(c.totalRealizedGL)}
                       </Td>
                       <Td>
                         <Badge
@@ -494,10 +494,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                   <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
                   <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSharesSold)}</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalCostBasis)}</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalSaleProceeds)}</td>
+                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalCostBasis)}</td>
+                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSaleProceeds)}</td>
                   <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalRealizedGL >= 0 ? C.green : C.red }}>
-                    {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL)}
+                    {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
                   </td>
                   <td style={{ padding: "9px 12px" }}>
                     <Badge
@@ -578,7 +578,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                           {c.positionCount}
                         </span>
                       </Td>
-                      <Td>{c.totalCost > 0 ? fmtShort(c.totalCost) : "—"}</Td>
+                      <Td>{c.totalCost > 0 ? fmt(c.totalCost) : "—"}</Td>
                       <Td>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
@@ -589,7 +589,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                       </Td>
                       <Td bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
                         {c.unrealizedGL !== 0
-                          ? (c.unrealizedGL >= 0 ? "+" : "") + fmtShort(c.unrealizedGL)
+                          ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL)
                           : "—"}
                       </Td>
                       <Td>
@@ -604,10 +604,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                     <td colSpan={2} style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{metrics.totalActivePositions}</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalInvested)}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalInvested)}</td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400 }}>100%</td>
                     <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>
-                      {(metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)}
+                      {(metrics.totalGainLoss >= 0 ? "+" : "") + fmt(metrics.totalGainLoss)}
                     </td>
                     <td />
                   </tr>
@@ -653,9 +653,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     <Td>{fmt(c.netShares)}</Td>
                     <Td>{c.avgCost > 0 ? fmt(c.avgCost) : "—"}</Td>
                     <Td bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
-                    <Td bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                    <Td bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
                     <Td bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                      {c.unrealizedGL !== 0 ? (c.unrealizedGL >= 0 ? "+" : "") + fmtShort(c.unrealizedGL) : "—"}
+                      {c.unrealizedGL !== 0 ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL) : "—"}
                     </Td>
                     <Td>
                       {c.returnPct !== 0
@@ -677,9 +677,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               <tfoot>
                 <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                   <td colSpan={4} style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalValue)}</td>
+                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmt(metrics.totalValue)}</td>
                   <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>
-                    {(metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)}
+                    {(metrics.totalGainLoss >= 0 ? "+" : "") + fmt(metrics.totalGainLoss)}
                   </td>
                   <td style={{ padding: "10px 12px" }}>
                     <Badge
