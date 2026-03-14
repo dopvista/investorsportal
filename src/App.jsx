@@ -218,24 +218,45 @@ export default function App() {
     if (tab !== "profile" && !visibleIds.includes(tab)) setTab("dashboard");
   }, [role, tab]);
 
-  // Confirm and execute CDS switch
-  const handleSwitchCDS = useCallback(async () => {
-    if (!switchTarget || !session?.user?.id) return;
+  // ── Unified CDS switch handler — App.jsx is the only owner ────────
+  // ProfilePage delegates here via onSwitchCds prop.
+  const cdsSwitchReqRef = useRef(0);
+
+  const handleCdsSwitch = useCallback(async (target) => {
+    if (!target || !session?.user?.id || switching) return;
+
+    const reqId = ++cdsSwitchReqRef.current;
     setSwitching(true);
+
     try {
-      await sbSwitchActiveCDS(session.user.id, switchTarget.cds_id);
-      setActiveCds(switchTarget);
-      const list = await sbGetUserCDS(session.user.id).catch(() => cdsList);
-      setCdsList(list);
-      showToast(`Switched to ${switchTarget.cds_number}`, "success");
+      const uid = session.user.id;
+
+      // Switch on backend, then re-read confirmed active CDS — never trust clicked target blindly
+      const [freshActive, freshList] = await Promise.all([
+        sbSwitchActiveCDS(uid, target.cds_id),
+        sbGetUserCDS(uid).catch(() => cdsList),
+      ]);
+
+      if (reqId !== cdsSwitchReqRef.current) return; // stale response guard
+
+      setActiveCds(freshActive || target);
+      setCdsList(freshList || []);
+
+      // Clear CDS-scoped state so pages cannot show old account data
+      setCompanies([]);
+      setTransactions([]);
+
+      setShowCdsSwitcher(false);
+      setSwitchTarget(null);
+
+      showToast(`Switched to ${(freshActive || target).cds_number}`, "success");
     } catch (e) {
+      if (reqId !== cdsSwitchReqRef.current) return;
       showToast(e.message || "Failed to switch CDS", "error");
     } finally {
-      setSwitching(false);
-      setSwitchTarget(null);
-      setShowCdsSwitcher(false);
+      if (reqId === cdsSwitchReqRef.current) setSwitching(false);
     }
-  }, [switchTarget, session, cdsList, showToast]);
+  }, [session, switching, cdsList, showToast]);
 
   const handleLogin       = (s) => { setDbError(null); setSession(s); };
   const handleProfileDone = (p) => setProfile(p);
@@ -494,9 +515,29 @@ export default function App() {
 
         {/* ── Pages ── */}
         <div style={{flex:1,padding:"28px 32px",overflowY:"auto"}}>
-          {tab==="dashboard"&&<DashboardPage profile={activeProfile} role={role} session={session} showToast={showToast} onNavigate={setTab}/>}
-          {tab==="companies"&&<CompaniesPage companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile}/>}
-          {tab==="transactions"&&<TransactionsPage companies={companies} transactions={transactions} setTransactions={setTransactions} showToast={showToast} role={role} cdsNumber={activeCdsNumber}/>}
+          {tab==="dashboard"&&(
+            <DashboardPage
+              key={`dashboard-${activeCdsNumber||"none"}`}
+              profile={activeProfile} role={role} session={session}
+              showToast={showToast} onNavigate={setTab}
+            />
+          )}
+          {tab==="companies"&&(
+            <CompaniesPage
+              key={`companies-${activeCdsNumber||"none"}`}
+              companies={companies} setCompanies={setCompanies}
+              transactions={filteredTransactions} showToast={showToast}
+              role={role} profile={activeProfile}
+            />
+          )}
+          {tab==="transactions"&&(
+            <TransactionsPage
+              key={`transactions-${activeCdsNumber||"none"}`}
+              companies={companies} transactions={transactions}
+              setTransactions={setTransactions} showToast={showToast}
+              role={role} cdsNumber={activeCdsNumber}
+            />
+          )}
           {tab==="profile"&&(
             <ProfilePage
               profile={profile} setProfile={setProfile}
@@ -505,7 +546,7 @@ export default function App() {
               showToast={showToast}
               activeCds={activeCds}
               cdsList={cdsList}
-              onCdsSwitched={(newCds,newList)=>{setActiveCds(newCds);if(newList)setCdsList(newList);}}
+              onSwitchCds={handleCdsSwitch}
             />
           )}
           {tab==="user-management"&&<UserManagementPage role={role} showToast={showToast} profile={activeProfile}/>}
@@ -546,7 +587,7 @@ export default function App() {
               </div>
               <div style={{display:"flex",gap:10}}>
                 <button onClick={()=>!switching&&setSwitchTarget(null)} disabled={switching} style={{flex:1,padding:"11px",borderRadius:10,border:`1.5px solid ${C.gray200}`,background:C.white,color:C.text,fontWeight:600,fontSize:13,cursor:switching?"not-allowed":"pointer",fontFamily:"inherit"}}>Cancel</button>
-                <button onClick={handleSwitchCDS} disabled={switching} style={{flex:2,padding:"11px",borderRadius:10,border:"none",background:switching?C.gray200:C.navy,color:C.white,fontWeight:700,fontSize:13,cursor:switching?"not-allowed":"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <button onClick={() => handleCdsSwitch(switchTarget)} disabled={switching} style={{flex:2,padding:"11px",borderRadius:10,border:"none",background:switching?C.gray200:C.navy,color:C.white,fontWeight:700,fontSize:13,cursor:switching?"not-allowed":"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   {switching?(<><div style={{width:14,height:14,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Switching...</>):"Yes, Switch Account"}
                 </button>
               </div>
