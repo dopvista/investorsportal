@@ -330,6 +330,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             runningAvg = 0;
           }
 
+          const daysForThisSell = firstBuyDate && t.date
+            ? Math.max(0, Math.floor((new Date(t.date) - new Date(firstBuyDate)) / 86_400_000))
+            : null;
           realizedTrades.push({
             soldShares: actualSold,
             costBasis,
@@ -337,6 +340,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             realizedGL: gain,
             realRetPct: retPct,
             date: t.date,
+            daysHeld: daysForThisSell,
           });
         }
       }
@@ -477,7 +481,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           1. SNAPSHOT STRIP — 5 cards
           Portfolio Value · Invested · Gain/Loss · Return · Realized
       ═══════════════════════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr", gap: 14, marginBottom: expanded === "realized" ? 14 : 20 }}>
 
         {/* 1a — Portfolio Value: market value if prices set, else total invested */}
         <SnapCard
@@ -523,7 +527,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           accent={metrics.unrealizedRetPct >= 0 ? C.green : C.red}
         />
 
-        {/* 1e — Realized Gains (expandable) */}
+        {/* 1e — Realized Gains — click to expand full panel below */}
         <SnapCard
           label="Realized Gains" loading={loading}
           value={metrics.hasRealized
@@ -534,63 +538,80 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           expandable={metrics.hasRealized}
           expanded={expanded === "realized"}
           onToggle={() => toggleExpand("realized")}
-        >
-          {/* Realized trades expand — per company */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Company","Shares Sold","Cost of Shares","Sale Proceeds","Realized Gain / Loss","Return %"].map(h => <Th key={h}>{h}</Th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.allPortfolio
-                  .filter(c => c.realizedTrades.length > 0)
-                  .map((c, i, arr) => (
-                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
-                      <Td bold>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                          {c.name}
-                        </div>
-                      </Td>
-                      <Td>{fmt(c.totalSharesSold)}</Td>
-                      <Td>{fmt(c.totalCostBasis)}</Td>
-                      <Td>{fmt(c.totalSaleProceeds)}</Td>
-                      <Td bold color={c.totalRealizedGL >= 0 ? C.green : C.red}>
-                        {(c.totalRealizedGL >= 0 ? "+" : "") + fmt(c.totalRealizedGL)}
-                      </Td>
-                      <Td>
-                        <Badge
-                          value={(c.totalCostBasis > 0 ? ((c.totalRealizedGL / c.totalCostBasis) * 100) : 0).toFixed(2) + "%"}
-                          positive={c.totalRealizedGL >= 0}
-                        />
-                      </Td>
-                    </tr>
-                  ))}
-              </tbody>
-              {/* Totals row */}
-              <tfoot>
-                <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                  <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSharesSold)}</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalCostBasis)}</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSaleProceeds)}</td>
-                  <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalRealizedGL >= 0 ? C.green : C.red }}>
-                    {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
-                  </td>
-                  <td style={{ padding: "9px 12px" }}>
-                    <Badge
-                      value={(metrics.totalCostBasis > 0 ? ((metrics.totalRealizedGL / metrics.totalCostBasis) * 100) : 0).toFixed(2) + "%"}
-                      positive={metrics.totalRealizedGL >= 0}
-                    />
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </SnapCard>
+        />
       </div>
+
+      {/* ── Realized Gains expand — full panel below snapshot strip ── */}
+      {expanded === "realized" && (
+        <ExpandPanel title="📤 Realized Gains — Closed Positions" onClose={() => setExpanded(null)}>
+          {loading ? <Spinner /> : metrics.allPortfolio.filter(c => c.realizedTrades.length > 0).length === 0 ? (
+            <Empty msg="No realized trades found." />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Company","Qty Sold","Cost of Shares Sold","Sale Proceeds","Realized Gain / Loss","Return %","Days Held"].map(h => <Th key={h}>{h}</Th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.allPortfolio
+                    .filter(c => c.realizedTrades.length > 0)
+                    .map((c, i) => (
+                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
+                        <Td bold>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                            {c.name}
+                          </div>
+                        </Td>
+                        <Td>{fmt(c.totalSharesSold)}</Td>
+                        <Td>{fmt(c.totalCostBasis)}</Td>
+                        <Td>{fmt(c.totalSaleProceeds)}</Td>
+                        <Td bold color={c.realizedGL >= 0 ? C.green : C.red}>
+                          {(c.realizedGL >= 0 ? "+" : "") + fmt(c.realizedGL)}
+                        </Td>
+                        <Td>
+                          <Badge
+                            value={(c.totalCostBasis > 0
+                              ? (c.realizedGL / c.totalCostBasis) * 100
+                              : 0).toFixed(2) + "%"}
+                            positive={c.realizedGL >= 0}
+                          />
+                        </Td>
+                        <Td color={C.gray500} small>
+                          {c.realizedTrades.every(r => r.daysHeld !== null)
+                            ? `${Math.round(c.realizedTrades.reduce((s, r) => s + (r.daysHeld || 0), 0) / c.realizedTrades.length)}d avg`
+                            : "—"}
+                        </Td>
+                      </tr>
+                    ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSharesSold)}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalCostBasis)}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalSaleProceeds)}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalRealizedGL >= 0 ? C.green : C.red }}>
+                      {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
+                    </td>
+                    <td style={{ padding: "9px 12px" }}>
+                      <Badge
+                        value={(metrics.totalCostBasis > 0
+                          ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100
+                          : 0).toFixed(2) + "%"}
+                        positive={metrics.totalRealizedGL >= 0}
+                      />
+                    </td>
+                    <td style={{ padding: "9px 12px", fontSize: 11, color: C.gray400 }}>—</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </ExpandPanel>
+      )}
 
       {/* ════════════════════════════════════════════════════════════
           2. OPERATIONAL CARDS — Companies (expand) · Pending · Users
