@@ -449,30 +449,60 @@ export default function App() {
 
             <div style={{width:1,height:36,background:C.gray200}}/>
 
-            {/* ── CDS chip ── */}
+            {/* ── CDS chip — stack shadow when multiple CDS ── */}
             <div style={{position:"relative"}} ref={cdsChipRef}>
+
+              {/* Stack layers — rendered behind the main chip, shifted slightly */}
+              {cdsList.length > 2 && (
+                <div style={{
+                  position:"absolute", inset:0,
+                  background:"linear-gradient(135deg,#0a1c36,#162f52)",
+                  borderRadius:12, transform:"translate(4px,4px)",
+                  opacity:0.5, zIndex:0,
+                  border:"1.5px solid transparent",
+                }} />
+              )}
+              {cdsList.length > 1 && (
+                <div style={{
+                  position:"absolute", inset:0,
+                  background:"linear-gradient(135deg,#0c2040,#193558)",
+                  borderRadius:12, transform:"translate(2px,2px)",
+                  opacity:0.7, zIndex:0,
+                  border:"1.5px solid transparent",
+                }} />
+              )}
+
+              {/* Main chip */}
               <div
                 onClick={() => cdsList.length > 1 && setShowCdsSwitcher(v => !v)}
                 style={{
+                  position:"relative", zIndex:1,
                   display:"flex",alignItems:"center",gap:8,
                   background:`linear-gradient(135deg,${C.navy},#1e3a5f)`,
                   borderRadius:12,padding:"6px 14px 6px 10px",
                   boxShadow:"0 2px 10px rgba(11,31,58,0.25)",
                   cursor:cdsList.length>1?"pointer":"default",
-                  border:showCdsSwitcher?`1.5px solid ${C.gold}`:"1.5px solid transparent",
-                  transition:"border 0.15s",userSelect:"none",
+                  border:showCdsSwitcher?`1.5px solid ${C.gold}`:"1.5px solid rgba(255,255,255,0.08)",
+                  transition:"border 0.15s, box-shadow 0.15s",
+                  userSelect:"none",
                 }}
+                onMouseEnter={e => { if(cdsList.length>1) e.currentTarget.style.boxShadow="0 4px 18px rgba(11,31,58,0.45)"; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow="0 2px 10px rgba(11,31,58,0.25)"; }}
               >
                 <div style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🔒</div>
                 <div>
                   <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.08em",lineHeight:1}}>CDS Account</div>
                   <div style={{fontSize:15,fontWeight:800,color:C.white,letterSpacing:"0.04em",lineHeight:1.3}}>{activeCdsNumber||"—"}</div>
                 </div>
+                {/* Chevron only — no number */}
                 {cdsList.length>1&&(
-                  <div style={{marginLeft:4,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-                    <span style={{fontSize:10,color:C.gold,fontWeight:800,lineHeight:1}}>{cdsList.length}</span>
-                    <span style={{fontSize:9,color:"rgba(255,255,255,0.4)",transform:showCdsSwitcher?"rotate(180deg)":"none",transition:"transform 0.2s",lineHeight:1}}>▾</span>
-                  </div>
+                  <span style={{
+                    fontSize:11,
+                    color:showCdsSwitcher?C.gold:"rgba(255,255,255,0.45)",
+                    transform:showCdsSwitcher?"rotate(180deg)":"none",
+                    transition:"transform 0.2s, color 0.15s",
+                    marginLeft:2,lineHeight:1,
+                  }}>▾</span>
                 )}
               </div>
 
