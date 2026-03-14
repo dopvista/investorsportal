@@ -739,7 +739,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                         }}
                       >
                         <Td bold>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                             <div
                               style={{
                                 width: 8,
@@ -888,7 +888,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                       }}
                     >
                       <Td bold>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                           <div
                             style={{
                               width: 8,
@@ -1034,7 +1034,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     }}
                   >
                     <Td bold>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                         <div
                           style={{
                             width: 8,
