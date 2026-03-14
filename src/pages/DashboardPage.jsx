@@ -700,7 +700,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <thead>
                   <tr>
                     <Th>Company</Th>
-                    <Th right>Shares Sold</Th>{/* FIX 2: was "Shares Held" */}
+                    <Th right>Shares Sold</Th>
                     <Th right>Cost of Shares Sold</Th>
                     <Th right>Sale Proceeds</Th>
                     <Th right>Realized Gain / Loss</Th>
@@ -828,7 +828,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         {isSAAD && (
           <StatCard
             icon="👥"
-            label="Total Users" {/* FIX 1: was "Total Companies" */}
+            label="Total Users"
             value={loading ? "—" : (userCount ?? "—")}
             subLabel="system users"
             accent={C.navy}
