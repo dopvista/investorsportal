@@ -239,145 +239,225 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     return () => { cancelled = true; };
   }, [profile?.cds_number, isSAAD]); // eslint-disable-line
 
-  // ── Core metrics ─────────────────────────────────────────────────
+  // ── Core metrics — running weighted-average ledger ───────────────
   const metrics = useMemo(() => {
-    const pending   = myTxns.filter(t => t.status === "pending").length;
-    const total     = myTxns.length;
+    // Normalize status safely
+    const statusOf = (t) => String(t.status || "").toLowerCase();
 
-    // ── Derive company count from transactions as reliable fallback ──
-    const uniqueCompanyIds = [...new Set(myTxns.map(t => t.company_id).filter(Boolean))];
-    const txnCompanyCount  = uniqueCompanyIds.length;
+    const pending = myTxns.filter(t => statusOf(t) === "pending").length;
+    const total   = myTxns.length;
 
-    // ── Total invested from ALL verified buy transactions (no price needed) ──
-    const verifiedBuys  = myTxns.filter(t => t.status === "verified" && t.type === "Buy");
-    const verifiedSells = myTxns.filter(t => t.status === "verified" && t.type === "Sell");
-    // Total invested = qty × price + fees (full capital deployed)
-    const rawTotalInvested = verifiedBuys.reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0);
-    const rawTotalSold     = verifiedSells.reduce((s, t) => s + Number(t.total || 0), 0);
+    // Fallback company count from transaction history
+    const txnCompanyCount = new Set(myTxns.map(t => t.company_id).filter(Boolean)).size;
 
-    let totalValue = 0, totalInvested = 0;
+    // Gross buy capital — all verified buys ever, including fees
+    // This is historical spend, not current cost basis
+    const grossBuyCapital = myTxns
+      .filter(t => statusOf(t) === "verified" && t.type === "Buy")
+      .reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0);
 
-    // ── Per-company computation ──────────────────────────────────
+    const hasCostData = grossBuyCapital > 0;
+
+    let totalMarketValue   = 0; // sum of current market values
+    let totalCurrentCost   = 0; // sum of cost of open positions (running ledger)
+    let totalRealizedGLAll = 0; // sum of realized GL across all companies
+
+    // ── Per-company running weighted-average ledger ──────────────
     const companyMetrics = portfolio.map((company, idx) => {
-      const verifiedTxns = myTxns.filter(
-        t => t.company_id === company.id && t.status === "verified"
-      );
+      const color = CHART_COLORS[idx % CHART_COLORS.length];
 
-      // Separate buys and sells — t.type is "Buy" or "Sell" (capital)
-      const buyTxns  = verifiedTxns.filter(t => t.type === "Buy");
-      const sellTxns = verifiedTxns.filter(t => t.type === "Sell");
+      // Only verified transactions matter for financials
+      const verifiedTxns = myTxns
+        .filter(t => t.company_id === company.id && statusOf(t) === "verified")
+        // Sort chronologically — critical for correct running average
+        .sort((a, b) => {
+          const da = new Date(a.date || a.created_at || 0).getTime();
+          const db = new Date(b.date || b.created_at || 0).getTime();
+          return da - db;
+        });
 
-      // Net open position (buy - sell)
-      // t.qty = shares, t.price = price/share, t.total = qty × price (pre-calculated)
-      let netShares = 0, buyShares = 0, buyInvested = 0;
-      buyTxns.forEach(t => {
-        const shares = Number(t.qty || 0);
-        const cost   = Number(t.total || 0) + Number(t.fees || 0); // total + fees = full cost
-        netShares   += shares;
-        buyShares   += shares;
-        buyInvested += cost;
-      });
-      sellTxns.forEach(t => {
-        netShares -= Number(t.qty || 0);
-      });
+      // ── Running ledger state ──────────────────────────────────
+      let sharesHeld   = 0;   // current open shares
+      let costHeld     = 0;   // current cost basis of open shares
+      let runningAvg   = 0;   // weighted-average cost per share at any point
+      let realizedGL   = 0;   // accumulated realized gain/loss
+      let totalSaleProceeds = 0;
+      let totalCostBasis    = 0;
+      let totalSharesSold   = 0;
+      let buyTransactionCount = 0;
+      let firstBuyDate     = null; // earliest buy date for "since first buy"
+      const realizedTrades = [];
 
-      // avgCost = total invested ÷ total shares bought
-      const avgCost      = buyShares > 0 ? buyInvested / buyShares : 0;
-      const currentPrice = Number(company.cds_price || 0);
-      const marketValue  = netShares > 0 ? netShares * currentPrice : 0;
-      const totalCost    = netShares > 0 ? netShares * avgCost      : 0; // cost of open position
-      const unrealizedGL = marketValue - totalCost;
-      const returnPct    = totalCost > 0 ? (unrealizedGL / totalCost) * 100 : 0;
-      const color        = CHART_COLORS[idx % CHART_COLORS.length];
+      for (const t of verifiedTxns) {
+        const qty      = Number(t.qty   || 0);
+        const proceeds = Number(t.total || 0); // pre-calculated qty × price
+        const fees     = Number(t.fees  || 0);
 
-      // Earliest buy date → days held (t.date is the transaction date)
-      const dates    = buyTxns.map(t => t.date).filter(Boolean).sort();
-      const daysHeld = dates.length > 0 ? daysBetween(dates[0]) : null;
+        if (t.type === "Buy") {
+          const cost = proceeds + fees; // full cost including fees
+          // Update running weighted average
+          // newAvg = (existingCost + newCost) / (existingShares + newShares)
+          costHeld   += cost;
+          sharesHeld += qty;
+          runningAvg  = sharesHeld > 0 ? costHeld / sharesHeld : 0;
+          buyTransactionCount++;
+          // Track earliest buy date
+          if (t.date && (!firstBuyDate || t.date < firstBuyDate)) {
+            firstBuyDate = t.date;
+          }
 
-      // Realized trades — use t.qty and t.total (pre-calculated)
-      const realizedTrades = sellTxns.map(t => {
-        const soldShares   = Number(t.qty   || 0);
-        const saleProceeds = Number(t.total || 0); // saved total = qty × price
-        const costBasis    = soldShares * avgCost;  // cost at avg buy price
-        const realizedGL   = saleProceeds - costBasis;
-        const realRetPct   = costBasis > 0 ? (realizedGL / costBasis) * 100 : 0;
-        return { soldShares, costBasis, saleProceeds, realizedGL, realRetPct, date: t.date };
-      });
+        } else if (t.type === "Sell") {
+          if (sharesHeld <= 0) continue; // no inventory to sell — skip anomaly
 
-      const totalRealizedGL    = realizedTrades.reduce((s, r) => s + r.realizedGL, 0);
-      const totalSaleProceeds  = realizedTrades.reduce((s, r) => s + r.saleProceeds, 0);
-      const totalCostBasis     = realizedTrades.reduce((s, r) => s + r.costBasis, 0);
-      const totalSharesSold    = realizedTrades.reduce((s, r) => s + r.soldShares, 0);
+          // Clamp sold qty to available shares (guard against over-sell data errors)
+          const actualSold = Math.min(qty, sharesHeld);
+          const costBasis  = actualSold * runningAvg; // cost at current running avg
+          const gain       = proceeds - costBasis;
+          const retPct     = costBasis > 0 ? (gain / costBasis) * 100 : 0;
 
-      totalValue    += marketValue;
-      totalInvested += totalCost;
+          realizedGL        += gain;
+          totalSaleProceeds += proceeds;
+          totalCostBasis    += costBasis;
+          totalSharesSold   += actualSold;
+
+          // Reduce inventory by cost of sold shares
+          costHeld   -= costBasis;
+          sharesHeld -= actualSold;
+          // runningAvg stays the same after a sell (weighted average method)
+          if (sharesHeld <= 0) {
+            sharesHeld = 0;
+            costHeld   = 0;
+            runningAvg = 0;
+          }
+
+          realizedTrades.push({
+            soldShares: actualSold,
+            costBasis,
+            saleProceeds: proceeds,
+            realizedGL: gain,
+            realRetPct: retPct,
+            date: t.date,
+          });
+        }
+      }
+
+      // ── Open position metrics ─────────────────────────────────
+      const currentPrice  = Number(company.cds_price || 0);
+      const marketValue   = sharesHeld > 0 && currentPrice > 0 ? sharesHeld * currentPrice : 0;
+      // openPositionCost = costHeld (remaining cost basis after all sells)
+      const openPositionCost = costHeld;
+      const unrealizedGL     = currentPrice > 0 ? marketValue - openPositionCost : 0;
+      const unrealizedRetPct = openPositionCost > 0 ? (unrealizedGL / openPositionCost) * 100 : 0;
+      // Since first buy (honest label)
+      const firstBuyDays = firstBuyDate ? daysBetween(firstBuyDate) : null;
+      // Flag anomaly: net shares should never be negative after clamping
+      const hasAnomaly = sharesHeld < 0;
+
+      totalMarketValue   += marketValue;
+      totalCurrentCost   += openPositionCost;
+      totalRealizedGLAll += realizedGL;
 
       return {
         id: company.id, name: company.name, color,
-        netShares, avgCost, currentPrice,
-        marketValue, totalCost,
-        unrealizedGL, returnPct, daysHeld,
-        positionCount: buyTxns.length,  // each Buy transaction = one position
+        // Open position
+        netShares: sharesHeld,
+        avgCost:   runningAvg,
+        currentPrice,
+        marketValue,
+        openPositionCost,   // cost basis of currently held shares
+        unrealizedGL,
+        unrealizedRetPct,
+        firstBuyDays,       // renamed from daysHeld — "since first buy"
+        buyTransactionCount,
+        hasAnomaly,
+        // Realized
         realizedTrades,
-        totalRealizedGL, totalSaleProceeds,
-        totalCostBasis, totalSharesSold,
+        realizedGL,
+        totalSaleProceeds,
+        totalCostBasis,
+        totalSharesSold,
         prevPrice: Number(company.cds_previous_price || 0),
       };
     });
 
+    // ── Portfolio-level aggregates ────────────────────────────────
     const withWeights = companyMetrics.map(c => ({
       ...c,
-      // Market-value weight (for holdings table)
-      weight: totalValue > 0 ? (c.marketValue / totalValue) * 100 : 0,
-      // Cost-based weight (for active positions expand)
-      costWeight: totalInvested > 0 ? (c.totalCost / totalInvested) * 100 : 0,
+      // Market-value weight — share of current portfolio by value
+      weight:     totalMarketValue > 0 ? (c.marketValue     / totalMarketValue) * 100 : 0,
+      // Cost weight — share of deployed capital
+      costWeight: totalCurrentCost > 0 ? (c.openPositionCost / totalCurrentCost) * 100 : 0,
     }));
 
-    // Price-based financials (only when cds_price set on portfolio)
-    const totalGainLoss  = totalValue - totalInvested;
-    const totalReturnPct = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
-    // hasFinancials: prices set → show market value & gain/loss
-    const hasFinancials  = withWeights.some(c => c.currentPrice > 0 && c.netShares > 0);
-    // hasCostData: verified buy transactions exist → show invested amount always
-    const hasCostData    = rawTotalInvested > 0;
+    // hasFinancials: at least one company has price + open shares
+    const hasFinancials   = withWeights.some(c => c.currentPrice > 0 && c.netShares > 0);
+    // activeCompanies: currently holding shares OR has market value
     const activeCompanies = withWeights.filter(c => c.netShares > 0 || c.marketValue > 0);
 
-    // Fall back to transaction-derived invested when portfolio prices not set
-    const displayInvested = totalInvested > 0 ? totalInvested : rawTotalInvested;
+    // Unrealized GL on open positions (requires prices)
+    const unrealizedGL    = totalMarketValue - totalCurrentCost;
+    const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
 
-    // Realized summary across all companies
-    const totalRealizedGL   = withWeights.reduce((s, c) => s + c.totalRealizedGL, 0);
+    // Total portfolio performance = unrealized + realized
+    const totalPortfolioGL     = unrealizedGL + totalRealizedGLAll;
+    const totalPortfolioRetPct = totalCurrentCost > 0
+      ? (totalPortfolioGL / totalCurrentCost) * 100
+      : 0;
+
+    // Realized summary
+    const totalRealizedGL   = withWeights.reduce((s, c) => s + c.realizedGL, 0);
     const totalSaleProceeds = withWeights.reduce((s, c) => s + c.totalSaleProceeds, 0);
     const totalCostBasis    = withWeights.reduce((s, c) => s + c.totalCostBasis, 0);
     const totalSharesSold   = withWeights.reduce((s, c) => s + c.totalSharesSold, 0);
-    const hasRealized       = withWeights.some(c => c.realizedTrades.length > 0);
+    const hasRealized       = totalRealizedGL !== 0;
 
-    // Total active positions (sum of buy transaction counts)
-    const totalActivePositions = activeCompanies.reduce((s, c) => s + c.positionCount, 0)
-      || verifiedBuys.length; // fallback: count raw verified buys
+    // buyTransactionCount: total buy transactions across active companies
+    const totalBuyTransactionCount = activeCompanies.reduce((s, c) => s + c.buyTransactionCount, 0);
 
-    // Average days held (weighted by shares)
-    const totalSharesHeld  = activeCompanies.reduce((s, c) => s + c.netShares, 0);
-    const avgDaysHeld      = totalSharesHeld > 0
-      ? Math.round(activeCompanies.reduce((s, c) => s + (c.daysHeld ?? 0) * c.netShares, 0) / totalSharesHeld)
+    // Weighted average "since first buy" across all open shares
+    const totalSharesHeld = activeCompanies.reduce((s, c) => s + c.netShares, 0);
+    const avgFirstBuyDays = totalSharesHeld > 0
+      ? Math.round(
+          activeCompanies.reduce((s, c) => s + (c.firstBuyDays ?? 0) * c.netShares, 0)
+          / totalSharesHeld
+        )
       : null;
 
-    // totalCompanies: prefer portfolio length, fall back to unique company_ids in transactions
-    const totalCompanies = portfolio.length > 0 ? portfolio.length : txnCompanyCount;
+    // totalCompanies: active holdings count as primary, portfolio master as fallback
+    const totalCompanies = activeCompanies.length > 0
+      ? activeCompanies.length
+      : (portfolio.length > 0 ? portfolio.length : txnCompanyCount);
+
+    // currentCostBasis: cost of what we currently hold (the meaningful "invested" figure)
+    const currentCostBasis = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
 
     return {
       pending, total,
       totalCompanies,
-      totalValue, totalInvested: displayInvested,
-      totalGainLoss, totalReturnPct,
+      // Financial — open positions
+      totalMarketValue,
+      currentCostBasis,   // cost of open holdings (running ledger)
+      grossBuyCapital,    // all-time gross buy spend
+      unrealizedGL,
+      unrealizedRetPct,
+      // Financial — realized
+      totalRealizedGL,
+      totalSaleProceeds,
+      totalCostBasis,
+      totalSharesSold,
+      hasRealized,
+      // Financial — total performance
+      totalPortfolioGL,
+      totalPortfolioRetPct,
+      // Flags
+      hasFinancials,
+      hasCostData,
+      // Company arrays
       companyMetrics: activeCompanies,
       allPortfolio:   withWeights,
-      hasFinancials, hasCostData,
-      rawTotalInvested, rawTotalSold,
-      totalRealizedGL, totalSaleProceeds, totalCostBasis, totalSharesSold,
-      hasRealized,
-      totalActivePositions,
-      avgDaysHeld,
+      // Operational
+      totalBuyTransactionCount,
+      avgFirstBuyDays,
     };
   }, [portfolio, myTxns]);
 
@@ -403,44 +483,44 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         <SnapCard
           label="Portfolio Value" dark loading={loading}
           value={
-            metrics.hasFinancials ? fmtShort(metrics.totalValue) :
-            metrics.hasCostData   ? fmtShort(metrics.totalInvested) :
+            metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) :
+            metrics.hasCostData   ? fmtShort(metrics.currentCostBasis) :
             metrics.total > 0     ? `${metrics.total} txns` : "—"
           }
           sub={
             metrics.hasFinancials ? "Current market value (TZS)" :
-            metrics.hasCostData   ? "Total invested — set prices for market value" :
+            metrics.hasCostData   ? "Cost basis — set prices for market value" :
             "No verified transactions yet"
           }
         />
 
         {/* 1b — Total Invested: show whenever verified buys exist */}
         <SnapCard
-          label="Total Invested" loading={loading}
-          value={metrics.hasCostData ? fmtShort(metrics.totalInvested) : "—"}
-          sub={metrics.hasCostData ? "Capital deployed" : "No verified buy transactions"}
+          label="Current Cost Basis" loading={loading}
+          value={metrics.hasCostData ? fmtShort(metrics.currentCostBasis) : "—"}
+          sub={metrics.hasCostData ? "Cost of currently held shares" : "No verified buy transactions"}
         />
 
         {/* 1c — Gain / Loss: needs prices */}
         <SnapCard
-          label="Total Gain / Loss" loading={loading}
+          label="Unrealized Gain / Loss" loading={loading}
           value={metrics.hasFinancials
-            ? (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)
+            ? (metrics.unrealizedGL >= 0 ? "+" : "") + fmtShort(metrics.unrealizedGL)
             : "—"}
           sub={metrics.hasFinancials
-            ? (metrics.avgDaysHeld ? `avg ${metrics.avgDaysHeld} days held` : "unrealized")
+            ? (metrics.avgFirstBuyDays ? `avg ${metrics.avgFirstBuyDays}d since first buy` : "open positions")
             : "Set prices in Portfolio to compute"}
-          accent={metrics.totalGainLoss >= 0 ? C.green : C.red}
+          accent={metrics.unrealizedGL >= 0 ? C.green : C.red}
         />
 
         {/* 1d — Total Return: needs prices */}
         <SnapCard
-          label="Total Return" loading={loading}
+          label="Unrealized Return" loading={loading}
           value={metrics.hasFinancials
-            ? (metrics.totalReturnPct >= 0 ? "+" : "") + metrics.totalReturnPct.toFixed(2) + "%"
+            ? (metrics.unrealizedRetPct >= 0 ? "+" : "") + metrics.unrealizedRetPct.toFixed(2) + "%"
             : "—"}
-          sub={metrics.hasFinancials ? "Overall performance" : "Set prices in Portfolio"}
-          accent={metrics.totalReturnPct >= 0 ? C.green : C.red}
+          sub={metrics.hasFinancials ? "Return on open positions" : "Set prices in Portfolio"}
+          accent={metrics.unrealizedRetPct >= 0 ? C.green : C.red}
         />
 
         {/* 1e — Realized Gains (expandable) */}
@@ -449,7 +529,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           value={metrics.hasRealized
             ? (metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL)
             : "—"}
-          sub={metrics.hasRealized ? "From closed positions" : "No closed positions yet"}
+          sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
           accent={C.green}
           expandable={metrics.hasRealized}
           expanded={expanded === "realized"}
@@ -524,7 +604,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         <StatCard
           icon="🏢" label="Companies"
           value={loading ? "—" : metrics.totalCompanies}
-          subLabel={`${metrics.totalActivePositions} active positions`}
+          subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
           accent={C.navy}
           onClick={() => toggleExpand("companies")}
           active={expanded === "companies"}
@@ -560,7 +640,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    {["Company","Total Shares","Positions","Total Cost","% Weight","Unrealized Gain / Loss","Status"].map(h => <Th key={h}>{h}</Th>)}
+                    {["Company","Total Shares","Buy Transactions","Current Cost Basis","% Weight","Unrealized Gain / Loss","Status"].map(h => <Th key={h}>{h}</Th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -575,20 +655,20 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                       <Td>{fmt(c.netShares)}</Td>
                       <Td>
                         <span style={{ background: C.navy + "12", color: C.navy, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>
-                          {c.positionCount}
+                          {c.buyTransactionCount}
                         </span>
                       </Td>
-                      <Td>{c.totalCost > 0 ? fmt(c.totalCost) : "—"}</Td>
+                      <Td>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
                       <Td>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
-                            <div style={{ width: `${Math.min(c.costWeight, 100)}%`, height: "100%", background: c.color, borderRadius: 4, transition: "width 0.5s ease" }} />
+                            <div style={{ width: `${Math.min(c.costWeight || 0, 100)}%`, height: "100%", background: c.color, borderRadius: 4, transition: "width 0.5s ease" }} />
                           </div>
-                          <span style={{ fontSize: 11, color: C.gray500 }}>{c.costWeight.toFixed(1)}%</span>
+                          <span style={{ fontSize: 11, color: C.gray500 }}>{(c.costWeight || 0).toFixed(1)}%</span>
                         </div>
                       </Td>
                       <Td bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                        {c.unrealizedGL !== 0
+                        {c.currentPrice > 0
                           ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL)
                           : "—"}
                       </Td>
@@ -603,11 +683,13 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <tfoot>
                   <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                     <td colSpan={2} style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{metrics.totalActivePositions}</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.totalInvested)}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{metrics.totalBuyTransactionCount}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text }}>{fmt(metrics.currentCostBasis)}</td>
                     <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400 }}>100%</td>
-                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>
-                      {(metrics.totalGainLoss >= 0 ? "+" : "") + fmt(metrics.totalGainLoss)}
+                    <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.unrealizedGL >= 0 ? C.green : C.red }}>
+                      {metrics.hasFinancials
+                        ? (metrics.unrealizedGL >= 0 ? "+" : "") + fmt(metrics.unrealizedGL)
+                        : "—"}
                     </td>
                     <td />
                   </tr>
@@ -627,7 +709,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top Holdings by Market Value</div>
           <div style={{ fontSize: 11, color: C.gray400 }}>
-            {metrics.hasFinancials ? `${metrics.companyMetrics.length} companies · total ${fmtShort(metrics.totalValue)}` : "Set prices in Portfolio to compute values"}
+            {metrics.hasFinancials ? `${metrics.companyMetrics.length} companies · market value ${fmtShort(metrics.totalMarketValue)}` : "Set prices in Portfolio to compute market values"}
           </div>
         </div>
 
@@ -638,7 +720,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Company","Net Shares","Avg Cost","Current Price","Market Value","Gain / Loss","Return %","Days Held","Weight"].map(h => <Th key={h}>{h}</Th>)}
+                  {["Company","Net Shares","Avg Cost","Current Price","Market Value","Unrealized G/L","Return %","Since First Buy","Weight"].map(h => <Th key={h}>{h}</Th>)}
                 </tr>
               </thead>
               <tbody>
@@ -655,14 +737,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     <Td bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
                     <Td bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
                     <Td bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                      {c.unrealizedGL !== 0 ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL) : "—"}
+                      {c.currentPrice > 0 && c.unrealizedGL !== 0 ? (c.unrealizedGL >= 0 ? "+" : "") + fmt(c.unrealizedGL) : "—"}
                     </Td>
                     <Td>
-                      {c.returnPct !== 0
-                        ? <Badge value={(c.returnPct >= 0 ? "+" : "") + c.returnPct.toFixed(2) + "%"} positive={c.returnPct >= 0} />
+                      {c.currentPrice > 0 && c.unrealizedRetPct !== 0
+                        ? <Badge value={(c.unrealizedRetPct >= 0 ? "+" : "") + c.unrealizedRetPct.toFixed(2) + "%"} positive={c.unrealizedRetPct >= 0} />
                         : "—"}
                     </Td>
-                    <Td color={C.gray500} small>{c.daysHeld !== null ? `${c.daysHeld}d` : "—"}</Td>
+                    <Td color={C.gray500} small>{c.firstBuyDays !== null ? `${c.firstBuyDays}d` : "—"}</Td>
                     <Td>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{ width: 50, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
@@ -677,18 +759,20 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               <tfoot>
                 <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                   <td colSpan={4} style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmt(metrics.totalValue)}</td>
-                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>
-                    {(metrics.totalGainLoss >= 0 ? "+" : "") + fmt(metrics.totalGainLoss)}
+                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmt(metrics.totalMarketValue)}</td>
+                  <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: metrics.unrealizedGL >= 0 ? C.green : C.red }}>
+                    {metrics.hasFinancials
+                      ? (metrics.unrealizedGL >= 0 ? "+" : "") + fmt(metrics.unrealizedGL)
+                      : "—"}
                   </td>
                   <td style={{ padding: "10px 12px" }}>
                     <Badge
-                      value={(metrics.totalReturnPct >= 0 ? "+" : "") + metrics.totalReturnPct.toFixed(2) + "%"}
-                      positive={metrics.totalReturnPct >= 0}
+                      value={(metrics.unrealizedRetPct >= 0 ? "+" : "") + metrics.unrealizedRetPct.toFixed(2) + "%"}
+                      positive={metrics.unrealizedRetPct >= 0}
                     />
                   </td>
                   <td style={{ padding: "10px 12px", fontSize: 11, color: C.gray400 }}>
-                    {metrics.avgDaysHeld !== null ? `avg ${metrics.avgDaysHeld}d` : "—"}
+                    {metrics.avgFirstBuyDays !== null ? `avg ${metrics.avgFirstBuyDays}d` : "—"}
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.gray400 }}>100%</td>
                 </tr>
