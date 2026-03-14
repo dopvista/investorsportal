@@ -108,7 +108,14 @@ const Field = memo(function Field({ label, required, hint, children }) {
 });
 
 // ── CDS search box (search-as-you-type + create) ───────────────────
-function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Search by CDS number or owner name..." }) {
+function CDSSearchBox({
+  callerRole,
+  adCdsList = [],
+  excludeCdsIds = [],
+  excludeCdsNumbers = [],
+  onSelect,
+  placeholder = "Search by CDS number or owner name..."
+}) {
   const [query, setQuery]         = useState("");
   const [results, setResults]     = useState([]);
   const [searching, setSearching] = useState(false);
@@ -122,14 +129,33 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
 
   const isAdmin = callerRole === "AD";
 
+  const excludedIds = useMemo(
+    () => new Set((excludeCdsIds || []).map(v => String(v))),
+    [excludeCdsIds]
+  );
+
+  const excludedNumbers = useMemo(
+    () => new Set((excludeCdsNumbers || []).map(v => String(v).trim().toUpperCase())),
+    [excludeCdsNumbers]
+  );
+
+  const isExcluded = useCallback((cds) => {
+    const id = cds?.id ?? cds?.cds_id;
+    const number = String(cds?.cds_number || "").trim().toUpperCase();
+    return (id != null && excludedIds.has(String(id))) || (number && excludedNumbers.has(number));
+  }, [excludedIds, excludedNumbers]);
+
   const adFiltered = useMemo(() => {
-    if (!isAdmin || !query.trim()) return isAdmin ? adCdsList : [];
+    if (!isAdmin || !query.trim()) return isAdmin ? [] : [];
     const q = query.toLowerCase();
-    return adCdsList.filter(c =>
-      c.cds_number?.toLowerCase().includes(q) ||
-      c.cds_name?.toLowerCase().includes(q)
-    );
-  }, [isAdmin, adCdsList, query]);
+    return adCdsList.filter(c => {
+      if (isExcluded(c)) return false;
+      return (
+        c.cds_number?.toLowerCase().includes(q) ||
+        c.cds_name?.toLowerCase().includes(q)
+      );
+    });
+  }, [isAdmin, adCdsList, query, isExcluded]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -140,8 +166,9 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
       setSearching(true);
       try {
         const rows = await sbSearchCDS(query);
-        setResults(rows || []);
-        setShowCreate(rows?.length === 0);
+        const filteredRows = (rows || []).filter(c => !isExcluded(c));
+        setResults(filteredRows);
+        setShowCreate(filteredRows.length === 0);
       } catch {
         setResults([]);
       } finally {
@@ -150,7 +177,7 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
     }, 300);
 
     return () => clearTimeout(debounceRef.current);
-  }, [query, isAdmin]);
+  }, [query, isAdmin, isExcluded]);
 
   const displayResults = isAdmin ? adFiltered : results;
 
@@ -357,6 +384,20 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
 
   const handleAssign = useCallback(async () => {
     if (!selectedCds) return showToast("Select a CDS to assign", "error");
+
+    const selectedId = String(selectedCds.id ?? selectedCds.cds_id ?? "");
+    const selectedNumber = String(selectedCds.cds_number || "").trim().toUpperCase();
+
+    const alreadyAssigned = userCdsList.some(c =>
+      String(c.cds_id ?? "") === selectedId ||
+      String(c.cds_number || "").trim().toUpperCase() === selectedNumber
+    );
+
+    if (alreadyAssigned) {
+      setSelectedCds(null);
+      return showToast("This CDS is already assigned to the user", "error");
+    }
+
     setAssigning(true);
     try {
       await sbAssignCDS(user.id, selectedCds.id || selectedCds.cds_id);
@@ -369,7 +410,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
     } finally {
       setAssigning(false);
     }
-  }, [selectedCds, user, loadUserCds, onRefresh, showToast]);
+  }, [selectedCds, user, userCdsList, loadUserCds, onRefresh, showToast]);
 
   const handleRemove = useCallback(async (cdsEntry) => {
     if (isSA && user.role_code === "AD") {
@@ -435,6 +476,8 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           <CDSSearchBox
             callerRole={callerRole}
             adCdsList={adPool}
+            excludeCdsIds={userCdsList.map(c => c.cds_id)}
+            excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
             onSelect={setSelectedCds}
             placeholder={isSA ? "Search CDS number or owner name..." : "Search your CDS accounts..."}
           />
