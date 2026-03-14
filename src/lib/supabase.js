@@ -811,17 +811,15 @@ export async function sbUploadSlideImage(blob, slideIndex, session) {
 // Returns: [{ user_cds_id, cds_id, cds_number, cds_name, phone,
 //             email, is_active, assigned_at, assigned_by }]
 export async function sbGetUserCDS(userId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/get_user_cds`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({ p_user_id: userId }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to fetch user CDS accounts");
-  }
-
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_user_cds`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({ p_user_id: userId }),
+    },
+    "Failed to fetch user CDS accounts"
+  );
   return res.json();
 }
 
@@ -829,17 +827,15 @@ export async function sbGetUserCDS(userId) {
 // Returns: { user_cds_id, cds_id, cds_number, cds_name, phone, email }
 // Returns null if user has no active CDS.
 export async function sbGetActiveCDS(userId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/get_active_cds`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({ p_user_id: userId }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to fetch active CDS");
-  }
-
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_active_cds`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({ p_user_id: userId }),
+    },
+    "Failed to fetch active CDS"
+  );
   const rows = await res.json();
   // RPC returns a table — take first row or null
   return Array.isArray(rows) ? (rows[0] || null) : (rows || null);
@@ -913,24 +909,20 @@ export async function sbAssignCDS(userId, cdsId) {
 
 // ── Switch the active CDS for a user ──────────────────────────────
 // Atomically deactivates all then activates the target.
-// Users switch their own. SA can switch any user.
-// Returns true on success — throws on error.
+// Re-reads active CDS from backend after switch — never trusts the
+// clicked target blindly.
 export async function sbSwitchActiveCDS(userId, cdsId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/switch_active_cds`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      p_user_id: userId,
-      p_cds_id:  cdsId,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to switch active CDS");
-  }
-
-  return true;
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/switch_active_cds`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({ p_user_id: userId, p_cds_id: cdsId }),
+    },
+    "Failed to switch active CDS"
+  );
+  // Always return the confirmed active CDS from the backend
+  return sbGetActiveCDS(userId);
 }
 
 // ── Remove a CDS assignment from a user ───────────────────────────
