@@ -845,8 +845,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             label="Total Users"
             value={loading ? "—" : (userCount ?? "—")}
             subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
-            accent={C.green}
-            accentBg={C.green}
+            accent="#60a5fa"
+            accentBg="#60a5fa"
             onClick={() => toggleExpand("users")}
             active={expanded === "users"}
             loading={loading}
@@ -994,7 +994,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       )}
 
       {expanded === "users" && (
-        <ExpandPanel title="👥 Users — CDS Account" accentColor={C.green} onClose={() => setExpanded(null)}>
+        <ExpandPanel title="👥 Users — CDS Account" accentColor="#60a5fa" onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : cdsUsers.length === 0 ? (
