@@ -104,14 +104,15 @@ const Field = memo(function Field({ label, required, hint, children }) {
 // callerRole: "SA" can create new CDS. "AD" can only assign from pool.
 // adCdsList: AD's own CDS pool (filtered locally, no RPC needed)
 function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Search by CDS number or owner name..." }) {
-  const [query, setQuery]       = useState("");
-  const [results, setResults]   = useState([]);
+  const [query, setQuery]         = useState("");
+  const [results, setResults]     = useState([]);
   const [searching, setSearching] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ cdsNumber: "", cdsName: "", phone: "", email: "" });
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating]   = useState(false);
   const [createError, setCreateError] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected]   = useState(null);
+  const [editable, setEditable]   = useState(false);
   const debounceRef = useRef(null);
 
   const isAdmin = callerRole === "AD";
@@ -183,11 +184,26 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
           type="text"
           placeholder={placeholder}
           value={query}
-          onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); }}
-          onFocus={focusGreen}
+          readOnly={!editable}
+          inputMode="search"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="cds_lookup"
+          id="cds_lookup"
+          data-lpignore="true"
+          data-form-type="other"
+          onFocus={(e) => {
+            setEditable(true);
+            focusGreen(e);
+          }}
           onBlur={blurGray}
-          autoComplete="new-password"
-          name={`cds-search-${Math.random()}`}
+          onChange={e => {
+            setQuery(e.target.value);
+            setSelected(null);
+            onSelect(null);
+          }}
         />
         {searching && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: C.gray400 }}>...</span>}
       </div>
@@ -251,11 +267,19 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Owner Name *</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="Full name"
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                placeholder="Full name"
                 value={createForm.cdsName}
                 onChange={e => setCreateForm(f => ({ ...f, cdsName: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                name="cds_owner_name"
+                data-lpignore="true"
               />
             </div>
           </div>
@@ -263,20 +287,37 @@ function CDSSearchBox({ callerRole, adCdsList = [], onSelect, placeholder = "Sea
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Phone</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="+255..."
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                placeholder="+255..."
                 value={createForm.phone}
                 onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="cds_owner_phone"
+                data-lpignore="true"
               />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div>
-              <input style={inp({ fontSize: 12, padding: "6px 9px" })} placeholder="owner@email.com"
+              <input
+                style={inp({ fontSize: 12, padding: "6px 9px" })}
+                type="email"
+                placeholder="owner@email.com"
                 value={createForm.email}
                 onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                onFocus={focusGreen} onBlur={blurGray}
+                onFocus={focusGreen}
+                onBlur={blurGray}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="cds_owner_email"
+                data-lpignore="true"
               />
             </div>
           </div>
@@ -663,6 +704,13 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
 
+  useEffect(() => {
+    setForm({ email: "", password: "", role_id: "" });
+    setError("");
+    setSaving(false);
+    setSelectedCds(isAdmin && callerCdsList?.length === 1 ? callerCdsList[0] : null);
+  }, [isAdmin, callerCdsList]);
+
   const allowedRoles = useMemo(
     () => (isAdmin ? roles.filter(r => r.code !== "SA") : roles),
     [isAdmin, roles]
@@ -764,9 +812,33 @@ function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, sho
           onFocus={focusGreen} onBlur={blurGray}
         />
         {form.password.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 4,
+              flexWrap: "nowrap",
+              overflowX: "auto",
+              marginTop: 6,
+              paddingBottom: 2,
+              scrollbarWidth: "thin",
+              whiteSpace: "nowrap",
+            }}
+          >
             {passwordChecks.map(c => (
-              <span key={c.label} style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5, background: c.ok ? "#dcfce7" : "#fee2e2", color: c.ok ? "#166534" : "#991b1b" }}>
+              <span
+                key={c.label}
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  background: c.ok ? "#dcfce7" : "#fee2e2",
+                  color: c.ok ? "#166534" : "#991b1b",
+                  border: `1px solid ${c.ok ? "#bbf7d0" : "#fecaca"}`,
+                }}
+              >
                 {c.ok ? "✓" : "✗"} {c.label}
               </span>
             ))}
@@ -960,7 +1032,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
       <style>{`
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin   { to { transform: rotate(360deg); } }
-        .um-scroll::-webkit-scrollbar { width: 4px; }
+        .um-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .um-scroll::-webkit-scrollbar-track { background: transparent; }
         .um-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .um-scroll { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
