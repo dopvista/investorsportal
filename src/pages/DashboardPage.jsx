@@ -48,8 +48,8 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Donut chart (pure SVG) ─────────────────────────────────────────
-function DonutChart({ segments, size = 120, thickness = 22 }) {
+// ── Donut chart (pure SVG, no dependencies) ────────────────────────
+function DonutChart({ segments, size = 130, thickness = 24 }) {
   const total = segments.reduce((s, seg) => s + (seg.value || 0), 0);
   const r     = (size - thickness) / 2;
   const cx    = size / 2;
@@ -60,7 +60,9 @@ function DonutChart({ segments, size = 120, thickness = 22 }) {
     return (
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.gray100} strokeWidth={thickness} />
-        <text x={cx} y={cy + 4} textAnchor="middle" fontSize="9" fill={C.gray400} fontFamily="inherit">No data</text>
+        <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill={C.gray400} fontFamily="inherit">
+          No data
+        </text>
       </svg>
     );
   }
@@ -73,8 +75,9 @@ function DonutChart({ segments, size = 120, thickness = 22 }) {
     const offset = circ * 0.25 - cumulativeDash;
     cumulativeDash += dash;
     return (
-      <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-        stroke={seg.color} strokeWidth={thickness}
+      <circle
+        key={i} cx={cx} cy={cy} r={r}
+        fill="none" stroke={seg.color} strokeWidth={thickness}
         strokeDasharray={`${dash} ${gap}`}
         strokeDashoffset={offset}
         style={{ transition: "stroke-dasharray 0.5s ease" }}
@@ -90,157 +93,128 @@ function DonutChart({ segments, size = 120, thickness = 22 }) {
   );
 }
 
+// ── Stat card ──────────────────────────────────────────────────────
+function StatCard({ icon, label, value, subLabel, accent, onClick, active, navigates, loading }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: C.white,
+        border: `1.5px solid ${active ? accent : C.gray200}`,
+        borderRadius: 14,
+        padding: "16px 18px",
+        cursor: onClick ? "pointer" : "default",
+        transition: "all 0.18s ease",
+        position: "relative",
+        overflow: "hidden",
+        boxShadow: active ? `0 4px 20px ${accent}22` : "0 1px 4px rgba(0,0,0,0.04)",
+      }}
+      onMouseEnter={e => {
+        if (!onClick) return;
+        e.currentTarget.style.borderColor = accent;
+        e.currentTarget.style.boxShadow   = `0 4px 20px ${accent}22`;
+        e.currentTarget.style.transform   = "translateY(-2px)";
+      }}
+      onMouseLeave={e => {
+        if (!onClick) return;
+        e.currentTarget.style.borderColor = active ? accent : C.gray200;
+        e.currentTarget.style.boxShadow   = active ? `0 4px 20px ${accent}22` : "0 1px 4px rgba(0,0,0,0.04)";
+        e.currentTarget.style.transform   = "none";
+      }}
+    >
+      {/* Top accent bar */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 3,
+        background: active ? accent : "transparent",
+        borderRadius: "14px 14px 0 0",
+        transition: "background 0.18s",
+      }} />
+
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 11,
+          background: accent + "18",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 19,
+        }}>
+          {icon}
+        </div>
+        {navigates && <span style={{ fontSize: 13, color: C.gray400, marginTop: 2 }}>→</span>}
+        {!navigates && onClick && (
+          <span style={{
+            fontSize: 12, color: active ? accent : C.gray400,
+            marginTop: 2,
+            display: "inline-block",
+            transform: active ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+          }}>▾</span>
+        )}
+      </div>
+
+      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, lineHeight: 1 }}>
+        {loading ? <span style={{ fontSize: 14, color: C.gray300 }}>—</span> : value}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.gray500, marginTop: 5 }}>{label}</div>
+      {subLabel && (
+        <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{subLabel}</div>
+      )}
+    </div>
+  );
+}
+
+// ── Expand panel wrapper ───────────────────────────────────────────
+function ExpandPanel({ title, onClose, children }) {
+  return (
+    <div style={{
+      background: C.white,
+      border: `1.5px solid ${C.gray200}`,
+      borderRadius: 14,
+      padding: "20px 24px",
+      marginBottom: 20,
+      animation: "dashFadeDown 0.2s ease",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{title}</div>
+        <button
+          onClick={onClose}
+          style={{
+            background: C.gray100, border: "none", borderRadius: "50%",
+            width: 28, height: 28, cursor: "pointer", fontSize: 13,
+            color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >✕</button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // ── Table helpers ──────────────────────────────────────────────────
-function Th({ children, right }) {
+function Th({ children }) {
   return (
     <th style={{
-      padding: "8px 12px", textAlign: right ? "right" : "left",
+      padding: "8px 12px", textAlign: "left",
       fontWeight: 700, fontSize: 10, color: C.gray400,
       textTransform: "uppercase", letterSpacing: "0.05em",
       borderBottom: `1px solid ${C.gray200}`,
       background: C.gray50, whiteSpace: "nowrap",
-    }}>{children}</th>
+    }}>
+      {children}
+    </th>
   );
 }
-function Td({ children, bold, color, right, small }) {
+
+function Td({ children, bold, color, right }) {
   return (
     <td style={{
-      padding: "9px 12px",
+      padding: "10px 12px",
       fontWeight: bold ? 700 : 400,
       color: color || C.text,
       textAlign: right ? "right" : "left",
-      fontSize: small ? 11 : 13,
-    }}>{children}</td>
-  );
-}
-
-// ── Expand card (left column) ──────────────────────────────────────
-function ExpandCard({ icon, label, value, subLabel, accent, expanded, onToggle, children, loading }) {
-  return (
-    <div style={{
-      background: C.white,
-      border: `1.5px solid ${expanded ? accent : C.gray200}`,
-      borderRadius: 14,
-      overflow: "hidden",
-      boxShadow: expanded ? `0 4px 20px ${accent}18` : "0 1px 4px rgba(0,0,0,0.04)",
-      transition: "border-color 0.18s, box-shadow 0.18s",
+      fontSize: 13,
     }}>
-      {/* Card header */}
-      <div
-        onClick={onToggle}
-        style={{
-          padding: "18px 20px",
-          cursor: onToggle ? "pointer" : "default",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 14,
-          userSelect: "none",
-          transition: "background 0.15s",
-        }}
-        onMouseEnter={e => { if (onToggle) e.currentTarget.style.background = C.gray50 + "90"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: accent + "18",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 21, flexShrink: 0,
-          }}>
-            {icon}
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: C.gray400, fontWeight: 600, marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: C.text, lineHeight: 1 }}>
-              {loading ? <span style={{ fontSize: 16, color: C.gray300 }}>—</span> : value}
-            </div>
-            {subLabel && <div style={{ fontSize: 11, color: C.gray400, marginTop: 5 }}>{subLabel}</div>}
-          </div>
-        </div>
-
-        {onToggle && (
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: expanded ? accent + "18" : C.gray100,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, transition: "all 0.2s",
-          }}>
-            <span style={{
-              fontSize: 13, color: expanded ? accent : C.gray400,
-              display: "inline-block",
-              transform: expanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
-            }}>▾</span>
-          </div>
-        )}
-      </div>
-
-      {/* Expand panel */}
-      <div style={{
-        maxHeight: expanded ? "1400px" : 0,
-        overflow: "hidden",
-        transition: "max-height 0.32s ease",
-      }}>
-        <div style={{ borderTop: `1px solid ${C.gray100}`, padding: "18px 20px 20px" }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Navigate card (right sidebar) ─────────────────────────────────
-function NavCard({ icon, label, value, subLabel, accent, onClick, loading }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? C.navy : C.white,
-        border: `1.5px solid ${hov ? C.navy : C.gray200}`,
-        borderRadius: 14, padding: "16px 18px",
-        cursor: "pointer",
-        transition: "all 0.18s ease",
-        display: "flex", alignItems: "center",
-        justifyContent: "space-between", gap: 12,
-        boxShadow: hov ? `0 4px 20px ${C.navy}22` : "0 1px 4px rgba(0,0,0,0.04)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{
-          width: 42, height: 42, borderRadius: 11,
-          background: hov ? "rgba(255,255,255,0.12)" : accent + "18",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, flexShrink: 0, transition: "background 0.18s",
-        }}>
-          {icon}
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: hov ? "rgba(255,255,255,0.5)" : C.gray400, fontWeight: 600, marginBottom: 3 }}>{label}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: hov ? C.white : C.text, lineHeight: 1 }}>
-            {loading ? "—" : value}
-          </div>
-          {subLabel && <div style={{ fontSize: 11, color: hov ? "rgba(255,255,255,0.4)" : C.gray400, marginTop: 4 }}>{subLabel}</div>}
-        </div>
-      </div>
-      <span style={{ fontSize: 18, color: hov ? "rgba(255,255,255,0.5)" : C.gray300, transition: "color 0.18s" }}>→</span>
-    </div>
-  );
-}
-
-// ── Side section card ──────────────────────────────────────────────
-function SideCard({ title, icon, children }) {
-  return (
-    <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
-      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", gap: 8, background: C.gray50 }}>
-        <span style={{ fontSize: 15 }}>{icon}</span>
-        <span style={{ fontWeight: 800, fontSize: 13, color: C.text }}>{title}</span>
-      </div>
-      <div style={{ padding: "14px 18px" }}>{children}</div>
-    </div>
+      {children}
+    </td>
   );
 }
 
@@ -248,10 +222,9 @@ function SideCard({ title, icon, children }) {
 export default function DashboardPage({ profile, role, session, showToast, onNavigate }) {
   const [portfolio,    setPortfolio]    = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [users,        setUsers]        = useState([]);
+  const [userCount,    setUserCount]    = useState(null);
   const [loading,      setLoading]      = useState(true);
-  // Accordion: only one card open at a time
-  const [expanded, setExpanded] = useState(null);
+  const [expanded,     setExpanded]     = useState(null); // "companies" | "portfolio" | "gain" | null
 
   const isSAAD   = ["SA", "AD"].includes(role);
   const roleMeta = ROLE_META[role] || { label: role || "User", color: C.gray400 };
@@ -261,21 +234,22 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     [transactions, profile?.cds_number]
   );
 
-  // ── Fetch all data ────────────────────────────────────────────────
+  // ── Fetch all data concurrently ──────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const [port, txns, usrs] = await Promise.all([
+        const jobs = [
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
-          isSAAD ? sbGetAllUsers().catch(() => []) : Promise.resolve([]),
-        ]);
+          isSAAD ? sbGetAllUsers().catch(() => []) : Promise.resolve(null),
+        ];
+        const [port, txns, users] = await Promise.all(jobs);
         if (cancelled) return;
         setPortfolio(port  || []);
         setTransactions(txns || []);
-        setUsers(usrs || []);
+        if (isSAAD && users) setUserCount(users.length);
       } catch {
         if (!cancelled) showToast?.("Dashboard load error", "error");
       } finally {
@@ -298,9 +272,11 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     let totalValue = 0, totalInvested = 0;
 
     const companyMetrics = portfolio.map((company, idx) => {
-      const vTxns = myTxns.filter(t => t.company_id === company.id && t.status === "verified");
+      const verifiedTxns = myTxns.filter(
+        t => t.company_id === company.id && t.status === "verified"
+      );
       let netShares = 0, buyShares = 0, buyInvested = 0;
-      vTxns.forEach(t => {
+      verifiedTxns.forEach(t => {
         const shares = Number(t.shares || t.quantity || 0);
         const price  = Number(t.price  || t.unit_price || 0);
         const isSell = (t.transaction_type || t.type || "buy").toLowerCase() === "sell";
@@ -341,6 +317,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     };
   }, [portfolio, myTxns]);
 
+  const recentTxns = useMemo(() => myTxns.slice(0, 5), [myTxns]);
+
   const statusSegments = useMemo(() => [
     { label: "Verified",  value: metrics.verified,  color: C.green   },
     { label: "Confirmed", value: metrics.confirmed, color: "#3b82f6" },
@@ -349,25 +327,26 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   ], [metrics]);
 
   const portfolioSegments = useMemo(
-    () => metrics.companyMetrics.filter(c => c.marketValue > 0).map(c => ({ label: c.name, value: c.marketValue, color: c.color })),
+    () => metrics.companyMetrics
+      .filter(c => c.marketValue > 0)
+      .map(c => ({ label: c.name, value: c.marketValue, color: c.color })),
     [metrics.companyMetrics]
   );
 
-  // Sidebar previews
-  const pendingTxns  = useMemo(() => myTxns.filter(t => t.status === "pending").slice(0, 3), [myTxns]);
-  const recentUsers  = useMemo(() => users.slice(0, 4), [users]);
-
-  // Accordion toggle
   const toggleExpand = useCallback((key) => {
     setExpanded(prev => prev === key ? null : key);
   }, []);
 
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long", day: "2-digit", month: "long", year: "numeric",
+  });
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin         { to { transform: rotate(360deg); } }
+        @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes dashFadeIn   { from { opacity:0; } to { opacity:1; } }
       `}</style>
 
       {/* ── Welcome strip ─────────────────────────────────────────── */}
@@ -397,361 +376,265 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         </div>
       </div>
 
-      {/* ── 3-card summary strip ──────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: 14, marginBottom: 22 }}>
-
-        {/* Dark — Portfolio Value */}
-        <div style={{
-          background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
-          borderRadius: 14, padding: "20px 22px",
-          position: "relative", overflow: "hidden",
-          boxShadow: "0 4px 20px rgba(11,31,58,0.3)",
-        }}>
-          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: `radial-gradient(circle, ${C.green}22 0%, transparent 70%)` }} />
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Portfolio Value</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: C.white, lineHeight: 1, marginBottom: 6 }}>
-            {loading ? "—" : (metrics.hasFinancials ? fmtShort(metrics.totalValue) : `${metrics.total} txns`)}
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-            {metrics.hasFinancials ? "Market value (TZS)" : "Set prices to compute value"}
-          </div>
-        </div>
-
-        {/* Net Gain / Loss */}
-        <div style={{
-          background: C.white,
-          border: `1.5px solid ${!loading && metrics.hasFinancials ? (metrics.totalGainLoss >= 0 ? C.green + "40" : C.red + "40") : C.gray200}`,
-          borderRadius: 14, padding: "20px 22px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-        }}>
-          <div style={{ fontSize: 11, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Net Gain / Loss</div>
-          <div style={{
-            fontSize: 28, fontWeight: 800, lineHeight: 1, marginBottom: 6,
-            color: loading || !metrics.hasFinancials ? C.gray300 : metrics.totalGainLoss >= 0 ? C.green : C.red,
-          }}>
-            {loading ? "—" : (metrics.hasFinancials
-              ? (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)
-              : "—")}
-          </div>
-          <div style={{ fontSize: 11, color: C.gray400 }}>
-            {metrics.hasFinancials
-              ? `${metrics.totalReturnPct >= 0 ? "+" : ""}${metrics.totalReturnPct.toFixed(2)}% overall return`
-              : "Set prices in Portfolio"}
-          </div>
-        </div>
-
-        {/* Pending */}
-        <div style={{
-          background: C.white,
-          border: `1.5px solid ${metrics.pending > 0 ? "#f59e0b40" : C.gray200}`,
-          borderRadius: 14, padding: "20px 22px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-        }}>
-          <div style={{ fontSize: 11, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Pending Queue</div>
-          <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, marginBottom: 6, color: loading ? C.gray300 : metrics.pending > 0 ? "#f59e0b" : C.text }}>
-            {loading ? "—" : metrics.pending}
-          </div>
-          <div style={{ fontSize: 11, color: C.gray400 }}>
-            {metrics.pending > 0 ? "transactions awaiting action" : "all transactions processed"}
-          </div>
-        </div>
+      {/* ── Stat Cards ────────────────────────────────────────────── */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${isSAAD ? 5 : 4}, 1fr)`,
+        gap: 14,
+        marginBottom: expanded ? 14 : 22,
+      }}>
+        <StatCard
+          icon="🏢" label="Companies" value={loading ? "—" : metrics.totalCompanies}
+          subLabel="in your portfolio" accent={C.navy}
+          onClick={() => toggleExpand("companies")}
+          active={expanded === "companies"} loading={loading}
+        />
+        <StatCard
+          icon="💰" label="Portfolio Value"
+          value={loading ? "—" : (metrics.hasFinancials ? fmtShort(metrics.totalValue) : `${metrics.total}`)}
+          subLabel={metrics.hasFinancials ? "Market value (TZS)" : "Total transactions"}
+          accent={C.green}
+          onClick={() => toggleExpand("portfolio")}
+          active={expanded === "portfolio"} loading={loading}
+        />
+        <StatCard
+          icon={metrics.totalGainLoss >= 0 ? "📈" : "📉"} label="Gain / Loss"
+          value={loading ? "—" : (metrics.hasFinancials ? (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss) : "—")}
+          subLabel={metrics.hasFinancials ? `${metrics.totalReturnPct >= 0 ? "+" : ""}${metrics.totalReturnPct.toFixed(2)}% return` : "Set prices to compute"}
+          accent={metrics.totalGainLoss >= 0 ? C.green : C.red}
+          onClick={metrics.hasFinancials ? () => toggleExpand("gain") : undefined}
+          active={expanded === "gain"} loading={loading}
+        />
+        <StatCard
+          icon="⏳" label="Pending"
+          value={loading ? "—" : metrics.pending}
+          subLabel={metrics.pending > 0 ? "awaiting action" : "all clear"}
+          accent="#f59e0b"
+          onClick={() => onNavigate("transactions")}
+          navigates loading={loading}
+        />
+        {isSAAD && (
+          <StatCard
+            icon="👥" label="Users"
+            value={loading ? "—" : (userCount ?? "—")}
+            subLabel="system users" accent={C.navy}
+            onClick={() => onNavigate("user-management")}
+            navigates loading={loading}
+          />
+        )}
       </div>
 
-      {/* ── Two-column layout ─────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 18, alignItems: "start" }}>
-
-        {/* ── LEFT: Accordion expand cards ──────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-          {/* Companies */}
-          <ExpandCard
-            icon="🏢" label="Total Companies"
-            value={loading ? "—" : metrics.totalCompanies}
-            subLabel={expanded === "companies" ? "showing price snapshot" : "click to expand holdings"}
-            accent={C.navy}
-            expanded={expanded === "companies"}
-            onToggle={() => toggleExpand("companies")}
-            loading={loading}
-          >
-            {portfolio.length === 0 ? (
-              <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "16px 0" }}>No companies in your portfolio yet.</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Company","Current Price","Prev. Price","Change","Last Updated"].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
-                  <tbody>
-                    {metrics.allPortfolio.map((c, i) => {
-                      const change = c.prevPrice > 0 ? ((c.currentPrice - c.prevPrice) / c.prevPrice) * 100 : null;
-                      return (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
-                          <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
-                          <Td bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
-                          <Td color={C.gray500}>{c.prevPrice > 0 ? fmt(c.prevPrice) : "—"}</Td>
-                          <Td>{change !== null ? <span style={{ color: change >= 0 ? C.green : C.red, fontWeight: 700 }}>{change >= 0 ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%</span> : "—"}</Td>
-                          <Td color={C.gray400} small>{c.updatedAt ? new Date(c.updatedAt).toLocaleDateString("en-GB") : "—"}</Td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </ExpandCard>
-
-          {/* Portfolio Breakdown */}
-          <ExpandCard
-            icon="💰" label="Portfolio Breakdown"
-            value={loading ? "—" : (metrics.hasFinancials ? fmtShort(metrics.totalValue) : `${metrics.totalCompanies} holdings`)}
-            subLabel={expanded === "portfolio" ? "showing full breakdown" : "click to expand by company"}
-            accent={C.green}
-            expanded={expanded === "portfolio"}
-            onToggle={() => toggleExpand("portfolio")}
-            loading={loading}
-          >
-            {metrics.companyMetrics.length === 0 ? (
-              <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "16px 0" }}>
-                {portfolio.length === 0 ? "No companies yet." : "Set prices in Portfolio page to see breakdown."}
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Company","Net Shares","Avg Cost","Current Price","Market Value","Gain/Loss","Return %","Weight"].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
-                  <tbody>
-                    {metrics.companyMetrics.map((c, i) => (
-                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
-                        <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
-                        <Td>{fmt(c.netShares)}</Td>
-                        <Td>{c.avgCost > 0 ? fmt(c.avgCost) : "—"}</Td>
-                        <Td>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
-                        <Td bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                        <Td bold color={c.gainLoss >= 0 ? C.green : C.red}>{c.gainLoss !== 0 ? (c.gainLoss >= 0 ? "+" : "") + fmtShort(c.gainLoss) : "—"}</Td>
-                        <Td>{c.returnPct !== 0 ? <span style={{ background: c.returnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: c.returnPct >= 0 ? C.green : C.red, padding: "2px 8px", borderRadius: 8, fontWeight: 700, fontSize: 11 }}>{(c.returnPct >= 0 ? "+" : "") + c.returnPct.toFixed(2)}%</span> : "—"}</Td>
-                        <Td>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}><div style={{ width: `${c.weight}%`, height: "100%", background: c.color, borderRadius: 4 }} /></div>
-                            <span style={{ fontSize: 11, color: C.gray500 }}>{c.weight.toFixed(1)}%</span>
-                          </div>
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                      <td colSpan={4} style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                      <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalValue)}</td>
-                      <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>{(metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)}</td>
-                      <td style={{ padding: "9px 12px" }}><span style={{ background: metrics.totalReturnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: metrics.totalReturnPct >= 0 ? C.green : C.red, padding: "2px 8px", borderRadius: 8, fontWeight: 800, fontSize: 11 }}>{(metrics.totalReturnPct >= 0 ? "+" : "") + metrics.totalReturnPct.toFixed(2)}%</span></td>
-                      <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.gray400 }}>100%</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </ExpandCard>
-
-          {/* Gain / Loss */}
-          <ExpandCard
-            icon={metrics.totalGainLoss >= 0 ? "📈" : "📉"}
-            label="Gain / Loss Analysis"
-            value={loading ? "—" : (metrics.hasFinancials ? (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss) : "—")}
-            subLabel={expanded === "gain" ? "showing per-company analysis" : "click to expand breakdown"}
-            accent={metrics.totalGainLoss >= 0 ? C.green : C.red}
-            expanded={expanded === "gain"}
-            onToggle={metrics.hasFinancials ? () => toggleExpand("gain") : undefined}
-            loading={loading}
-          >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 18 }}>
-              {[
-                { label: "Total Invested", value: fmtShort(metrics.totalInvested), icon: "💵", color: C.navy },
-                { label: "Current Value",  value: fmtShort(metrics.totalValue),    icon: "📊", color: "#3b82f6" },
-                { label: "Gain / Loss",
-                  value: (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss),
-                  icon: metrics.totalGainLoss >= 0 ? "📈" : "📉",
-                  color: metrics.totalGainLoss >= 0 ? C.green : C.red },
-              ].map(item => (
-                <div key={item.label} style={{ background: item.color + "0d", border: `1px solid ${item.color}22`, borderRadius: 10, padding: "14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{item.icon}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: item.color }}>{item.value}</div>
-                  <div style={{ fontSize: 10, color: C.gray400, marginTop: 4, fontWeight: 600 }}>{item.label}</div>
-                </div>
-              ))}
-            </div>
-            {metrics.companyMetrics.length > 0 ? (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Company","Invested (TZS)","Market Value","Gain / Loss","Return %"].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
-                  <tbody>
-                    {metrics.companyMetrics.map((c, i) => (
-                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
-                        <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
-                        <Td>{fmtShort(c.invested)}</Td>
-                        <Td>{fmtShort(c.marketValue)}</Td>
-                        <Td bold color={c.gainLoss >= 0 ? C.green : C.red}>{(c.gainLoss >= 0 ? "+" : "") + fmtShort(c.gainLoss)}</Td>
-                        <Td><span style={{ background: c.returnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: c.returnPct >= 0 ? C.green : C.red, padding: "2px 10px", borderRadius: 8, fontWeight: 700, fontSize: 11 }}>{(c.returnPct >= 0 ? "+" : "") + c.returnPct.toFixed(2)}%</span></Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "12px 0" }}>Set prices in Portfolio page to see breakdown.</div>
-            )}
-          </ExpandCard>
-
-          {/* Transaction status + donut */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "20px" }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 18 }}>📊 Transaction Status</div>
-            {loading ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 110 }}>
-                <div style={{ width: 24, height: 24, border: `3px solid ${C.gray100}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                <DonutChart segments={metrics.total > 0 ? statusSegments : [{ value: 1, color: C.gray100 }]} size={110} thickness={20} />
-                <div style={{ flex: 1 }}>
-                  {statusSegments.map(seg => (
-                    <div key={seg.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: C.gray500 }}>{seg.label}</span>
-                      </div>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: seg.value > 0 ? C.text : C.gray300 }}>{seg.value}</span>
-                    </div>
-                  ))}
-                  <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 8, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 11, color: C.gray400, fontWeight: 600 }}>Total</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{metrics.total}</span>
-                  </div>
-                </div>
-                {portfolioSegments.length > 0 && (
-                  <>
-                    <div style={{ width: 1, height: 90, background: C.gray100, flexShrink: 0 }} />
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <DonutChart segments={portfolioSegments} size={90} thickness={16} />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 10, color: C.gray400, marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.05em" }}>Weight</div>
-                        {portfolioSegments.map(seg => (
-                          <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 10, color: C.gray500, maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{seg.label}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: C.gray500 }}>{metrics.totalValue > 0 ? ((seg.value / metrics.totalValue) * 100).toFixed(1) : 0}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── RIGHT: Sidebar ─────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-          {/* Navigate: Pending */}
-          <NavCard
-            icon="⏳" label="Pending Transactions"
-            value={loading ? "—" : metrics.pending}
-            subLabel={metrics.pending > 0 ? "awaiting action" : "all clear"}
-            accent="#f59e0b"
-            onClick={() => onNavigate("transactions")}
-            loading={loading}
-          />
-
-          {/* Pending mini-preview */}
-          <SideCard title="Pending Preview" icon="🕐">
-            {loading ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 72 }}>
-                <div style={{ width: 18, height: 18, border: `2px solid ${C.gray100}`, borderTop: `2px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              </div>
-            ) : pendingTxns.length === 0 ? (
-              <div style={{ textAlign: "center", color: C.gray400, fontSize: 12, padding: "16px 0" }}>No pending transactions 🎉</div>
-            ) : (
-              <>
-                {pendingTxns.map((txn, i) => {
-                  const company = portfolio.find(c => c.id === txn.company_id);
-                  const isLast  = i === pendingTxns.length - 1;
-                  return (
-                    <div key={txn.id} style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: isLast ? 0 : 10, marginBottom: isLast ? 0 : 10, borderBottom: isLast ? "none" : `1px solid ${C.gray100}` }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>📋</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{company?.name || "Unknown Company"}</div>
-                        <div style={{ fontSize: 10, color: C.gray400, marginTop: 2 }}>{txn.date ? new Date(txn.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—"}</div>
-                      </div>
-                      <StatusBadge status="pending" />
-                    </div>
-                  );
-                })}
-                {metrics.pending > 3 && (
-                  <button
-                    onClick={() => onNavigate("transactions")}
-                    style={{ width: "100%", marginTop: 10, padding: "7px", borderRadius: 8, border: `1px solid ${C.gray200}`, background: "none", color: C.gray500, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = C.green; e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.green; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.gray500; e.currentTarget.style.borderColor = C.gray200; }}
-                  >
-                    +{metrics.pending - 3} more · View All →
-                  </button>
-                )}
-              </>
-            )}
-          </SideCard>
-
-          {/* Navigate: Users (SA/AD only) */}
-          {isSAAD && (
-            <NavCard
-              icon="👥" label="Total Users"
-              value={loading ? "—" : users.length}
-              subLabel="system users"
-              accent={C.navy}
-              onClick={() => onNavigate("user-management")}
-              loading={loading}
-            />
-          )}
-
-          {/* Users snapshot (SA/AD only) */}
-          {isSAAD && (
-            <SideCard title="User Snapshot" icon="👤">
-              {loading ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 72 }}>
-                  <div style={{ width: 18, height: 18, border: `2px solid ${C.gray100}`, borderTop: `2px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                </div>
-              ) : recentUsers.length === 0 ? (
-                <div style={{ textAlign: "center", color: C.gray400, fontSize: 12, padding: "16px 0" }}>No users found</div>
-              ) : (
-                <>
-                  {recentUsers.map((user, i) => {
-                    const isLast   = i === recentUsers.length - 1;
-                    const rm       = ROLE_META[user.role_id] || ROLE_META[user.role] || { label: user.role || "User", color: C.gray400 };
-                    const initials = (user.full_name || user.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+      {/* ── Expand Panels ─────────────────────────────────────────── */}
+      {expanded === "companies" && (
+        <ExpandPanel title="🏢 Portfolio Holdings" onClose={() => setExpanded(null)}>
+          {portfolio.length === 0 ? (
+            <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "24px 0" }}>No companies in your portfolio yet.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>{["Company","Current Price","Prev. Price","Change","Last Updated"].map(h => <Th key={h}>{h}</Th>)}</tr>
+                </thead>
+                <tbody>
+                  {metrics.allPortfolio.map((c, i) => {
+                    const change = c.prevPrice > 0 ? ((c.currentPrice - c.prevPrice) / c.prevPrice) * 100 : null;
                     return (
-                      <div key={user.id} style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: isLast ? 0 : 10, marginBottom: isLast ? 0 : 10, borderBottom: isLast ? "none" : `1px solid ${C.gray100}` }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: C.navy + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.navy, flexShrink: 0 }}>
-                          {initials}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.full_name || user.email || "—"}</div>
-                          <div style={{ fontSize: 10, color: C.gray400, marginTop: 1 }}>{user.cds_number || "—"}</div>
-                        </div>
-                        <span style={{ background: rm.color + "18", color: rm.color, border: `1px solid ${rm.color}25`, borderRadius: 20, padding: "2px 7px", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>
-                          {rm.label}
-                        </span>
-                      </div>
+                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
+                        <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
+                        <Td bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
+                        <Td color={C.gray500}>{c.prevPrice > 0 ? fmt(c.prevPrice) : "—"}</Td>
+                        <Td>{change !== null ? <span style={{ color: change >= 0 ? C.green : C.red, fontWeight: 700, fontSize: 13 }}>{change >= 0 ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%</span> : "—"}</Td>
+                        <Td><span style={{ fontSize: 11, color: C.gray400 }}>{c.updatedAt ? new Date(c.updatedAt).toLocaleDateString("en-GB") : "—"}</span></Td>
+                      </tr>
                     );
                   })}
-                  {users.length > 4 && (
-                    <button
-                      onClick={() => onNavigate("user-management")}
-                      style={{ width: "100%", marginTop: 10, padding: "7px", borderRadius: 8, border: `1px solid ${C.gray200}`, background: "none", color: C.gray500, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.navy; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.gray500; e.currentTarget.style.borderColor = C.gray200; }}
-                    >
-                      +{users.length - 4} more · View All →
-                    </button>
-                  )}
-                </>
-              )}
-            </SideCard>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </ExpandPanel>
+      )}
+
+      {expanded === "portfolio" && (
+        <ExpandPanel title="💰 Portfolio Breakdown" onClose={() => setExpanded(null)}>
+          {metrics.companyMetrics.length === 0 ? (
+            <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "24px 0" }}>
+              {portfolio.length === 0 ? "No companies in your portfolio yet." : "Set current prices in Portfolio page to see value breakdown."}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>{["Company","Net Shares","Avg Cost","Current Price","Market Value","Gain/Loss","Return %","Weight"].map(h => <Th key={h}>{h}</Th>)}</tr>
+                </thead>
+                <tbody>
+                  {metrics.companyMetrics.map((c, i) => (
+                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
+                      <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
+                      <Td>{fmt(c.netShares)}</Td>
+                      <Td>{c.avgCost > 0 ? fmt(c.avgCost) : "—"}</Td>
+                      <Td>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
+                      <Td bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                      <Td bold color={c.gainLoss >= 0 ? C.green : C.red}>{c.gainLoss !== 0 ? (c.gainLoss >= 0 ? "+" : "") + fmtShort(c.gainLoss) : "—"}</Td>
+                      <Td>{c.returnPct !== 0 ? <span style={{ background: c.returnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: c.returnPct >= 0 ? C.green : C.red, padding: "2px 8px", borderRadius: 8, fontWeight: 700, fontSize: 11 }}>{(c.returnPct >= 0 ? "+" : "") + c.returnPct.toFixed(2)}%</span> : "—"}</Td>
+                      <Td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 50, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}><div style={{ width: `${c.weight}%`, height: "100%", background: c.color, borderRadius: 4, transition: "width 0.5s ease" }} /></div>
+                          <span style={{ fontSize: 11, color: C.gray500 }}>{c.weight.toFixed(1)}%</span>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                    <td colSpan={4} style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                    <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>{fmtShort(metrics.totalValue)}</td>
+                    <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalGainLoss >= 0 ? C.green : C.red }}>{(metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss)}</td>
+                    <td style={{ padding: "10px 12px" }}><span style={{ background: metrics.totalReturnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: metrics.totalReturnPct >= 0 ? C.green : C.red, padding: "2px 8px", borderRadius: 8, fontWeight: 800, fontSize: 11 }}>{(metrics.totalReturnPct >= 0 ? "+" : "") + metrics.totalReturnPct.toFixed(2)}%</span></td>
+                    <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.gray400 }}>100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </ExpandPanel>
+      )}
+
+      {expanded === "gain" && (
+        <ExpandPanel title="📈 Gain / Loss Analysis" onClose={() => setExpanded(null)}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+            {[
+              { label: "Total Invested", value: fmtShort(metrics.totalInvested), icon: "💵", color: C.navy },
+              { label: "Current Value",  value: fmtShort(metrics.totalValue),    icon: "📊", color: "#3b82f6" },
+              { label: "Gain / Loss",
+                value: (metrics.totalGainLoss >= 0 ? "+" : "") + fmtShort(metrics.totalGainLoss),
+                icon: metrics.totalGainLoss >= 0 ? "📈" : "📉",
+                color: metrics.totalGainLoss >= 0 ? C.green : C.red },
+            ].map(item => (
+              <div key={item.label} style={{ background: item.color + "0d", border: `1px solid ${item.color}22`, borderRadius: 12, padding: "16px", textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: C.gray400, marginTop: 5 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+          {metrics.companyMetrics.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>{["Company","Invested (TZS)","Market Value","Gain / Loss","Return %"].map(h => <Th key={h}>{h}</Th>)}</tr>
+                </thead>
+                <tbody>
+                  {metrics.companyMetrics.map((c, i) => (
+                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
+                      <Td bold><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}</div></Td>
+                      <Td>{fmtShort(c.invested)}</Td>
+                      <Td>{fmtShort(c.marketValue)}</Td>
+                      <Td bold color={c.gainLoss >= 0 ? C.green : C.red}>{(c.gainLoss >= 0 ? "+" : "") + fmtShort(c.gainLoss)}</Td>
+                      <Td><span style={{ background: c.returnPct >= 0 ? "#f0fdf4" : "#fef2f2", color: c.returnPct >= 0 ? C.green : C.red, padding: "2px 10px", borderRadius: 8, fontWeight: 700, fontSize: 11 }}>{(c.returnPct >= 0 ? "+" : "") + c.returnPct.toFixed(2)}%</span></Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "16px 0" }}>Set prices in Portfolio page to see per-company breakdown.</div>
+          )}
+        </ExpandPanel>
+      )}
+
+      {/* ── Bottom row ────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16 }}>
+
+        {/* Transaction status chart */}
+        <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "20px" }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 18 }}>📊 Transaction Status</div>
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 130 }}>
+              <div style={{ width: 24, height: 24, border: `3px solid ${C.gray100}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+              <div style={{ flexShrink: 0 }}>
+                <DonutChart segments={metrics.total > 0 ? statusSegments : [{ value: 1, color: C.gray100 }]} size={130} thickness={24} />
+              </div>
+              <div style={{ flex: 1 }}>
+                {statusSegments.map(seg => (
+                  <div key={seg.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: C.gray500 }}>{seg.label}</span>
+                    </div>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: seg.value > 0 ? C.text : C.gray300 }}>{seg.value}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 8, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: C.gray400, fontWeight: 600 }}>Total</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{metrics.total}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && portfolioSegments.length > 0 && (
+            <>
+              <div style={{ height: 1, background: C.gray100, margin: "18px 0" }} />
+              <div style={{ fontWeight: 700, fontSize: 12, color: C.gray500, marginBottom: 12 }}>Portfolio Weight</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <DonutChart segments={portfolioSegments} size={100} thickness={20} />
+                <div style={{ flex: 1 }}>
+                  {portfolioSegments.map(seg => (
+                    <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: C.gray500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{seg.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.gray500 }}>{metrics.totalValue > 0 ? ((seg.value / metrics.totalValue) * 100).toFixed(1) : 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Recent transactions */}
+        <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🕐 Recent Transactions</div>
+            <button
+              onClick={() => onNavigate("transactions")}
+              style={{ background: "none", border: `1px solid ${C.gray200}`, borderRadius: 8, padding: "4px 12px", fontSize: 11, color: C.gray500, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.green; e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.green; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.gray500; e.currentTarget.style.borderColor = C.gray200; }}
+            >
+              View All →
+            </button>
+          </div>
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160 }}>
+              <div style={{ width: 24, height: 24, border: `3px solid ${C.gray100}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            </div>
+          ) : recentTxns.length === 0 ? (
+            <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "40px 0" }}>No transactions recorded yet.</div>
+          ) : (
+            recentTxns.map((txn, i) => {
+              const company = portfolio.find(c => c.id === txn.company_id);
+              const isLast  = i === recentTxns.length - 1;
+              return (
+                <div key={txn.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0", borderBottom: isLast ? "none" : `1px solid ${C.gray100}` }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: C.navy + "10", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📋</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {company?.name || "Unknown Company"}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
+                      {txn.date ? new Date(txn.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                    </div>
+                  </div>
+                  <StatusBadge status={txn.status} />
+                </div>
+              );
+            })
           )}
         </div>
       </div>
