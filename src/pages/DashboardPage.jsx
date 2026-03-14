@@ -34,6 +34,9 @@ const CHART_COLORS = [
   "#ec4899", "#06b6d4", "#f97316", "#84cc16",
 ];
 
+// ── Avatar accent colors (consistent per user name) ──────────────
+const AVATAR_COLORS = ["#0B1F3A","#2563eb","#065F46","#7C3AED","#B45309","#0369A1","#1D4ED8","#9D174D"];
+
 // ── Status helpers ─────────────────────────────────────────────────
 const statusOf = (t) => String(t?.status || "").toLowerCase().trim();
 const isVerified = (t) => statusOf(t) === "verified";
@@ -962,7 +965,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                             border: `1px solid ${C.green}25`,
                             borderRadius: 20,
                             padding: "2px 10px",
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 700,
                           }}
                         >
@@ -1030,15 +1033,36 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   </thead>
                   <tbody>
                     {cdsUsers.map((u, i) => {
-                      const isActive = u.is_active !== false && u.status !== "inactive";
-                      const roleName = u.role_name || u.role || u.role_id || "—";
-                      const initials = (u.full_name || u.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                      const isActive    = u.is_active !== false && u.status !== "inactive";
+                      const roleName    = u.role_name || u.role || u.role_code || "—";
+                      const initials    = (u.full_name || u.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                      const avatarColor = AVATAR_COLORS[(u.full_name || u.email || "").charCodeAt(0) % AVATAR_COLORS.length];
+                      const avatarUrl   = u.avatar_url || null;
                       return (
                         <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
                           <Td bold>
                             <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
-                              <div style={{ width: 30, height: 30, borderRadius: 8, background: C.navy + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.navy, flexShrink: 0 }}>
-                                {initials}
+                              {/* Avatar — photo if available, initials fallback */}
+                              <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
+                                {avatarUrl && (
+                                  <img
+                                    src={avatarUrl}
+                                    alt={u.full_name || "User"}
+                                    style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", display: "block", border: `1.5px solid ${C.gray200}` }}
+                                    onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
+                                  />
+                                )}
+                                <div style={{
+                                  width: 30, height: 30, borderRadius: 8,
+                                  background: `linear-gradient(135deg, ${avatarColor}, ${avatarColor}99)`,
+                                  display: avatarUrl ? "none" : "flex",
+                                  alignItems: "center", justifyContent: "center",
+                                  fontSize: 11, fontWeight: 800, color: C.white,
+                                }}>
+                                  {initials}
+                                </div>
+                                {/* Online status dot */}
+                                <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: isActive ? "#16a34a" : "#d1d5db" }} />
                               </div>
                               {u.full_name || "—"}
                             </div>
@@ -1056,7 +1080,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                               color: isActive ? C.green : C.red,
                               border: `1px solid ${isActive ? C.green : C.red}25`,
                               borderRadius: 20, padding: "2px 10px",
-                              fontSize: 10, fontWeight: 700, whiteSpace: "nowrap",
+                              fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
                             }}>
                               {isActive ? "Active" : "Inactive"}
                             </span>
