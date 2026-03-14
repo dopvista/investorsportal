@@ -801,3 +801,201 @@ export async function sbUploadSlideImage(blob, slideIndex, session) {
 
   return `${BASE}/storage/v1/object/public/login-slides/${filename}?t=${Date.now()}`;
 }
+
+// ═══════════════════════════════════════════════════════
+// CDS MULTI-ACCOUNT MANAGEMENT
+// All functions call the RPCs created in Step 1 SQL.
+// ═══════════════════════════════════════════════════════
+
+// ── Get all CDS assigned to a user (active CDS first) ─────────────
+// Returns: [{ user_cds_id, cds_id, cds_number, cds_name, phone,
+//             email, is_active, assigned_at, assigned_by }]
+export async function sbGetUserCDS(userId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/get_user_cds`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({ p_user_id: userId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to fetch user CDS accounts");
+  }
+
+  return res.json();
+}
+
+// ── Get the single active CDS for a user ──────────────────────────
+// Returns: { user_cds_id, cds_id, cds_number, cds_name, phone, email }
+// Returns null if user has no active CDS.
+export async function sbGetActiveCDS(userId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/get_active_cds`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({ p_user_id: userId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to fetch active CDS");
+  }
+
+  const rows = await res.json();
+  // RPC returns a table — take first row or null
+  return Array.isArray(rows) ? (rows[0] || null) : (rows || null);
+}
+
+// ── Search CDS master registry by number or owner name ────────────
+// Used for real-time search in assign CDS dialog.
+// Returns: [{ id, cds_number, cds_name, phone, email, created_at }]
+export async function sbSearchCDS(query) {
+  if (!query || query.trim().length < 1) return [];
+
+  const res = await fetch(`${BASE}/rest/v1/rpc/search_cds`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({ p_query: query.trim() }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to search CDS");
+  }
+
+  return res.json();
+}
+
+// ── Create a new CDS master record (SA only) ──────────────────────
+// Returns the created cds_accounts row.
+// Throws if: not SA, bad format, or duplicate number.
+export async function sbCreateCDS({ cdsNumber, cdsName, phone, email }) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/create_cds`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      p_cds_number: cdsNumber,
+      p_cds_name:   cdsName,
+      p_phone:      phone || null,
+      p_email:      email || null,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to create CDS record");
+  }
+
+  return res.json();
+}
+
+// ── Assign an existing CDS to a user ──────────────────────────────
+// SA: can assign any CDS to any user.
+// AD: can only assign CDS from their own pool.
+// First CDS assigned to a user is auto-activated.
+// Returns the created user_cds row.
+export async function sbAssignCDS(userId, cdsId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/assign_cds_to_user`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      p_user_id: userId,
+      p_cds_id:  cdsId,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to assign CDS");
+  }
+
+  return res.json();
+}
+
+// ── Switch the active CDS for a user ──────────────────────────────
+// Atomically deactivates all then activates the target.
+// Users switch their own. SA can switch any user.
+// Returns true on success — throws on error.
+export async function sbSwitchActiveCDS(userId, cdsId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/switch_active_cds`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      p_user_id: userId,
+      p_cds_id:  cdsId,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to switch active CDS");
+  }
+
+  return true;
+}
+
+// ── Remove a CDS assignment from a user ───────────────────────────
+// SA: remove any CDS from any user.
+// AD: remove only CDS from their own pool.
+// If removed CDS was active, next most recent CDS auto-activates.
+// Returns true on success — throws on error.
+export async function sbRemoveCDS(userId, cdsId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/remove_cds_from_user`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      p_user_id: userId,
+      p_cds_id:  cdsId,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to remove CDS");
+  }
+
+  return true;
+}
+
+// ── Remove CDS from an admin with optional cascade ─────────────────
+// SA only. Removes CDS from an AD.
+// cascade = true  → also removes from all users assigned by this AD
+// cascade = false → keeps CDS on those users, only removes from AD
+// Returns: number of sub-users affected (shown in confirmation dialog)
+export async function sbRemoveCDSFromAdminCascade(adminId, cdsId, cascade = false) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/remove_cds_from_admin_cascade`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      p_admin_id: adminId,
+      p_cds_id:   cdsId,
+      p_cascade:  cascade,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to remove CDS from admin");
+  }
+
+  // RPC returns an integer — number of affected sub-users
+  const result = await res.json();
+  return typeof result === "number" ? result : 0;
+}
+
+// ── Get all users assigned to a CDS ───────────────────────────────
+// Used for cascade removal confirmation dialog.
+// Returns: [{ user_id, full_name, role_code, is_active, assigned_at }]
+export async function sbGetCDSAssignedUsers(cdsId) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/get_cds_assigned_users`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({ p_cds_id: cdsId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to fetch CDS users");
+  }
+
+  return res.json();
+}
