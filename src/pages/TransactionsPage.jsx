@@ -262,114 +262,74 @@ const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
       onClick={onClick}
       disabled={disabled}
       style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
+        width: 28, height: 28, borderRadius: 6,
         border: `1.5px solid ${active ? C.navy : C.gray200}`,
         background: active ? C.navy : disabled ? C.gray50 : C.white,
         color: active ? C.white : disabled ? C.gray400 : C.gray600,
-        fontWeight: active ? 700 : 500,
-        fontSize: 12,
+        fontWeight: active ? 700 : 500, fontSize: 12,
         cursor: disabled ? "default" : "pointer",
         fontFamily: "inherit",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}
-    >
-      {label}
-    </button>
+    >{label}</button>
   );
 });
 
 const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
-  const isPending = transaction.status === "pending";
+  const isPending   = transaction.status === "pending";
   const isConfirmed = transaction.status === "confirmed";
-  const isVerified = transaction.status === "verified";
-  const isRejected = transaction.status === "rejected";
-
+  const isVerified  = transaction.status === "verified";
+  const isRejected  = transaction.status === "rejected";
   return {
-    canConfirm: (isDE || isSAAD) && (isPending || isRejected),
-    canEdit: isSAAD || (isDE && (isPending || isRejected)),
-    canDelete: isDE ? (isPending || isRejected) : (isSAAD && !isVerified),
+    canConfirm:  (isDE || isSAAD) && (isPending || isRejected),
+    canEdit:     isSAAD || (isDE && (isPending || isRejected)),
+    canDelete:   isDE ? (isPending || isRejected) : (isSAAD && !isVerified),
     canUnVerify: isSAAD && isVerified,
-    canVerify: (isVR || isSAAD) && isConfirmed,
-    canReject: (isVR || isSAAD) && isConfirmed,
-    isPending,
-    isConfirmed,
-    isVerified,
-    isRejected,
+    canVerify:   (isVR || isSAAD) && isConfirmed,
+    canReject:   (isVR || isSAAD) && isConfirmed,
+    isPending, isConfirmed, isVerified, isRejected,
   };
 };
 
 const TransactionRow = memo(function TransactionRow({
-  transaction,
-  globalIdx,
-  selected,
-  onToggleOne,
-  onOpenFormModal,
-  onOpenRejectModal,
-  onOpenDeleteModal,
-  onHandleConfirm,
-  onHandleVerify,
-  onHandleUnverify,
-  confirmingIds,
-  verifyingIds,
-  rejectingIds,
-  unverifyingIds,
-  deletingId,
-  bulkDeletingIds,
-  isDE,
-  isVR,
-  isSAAD,
-  showCheckbox,
-  showActions,
+  transaction, globalIdx, selected, onToggleOne,
+  onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
+  onHandleConfirm, onHandleVerify, onHandleUnverify,
+  confirmingIds, verifyingIds, rejectingIds, unverifyingIds,
+  deletingId, bulkDeletingIds,
+  isDE, isVR, isSAAD, showCheckbox, showActions,
 }) {
-  const gt = Number(transaction.total || 0) + Number(transaction.fees || 0);
-  const isBuy = transaction.type === "Buy";
+  const gt      = Number(transaction.total || 0) + Number(transaction.fees || 0);
+  const isBuy   = transaction.type === "Buy";
   const isChecked = selected.has(transaction.id);
+  const perms   = getRowPermissions({ transaction, isDE, isVR, isSAAD });
 
-  const perms = getRowPermissions({ transaction, isDE, isVR, isSAAD });
-
-  const isRowConfirming = confirmingIds.has(transaction.id);
-  const isRowVerifying = verifyingIds.has(transaction.id);
-  const isRowRejecting = rejectingIds.has(transaction.id);
+  const isRowConfirming  = confirmingIds.has(transaction.id);
+  const isRowVerifying   = verifyingIds.has(transaction.id);
+  const isRowRejecting   = rejectingIds.has(transaction.id);
   const isRowUnverifying = unverifyingIds.has(transaction.id);
-  const isRowDeleting = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
-  const isRowBusy = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
+  const isRowDeleting    = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
+  const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
 
   const rowActions = [
-    ...(perms.canEdit ? [{ icon: "✏️", label: "Edit", disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
-    ...(perms.canVerify ? [{ icon: isRowVerifying ? null : "✔️", label: isRowVerifying ? "Verifying..." : "Verify", disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
-    ...(perms.canReject ? [{ icon: isRowRejecting ? null : "✖", label: isRowRejecting ? "Rejecting..." : "Reject", danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
-    ...(perms.canUnVerify ? [{ icon: isRowUnverifying ? null : "↩️", label: isRowUnverifying ? "Unverifying..." : "UnVerify", danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
-    ...(perms.canDelete ? [{ icon: isRowDeleting ? null : "🗑️", label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+    ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",     disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."  : "Verify",  disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."  : "Reject",  danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying...": "UnVerify",danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."   : "Delete",  danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
   ];
 
   return (
     <tr
-      style={{
-        borderBottom: `1px solid ${C.gray100}`,
-        transition: "background 0.15s, opacity 0.2s",
-        background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent",
-        opacity: isRowBusy ? 0.6 : 1,
-        pointerEvents: isRowBusy ? "none" : "auto",
-      }}
+      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto" }}
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
       onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
     >
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }}>
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={() => onToggleOne(transaction.id)}
-            disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }}
-          />
+          <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy} style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
       )}
-
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
       <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(transaction.date)}</td>
       <td style={{ padding: "7px 10px", minWidth: 100 }}>
@@ -404,34 +364,15 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         )}
       </td>
-
       {showActions && (
         <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
           {perms.canConfirm && (
             <button
               onClick={() => onHandleConfirm(transaction.id, transaction.company_name, transaction.status)}
               disabled={isRowBusy}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 7,
-                border: "none",
-                background: isRowConfirming ? C.gray100 : "#EFF6FF",
-                color: isRowConfirming ? C.gray400 : "#1D4ED8",
-                fontWeight: 700,
-                fontSize: 11,
-                cursor: isRowBusy ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                marginRight: rowActions.length ? 6 : 0,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                minWidth: 80,
-                justifyContent: "center",
-              }}
+              style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: isRowConfirming ? C.gray100 : "#EFF6FF", color: isRowConfirming ? C.gray400 : "#1D4ED8", fontWeight: 700, fontSize: 11, cursor: isRowBusy ? "not-allowed" : "pointer", fontFamily: "inherit", marginRight: rowActions.length ? 6 : 0, display: "inline-flex", alignItems: "center", gap: 5, minWidth: 80, justifyContent: "center" }}
             >
-              {isRowConfirming
-                ? <><Spinner size={11} color={C.gray400} /> Confirming</>
-                : "✅ Confirm"}
+              {isRowConfirming ? <><Spinner size={11} color={C.gray400} /> Confirming</> : "✅ Confirm"}
             </button>
           )}
           {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
@@ -443,98 +384,57 @@ const TransactionRow = memo(function TransactionRow({
 
 // ── Main Page ──────────────────────────────────────────────────────
 export default function TransactionsPage({ companies, transactions, setTransactions, showToast, role, cdsNumber }) {
-  const isDE = role === "DE";
-  const isVR = role === "VR";
-  const isRO = role === "RO";
+  const isDE   = role === "DE";
+  const isVR   = role === "VR";
+  const isRO   = role === "RO";
   const isSAAD = role === "SA" || role === "AD";
 
-  const isMountedRef = useRef(true);
-  const txLoadRef = useRef(0);
-  const companyLoadRef = useRef(0);
+  const isMountedRef     = useRef(true);
+  const txLoadRef        = useRef(0);
+  const companyLoadRef   = useRef(0);
 
-  const [localCompanies, setLocalCompanies] = useState([]);
+  const [localCompanies, setLocalCompanies]           = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
-  const [loadingCompanies, setLoadingCompanies] = useState(true);
-  const [pageError, setPageError] = useState(null);
+  const [loadingCompanies, setLoadingCompanies]       = useState(true);
+  const [pageError, setPageError]                     = useState(null);
 
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All");
+  const [search, setSearch]             = useState("");
+  const [typeFilter, setTypeFilter]     = useState("All");
   const [statusFilter, setStatusFilter] = useState(defaultStatus);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
-  const [selected, setSelected] = useState(new Set());
+  const [page, setPage]                 = useState(1);
+  const [pageSize, setPageSize]         = useState(50);
+  const [selected, setSelected]         = useState(new Set());
 
-  const [confirmingIds, setConfirmingIds] = useState(new Set());
-  const [verifyingIds, setVerifyingIds] = useState(new Set());
-  const [rejectingIds, setRejectingIds] = useState(new Set());
+  const [confirmingIds,  setConfirmingIds]  = useState(new Set());
+  const [verifyingIds,   setVerifyingIds]   = useState(new Set());
+  const [rejectingIds,   setRejectingIds]   = useState(new Set());
   const [unverifyingIds, setUnverifyingIds] = useState(new Set());
-  const [deletingId, setDeletingId] = useState(null);
-  const [bulkDeletingIds, setBulkDeletingIds] = useState(new Set());
+  const [deletingId,     setDeletingId]     = useState(null);
+  const [bulkDeletingIds,setBulkDeletingIds]= useState(new Set());
 
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [bulkDeleteModal, setBulkDeleteModal] = useState(null);
-  const [bulkUnverifyModal, setBulkUnverifyModal] = useState(null);
-  const [formModal, setFormModal] = useState({ open: false, transaction: null });
-  const [importModal, setImportModal] = useState(false);
-  const [actionModal, setActionModal] = useState(null);
-  const [rejectModal, setRejectModal] = useState(null);
+  const [deleteModal,      setDeleteModal]      = useState(null);
+  const [bulkDeleteModal,  setBulkDeleteModal]  = useState(null);
+  const [bulkUnverifyModal,setBulkUnverifyModal]= useState(null);
+  const [formModal,        setFormModal]        = useState({ open: false, transaction: null });
+  const [importModal,      setImportModal]      = useState(false);
+  const [actionModal,      setActionModal]      = useState(null);
+  const [rejectModal,      setRejectModal]      = useState(null);
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const effectiveCompanies = useMemo(
     () => (companies?.length ? companies : localCompanies),
     [companies, localCompanies]
   );
 
-  const toolbarControlStyle = useMemo(() => ({
-    height: 36,
-    borderRadius: 8,
-    fontSize: 12,
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-  }), []);
-
-  const toolbarButtonStyle = useMemo(() => ({
-    ...toolbarControlStyle,
-    padding: "0 14px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    whiteSpace: "nowrap",
-    flexShrink: 0,
-  }), [toolbarControlStyle]);
-
-  const toolbarInputStyle = useMemo(() => ({
-    ...toolbarControlStyle,
-    width: "100%",
-    border: `1.5px solid ${C.gray200}`,
-    padding: "0 10px 0 32px",
-    outline: "none",
-    color: C.text,
-  }), [toolbarControlStyle]);
-
-  const toolbarSelectStyle = useMemo(() => ({
-    ...toolbarControlStyle,
-    padding: "0 10px",
-    background: C.white,
-    cursor: "pointer",
-    outline: "none",
-    flexShrink: 0,
-  }), [toolbarControlStyle]);
+  const toolbarControlStyle = useMemo(() => ({ height: 36, borderRadius: 8, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }), []);
+  const toolbarButtonStyle  = useMemo(() => ({ ...toolbarControlStyle, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }), [toolbarControlStyle]);
+  const toolbarInputStyle   = useMemo(() => ({ ...toolbarControlStyle, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text }), [toolbarControlStyle]);
+  const toolbarSelectStyle  = useMemo(() => ({ ...toolbarControlStyle, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 }), [toolbarControlStyle]);
 
   const loadTransactions = useCallback(async () => {
     const requestId = ++txLoadRef.current;
-
-    if (isMountedRef.current) {
-      setLoadingTransactions(true);
-      setPageError(null);
-    }
-
+    if (isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
     try {
       const data = await sbGetTransactions();
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
@@ -543,19 +443,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
       setPageError(e.message || "Failed to load transactions.");
     } finally {
-      if (isMountedRef.current && requestId === txLoadRef.current) {
-        setLoadingTransactions(false);
-      }
+      if (isMountedRef.current && requestId === txLoadRef.current) setLoadingTransactions(false);
     }
   }, [setTransactions]);
 
   const loadCompanies = useCallback(async () => {
     const requestId = ++companyLoadRef.current;
-
-    if (isMountedRef.current) {
-      setLoadingCompanies(true);
-    }
-
+    if (isMountedRef.current) setLoadingCompanies(true);
     try {
       const data = await sbGetAllCompanies();
       if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
@@ -564,30 +458,22 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
       showToast("Error loading companies: " + e.message, "error");
     } finally {
-      if (isMountedRef.current && requestId === companyLoadRef.current) {
-        setLoadingCompanies(false);
-      }
+      if (isMountedRef.current && requestId === companyLoadRef.current) setLoadingCompanies(false);
     }
   }, [showToast]);
 
+  useEffect(() => { loadTransactions(); }, [loadTransactions]);
   useEffect(() => {
-    loadTransactions();
-  }, [loadTransactions]);
-
-  useEffect(() => {
-    if (companies?.length) {
-      setLoadingCompanies(false);
-      return;
-    }
+    if (companies?.length) { setLoadingCompanies(false); return; }
     loadCompanies();
   }, [companies, loadCompanies]);
 
-  const isAnyConfirming = confirmingIds.size > 0;
-  const isAnyVerifying = verifyingIds.size > 0;
-  const isAnyRejecting = rejectingIds.size > 0;
+  const isAnyConfirming  = confirmingIds.size > 0;
+  const isAnyVerifying   = verifyingIds.size > 0;
+  const isAnyRejecting   = rejectingIds.size > 0;
   const isAnyUnverifying = unverifyingIds.size > 0;
-  const isAnyDeleting = !!deletingId || bulkDeletingIds.size > 0;
-  const hasSelection = selected.size > 0;
+  const isAnyDeleting    = !!deletingId || bulkDeletingIds.size > 0;
+  const hasSelection     = selected.size > 0;
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -596,38 +482,29 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [transactions, cdsNumber]
   );
 
-  const txById = useMemo(
-    () => new Map(myTransactions.map(t => [t.id, t])),
-    [myTransactions]
-  );
-
-  const companyById = useMemo(
-    () => new Map(effectiveCompanies.map(c => [c.id, c])),
-    [effectiveCompanies]
-  );
+  const txById = useMemo(() => new Map(myTransactions.map(t => [t.id, t])), [myTransactions]);
+  const companyById = useMemo(() => new Map(effectiveCompanies.map(c => [c.id, c])), [effectiveCompanies]);
 
   const stats = useMemo(() => {
-    const buys = myTransactions.filter(t => t.type === "Buy");
+    const buys  = myTransactions.filter(t => t.type === "Buy");
     const sells = myTransactions.filter(t => t.type === "Sell");
     return {
-      total: myTransactions.length,
-      buys: buys.length,
-      sells: sells.length,
-      totalBuyVal: buys.reduce((s, t) => s + Number(t.total || 0), 0),
+      total:        myTransactions.length,
+      buys:         buys.length,
+      sells:        sells.length,
+      totalBuyVal:  buys.reduce((s, t) => s + Number(t.total || 0), 0),
       totalSellVal: sells.reduce((s, t) => s + Number(t.total || 0), 0),
-      pending: myTransactions.filter(t => t.status === "pending").length,
+      pending:   myTransactions.filter(t => t.status === "pending").length,
       confirmed: myTransactions.filter(t => t.status === "confirmed").length,
-      verified: myTransactions.filter(t => t.status === "verified").length,
-      rejected: myTransactions.filter(t => t.status === "rejected").length,
+      verified:  myTransactions.filter(t => t.status === "verified").length,
+      rejected:  myTransactions.filter(t => t.status === "rejected").length,
     };
   }, [myTransactions]);
 
   const filtered = useMemo(() => {
     let list = myTransactions;
-
-    if (typeFilter !== "All") list = list.filter(t => t.type === typeFilter);
+    if (typeFilter !== "All")   list = list.filter(t => t.type === typeFilter);
     if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
-
     if (normalizedSearch) {
       list = list.filter(t =>
         t.company_name?.toLowerCase().includes(normalizedSearch) ||
@@ -637,9 +514,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         t.status?.toLowerCase().includes(normalizedSearch)
       );
     }
-
     const isActive = s => s === "pending" || s === "confirmed" || s === "rejected";
-
     return [...list].sort((a, b) => {
       const aActive = isActive(a.status);
       const bActive = isActive(b.status);
@@ -649,115 +524,64 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
 
-  const paginated = useMemo(
-    () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [filtered, safePage, pageSize]
-  );
-
-  const resetPage = useCallback(() => setPage(1), []);
-
-  const resetFilters = useCallback(() => {
-    setSearch("");
-    setTypeFilter("All");
-    setStatusFilter(defaultStatus);
-    setPage(1);
-  }, []);
+  const resetPage    = useCallback(() => setPage(1), []);
+  const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
   const totals = useMemo(() => ({
-    buyAmount: filtered.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.total || 0), 0),
+    buyAmount:  filtered.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.total || 0), 0),
     sellAmount: filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.total || 0), 0),
-    fees: filtered.reduce((s, t) => s + Number(t.fees || 0), 0),
-    buyGrand: filtered.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0),
-    sellGrand: filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0),
+    fees:       filtered.reduce((s, t) => s + Number(t.fees || 0), 0),
+    buyGrand:   filtered.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0),
+    sellGrand:  filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0),
   }), [filtered]);
 
   const paginatedIds = useMemo(() => paginated.map(t => t.id), [paginated]);
-  const allSelected = paginatedIds.length > 0 && paginatedIds.every(id => selected.has(id));
+  const allSelected  = paginatedIds.length > 0 && paginatedIds.every(id => selected.has(id));
   const someSelected = paginatedIds.some(id => selected.has(id));
 
   const toggleAll = useCallback(() => {
     setSelected(prev => {
-      const newSelected = new Set(prev);
-      if (paginatedIds.length > 0 && paginatedIds.every(id => newSelected.has(id))) {
-        paginatedIds.forEach(id => newSelected.delete(id));
-      } else {
-        paginatedIds.forEach(id => newSelected.add(id));
-      }
-      return newSelected;
+      const s = new Set(prev);
+      if (paginatedIds.length > 0 && paginatedIds.every(id => s.has(id))) paginatedIds.forEach(id => s.delete(id));
+      else paginatedIds.forEach(id => s.add(id));
+      return s;
     });
   }, [paginatedIds]);
 
   const toggleOne = useCallback((id) => {
-    setSelected(prev => {
-      const s = new Set(prev);
-      s.has(id) ? s.delete(id) : s.add(id);
-      return s;
-    });
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   }, []);
 
   const selectedBuckets = useMemo(() => {
-    const pendingRejected = [];
-    const confirmed = [];
-    const verified = [];
-    const deletable = [];
-
+    const pendingRejected = [], confirmed = [], verified = [], deletable = [];
     for (const id of selected) {
       const t = txById.get(id);
       if (!t) continue;
-
       if (t.status === "pending" || t.status === "rejected") pendingRejected.push(id);
       if (t.status === "confirmed") confirmed.push(id);
-      if (t.status === "verified") verified.push(id);
-
-      if (
-        (isSAAD && t.status !== "verified") ||
-        (!isSAAD && (t.status === "pending" || t.status === "rejected"))
-      ) {
-        deletable.push(id);
-      }
+      if (t.status === "verified")  verified.push(id);
+      if ((isSAAD && t.status !== "verified") || (!isSAAD && (t.status === "pending" || t.status === "rejected"))) deletable.push(id);
     }
-
     return { pendingRejected, confirmed, verified, deletable };
   }, [selected, txById, isSAAD]);
 
-  const canBulkConfirm = (isDE || isSAAD) && selectedBuckets.pendingRejected.length > 0;
-  const canBulkDelete = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
-  const canBulkVerify = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
-  const canBulkReject = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkConfirm  = (isDE || isSAAD) && selectedBuckets.pendingRejected.length > 0;
+  const canBulkDelete   = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
+  const canBulkVerify   = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkReject   = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
   const canBulkUnverify = isSAAD && selectedBuckets.verified.length > 0;
 
-  const openFormModal = useCallback((transaction = null) => {
-    if (loadingCompanies) return;
-    setFormModal({ open: true, transaction });
-  }, [loadingCompanies]);
-
-  const openRejectModal = useCallback((ids) => {
-    setRejectModal({ ids });
-  }, []);
-
-  const openDeleteModal = useCallback((transaction) => {
-    setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name });
-  }, []);
+  const openFormModal   = useCallback((transaction = null) => { if (loadingCompanies) return; setFormModal({ open: true, transaction }); }, [loadingCompanies]);
+  const openRejectModal = useCallback((ids) => setRejectModal({ ids }), []);
+  const openDeleteModal = useCallback((transaction) => setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name }), []);
 
   const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, remarks, total }) => {
-    const isEdit = !!formModal.transaction;
+    const isEdit  = !!formModal.transaction;
     const company = companyById.get(companyId);
-
-    const payload = {
-      date,
-      company_id: companyId,
-      company_name: company?.name,
-      type,
-      qty: Number(qty),
-      price: Number(price),
-      total,
-      fees: fees ? Number(fees) : null,
-      remarks: remarks || null,
-      cds_number: cdsNumber || null,
-    };
-
+    const payload = { date, company_id: companyId, company_name: company?.name, type, qty: Number(qty), price: Number(price), total, fees: fees ? Number(fees) : null, remarks: remarks || null, cds_number: cdsNumber || null };
     try {
       if (isEdit) {
         const rows = await sbUpdateTransaction(formModal.transaction.id, payload);
@@ -771,9 +595,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         setTransactions(p => [rows[0], ...p]);
         showToast("Transaction recorded!", "success");
       }
-      if (isMountedRef.current) {
-        setFormModal({ open: false, transaction: null });
-      }
+      if (isMountedRef.current) setFormModal({ open: false, transaction: null });
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
@@ -787,17 +609,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const doBulkConfirm = useCallback(async () => {
     const ids = actionModal?.ids;
     if (!ids?.length) return;
-
     setActionModal(null);
     setConfirmingIds(new Set(ids));
-
     try {
       const updatedTransactions = [...myTransactions];
       for (const id of ids) {
         const rows = await sbConfirmTransaction(id);
-        if (!rows || rows.length === 0) {
-          throw new Error(`Transaction ${id} could not be confirmed. It may have been already confirmed or you no longer have permission.`);
-        }
+        if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
         const idx = updatedTransactions.findIndex(t => t.id === id);
         if (idx !== -1) updatedTransactions[idx] = rows[0];
       }
@@ -809,23 +627,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setConfirmingIds(new Set());
-      }
+      if (isMountedRef.current) setConfirmingIds(new Set());
     }
   }, [actionModal, myTransactions, setTransactions, showToast]);
 
-  const handleVerify = useCallback((ids, company) => {
-    setActionModal({ action: "verify", ids, company: company || null });
-  }, []);
+  const handleVerify = useCallback((ids, company) => setActionModal({ action: "verify", ids, company: company || null }), []);
 
   const doVerify = useCallback(async () => {
     const ids = actionModal?.ids;
     if (!ids?.length) return;
-
     setActionModal(null);
     setVerifyingIds(new Set(ids));
-
     try {
       await sbVerifyTransactions(ids);
       if (!isMountedRef.current) return;
@@ -836,18 +648,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setVerifyingIds(new Set());
-      }
+      if (isMountedRef.current) setVerifyingIds(new Set());
     }
   }, [actionModal, setTransactions, showToast]);
 
   const handleReject = useCallback(async (comment) => {
     const ids = rejectModal?.ids;
     if (!ids?.length) return;
-
     setRejectingIds(new Set(ids));
-
     try {
       await sbRejectTransactions(ids, comment);
       if (!isMountedRef.current) return;
@@ -859,9 +667,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setRejectingIds(new Set());
-      }
+      if (isMountedRef.current) setRejectingIds(new Set());
     }
   }, [rejectModal, setTransactions, showToast]);
 
@@ -869,9 +675,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setUnverifyingIds(prev => new Set([...prev, id]));
     try {
       const rows = await sbUnverifyTransaction(id);
-      if (!rows || rows.length === 0) {
-        throw new Error("Unverify failed – transaction may have been modified or you lack permission.");
-      }
+      if (!rows || rows.length === 0) throw new Error("Unverify failed.");
       if (!isMountedRef.current) return;
       setTransactions(p => p.map(t => t.id === id ? rows[0] : t));
       showToast("Transaction unverified and returned to Pending.", "success");
@@ -879,31 +683,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setUnverifyingIds(prev => {
-          const s = new Set(prev);
-          s.delete(id);
-          return s;
-        });
-      }
+      if (isMountedRef.current) setUnverifyingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
   }, [setTransactions, showToast]);
 
   const doBulkUnverify = useCallback(async () => {
     const ids = bulkUnverifyModal?.ids;
     if (!ids?.length) return;
-
     setBulkUnverifyModal(null);
     setUnverifyingIds(new Set(ids));
-
     try {
       const rows = await sbUnverifyTransactions(ids);
-      if (!rows || rows.length === 0) {
-        throw new Error("No verified transactions could be unverified.");
-      }
-
+      if (!rows || rows.length === 0) throw new Error("No verified transactions could be unverified.");
       if (!isMountedRef.current) return;
-
       const rowMap = new Map(rows.map(r => [r.id, r]));
       setTransactions(p => p.map(t => rowMap.get(t.id) || t));
       setSelected(new Set());
@@ -912,50 +704,36 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setUnverifyingIds(new Set());
-      }
+      if (isMountedRef.current) setUnverifyingIds(new Set());
     }
   }, [bulkUnverifyModal, setTransactions, showToast]);
 
   const handleDelete = useCallback(async () => {
     const id = deleteModal?.id;
     if (!id) return;
-
     setDeleteModal(null);
     setDeletingId(id);
-
     try {
       await sbDeleteTransaction(id);
       if (!isMountedRef.current) return;
       setTransactions(p => p.filter(t => t.id !== id));
-      setSelected(prev => {
-        const s = new Set(prev);
-        s.delete(id);
-        return s;
-      });
+      setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
       showToast("Transaction deleted.", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setDeletingId(null);
-      }
+      if (isMountedRef.current) setDeletingId(null);
     }
   }, [deleteModal, setTransactions, showToast]);
 
   const doBulkDelete = useCallback(async () => {
     const ids = bulkDeleteModal?.ids;
     if (!ids?.length) return;
-
     setBulkDeleteModal(null);
     setBulkDeletingIds(new Set(ids));
-
     try {
-      for (const id of ids) {
-        await sbDeleteTransaction(id);
-      }
+      for (const id of ids) await sbDeleteTransaction(id);
       if (!isMountedRef.current) return;
       setTransactions(p => p.filter(t => !ids.includes(t.id)));
       setSelected(new Set());
@@ -964,27 +742,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setBulkDeletingIds(new Set());
-      }
+      if (isMountedRef.current) setBulkDeletingIds(new Set());
     }
   }, [bulkDeleteModal, setTransactions, showToast]);
 
   const handleImport = useCallback(async (rows) => {
     const BATCH = 20;
     const inserted = [];
-
     for (let i = 0; i < rows.length; i += BATCH) {
-      const results = await Promise.all(
-        rows.slice(i, i + BATCH).map(row => sbInsertTransaction({ ...row, cds_number: cdsNumber || null }))
-      );
+      const results = await Promise.all(rows.slice(i, i + BATCH).map(row => sbInsertTransaction({ ...row, cds_number: cdsNumber || null })));
       results.forEach(r => inserted.push(r[0]));
     }
-
     inserted.sort((a, b) => new Date(b.date) - new Date(a.date));
-
     if (!isMountedRef.current) return;
-
     setTransactions(p => [...inserted, ...p]);
     setImportModal(false);
     showToast(`Imported ${inserted.length} transaction${inserted.length !== 1 ? "s" : ""} successfully!`, "success");
@@ -992,284 +762,78 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const statCards = useMemo(() => {
     if (isVR) return [
-      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant", icon: "📋", color: "#1D4ED8" },
-      { label: "Verified", value: stats.verified, sub: "Approved transactions", icon: "✔️", color: C.green },
-      { label: "Rejected", value: stats.rejected, sub: "Sent back for correction", icon: "✖", color: C.red },
-      { label: "Selected", value: selected.size, sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below", icon: "☑️", color: C.gold },
+      { label: "Awaiting Review",  value: stats.confirmed, sub: "Confirmed by Data Entrant",       icon: "📋", color: "#1D4ED8" },
+      { label: "Verified",         value: stats.verified,  sub: "Approved transactions",            icon: "✔️", color: C.green  },
+      { label: "Rejected",         value: stats.rejected,  sub: "Sent back for correction",         icon: "✖",  color: C.red    },
+      { label: "Selected",         value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below", icon: "☑️", color: C.gold },
     ];
     if (isDE) return [
-      { label: "My Transactions", value: stats.total, sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy },
-      { label: "Total Bought", value: `TZS ${fmtSmart(stats.totalBuyVal)}`, sub: `${stats.buys} buy orders`, icon: "📥", color: C.green },
-      { label: "Total Sold", value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red },
-      { label: "Pending Confirm", value: stats.pending, sub: "Awaiting your confirmation", icon: "🕐", color: C.gold },
+      { label: "My Transactions",  value: stats.total,                              sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy  },
+      { label: "Total Bought",     value: `TZS ${fmtSmart(stats.totalBuyVal)}`,     sub: `${stats.buys} buy orders`,     icon: "📥", color: C.green },
+      { label: "Total Sold",       value: `TZS ${fmtSmart(stats.totalSellVal)}`,    sub: `${stats.sells} sell orders`,   icon: "📤", color: C.red   },
+      { label: "Pending Confirm",  value: stats.pending,                            sub: "Awaiting your confirmation",   icon: "🕐", color: C.gold  },
     ];
     if (isRO) return [
-      { label: "Total Records", value: stats.total, sub: `${stats.verified} verified`, icon: "📋", color: C.navy },
-      { label: "Total Bought", value: `TZS ${fmtSmart(stats.totalBuyVal)}`, sub: `${stats.buys} buy orders`, icon: "📥", color: C.green },
-      { label: "Total Sold", value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red },
-      { label: "Net Position", value: `TZS ${fmtSmart(Math.abs(stats.totalBuyVal - stats.totalSellVal))}`, sub: stats.totalBuyVal >= stats.totalSellVal ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
+      { label: "Total Records",    value: stats.total,                              sub: `${stats.verified} verified`,   icon: "📋", color: C.navy  },
+      { label: "Total Bought",     value: `TZS ${fmtSmart(stats.totalBuyVal)}`,     sub: `${stats.buys} buy orders`,     icon: "📥", color: C.green },
+      { label: "Total Sold",       value: `TZS ${fmtSmart(stats.totalSellVal)}`,    sub: `${stats.sells} sell orders`,   icon: "📤", color: C.red   },
+      { label: "Net Position",     value: `TZS ${fmtSmart(Math.abs(stats.totalBuyVal - stats.totalSellVal))}`, sub: stats.totalBuyVal >= stats.totalSellVal ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
     ];
     return [
-      { label: "Total Transactions", value: stats.total, sub: `${stats.buys} buys · ${stats.sells} sells`, icon: "📋", color: C.navy },
-      { label: "Total Bought", value: `TZS ${fmtSmart(stats.totalBuyVal)}`, sub: `${stats.buys} buy orders`, icon: "📥", color: C.green },
-      { label: "Total Sold", value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red },
-      { label: "Pending Verify", value: stats.confirmed, sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold },
+      { label: "Total Transactions",value: stats.total,                             sub: `${stats.buys} buys · ${stats.sells} sells`,                         icon: "📋", color: C.navy  },
+      { label: "Total Bought",      value: `TZS ${fmtSmart(stats.totalBuyVal)}`,    sub: `${stats.buys} buy orders`,     icon: "📥", color: C.green },
+      { label: "Total Sold",        value: `TZS ${fmtSmart(stats.totalSellVal)}`,   sub: `${stats.sells} sell orders`,   icon: "📤", color: C.red   },
+      { label: "Pending Verify",    value: stats.confirmed,                         sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold  },
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
 
   const showCheckbox = true;
-  const showActions = !isRO;
+  const showActions  = !isRO;
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {deleteModal && (
-        <Modal
-          type="confirm"
-          title="Delete Transaction"
-          message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
-          onConfirm={handleDelete}
-          onClose={() => setDeleteModal(null)}
-        />
-      )}
-
-      {bulkDeleteModal && (
-        <SimpleConfirmModal
-          title="Delete Transactions"
-          message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`}
-          count={bulkDeleteModal.ids.length}
-          loading={bulkDeletingIds.size > 0}
-          onConfirm={doBulkDelete}
-          onClose={() => setBulkDeleteModal(null)}
-        />
-      )}
-
-      {bulkUnverifyModal && (
-        <SimpleConfirmModal
-          title="Unverify Transactions"
-          message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`}
-          count={bulkUnverifyModal.ids.length}
-          loading={isAnyUnverifying}
-          onConfirm={doBulkUnverify}
-          onClose={() => setBulkUnverifyModal(null)}
-        />
-      )}
-
-      {formModal.open && (
-        <TransactionFormModal
-          key={formModal.transaction?.id || "new"}
-          transaction={formModal.transaction}
-          companies={effectiveCompanies}
-          onConfirm={handleFormConfirm}
-          onClose={() => setFormModal({ open: false, transaction: null })}
-        />
-      )}
-
-      {importModal && (
-        <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={() => setImportModal(false)} />
-      )}
-
-      {actionModal && (
-        <ConfirmActionModal
-          action={actionModal.action}
-          count={actionModal.ids.length}
-          company={actionModal.company}
-          loading={isAnyConfirming || isAnyVerifying}
-          onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm}
-          onClose={() => setActionModal(null)}
-        />
-      )}
-
-      {rejectModal && (
-        <RejectModal
-          count={rejectModal.ids.length}
-          onConfirm={handleReject}
-          onClose={() => setRejectModal(null)}
-        />
-      )}
+      {deleteModal && <Modal type="confirm" title="Delete Transaction" message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`} onConfirm={handleDelete} onClose={() => setDeleteModal(null)} />}
+      {bulkDeleteModal && <SimpleConfirmModal title="Delete Transactions" message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`} count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete} onClose={() => setBulkDeleteModal(null)} />}
+      {bulkUnverifyModal && <SimpleConfirmModal title="Unverify Transactions" message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`} count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying} onConfirm={doBulkUnverify} onClose={() => setBulkUnverifyModal(null)} />}
+      {formModal.open && <TransactionFormModal key={formModal.transaction?.id || "new"} transaction={formModal.transaction} companies={effectiveCompanies} onConfirm={handleFormConfirm} onClose={() => setFormModal({ open: false, transaction: null })} />}
+      {importModal && <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={() => setImportModal(false)} />}
+      {actionModal && <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company} loading={isAnyConfirming || isAnyVerifying} onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm} onClose={() => setActionModal(null)} />}
+      {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={() => setRejectModal(null)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
         {statCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 8,
-          flexShrink: 0,
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            minWidth: 0,
-            flex: 1,
-            overflow: "hidden",
-          }}
-        >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
           <div style={{ flex: 1, minWidth: 220, maxWidth: 340, position: "relative" }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-            <input
-              value={search}
-              onChange={e => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Search company, type, date, remarks..."
-              style={toolbarInputStyle}
-              onFocus={e => { e.target.style.borderColor = C.navy; }}
-              onBlur={e => { e.target.style.borderColor = C.gray200; }}
-            />
+            <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, type, date, remarks..." style={toolbarInputStyle} onFocus={e => { e.target.style.borderColor = C.navy; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
           </div>
-
           {["All", "Buy", "Sell"].map(t => (
-            <button
-              key={t}
-              onClick={() => { setTypeFilter(t); resetPage(); }}
-              style={{
-                ...toolbarButtonStyle,
-                border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`,
-                background: typeFilter === t ? C.navy : C.white,
-                color: typeFilter === t ? C.white : C.gray600,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t}
-            </button>
+            <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }} style={{ ...toolbarButtonStyle, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>{t}</button>
           ))}
-
-          <select
-            value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-            style={{
-              ...toolbarSelectStyle,
-              border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`,
-              color: statusFilter !== "All" ? C.navy : C.gray600,
-              fontWeight: statusFilter !== "All" ? 700 : 400,
-            }}
-            onFocus={e => { e.target.style.borderColor = C.navy; }}
-            onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}
-          >
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }} style={{ ...toolbarSelectStyle, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }} onFocus={e => { e.target.style.borderColor = C.navy; }} onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
             {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-         {hasSelection ? (
-          <>
-            {canBulkConfirm && (
-              <button
-                onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })}
-                disabled={isAnyConfirming}
-                style={{
-                  ...toolbarButtonStyle,
-                  border: "none",
-                  background: isAnyConfirming ? C.gray200 : "#1D4ED8",
-                  color: C.white,
-                  fontWeight: 700,
-                  cursor: isAnyConfirming ? "not-allowed" : "pointer",
-                }}
-              >
-                {isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}
-              </button>
-            )}
-        
-            {canBulkVerify && (
-              <button
-                onClick={() => handleVerify(selectedBuckets.confirmed)}
-                disabled={isAnyVerifying}
-                style={{
-                  ...toolbarButtonStyle,
-                  border: "none",
-                  background: isAnyVerifying ? C.gray200 : C.green,
-                  color: C.white,
-                  fontWeight: 700,
-                  cursor: isAnyVerifying ? "not-allowed" : "pointer",
-                }}
-              >
-                {isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}
-              </button>
-            )}
-        
-            {canBulkReject && (
-              <button
-                onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}
-                disabled={isAnyRejecting}
-                style={{
-                  ...toolbarButtonStyle,
-                  border: `1.5px solid #FECACA`,
-                  background: isAnyRejecting ? C.gray100 : C.redBg,
-                  color: C.red,
-                  fontWeight: 700,
-                  cursor: isAnyRejecting ? "not-allowed" : "pointer",
-                }}
-              >
-                {isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}
-              </button>
-            )}
-        
-            {canBulkUnverify && (
-              <button
-                onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}
-                disabled={isAnyUnverifying}
-                style={{
-                  ...toolbarButtonStyle,
-                  border: `1.5px solid ${C.gray200}`,
-                  background: isAnyUnverifying ? C.gray100 : C.white,
-                  color: C.gray600,
-                  fontWeight: 700,
-                  cursor: isAnyUnverifying ? "not-allowed" : "pointer",
-                }}
-              >
-                {isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}
-              </button>
-            )}
-        
-            {canBulkDelete && (
-              <button
-                onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}
-                disabled={isAnyDeleting}
-                style={{
-                  ...toolbarButtonStyle,
-                  border: `1.5px solid #FECACA`,
-                  background: isAnyDeleting ? C.gray100 : C.redBg,
-                  color: C.red,
-                  fontWeight: 700,
-                  cursor: isAnyDeleting ? "not-allowed" : "pointer",
-                }}
-              >
-                {isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}
-              </button>
-            )}
-        
-            <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
-          </>
-        ) : (         
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
+          {hasSelection ? (
+            <>
+              {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...toolbarButtonStyle, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
+              {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...toolbarButtonStyle, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
+              {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...toolbarButtonStyle, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+              {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...toolbarButtonStyle, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
+              {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...toolbarButtonStyle, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+              <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
+            </>
+          ) : (
             <>
               <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
-
-              {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && (
-                <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>
-              )}
-
-              {(isDE || isSAAD) && (
-                <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>
-              )}
-
-              {(isDE || isSAAD) && (
-                <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>
-              )}
+              {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
+              {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
+              {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
             </>
           )}
         </div>
@@ -1288,12 +852,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
               <div style={{ fontWeight: 600 }}>Failed to load transactions</div>
               <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{pageError}</div>
-              <button
-                onClick={loadTransactions}
-                style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Retry
-              </button>
+              <button onClick={loadTransactions} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
             </div>
           ) : stats.total === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
@@ -1306,12 +865,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
               <div style={{ fontWeight: 600 }}>No results found</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
-              <button
-                onClick={resetFilters}
-                style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Reset Filters
-              </button>
+              <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
             </div>
           ) : (
             <>
@@ -1321,34 +875,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
                       {showCheckbox && (
                         <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36 }}>
-                          <input
-                            type="checkbox"
-                            checked={allSelected}
-                            ref={el => el && (el.indeterminate = someSelected && !allSelected)}
-                            onChange={toggleAll}
-                            style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }}
-                          />
+                          <input type="checkbox" checked={allSelected} ref={el => el && (el.indeterminate = someSelected && !allSelected)} onChange={toggleAll} style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
                         </th>
                       )}
                       {[
-                        { label: "#", align: "left" },
-                        { label: "Date", align: "left" },
-                        { label: "Company", align: "left" },
-                        { label: "Type", align: "left" },
-                        { label: "Qty", align: "right" },
-                        { label: "Price/Share", align: "right" },
-                        { label: "Total", align: "right" },
-                        { label: "Fees", align: "right" },
-                        { label: "Grand Total", align: "right" },
-                        { label: "Remarks", align: "left" },
-                        { label: "Status", align: "left" },
+                        { label: "#", align: "left" }, { label: "Date", align: "left" }, { label: "Company", align: "left" },
+                        { label: "Type", align: "left" }, { label: "Qty", align: "right" }, { label: "Price/Share", align: "right" },
+                        { label: "Total", align: "right" }, { label: "Fees", align: "right" }, { label: "Grand Total", align: "right" },
+                        { label: "Remarks", align: "left" }, { label: "Status", align: "left" },
                         ...(showActions ? [{ label: "Actions", align: "right" }] : []),
                       ].map(h => (
                         <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>{h.label}</th>
                       ))}
                     </tr>
                   </thead>
-
                   <tbody>
                     {paginated.map((transaction, i) => (
                       <TransactionRow
@@ -1369,44 +909,29 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         unverifyingIds={unverifyingIds}
                         deletingId={deletingId}
                         bulkDeletingIds={bulkDeletingIds}
-                        isDE={isDE}
-                        isVR={isVR}
-                        isSAAD={isSAAD}
-                        showCheckbox={showCheckbox}
-                        showActions={showActions}
+                        isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                        showCheckbox={showCheckbox} showActions={showActions}
                       />
                     ))}
                   </tbody>
-
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
-                      <td colSpan={showCheckbox ? 7 : 6} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
-                      </td>
+                      <td colSpan={showCheckbox ? 7 : 6} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})</td>
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyAmount)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellAmount)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellAmount)}</div>
                       </td>
                       <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, textAlign: "right", fontSize: 13 }}>{fmt(totals.fees)}</td>
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
                       <td colSpan={1 + 1 + (showActions ? 1 : 0)} />
                     </tr>
                   </tfoot>
                 </table>
               </div>
-
-              <Pagination
-                page={safePage}
-                totalPages={totalPages}
-                pageSize={pageSize}
-                setPage={setPage}
-                setPageSize={setPageSize}
-                total={stats.total}
-                filtered={filtered.length}
-              />
+              <Pagination page={safePage} totalPages={totalPages} pageSize={pageSize} setPage={setPage} setPageSize={setPageSize} total={stats.total} filtered={filtered.length} />
             </>
           )}
         </SectionCard>
