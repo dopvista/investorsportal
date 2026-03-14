@@ -9,62 +9,45 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const [activeTab, setActiveTab] = useState(manageOnly ? "manage" : "portfolio");
 
-  const [portfolio, setPortfolio] = useState([]);
+  const [portfolio, setPortfolio]             = useState([]);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
-  const [portfolioError, setPortfolioError] = useState(null);
+  const [portfolioError, setPortfolioError]   = useState(null);
 
-  const [masterList, setMasterList] = useState([]);
+  const [masterList, setMasterList]     = useState([]);
   const [masterLoading, setMasterLoading] = useState(false);
 
-  const [search, setSearch] = useState("");
-  const [deleting, setDeleting] = useState(null);
-  const [updating, setUpdating] = useState(null);
+  const [search, setSearch]         = useState("");
+  const [deleting, setDeleting]     = useState(null);
+  const [updating, setUpdating]     = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
   const [historyModal, setHistoryModal] = useState({ open: false, company: null, history: [] });
-  const [updateModal, setUpdateModal] = useState({ open: false, company: null });
-  const [formModal, setFormModal] = useState({ open: false, company: null });
+  const [updateModal, setUpdateModal]   = useState({ open: false, company: null });
+  const [formModal, setFormModal]       = useState({ open: false, company: null });
 
-  const isMountedRef = useRef(true);
-  const portfolioReqRef = useRef(0);
-  const masterReqRef = useRef(0);
+  const isMountedRef     = useRef(true);
+  const portfolioReqRef  = useRef(0);
+  const masterReqRef     = useRef(0);
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    setActiveTab(manageOnly ? "manage" : "portfolio");
-  }, [manageOnly]);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+  useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
-  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  const closeDeleteModal = useCallback(() => setDeleteModal(null), []);
+  const closeDeleteModal  = useCallback(() => setDeleteModal(null), []);
   const closeHistoryModal = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
-  const closeUpdateModal = useCallback(() => setUpdateModal({ open: false, company: null }), []);
-  const closeFormModal = useCallback(() => setFormModal({ open: false, company: null }), []);
+  const closeUpdateModal  = useCallback(() => setUpdateModal({ open: false, company: null }), []);
+  const closeFormModal    = useCallback(() => setFormModal({ open: false, company: null }), []);
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
   const loadPortfolio = useCallback(async () => {
     const reqId = ++portfolioReqRef.current;
-
     if (!cdsNumber) {
-      if (isMountedRef.current && reqId === portfolioReqRef.current) {
-        setPortfolio([]);
-        setPortfolioError(null);
-        setPortfolioLoading(false);
-      }
+      if (isMountedRef.current && reqId === portfolioReqRef.current) { setPortfolio([]); setPortfolioError(null); setPortfolioLoading(false); }
       return;
     }
-
-    if (isMountedRef.current) {
-      setPortfolioLoading(true);
-      setPortfolioError(null);
-    }
-
+    if (isMountedRef.current) { setPortfolioLoading(true); setPortfolioError(null); }
     try {
       const data = await sbGetPortfolio(cdsNumber);
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
@@ -73,19 +56,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
       setPortfolioError(e.message || "Failed to load portfolio.");
     } finally {
-      if (isMountedRef.current && reqId === portfolioReqRef.current) {
-        setPortfolioLoading(false);
-      }
+      if (isMountedRef.current && reqId === portfolioReqRef.current) setPortfolioLoading(false);
     }
   }, [cdsNumber]);
 
   const loadMasterList = useCallback(async () => {
     const reqId = ++masterReqRef.current;
-
-    if (isMountedRef.current) {
-      setMasterLoading(true);
-    }
-
+    if (isMountedRef.current) setMasterLoading(true);
     try {
       const data = await sbGetAllCompanies();
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
@@ -94,32 +71,18 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       showToast("Error loading companies: " + e.message, "error");
     } finally {
-      if (isMountedRef.current && reqId === masterReqRef.current) {
-        setMasterLoading(false);
-      }
+      if (isMountedRef.current && reqId === masterReqRef.current) setMasterLoading(false);
     }
   }, [showToast]);
 
-  useEffect(() => {
-    loadPortfolio();
-  }, [loadPortfolio]);
-
-  useEffect(() => {
-    if (!isSA || activeTab !== "manage") return;
-    loadMasterList();
-  }, [isSA, activeTab, loadMasterList]);
+  useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
+  useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
 
   const portfolioStats = useMemo(() => {
-    const priced = portfolio.filter(c => c.cds_price != null);
+    const priced   = portfolio.filter(c => c.cds_price != null);
     const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
-    const highest = priced.length ? Math.max(...priced.map(c => Number(c.cds_price))) : 0;
-
-    return {
-      total: portfolio.length,
-      avgPrice,
-      highest,
-      unpriced: portfolio.length - priced.length,
-    };
+    const highest  = priced.length ? Math.max(...priced.map(c => Number(c.cds_price))) : 0;
+    return { total: portfolio.length, avgPrice, highest, unpriced: portfolio.length - priced.length };
   }, [portfolio]);
 
   const filteredPortfolio = useMemo(() => {
@@ -127,59 +90,28 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     return portfolio.filter(c => c.name.toLowerCase().includes(normalizedSearch));
   }, [portfolio, normalizedSearch]);
 
-  const manageStats = useMemo(() => {
-    return {
-      total: masterList.length,
-      registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
-    };
-  }, [masterList, todayIso]);
+  const manageStats = useMemo(() => ({
+    total: masterList.length,
+    registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
+  }), [masterList, todayIso]);
 
   const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
     const company = updateModal.company;
     if (!company) return;
-
     const oldPrice = company.cds_price != null ? Number(company.cds_price) : null;
     setUpdateModal({ open: false, company: null });
     setUpdating(company.id);
-
     try {
       const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
-
-      await sbUpsertCdsPrice({
-        companyId: company.id,
-        companyName: company.name,
-        cdsNumber,
-        newPrice,
-        oldPrice,
-        reason,
-        updatedBy: profile?.full_name || "Unknown",
-        datetime,
-      });
-
+      await sbUpsertCdsPrice({ companyId: company.id, companyName: company.name, cdsNumber, newPrice, oldPrice, reason, updatedBy: profile?.full_name || "Unknown", datetime });
       if (!isMountedRef.current) return;
-
-      setPortfolio(prev =>
-        prev.map(c =>
-          c.id === company.id
-            ? {
-                ...c,
-                cds_price: newPrice,
-                cds_previous_price: oldPrice,
-                cds_updated_by: profile?.full_name,
-                cds_updated_at: resolvedUpdatedAt,
-              }
-            : c
-        )
-      );
-
+      setPortfolio(prev => prev.map(c => c.id === company.id ? { ...c, cds_price: newPrice, cds_previous_price: oldPrice, cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt } : c));
       showToast("Price updated for your portfolio!", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setUpdating(null);
-      }
+      if (isMountedRef.current) setUpdating(null);
     }
   }, [updateModal.company, cdsNumber, profile?.full_name, showToast]);
 
@@ -193,31 +125,25 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (!isMountedRef.current) return;
       showToast("Error loading history: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setLoadingHistory(null);
-      }
+      if (isMountedRef.current) setLoadingHistory(null);
     }
   }, [cdsNumber, showToast]);
 
   const handleFormConfirm = useCallback(async ({ name, price, remarks }) => {
     const editingCompany = formModal.company;
     const isEdit = !!editingCompany;
-
     try {
       if (isEdit) {
         const rows = await sbUpdate("companies", editingCompany.id, { name, remarks });
         if (!isMountedRef.current) return;
-
         setMasterList(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
         showToast("Company updated!", "success");
       } else {
         const rows = await sbInsert("companies", { name, price, remarks });
         if (!isMountedRef.current) return;
-
         setMasterList(prev => [rows[0], ...prev]);
         showToast("Company registered!", "success");
       }
-
       setFormModal({ open: false, company: null });
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -228,93 +154,47 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const confirmDelete = useCallback(async () => {
     const id = deleteModal?.id;
     if (!id) return;
-
     setDeleteModal(null);
     setDeleting(id);
-
     try {
       await sbDelete("companies", id);
       if (!isMountedRef.current) return;
-
       setMasterList(prev => prev.filter(c => c.id !== id));
       showToast("Company deleted.", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
-      if (isMountedRef.current) {
-        setDeleting(null);
-      }
+      if (isMountedRef.current) setDeleting(null);
     }
   }, [deleteModal, showToast]);
 
   return (
     <div>
-      {deleteModal && (
-        <Modal
-          type="confirm"
-          title="Delete Company"
-          message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
-          onConfirm={confirmDelete}
-          onClose={closeDeleteModal}
-        />
-      )}
-
-      {historyModal.open && (
-        <PriceHistoryModal
-          company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null}
-          history={historyModal.history}
-          onClose={closeHistoryModal}
-        />
-      )}
-
-      {updateModal.open && (
-        <UpdatePriceModal
-          key={updateModal.company?.id}
-          company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null}
-          onConfirm={confirmUpdatePrice}
-          onClose={closeUpdateModal}
-        />
-      )}
-
-      {formModal.open && (
-        <CompanyFormModal
-          key={formModal.company?.id || "new"}
-          company={formModal.company}
-          onConfirm={handleFormConfirm}
-          onClose={closeFormModal}
-        />
-      )}
+      {deleteModal  && <Modal type="confirm" title="Delete Company" message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`} onConfirm={confirmDelete} onClose={closeDeleteModal} />}
+      {historyModal.open && <PriceHistoryModal company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null} history={historyModal.history} onClose={closeHistoryModal} />}
+      {updateModal.open  && <UpdatePriceModal key={updateModal.company?.id} company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null} onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />}
+      {formModal.open    && <CompanyFormModal key={formModal.company?.id || "new"} company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />}
 
       {activeTab === "portfolio" && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
-            <StatCard label="Holdings" value={portfolioStats.total} sub="Companies with transactions" icon="🏢" color={C.navy} />
-            <StatCard label="Avg. Price" value={portfolioStats.avgPrice ? `TZS ${fmtSmart(portfolioStats.avgPrice)}` : "—"} sub="Across priced holdings" icon="📊" color={C.green} />
-            <StatCard label="Highest Price" value={portfolioStats.highest ? `TZS ${fmtSmart(portfolioStats.highest)}` : "—"} sub="Top priced holding" icon="🏆" color={C.gold} />
-            <StatCard label="Not Priced" value={portfolioStats.unpriced} sub="Tap ⋯ → Set Price to track" icon="💰" color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
+            <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon="🏢" color={C.navy}  />
+            <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon="📊" color={C.green} />
+            <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon="🏆" color={C.gold}  />
+            <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Tap ⋯ → Set Price to track"    icon="💰" color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, position: "relative" }}>
               <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search your holdings..."
-                style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
-                onFocus={e => { e.target.style.borderColor = C.green; }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; }}
-              />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search your holdings..." style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }} onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
             </div>
             {search && <Btn variant="secondary" onClick={() => setSearch("")}>Clear</Btn>}
             <Btn variant="secondary" icon="🔄" onClick={loadPortfolio}>Refresh</Btn>
           </div>
 
-          <SectionCard
-            title={`Portfolio Holdings (${filteredPortfolio.length}${search ? ` of ${portfolio.length}` : ""})`}
-            subtitle="Prices are your own CDS analysis prices — not shared with other users"
-          >
+          <SectionCard title={`Portfolio Holdings (${filteredPortfolio.length}${search ? ` of ${portfolio.length}` : ""})`} subtitle="Prices are your own CDS analysis prices — not shared with other users">
             {portfolioLoading ? (
               <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -343,102 +223,54 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
                     <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
-                      {[
-                        { label: "#", align: "left" },
-                        { label: "Company", align: "left" },
-                        { label: "My Price (TZS)", align: "right" },
-                        { label: "Change", align: "right" },
-                        { label: "Previous Price (TZS)", align: "right" },
-                        { label: "Last Updated", align: "left" },
-                        { label: "Updated By", align: "left" },
-                        { label: "Actions", align: "right" },
-                      ].map(h => (
-                        <th key={h.label} style={{ padding: "10px 16px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h.label}</th>
+                      {["#", "Company", "My Price (TZS)", "Change", "Previous Price (TZS)", "Last Updated", "Updated By", "Actions"].map(h => (
+                        <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "My Price (TZS)" || h === "Change" || h === "Previous Price (TZS)" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPortfolio.map((c, i) => {
                       const hasCdsPrice = c.cds_price != null;
-                      const priceUp = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
-                      const changePct =
-                        hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
-                          ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100
-                          : null;
+                      const priceUp     = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
+                      const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
+                        ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
 
                       const portfolioActions = [
-                        {
-                          icon: "💰",
-                          label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price",
-                          onClick: () => setUpdateModal({ open: true, company: c }),
-                        },
-                        {
-                          icon: "📈",
-                          label: loadingHistory === c.id ? "Loading..." : "Price History",
-                          onClick: () => viewHistory(c),
-                        },
+                        { icon: "💰", label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price", onClick: () => setUpdateModal({ open: true, company: c }) },
+                        { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => viewHistory(c) },
                       ];
 
                       return (
-                        <tr
-                          key={c.id}
-                          style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
+                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
                           onMouseEnter={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFF8DC" : C.gray50; }}
                           onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFFBEB" : "transparent"; }}
                         >
                           <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-
                           <td style={{ padding: "10px 16px", minWidth: 140 }}>
                             <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
                             {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
                           </td>
-
                           <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {hasCdsPrice ? (
-                              <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
-                            ) : (
-                              <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>
-                            )}
+                            {hasCdsPrice
+                              ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
+                              : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
                           </td>
-
                           <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {priceUp !== null && changePct !== null ? (
-                              <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}` }}>
-                                {priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
-                              </span>
-                            ) : (
-                              <span style={{ color: C.gray400 }}>—</span>
-                            )}
+                            {priceUp !== null && changePct !== null
+                              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
+                              : <span style={{ color: C.gray400 }}>—</span>}
                           </td>
-
                           <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {c.cds_previous_price != null ? (
-                              <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span>
-                            ) : (
-                              <span style={{ color: C.gray400 }}>—</span>
-                            )}
+                            {c.cds_previous_price != null ? <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span> : <span style={{ color: C.gray400 }}>—</span>}
                           </td>
-
                           <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
-                            {c.cds_updated_at ? (
-                              <span style={{ fontSize: 12, color: C.gray600 }}>
-                                {new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                                <span style={{ color: C.gray400, margin: "0 5px" }}>|</span>
-                                {new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                            ) : (
-                              <span style={{ color: C.gray400 }}>—</span>
-                            )}
+                            {c.cds_updated_at
+                              ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                              : <span style={{ color: C.gray400 }}>—</span>}
                           </td>
-
                           <td style={{ padding: "10px 16px" }}>
-                            {c.cds_updated_by ? (
-                              <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span>
-                            ) : (
-                              <span style={{ color: C.gray400 }}>—</span>
-                            )}
+                            {c.cds_updated_by ? <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span> : <span style={{ color: C.gray400 }}>—</span>}
                           </td>
-
                           <td style={{ padding: "10px 16px", textAlign: "right" }}>
                             <ActionMenu actions={portfolioActions} />
                           </td>
@@ -456,24 +288,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       {activeTab === "manage" && isSA && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
-            <StatCard label="Total Companies" value={manageStats.total} sub="In master registry" icon="🏢" color={C.navy} />
-            <StatCard label="Registered Today" value={manageStats.registeredToday} sub="Added today" icon="✅" color={C.green} />
-
-            <div
-              style={{
-                background: C.white,
-                border: `1px solid ${C.gray200}`,
-                borderRadius: 12,
-                padding: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: 90,
-              }}
-            >
-              <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>
-                Register New Company
-              </Btn>
+            <StatCard label="Total Companies"   value={manageStats.total}             sub="In master registry" icon="🏢" color={C.navy}  />
+            <StatCard label="Registered Today"  value={manageStats.registeredToday}   sub="Added today"        icon="✅" color={C.green} />
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
+              <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register New Company</Btn>
             </div>
           </div>
 
@@ -495,14 +313,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
                     <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
-                      {[
-                        { label: "#", align: "left" },
-                        { label: "Company Name", align: "left" },
-                        { label: "Remarks", align: "left" },
-                        { label: "Registered", align: "left" },
-                        { label: "Actions", align: "right" },
-                      ].map(h => (
-                        <th key={h.label} style={{ padding: "10px 18px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h.label}</th>
+                      {["#", "Company Name", "Remarks", "Registered", "Actions"].map(h => (
+                        <th key={h} style={{ padding: "10px 18px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -512,29 +324,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         { icon: "✏️", label: "Edit Company", onClick: () => setFormModal({ open: true, company: c }) },
                         { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                       ];
-
                       return (
-                        <tr
-                          key={c.id}
-                          style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
-                          onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                        >
+                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
                           <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-                          <td style={{ padding: "10px 18px", minWidth: 160 }}>
-                            <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
-                          </td>
-                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>
-                            {c.remarks || <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13, whiteSpace: "nowrap" }}>
-                            {c.created_at
-                              ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                              : "—"}
-                          </td>
-                          <td style={{ padding: "10px 18px", textAlign: "right" }}>
-                            <ActionMenu actions={manageActions} />
-                          </td>
+                          <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
+                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
+                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
+                          <td style={{ padding: "10px 18px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>
                         </tr>
                       );
                     })}
