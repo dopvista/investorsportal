@@ -1,6 +1,6 @@
 // ── src/pages/ProfileSetupPage.jsx ────────────────────────────────
 import { useState, useEffect } from "react";
-import { sbSignOut } from "../lib/supabase";
+import { sbSignOut, sbGetUserCDS, sbSearchCDS, sbAssignCDS, sbCreateCDS } from "../lib/supabase";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
@@ -8,12 +8,12 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
   const email = session?.user?.email || session?.email || "";
   const uid   = session?.user?.id    || session?.id    || "";
 
-  const [form, setForm]         = useState({ full_name: "", cds_number: "", phone: "" });
+  const [form, setForm]           = useState({ full_name: "", cds_number: "", phone: "" });
   const [cdsLocked, setCdsLocked] = useState(false);
-  const [saving,     setSaving]     = useState(false);
+  const [saving,     setSaving]   = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [checking,   setChecking]   = useState(true);
-  const [error,      setError]      = useState("");
+  const [checking,   setChecking] = useState(true);
+  const [error,      setError]    = useState("");
 
   const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
   const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -34,7 +34,7 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
               cds_number: p.cds_number || "",
               phone:      p.phone      || "",
             });
-            // ── FIX: lock CDS when pre-assigned by admin ──
+            // Lock CDS when pre-assigned by admin
             if (p.cds_number) setCdsLocked(true);
           }
         }
@@ -44,6 +44,40 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
   }, []);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // ── Ensure user_cds entry exists after profile save ───────────────
+  // Called after profile is saved. Checks if user_cds already has an
+  // entry (admin-assigned). If not, finds or creates the CDS master
+  // record and assigns it to this user.
+  const ensureUserCds = async (cdsNumber, fullName) => {
+    try {
+      // Check if user already has user_cds entries (admin pre-assigned)
+      const existing = await sbGetUserCDS(uid).catch(() => []);
+      if (existing && existing.length > 0) return; // already set up by admin
+
+      // Search for the CDS master record
+      const results = await sbSearchCDS(cdsNumber).catch(() => []);
+      let cdsRecord = results?.find(r => r.cds_number === cdsNumber.toUpperCase());
+
+      // If not found in master table, SA would normally create it.
+      // For self-setup users, we attempt to create a basic record.
+      // This covers cases where an older user was not migrated.
+      if (!cdsRecord) {
+        cdsRecord = await sbCreateCDS({
+          cdsNumber: cdsNumber.toUpperCase(),
+          cdsName:   fullName || cdsNumber,
+          phone:     form.phone || null,
+          email:     email || null,
+        }).catch(() => null);
+      }
+
+      if (cdsRecord?.id) {
+        await sbAssignCDS(uid, cdsRecord.id).catch(() => {});
+      }
+    } catch (_) {
+      // Non-critical — profile is already saved, CDS sync can be retried
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,20 +100,28 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         body: JSON.stringify(payload),
       });
 
+      let savedProfile = null;
+
       if (patchRes.ok) {
         const rows = await patchRes.json();
-        if (rows && rows.length > 0) { onComplete(rows[0]); return; }
+        if (rows && rows.length > 0) savedProfile = rows[0];
       }
 
-      const insertRes = await fetch(`${BASE}/rest/v1/profiles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
-        body: JSON.stringify({ id: uid, ...payload }),
-      });
+      if (!savedProfile) {
+        const insertRes = await fetch(`${BASE}/rest/v1/profiles`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
+          body: JSON.stringify({ id: uid, ...payload }),
+        });
+        if (!insertRes.ok) throw new Error(await insertRes.text());
+        const rows = await insertRes.json();
+        savedProfile = rows[0] || { ...payload, id: uid };
+      }
 
-      if (!insertRes.ok) throw new Error(await insertRes.text());
-      const rows = await insertRes.json();
-      onComplete(rows[0] || { ...payload, id: uid });
+      // Ensure user_cds entry exists — non-blocking, runs after profile is saved
+      await ensureUserCds(payload.cds_number, payload.full_name);
+
+      onComplete(savedProfile);
 
     } catch (err) {
       setError(err.message || "Failed to save profile. Please try again.");
@@ -135,9 +177,9 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
 
       {/* Dot grid */}
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-      {/* Green glow — top right */}
+      {/* Green glow */}
       <div style={{ position: "absolute", top: "-80px", right: "-80px", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-      {/* Gold glow — bottom left */}
+      {/* Gold glow */}
       <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       {/* Card */}
