@@ -576,17 +576,76 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </span>
               </div>
 
-              {/* ── Active CDS chip — shows active CDS + count badge ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid #bbf7d0`, borderRadius: 8, padding: "5px 8px", marginBottom: 8 }}>
-                <span>🔒</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+              {/* ── Active CDS chip — expandable accordion when multiple CDS ── */}
+              <div style={{ marginBottom: 8 }}>
+                <div
+                  onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: cdsExpanded ? "#f0fdf4" : "#f0fdf4",
+                    border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`,
+                    borderRadius: cdsExpanded ? "8px 8px 0 0" : 8,
+                    padding: "5px 8px",
+                    cursor: cdsList.length > 1 ? "pointer" : "default",
+                    transition: "border-radius 0.15s, border 0.15s",
+                    userSelect: "none",
+                  }}
+                >
+                  <span>🔒</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+                  </div>
+                  {cdsList.length > 1 && (
+                    <span style={{
+                      fontSize: 11,
+                      color: cdsExpanded ? C.green : C.gray400,
+                      transform: cdsExpanded ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s, color 0.15s",
+                      lineHeight: 1,
+                    }}>▾</span>
+                  )}
                 </div>
-                {cdsList.length > 1 && (
-                  <span style={{ fontSize: 9, fontWeight: 700, background: C.navy + "12", border: `1px solid ${C.navy}20`, color: C.navy, borderRadius: 20, padding: "1px 6px", whiteSpace: "nowrap" }}>
-                    {cdsList.length} CDS
-                  </span>
+
+                {/* Accordion body — CDS list */}
+                {cdsExpanded && cdsList.length > 1 && (
+                  <div style={{
+                    border: `1px solid ${C.green}`,
+                    borderTop: "none",
+                    borderRadius: "0 0 8px 8px",
+                    overflow: "hidden",
+                    background: C.white,
+                  }}>
+                    {cdsList.map((c, i) => {
+                      const isActive = c.cds_number === activeCdsNumber;
+                      return (
+                        <div key={c.cds_id || c.cds_number} style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          padding: "7px 9px",
+                          background: isActive ? `${C.green}07` : "transparent",
+                          borderTop: i > 0 ? `1px solid ${C.gray100}` : "none",
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                            <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
+                          </div>
+                          {isActive ? (
+                            <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                          ) : (
+                            <button
+                              onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }}
+                              style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0, transition: "opacity 0.15s" }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
+                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                            >Switch</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div style={{ padding: "5px 9px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
+                      <div style={{ fontSize: 9, color: C.gray400, lineHeight: 1.4 }}>Switching updates data system-wide.</div>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -605,7 +664,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
-                <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on this CDS</div>
+                <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>
+                  {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
+                </div>
               </div>
               <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
             </div>
@@ -618,41 +679,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             </div>
           </Section>
-
-          {/* ── My CDS Accounts — only shown when user has multiple CDS ── */}
-          {cdsList.length > 1 && (
-            <Section title="My CDS Accounts" icon="🔒">
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {cdsList.map(c => {
-                  const isActive = c.cds_number === activeCdsNumber;
-                  return (
-                    <div key={c.cds_id || c.cds_number}
-                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 9, background: isActive ? `${C.green}0a` : C.gray50, border: `1.5px solid ${isActive ? C.green + "30" : C.gray200}` }}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: 7, background: isActive ? C.green + "18" : C.navy + "0f", border: `1px solid ${isActive ? C.green + "30" : C.navy + "15"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>🔒</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
-                        <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
-                      </div>
-                      {isActive ? (
-                        <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
-                      ) : (
-                        <button
-                          onClick={() => setSwitchTarget(c)}
-                          style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 7, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                        >Switch</button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ fontSize: 10, color: C.gray400, marginTop: 8, lineHeight: 1.4 }}>
-                Switching changes the active account system-wide.
-              </div>
-            </Section>
-          )}
 
           <Section title="Security" icon="🔐">
             <button
