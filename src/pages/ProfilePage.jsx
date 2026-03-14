@@ -3,7 +3,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { C } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
-import { sbSwitchActiveCDS, sbGetUserCDS } from "../lib/supabase";
+// CDS switching is owned by App.jsx — no direct switch imports needed here
 
 const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -327,7 +327,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
 }
 
 // ── Main ProfilePage ──────────────────────────────────────────────
-export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onCdsSwitched }) {
+export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onSwitchCds }) {
   const email = emailProp || session?.user?.email || session?.email || profile?.email || "";
   const isMountedRef    = useRef(true);
   const cdsCountReqRef  = useRef(0);
@@ -394,22 +394,19 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
-  // ── CDS switch handler ────────────────────────────────────────
+  // ── CDS switch — delegates to App.jsx which is the single owner ──
   const handleSwitchCDS = useCallback(async () => {
-    if (!switchTarget || !uid) return;
+    if (!switchTarget || !onSwitchCds) return;
     setSwitching(true);
     try {
-      await sbSwitchActiveCDS(uid, switchTarget.cds_id);
-      const updatedList = await sbGetUserCDS(uid).catch(() => cdsList);
-      onCdsSwitched?.(switchTarget, updatedList);
-      showToast(`Switched to ${switchTarget.cds_number}`, "success");
-    } catch (e) {
-      showToast(e.message || "Failed to switch CDS", "error");
+      await onSwitchCds(switchTarget);
+      if (isMountedRef.current) setSwitchTarget(null);
+    } catch {
+      // App.jsx already shows the toast
     } finally {
-      setSwitching(false);
-      setSwitchTarget(null);
+      if (isMountedRef.current) setSwitching(false);
     }
-  }, [switchTarget, uid, cdsList, onCdsSwitched, showToast]);
+  }, [switchTarget, onSwitchCds]);
 
   const handleFileSelect = useCallback((e) => {
     const file = e.target.files?.[0];
