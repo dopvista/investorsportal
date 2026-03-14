@@ -353,8 +353,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   const [portfolio, setPortfolio] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [userCount, setUserCount] = useState(null);
+  const [allUsers,   setAllUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(null); // "companies" | "realized" | null
+  const [expanded, setExpanded] = useState(null); // "companies" | "realized" | "users" | null
 
   const isSAAD = ["SA", "AD"].includes(role);
   const snapRef = useRef(null); // ref to snapshot strip — scroll target on collapse
@@ -381,7 +382,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
         setPortfolio(port || []);
         setTransactions(txns || []);
-        if (isSAAD && users) setUserCount(users.length);
+        if (isSAAD && users) {
+          setUserCount(users.length);
+          setAllUsers(users);
+        }
       } catch {
         if (!cancelled) showToast?.("Dashboard load error", "error");
       } finally {
@@ -612,6 +616,12 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
+  // Users in the same CDS as the current user
+  const cdsUsers = useMemo(
+    () => cds ? allUsers.filter((u) => u.cds_number === cds) : allUsers,
+    [allUsers, cds]
+  );
+
   useEffect(() => {
     if (expanded !== null) {
       hasExpandedRef.current = true; // mark that something was opened
@@ -645,7 +655,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
           gap: 14,
-          marginBottom: (expanded === "realized" || expanded === "companies") ? 14 : 20,
+          marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users") ? 14 : 20,
         }}
       >
         <SnapCard
@@ -830,7 +840,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           display: "grid",
           gridTemplateColumns: isSAAD ? "1fr 1fr 1fr" : "1fr 1fr",
           gap: 14,
-          marginBottom: expanded === "companies" ? 14 : 22,
+          marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
         }}
       >
         <StatCard
@@ -858,10 +868,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             icon="👥"
             label="Total Users"
             value={loading ? "—" : (userCount ?? "—")}
-            subLabel="system users"
+            subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
             accent={C.navy}
-            onClick={() => onNavigate("user-management")}
-            navigates
+            onClick={() => toggleExpand("users")}
+            active={expanded === "users"}
             loading={loading}
           />
         )}
@@ -990,6 +1000,80 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 </tfoot>
               </table>
             </div>
+          )}
+        </ExpandPanel>
+      )}
+
+      {expanded === "users" && (
+        <ExpandPanel title="👥 Users — CDS Account" onClose={() => setExpanded(null)}>
+          {loading ? (
+            <Spinner />
+          ) : cdsUsers.length === 0 ? (
+            <Empty msg="No users found for this CDS account." />
+          ) : (
+            <>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <Th>User Name</Th>
+                      <Th>Role</Th>
+                      <Th>Phone Number</Th>
+                      <Th>Email</Th>
+                      <Th>Status</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cdsUsers.map((u, i) => {
+                      const isActive = u.is_active !== false && u.status !== "inactive";
+                      const roleName = u.role_name || u.role || u.role_id || "—";
+                      const initials = (u.full_name || u.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                      return (
+                        <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
+                          <Td bold>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+                              <div style={{ width: 30, height: 30, borderRadius: 8, background: C.navy + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.navy, flexShrink: 0 }}>
+                                {initials}
+                              </div>
+                              {u.full_name || "—"}
+                            </div>
+                          </Td>
+                          <Td>
+                            <span style={{ background: C.navy + "12", color: C.navy, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                              {roleName}
+                            </span>
+                          </Td>
+                          <Td color={C.gray500}>{u.phone || "—"}</Td>
+                          <Td color={C.gray500} small>{u.email || "—"}</Td>
+                          <Td>
+                            <span style={{
+                              background: isActive ? "#f0fdf4" : "#fef2f2",
+                              color: isActive ? C.green : C.red,
+                              border: `1px solid ${isActive ? C.green : C.red}25`,
+                              borderRadius: 20, padding: "2px 10px",
+                              fontSize: 10, fontWeight: 700, whiteSpace: "nowrap",
+                            }}>
+                              {isActive ? "Active" : "Inactive"}
+                            </span>
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* Navigation link to User Management */}
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => onNavigate("user-management")}
+                  style={{ background: "none", border: `1.5px solid ${C.navy}`, color: C.navy, borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.navy; }}
+                >
+                  Go to User Management →
+                </button>
+              </div>
+            </>
           )}
         </ExpandPanel>
       )}
