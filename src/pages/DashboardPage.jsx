@@ -251,7 +251,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     // ── Total invested from ALL verified buy transactions (no price needed) ──
     const verifiedBuys  = myTxns.filter(t => t.status === "verified" && t.type === "Buy");
     const verifiedSells = myTxns.filter(t => t.status === "verified" && t.type === "Sell");
-    const rawTotalInvested = verifiedBuys.reduce((s, t) => s + Number(t.total || 0), 0);
+    // Total invested = qty × price + fees (full capital deployed)
+    const rawTotalInvested = verifiedBuys.reduce((s, t) => s + Number(t.total || 0) + Number(t.fees || 0), 0);
     const rawTotalSold     = verifiedSells.reduce((s, t) => s + Number(t.total || 0), 0);
 
     let totalValue = 0, totalInvested = 0;
@@ -271,7 +272,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       let netShares = 0, buyShares = 0, buyInvested = 0;
       buyTxns.forEach(t => {
         const shares = Number(t.qty || 0);
-        const cost   = Number(t.total || 0); // use saved total for accuracy
+        const cost   = Number(t.total || 0) + Number(t.fees || 0); // total + fees = full cost
         netShares   += shares;
         buyShares   += shares;
         buyInvested += cost;
