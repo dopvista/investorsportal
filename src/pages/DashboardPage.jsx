@@ -105,44 +105,41 @@ function Badge({ value, positive }) {
 
 // ── Snapshot card (top strip) ──────────────────────────────────────
 function SnapCard({
-  label,
-  value,
-  sub,
-  dark,
-  accent,
-  expandable,
-  expanded,
-  onToggle,
-  loading,
-  children,
-  hoverable,
+  label, value, sub, dark, accent, accentBg,
+  expandable, expanded, onToggle, loading, children, hoverable,
 }) {
+  // When expanded and accentBg provided → colored header like StatCard
+  const isColored = expanded && accentBg && !dark;
+  const labelClr  = dark ? "rgba(255,255,255,0.4)"  : isColored ? "rgba(255,255,255,0.6)"  : C.gray400;
+  const valueClr  = dark ? C.white                   : isColored ? C.white                  : C.text;
+  const subClr    = dark ? "rgba(255,255,255,0.3)"   : isColored ? "rgba(255,255,255,0.55)" : C.gray400;
+  const chevClr   = isColored ? "rgba(255,255,255,0.9)"
+                  : expanded ? (accent || C.green)
+                  : dark ? "rgba(255,255,255,0.55)" : C.gray500;
+  const effectiveAccent = accent || C.green;
+
   return (
     <div
       style={{
         background: dark ? "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)" : C.white,
-        border: `1.5px solid ${expanded ? (accent || C.green) : (dark ? "#1e3a5f" : C.gray200)}`,
+        border: `1.5px solid ${expanded ? effectiveAccent : (dark ? "#1e3a5f" : C.gray200)}`,
         borderRadius: 14,
         overflow: "hidden",
-        boxShadow: expanded ? `0 4px 20px ${accent || C.green}22` : "0 1px 4px rgba(0,0,0,0.04)",
+        boxShadow: expanded ? `0 4px 20px ${effectiveAccent}33` : "0 1px 4px rgba(0,0,0,0.04)",
         transition: "all 0.18s ease",
         cursor: expandable ? "pointer" : "default",
       }}
       onMouseEnter={(e) => {
         if (!hoverable) return;
-        e.currentTarget.style.borderColor = accent || C.green;
-        e.currentTarget.style.boxShadow = `0 4px 20px ${(accent || C.green)}22`;
+        e.currentTarget.style.borderColor = effectiveAccent;
+        e.currentTarget.style.boxShadow = `0 4px 20px ${effectiveAccent}33`;
         e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
         if (!hoverable) return;
-        e.currentTarget.style.borderColor = expanded
-          ? (accent || C.green)
-          : (dark ? "#1e3a5f" : C.gray200);
-        e.currentTarget.style.boxShadow = expanded
-          ? `0 4px 20px ${(accent || C.green)}22`
-          : "0 1px 4px rgba(0,0,0,0.04)";
-        e.currentTarget.style.transform = "none";
+        e.currentTarget.style.borderColor = expanded ? effectiveAccent : (dark ? "#1e3a5f" : C.gray200);
+        e.currentTarget.style.boxShadow   = expanded ? `0 4px 20px ${effectiveAccent}33` : "0 1px 4px rgba(0,0,0,0.04)";
+        e.currentTarget.style.transform   = "none";
       }}
     >
       <div
@@ -151,54 +148,41 @@ function SnapCard({
           padding: "16px 18px",
           cursor: expandable ? "pointer" : "default",
           userSelect: "none",
+          background: isColored ? `linear-gradient(135deg, ${accentBg}ee, ${accentBg}bb)` : "transparent",
+          transition: "background 0.2s",
         }}
         onMouseEnter={(e) => {
-          if (expandable) {
-            e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : C.gray50 + "80";
-          }
+          if (!expandable || isColored) return;
+          e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : C.gray50 + "80";
         }}
         onMouseLeave={(e) => {
+          if (isColored) return;
           e.currentTarget.style.background = "transparent";
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: dark ? "rgba(255,255,255,0.4)" : C.gray400,
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-            }}
-          >
+          <div style={{ fontSize: 11, fontWeight: 700, color: labelClr, textTransform: "uppercase", letterSpacing: "0.07em" }}>
             {label}
           </div>
           {expandable && (
-            <span
-              style={{
-                fontSize: 12,
-                color: expanded
-                  ? (accent || C.green)
-                  : dark ? "rgba(255,255,255,0.55)" : C.gray500,
-                display: "inline-block",
-                transform: expanded ? "rotate(180deg)" : "none",
-                transition: "transform 0.2s",
-                fontWeight: expanded ? 700 : 400,
-              }}
-            >
-              ▾
-            </span>
+            <span style={{
+              fontSize: 12, color: chevClr,
+              display: "inline-block",
+              transform: expanded ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s",
+              fontWeight: expanded ? 700 : 400,
+            }}>▾</span>
           )}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: dark ? C.white : C.text, lineHeight: 1, marginBottom: 5 }}>
-          {loading ? <span style={{ fontSize: 14, color: dark ? "rgba(255,255,255,0.2)" : C.gray300 }}>—</span> : value}
+        <div style={{ fontSize: 26, fontWeight: 800, color: valueClr, lineHeight: 1, marginBottom: 5, transition: "color 0.2s" }}>
+          {loading ? <span style={{ fontSize: 14, color: dark ? "rgba(255,255,255,0.2)" : isColored ? "rgba(255,255,255,0.3)" : C.gray300 }}>—</span> : value}
         </div>
-        <div style={{ fontSize: 11, color: dark ? "rgba(255,255,255,0.3)" : C.gray400 }}>{sub}</div>
+        <div style={{ fontSize: 11, color: subClr, transition: "color 0.2s" }}>{sub}</div>
       </div>
 
       {expandable && (
         <div style={{ maxHeight: expanded ? "800px" : 0, overflow: "hidden", transition: "max-height 0.3s ease" }}>
-          <div style={{ borderTop: `1px solid ${dark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>{children}</div>
+          <div style={{ borderTop: `1px solid ${isColored ? "rgba(255,255,255,0.15)" : dark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>{children}</div>
         </div>
       )}
     </div>
@@ -280,16 +264,20 @@ function StatCard({ icon, label, value, subLabel, accent, accentBg, onClick, act
 }
 
 // ── Expand panel wrapper (for stat cards) ─────────────────────────
-function ExpandPanel({ title, onClose, children }) {
+function ExpandPanel({ title, onClose, accentColor, children }) {
+  const border  = accentColor || C.gray200;
+  const closeBg = accentColor ? accentColor + "18" : C.gray100;
+  const closeClr = accentColor || C.gray500;
   return (
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.gray200}`,
+        border: `1.5px solid ${border}`,
         borderRadius: 14,
         padding: "20px 24px",
         marginBottom: 20,
         animation: "dashFadeDown 0.2s ease",
+        boxShadow: accentColor ? `0 4px 20px ${accentColor}18` : "none",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
@@ -297,14 +285,14 @@ function ExpandPanel({ title, onClose, children }) {
         <button
           onClick={onClose}
           style={{
-            background: C.gray100,
+            background: closeBg,
             border: "none",
             borderRadius: "50%",
             width: 28,
             height: 28,
             cursor: "pointer",
             fontSize: 13,
-            color: C.gray500,
+            color: closeClr,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -653,7 +641,6 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       >
         <SnapCard
           label="Market Value"
-          dark
           loading={loading}
           value={
             metrics.hasFinancials
@@ -691,7 +678,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 : "open positions"
               : "Set prices in Portfolio to compute"
           }
-          accent={metrics.unrealizedGL >= 0 ? C.green : C.red}
+          accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : C.gray200}
+          accentBg={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
         />
 
         <SnapCard
@@ -703,7 +691,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
               : "—"
           }
           sub={metrics.hasFinancials ? "Return on open positions" : "Set prices in Portfolio"}
-          accent={metrics.unrealizedRetPct >= 0 ? C.green : C.red}
+          accent={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : C.gray200}
+          accentBg={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : undefined}
         />
 
         <SnapCard
@@ -711,7 +700,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           loading={loading}
           value={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL) : "—"}
           sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
-          accent={C.green}
+          accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : C.gray200}
+          accentBg={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
           expandable={metrics.hasRealized}
           expanded={expanded === "realized"}
           onToggle={() => toggleExpand("realized")}
@@ -720,7 +710,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       </div>
 
       {expanded === "realized" && (
-        <ExpandPanel title="📤 Realized Gain / Loss — Closed Positions" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="📤 Realized Gain / Loss — Closed Positions" accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red} onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : metrics.allPortfolio.filter((c) => c.realizedTrades.length > 0).length === 0 ? (
@@ -877,7 +867,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       </div>
 
       {expanded === "companies" && (
-        <ExpandPanel title="🏢 Companies" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : metrics.companyMetrics.length === 0 ? (
@@ -1004,7 +994,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       )}
 
       {expanded === "users" && (
-        <ExpandPanel title="👥 Users — CDS Account" onClose={() => setExpanded(null)}>
+        <ExpandPanel title="👥 Users — CDS Account" accentColor={C.green} onClose={() => setExpanded(null)}>
           {loading ? (
             <Spinner />
           ) : cdsUsers.length === 0 ? (
