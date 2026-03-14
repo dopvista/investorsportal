@@ -596,6 +596,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+                    {cdsList.length > 1 && (
+                      <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>
+                        {cdsExpanded ? "Click to close" : "Click here to switch CDS"}
+                      </div>
+                    )}
                   </div>
                   {cdsList.length > 1 && (
                     <span style={{
