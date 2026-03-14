@@ -74,6 +74,7 @@ function Td({ children, bold, color, small, right }) {
         color: color || C.text,
         fontSize: small ? 11 : 13,
         textAlign: right ? "right" : "left",
+        whiteSpace: right ? "nowrap" : undefined,
       }}
     >
       {children}
@@ -176,10 +177,13 @@ function SnapCard({
             <span
               style={{
                 fontSize: 12,
-                color: dark ? "rgba(255,255,255,0.35)" : C.gray400,
+                color: expanded
+                  ? (accent || C.green)
+                  : dark ? "rgba(255,255,255,0.55)" : C.gray500,
                 display: "inline-block",
                 transform: expanded ? "rotate(180deg)" : "none",
                 transition: "transform 0.2s",
+                fontWeight: expanded ? 700 : 400,
               }}
             >
               ▾
@@ -606,11 +610,16 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     setExpanded((prev) => (prev === key ? null : key));
   }, []);
 
-  // ── Scroll to top after collapse — runs after DOM is updated ─────
+  // ── Scroll to top after collapse — only after a real close, not on mount ──
+  const hasExpandedRef = useRef(false);
   useEffect(() => {
-    if (expanded !== null) return; // only act when closing
+    if (expanded !== null) {
+      hasExpandedRef.current = true; // mark that something was opened
+      return;
+    }
+    if (!hasExpandedRef.current) return; // skip initial mount
     if (!snapRef.current) return;
-    // Find the scrollable parent (the overflowY:auto content div in App.jsx)
+    // Find the scrollable parent (overflowY:auto div in App.jsx) and reset
     let el = snapRef.current.parentElement;
     while (el) {
       const style = window.getComputedStyle(el);
@@ -636,7 +645,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
           gap: 14,
-          marginBottom: expanded === "realized" ? 14 : 20,
+          marginBottom: (expanded === "realized" || expanded === "companies") ? 14 : 20,
         }}
       >
         <SnapCard
@@ -1045,6 +1054,11 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                           }}
                         />
                         {c.name}
+                        {c.hasAnomaly && (
+                          <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: "#fef2f2", color: C.red, border: `1px solid ${C.red}25`, borderRadius: 6, padding: "1px 5px", whiteSpace: "nowrap" }}>
+                            ⚠ oversold
+                          </span>
+                        )}
                       </div>
                     </Td>
                     <Td right>{fmt(c.netShares)}</Td>
@@ -1101,6 +1115,11 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                 <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                   <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
                     TOTAL
+                    {metrics.companyMetrics.length > 5 && (
+                      <div style={{ fontSize: 10, fontWeight: 400, color: C.gray400, marginTop: 2 }}>
+                        all {metrics.companyMetrics.length} companies
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
                     {fmt(metrics.companyMetrics.reduce((s, c) => s + c.netShares, 0))}
