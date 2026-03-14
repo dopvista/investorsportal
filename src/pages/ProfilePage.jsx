@@ -346,6 +346,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  // Derived constants — declared early so all useEffects and callbacks can use them
+  const uid             = session?.user?.id || profile?.id;
+  const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
+
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
   useEffect(() => {
@@ -359,10 +363,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
-  // Fetch CDS user count (for account type display)
+  // Fetch CDS user count for ACTIVE CDS (for account type display)
+  // Watches activeCdsNumber so account type updates immediately after a CDS switch
   useEffect(() => {
     const reqId = ++cdsCountReqRef.current;
-    if (!profile?.cds_number) {
+    if (!activeCdsNumber) {
       if (isMountedRef.current && reqId === cdsCountReqRef.current) setCdsUserCount(1);
       return;
     }
@@ -370,7 +375,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     fetch(`${BASE}/rest/v1/rpc/get_cds_user_count`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
-      body: JSON.stringify({ cds: profile.cds_number }),
+      body: JSON.stringify({ cds: activeCdsNumber }),
     })
       .then(r => r.json())
       .then(count => {
@@ -378,7 +383,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         setCdsUserCount(typeof count === "number" ? count : 1);
       })
       .catch(() => { if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return; setCdsUserCount(1); });
-  }, [profile?.cds_number, session?.access_token]);
+  }, [activeCdsNumber, session?.access_token]);
 
   const accountType    = cdsUserCount > 1 ? "Corporate" : "Individual";
   const completion     = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
@@ -388,9 +393,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const lastSaved      = profile?.updated_at
     ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
-
-  // Active CDS number from App.jsx prop — always current
-  const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
 
   // ── CDS switch handler ────────────────────────────────────────
   const handleSwitchCDS = useCallback(async () => {
@@ -407,7 +409,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       setSwitching(false);
       setSwitchTarget(null);
     }
-  }, [switchTarget, cdsList, onCdsSwitched, showToast]);
+  }, [switchTarget, uid, cdsList, onCdsSwitched, showToast]);
 
   const handleFileSelect = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -474,8 +476,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       if (isMountedRef.current) setSaving(false);
     }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
-
-  const uid = session?.user?.id || profile?.id;
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
