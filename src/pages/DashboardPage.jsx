@@ -606,8 +606,15 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     setExpanded((prev) => {
       const closing = prev === key;
       if (closing && snapRef.current) {
-        // Scroll smoothly back to the top of the dashboard on collapse
-        snapRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Walk up the DOM tree to find the scrollable parent and reset its scrollTop
+        let el = snapRef.current.parentElement;
+        while (el) {
+          if (el.scrollTop > 0) {
+            el.scrollTo({ top: 0, behavior: "smooth" });
+            break;
+          }
+          el = el.parentElement;
+        }
       }
       return closing ? null : key;
     });
