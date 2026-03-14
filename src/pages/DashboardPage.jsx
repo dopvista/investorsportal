@@ -1049,7 +1049,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                             </span>
                           </Td>
                           <Td color={C.gray500}>{u.phone || "—"}</Td>
-                          <Td color={C.gray500} small>{u.email || "—"}</Td>
+                          <Td color={C.gray500}>{u.email || "—"}</Td>
                           <Td>
                             <span style={{
                               background: isActive ? "#f0fdf4" : "#fef2f2",
