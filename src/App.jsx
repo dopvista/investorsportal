@@ -416,7 +416,7 @@ export default function App() {
             })}
           </nav>
 
-          <UserMenu profile={profile} session={session} role={role} onSignOut={handleSignOut} onOpenProfile={() => setTab("profile")}/>
+          <UserMenu profile={activeProfile} session={session} role={role} onSignOut={handleSignOut} onOpenProfile={() => setTab("profile")}/>
         </div>
       </div>
 
