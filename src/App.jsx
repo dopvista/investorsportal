@@ -510,7 +510,7 @@ export default function App() {
 
   // ── Tab header meta ────────────────────────────────────────────────
   const TAB_META = {
-    dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"} 👋`, sub: "" },
+    dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"} 👋`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
     companies:        { title: "Portfolio",        sub: "Your CDS portfolio holdings" },
     transactions:     { title: "Transactions",     sub: "Record and view all buy/sell activity" },
     profile:          { title: "My Profile",       sub: "Manage your personal information" },
