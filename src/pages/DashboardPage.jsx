@@ -603,22 +603,25 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
   }, [portfolio, myTxns, groupedVerifiedByCompany]);
 
   const toggleExpand = useCallback((key) => {
-    setExpanded((prev) => {
-      const closing = prev === key;
-      if (closing && snapRef.current) {
-        // Walk up the DOM tree to find the scrollable parent and reset its scrollTop
-        let el = snapRef.current.parentElement;
-        while (el) {
-          if (el.scrollTop > 0) {
-            el.scrollTo({ top: 0, behavior: "smooth" });
-            break;
-          }
-          el = el.parentElement;
-        }
-      }
-      return closing ? null : key;
-    });
+    setExpanded((prev) => (prev === key ? null : key));
   }, []);
+
+  // ── Scroll to top after collapse — runs after DOM is updated ─────
+  useEffect(() => {
+    if (expanded !== null) return; // only act when closing
+    if (!snapRef.current) return;
+    // Find the scrollable parent (the overflowY:auto content div in App.jsx)
+    let el = snapRef.current.parentElement;
+    while (el) {
+      const style = window.getComputedStyle(el);
+      const overflow = style.overflowY;
+      if ((overflow === "auto" || overflow === "scroll") && el.scrollTop > 0) {
+        el.scrollTo({ top: 0, behavior: "smooth" });
+        break;
+      }
+      el = el.parentElement;
+    }
+  }, [expanded]);
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
