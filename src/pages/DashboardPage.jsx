@@ -317,21 +317,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     };
   }, [portfolio, myTxns]);
 
-  const recentTxns = useMemo(() => myTxns.slice(0, 5), [myTxns]);
 
-  const statusSegments = useMemo(() => [
-    { label: "Verified",  value: metrics.verified,  color: C.green   },
-    { label: "Confirmed", value: metrics.confirmed, color: "#3b82f6" },
-    { label: "Pending",   value: metrics.pending,   color: "#f59e0b" },
-    { label: "Rejected",  value: metrics.rejected,  color: C.red     },
-  ], [metrics]);
-
-  const portfolioSegments = useMemo(
-    () => metrics.companyMetrics
-      .filter(c => c.marketValue > 0)
-      .map(c => ({ label: c.name, value: c.marketValue, color: c.color })),
-    [metrics.companyMetrics]
-  );
 
   const toggleExpand = useCallback((key) => {
     setExpanded(prev => prev === key ? null : key);
@@ -513,100 +499,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         </ExpandPanel>
       )}
 
-      {/* ── Bottom row ────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16 }}>
 
-        {/* Transaction status chart */}
-        <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "20px" }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 18 }}>📊 Transaction Status</div>
-          {loading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 130 }}>
-              <div style={{ width: 24, height: 24, border: `3px solid ${C.gray100}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-              <div style={{ flexShrink: 0 }}>
-                <DonutChart segments={metrics.total > 0 ? statusSegments : [{ value: 1, color: C.gray100 }]} size={130} thickness={24} />
-              </div>
-              <div style={{ flex: 1 }}>
-                {statusSegments.map(seg => (
-                  <div key={seg.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: C.gray500 }}>{seg.label}</span>
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: seg.value > 0 ? C.text : C.gray300 }}>{seg.value}</span>
-                  </div>
-                ))}
-                <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 8, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11, color: C.gray400, fontWeight: 600 }}>Total</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{metrics.total}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && portfolioSegments.length > 0 && (
-            <>
-              <div style={{ height: 1, background: C.gray100, margin: "18px 0" }} />
-              <div style={{ fontWeight: 700, fontSize: 12, color: C.gray500, marginBottom: 12 }}>Portfolio Weight</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <DonutChart segments={portfolioSegments} size={100} thickness={20} />
-                <div style={{ flex: 1 }}>
-                  {portfolioSegments.map(seg => (
-                    <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, color: C.gray500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{seg.label}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.gray500 }}>{metrics.totalValue > 0 ? ((seg.value / metrics.totalValue) * 100).toFixed(1) : 0}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Recent transactions */}
-        <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🕐 Recent Transactions</div>
-            <button
-              onClick={() => onNavigate("transactions")}
-              style={{ background: "none", border: `1px solid ${C.gray200}`, borderRadius: 8, padding: "4px 12px", fontSize: 11, color: C.gray500, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.green; e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.green; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.gray500; e.currentTarget.style.borderColor = C.gray200; }}
-            >
-              View All →
-            </button>
-          </div>
-          {loading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160 }}>
-              <div style={{ width: 24, height: 24, border: `3px solid ${C.gray100}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-            </div>
-          ) : recentTxns.length === 0 ? (
-            <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "40px 0" }}>No transactions recorded yet.</div>
-          ) : (
-            recentTxns.map((txn, i) => {
-              const company = portfolio.find(c => c.id === txn.company_id);
-              const isLast  = i === recentTxns.length - 1;
-              return (
-                <div key={txn.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0", borderBottom: isLast ? "none" : `1px solid ${C.gray100}` }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 10, background: C.navy + "10", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📋</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {company?.name || "Unknown Company"}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
-                      {txn.date ? new Date(txn.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                    </div>
-                  </div>
-                  <StatusBadge status={txn.status} />
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
     </div>
   );
 }
