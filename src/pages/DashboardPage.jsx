@@ -356,14 +356,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         const [port, txns, users] = await Promise.all([
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
-          isSAAD ? sbGetAllUsers().catch(() => []) : Promise.resolve(null),
+          sbGetAllUsers().catch(() => []),
         ]);
 
         if (cancelled) return;
 
         setPortfolio(port || []);
         setTransactions(txns || []);
-        if (isSAAD && users) {
+        if (users) {
           setUserCount(users.length);
           setAllUsers(users);
         }
@@ -834,7 +834,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isSAAD ? "1fr 1fr 1fr" : "1fr 1fr",
+          gridTemplateColumns: "1fr 1fr 1fr",
           gap: 14,
           marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
         }}
@@ -852,19 +852,18 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           loading={loading}
         />
         {/* 2 — Total Users (SA/AD only) */}
-        {isSAAD && (
-          <StatCard
-            icon="👥"
-            label="Total Users"
-            value={loading ? "—" : (userCount ?? "—")}
-            subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
-            accent="#2563eb"
-            accentBg="#2563eb"
-            onClick={onToggleUsers}
-            active={expanded === "users"}
-            loading={loading}
-          />
-        )}
+        {/* Total Users — visible to all roles */}
+        <StatCard
+          icon="👥"
+          label="Total Users"
+          value={loading ? "—" : (userCount ?? "—")}
+          subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
+          accent="#2563eb"
+          accentBg="#2563eb"
+          onClick={onToggleUsers}
+          active={expanded === "users"}
+          loading={loading}
+        />
         {/* 3 — Unverified Transactions */}
         <StatCard
           icon="⏳"
@@ -1064,17 +1063,19 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   </tbody>
                 </table>
               </div>
-              {/* Navigation link to User Management */}
-              <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={onNavUserMgmt}
-                  style={{ background: "none", border: `1.5px solid ${C.navy}`, color: C.navy, borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.navy; }}
-                >
-                  Go to User Management →
-                </button>
-              </div>
+              {/* Navigation link — SA/AD only */}
+              {isSAAD && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    onClick={onNavUserMgmt}
+                    style={{ background: "none", border: `1.5px solid ${C.navy}`, color: C.navy, borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.navy; }}
+                  >
+                    Go to User Management →
+                  </button>
+                </div>
+              )}
             </>
           )}
         </ExpandPanel>
