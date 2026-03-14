@@ -370,10 +370,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
             <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>{today}</span>
           </div>
         </div>
-        <div style={{ position: "relative", zIndex: 1, textAlign: "right" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>CDS Account</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.gold, letterSpacing: "0.05em" }}>{profile?.cds_number || "—"}</div>
-        </div>
+
       </div>
 
       {/* ── Stat Cards ────────────────────────────────────────────── */}
