@@ -574,45 +574,37 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           )}
         </div>
 
-        <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
-            {isSA ? "Assign CDS" : "Assign from your pool"}
-          </div>
-
-          {/* SA: global search + create new | AD: pool-only expand/collapse (no search outside pool) */}
-          {isSA ? (
-            <CDSSearchBox
-              key={searchBoxKey}
-              callerRole={callerRole}
-              adCdsList={[]}
-              excludeCdsIds={userCdsList.map(c => c.cds_id)}
-              excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
-              onSelect={setSelectedCds}
-              placeholder="Search CDS number or owner name..."
-            />
-          ) : (
-            <CDSPoolPicker
-              pool={adPool}
-              excludeCdsIds={userCdsList.map(c => c.cds_id)}
-              excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
-              mode="single"
-              onSelect={setSelectedCds}
-            />
-          )}
-
-          {selectedCds && (
-            <button
-              onClick={handleAssign}
-              disabled={assigning}
-              style={{ marginTop: 10, width: "100%", padding: "9px", borderRadius: 9, border: "none", background: assigning ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: assigning ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: assigning ? "none" : `0 2px 10px ${C.green}44`, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
-            >
-              {assigning
-                ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />Assigning...</>
-                : `Assign ${selectedCds.cds_number}`}
-            </button>
-          )}
-        </div>
+        {/* SA only — AD cannot assign CDS to anyone, only SA can */}
+        {isSA && (
+          <>
+            <div style={{ height: 1, background: C.gray100, margin: "4px 0 14px" }} />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
+                Assign CDS
+              </div>
+              <CDSSearchBox
+                key={searchBoxKey}
+                callerRole={callerRole}
+                adCdsList={[]}
+                excludeCdsIds={userCdsList.map(c => c.cds_id)}
+                excludeCdsNumbers={userCdsList.map(c => c.cds_number)}
+                onSelect={setSelectedCds}
+                placeholder="Search CDS number or owner name..."
+              />
+              {selectedCds && (
+                <button
+                  onClick={handleAssign}
+                  disabled={assigning}
+                  style={{ marginTop: 10, width: "100%", padding: "9px", borderRadius: 9, border: "none", background: assigning ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: assigning ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: assigning ? "none" : `0 2px 10px ${C.green}44`, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                >
+                  {assigning
+                    ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />Assigning...</>
+                    : `Assign ${selectedCds.cds_number}`}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </Modal>
 
       {removeTarget && (
@@ -1153,7 +1145,18 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // AD scope: only show users whose active CDS is in AD's pool
+    const isAD = role === "AD";
+    const adCdsNums = isAD
+      ? new Set(callerCdsList.map(c => String(c.cds_number || "").toUpperCase()))
+      : null;
+
     return users.filter(u => {
+      // AD-scope gate — runs before any search/filter
+      if (isAD && adCdsNums) {
+        const userCds = String(u.cds_number || "").toUpperCase();
+        if (!userCds || !adCdsNums.has(userCds)) return false;
+      }
       const matchSearch = !q ||
         (u.full_name || "").toLowerCase().includes(q) ||
         (u.cds_number || "").toLowerCase().includes(q) ||
@@ -1163,7 +1166,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
       const matchStatus = filterStatus === "ALL" || (filterStatus === "ACTIVE" && u.is_active) || (filterStatus === "INACTIVE" && !u.is_active);
       return matchSearch && matchRole && matchStatus;
     });
-  }, [users, search, filterRole, filterStatus]);
+  }, [users, search, filterRole, filterStatus, role, callerCdsList]);
 
   const stats = useMemo(() => {
     const total       = users.length;
