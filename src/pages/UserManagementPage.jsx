@@ -385,7 +385,7 @@ function CDSPoolPicker({ pool = [], excludeCdsIds = [], excludeCdsNumbers = [], 
       : `${selected.length} CDS selected ▾`;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div
         onClick={() => available.length > 0 && setOpen(o => !o)}
         style={{ ...inp(), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: available.length > 0 ? "pointer" : "not-allowed", userSelect: "none", borderColor: open ? C.green : C.gray200, borderRadius: open ? "9px 9px 0 0" : 9, background: available.length === 0 ? C.gray50 : C.white, transition: "border-radius 0.15s, border 0.15s" }}
@@ -395,7 +395,7 @@ function CDSPoolPicker({ pool = [], excludeCdsIds = [], excludeCdsNumbers = [], 
       </div>
 
       {open && (
-        <div style={{ border: `1.5px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 9px 9px", background: C.white, overflow: "hidden", boxShadow: "0 6px 16px rgba(0,0,0,0.08)" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, border: `1.5px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 9px 9px", background: C.white, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.15)", maxHeight: 220, overflowY: "auto" }}>
           {available.length === 0 ? (
             <div style={{ padding: "10px 14px", fontSize: 12, color: C.gray400 }}>No available CDS in your pool</div>
           ) : available.map((c, i) => {
@@ -451,6 +451,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
   const [selectedCds, setSelectedCds] = useState(null);
   const [assigning, setAssigning]     = useState(false);
   const [removeTarget, setRemoveTarget] = useState(null);
+  const [searchBoxKey, setSearchBoxKey] = useState(0); // incremented after assign → forces CDSSearchBox remount + clears stale state
   const isSA = callerRole === "SA";
   const isAD = callerRole === "AD";
 
@@ -503,6 +504,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
     try {
       await sbAssignCDS(user.id, selectedCds.id || selectedCds.cds_id);
       showToast(`${selectedCds.cds_number} assigned`, "success");
+      setSearchBoxKey(k => k + 1); // reset CDSSearchBox — clears query + selected pill
       loadUserCds(true);   // silent background sync — no loading flash
       onRefresh?.();       // quiet table update
     } catch (e) {
@@ -581,6 +583,7 @@ function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, o
           {/* SA: global search + create new | AD: pool-only expand/collapse (no search outside pool) */}
           {isSA ? (
             <CDSSearchBox
+              key={searchBoxKey}
               callerRole={callerRole}
               adCdsList={[]}
               excludeCdsIds={userCdsList.map(c => c.cds_id)}
@@ -687,7 +690,10 @@ function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
       footer={
         <>
           <CancelBtn onClose={onClose} />
-          <ConfirmBtn onClick={handleConfirm} label="Confirm Remove" color="#dc2626" loading={saving} disabled={!canConfirm} />
+          {canConfirm
+            ? <ConfirmBtn onClick={handleConfirm} label="Confirm Remove" color="#dc2626" loading={saving} />
+            : <div style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.gray400, fontStyle: "italic" }}>← Choose an option above</div>
+          }
         </>
       }
     >
