@@ -1064,6 +1064,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const [users, setUsers]               = useState([]);
   const [roles, setRoles]               = useState([]);
   const [callerCdsList, setCallerCdsList] = useState([]);
+  const [adScopeUserIds, setAdScopeUserIds] = useState(null); // Set<string> for AD — all user IDs sharing AD's CDS
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
@@ -1113,14 +1114,28 @@ export default function UserManagementPage({ role, showToast, profile }) {
   }, []);
 
   // FIX: loadCallerCds as reusable callback — called on mount AND after invite success
-  // Keeps AD's CDS pool in sync (e.g. after SA adds new CDS, pool updates)
+  // For AD: also fetches all users assigned to any of their CDS → builds adScopeUserIds Set
   const loadCallerCds = useCallback(async () => {
     if (!isAllowed || !profile?.id) return;
     try {
       const list = await sbGetUserCDS(profile.id);
-      if (isMountedRef.current) setCallerCdsList(list || []);
+      if (!isMountedRef.current) return;
+      setCallerCdsList(list || []);
+
+      // AD: build the full set of user IDs across all assigned CDS
+      // Uses sbGetCDSAssignedUsers per CDS — covers users even when the CDS isn't their active one
+      if (role === "AD" && list?.length > 0) {
+        const results = await Promise.all(
+          list.map(c => sbGetCDSAssignedUsers(c.cds_id).catch(() => []))
+        );
+        if (!isMountedRef.current) return;
+        const idSet = new Set(results.flat().map(u => String(u.user_id)));
+        setAdScopeUserIds(idSet);
+      } else {
+        setAdScopeUserIds(null); // SA sees all — no scope filter
+      }
     } catch {}
-  }, [isAllowed, profile?.id]);
+  }, [isAllowed, profile?.id, role]);
 
   useEffect(() => { loadCallerCds(); }, [loadCallerCds]);
   useEffect(() => { if (!isAllowed) return; loadData(); }, [isAllowed, loadData]);
@@ -1145,18 +1160,11 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    // AD scope: only show users whose active CDS is in AD's pool
-    const isAD = role === "AD";
-    const adCdsNums = isAD
-      ? new Set(callerCdsList.map(c => String(c.cds_number || "").toUpperCase()))
-      : null;
-
     return users.filter(u => {
-      // AD-scope gate — runs before any search/filter
-      if (isAD && adCdsNums) {
-        const userCds = String(u.cds_number || "").toUpperCase();
-        if (!userCds || !adCdsNums.has(userCds)) return false;
-      }
+      // AD scope: only show users whose user_id appears in any of AD's CDS assignments
+      // This covers users regardless of which CDS is their active one
+      if (adScopeUserIds !== null && !adScopeUserIds.has(String(u.id))) return false;
+
       const matchSearch = !q ||
         (u.full_name || "").toLowerCase().includes(q) ||
         (u.cds_number || "").toLowerCase().includes(q) ||
@@ -1166,7 +1174,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
       const matchStatus = filterStatus === "ALL" || (filterStatus === "ACTIVE" && u.is_active) || (filterStatus === "INACTIVE" && !u.is_active);
       return matchSearch && matchRole && matchStatus;
     });
-  }, [users, search, filterRole, filterStatus, role, callerCdsList]);
+  }, [users, search, filterRole, filterStatus, adScopeUserIds]);
 
   const stats = useMemo(() => {
     const total       = users.length;
