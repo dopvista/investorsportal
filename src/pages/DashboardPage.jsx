@@ -37,6 +37,9 @@ const CHART_COLORS = [
 // ── Avatar accent colors (consistent per user name) ──────────────
 const AVATAR_COLORS = ["#0B1F3A","#2563eb","#065F46","#7C3AED","#B45309","#0369A1","#1D4ED8","#9D174D"];
 
+// ── Role display names — module scope so never recreated per row ───────────────
+const ROLE_NAMES = { SA: "Super Admin", AD: "Admin", DE: "Data Entrant", VR: "Verifier", RO: "Read Only" };
+
 // ── Status helpers ─────────────────────────────────────────────────
 const statusOf = (t) => String(t?.status || "").toLowerCase().trim();
 const isVerified = (t) => statusOf(t) === "verified";
@@ -333,7 +336,7 @@ function Empty({ msg }) {
 }
 
 // ── Main DashboardPage ─────────────────────────────────────────────
-export default function DashboardPage({ profile, role, session, showToast, onNavigate, activeCds }) {
+export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
   const [portfolio, setPortfolio] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [userCount, setUserCount]     = useState(null);
@@ -362,7 +365,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         const [port, txns, users, members] = await Promise.all([
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
-          sbGetAllUsers().catch(() => []),
+          // Only fetch all users when no active CDS — for global userCount display
+          // When CDS is active, cdsMembers covers the users panel; allUsers is not needed
+          activeCds?.cds_id ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
           // Load all users assigned to the active CDS (regardless of their own active CDS)
           activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
         ]);
@@ -400,7 +405,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     return () => {
       cancelled = true;
     };
-  }, [profile?.cds_number, activeCds?.cds_id, isSAAD]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.cds_number, activeCds?.cds_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
@@ -560,10 +565,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     const unrealizedGL = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
 
-    const totalPortfolioGL = unrealizedGL + totalRealizedGLAll;
-    const totalPortfolioRetPct = totalCurrentCost > 0 ? (totalPortfolioGL / totalCurrentCost) * 100 : 0;
-
-    // Use loop-accumulated totals — no redundant reduce needed
+    // Loop-accumulated totals — no extra passes needed
     const totalRealizedGL   = totalRealizedGLAll;
     const totalSaleProceeds = withWeights.reduce((s, c) => s + c.totalSaleProceeds, 0);
     const totalCostBasis    = withWeights.reduce((s, c) => s + c.totalCostBasis, 0);
@@ -607,12 +609,9 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       totalCostBasis,
       totalSharesSold,
       hasRealized,
-      totalPortfolioGL,
-      totalPortfolioRetPct,
       hasFinancials,
       hasCostData,
       companyMetrics: activeCompanies,
-      allPortfolio: withWeights,
       realizedCompanies,
       totalNetShares,
       totalBuyTransactionCount,
@@ -634,10 +633,19 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
-  // cdsUsers: all users assigned to the active CDS — directly from get_cds_assigned_users RPC
-  // RPC now returns phone, email, avatar_url — no cross-reference needed
-  // Works for all roles (DE/VR/RO) since get_cds_assigned_users is SECURITY DEFINER
-  const cdsUsers = cdsMembers;
+  // displayCdsUsers: precomputed display fields for each CDS member row
+  // Computed once here so row render does zero per-cell work
+  const cdsUsers = useMemo(() => cdsMembers.map(u => {
+    const name       = u.full_name || u.email || "?";
+    const code       = u.role_name || u.role || u.role_code || "";
+    return {
+      ...u,
+      _roleName:    ROLE_NAMES[code] || code || "—",
+      _initials:    name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2),
+      _avatarColor: AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length],
+      _isActive:    u.is_active !== false && u.status !== "inactive",
+    };
+  }), [cdsMembers]);
 
   useEffect(() => {
     if (expanded !== null) {
@@ -1050,63 +1058,41 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                     </tr>
                   </thead>
                   <tbody>
-                    {cdsUsers.map((u, i) => {
-                      const isActive    = u.is_active !== false && u.status !== "inactive";
-                      const ROLE_NAMES   = { SA: "Super Admin", AD: "Admin", DE: "Data Entrant", VR: "Verifier", RO: "Read Only" };
-                      const roleName    = ROLE_NAMES[u.role_name || u.role || u.role_code] || u.role_name || u.role || u.role_code || "—";
-                      const initials    = (u.full_name || u.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-                      const avatarColor = AVATAR_COLORS[(u.full_name || u.email || "").charCodeAt(0) % AVATAR_COLORS.length];
-                      const avatarUrl   = u.avatar_url || null;
-                      return (
+                    {cdsUsers.map((u, i) => (
                         <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? C.gray50 + "60" : "transparent" }}>
                           <Td bold>
                             <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
-                              {/* Avatar — photo if available, initials fallback */}
                               <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
-                                {avatarUrl && (
+                                {u.avatar_url && (
                                   <img
-                                    src={avatarUrl}
+                                    src={u.avatar_url}
                                     alt={u.full_name || "User"}
                                     style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", display: "block", border: `1.5px solid ${C.gray200}` }}
                                     onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
                                   />
                                 )}
-                                <div style={{
-                                  width: 30, height: 30, borderRadius: 8,
-                                  background: `linear-gradient(135deg, ${avatarColor}, ${avatarColor}99)`,
-                                  display: avatarUrl ? "none" : "flex",
-                                  alignItems: "center", justifyContent: "center",
-                                  fontSize: 11, fontWeight: 800, color: C.white,
-                                }}>
-                                  {initials}
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`, display: u.avatar_url ? "none" : "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.white }}>
+                                  {u._initials}
                                 </div>
-                                {/* Online status dot */}
-                                <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: isActive ? "#16a34a" : "#d1d5db" }} />
+                                <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: u._isActive ? "#16a34a" : "#d1d5db" }} />
                               </div>
                               {u.full_name || "—"}
                             </div>
                           </Td>
                           <Td>
                             <span style={{ background: C.navy + "12", color: C.navy, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                              {roleName}
+                              {u._roleName}
                             </span>
                           </Td>
                           <Td color={C.gray500}>{u.phone || "—"}</Td>
                           <Td color={C.gray500}>{u.email || "—"}</Td>
                           <Td>
-                            <span style={{
-                              background: isActive ? "#f0fdf4" : "#fef2f2",
-                              color: isActive ? C.green : C.red,
-                              border: `1px solid ${isActive ? C.green : C.red}25`,
-                              borderRadius: 20, padding: "2px 10px",
-                              fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-                            }}>
-                              {isActive ? "Active" : "Inactive"}
+                            <span style={{ background: u._isActive ? "#f0fdf4" : "#fef2f2", color: u._isActive ? C.green : C.red, border: `1px solid ${u._isActive ? C.green : C.red}25`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                              {u._isActive ? "Active" : "Inactive"}
                             </span>
                           </Td>
                         </tr>
-                      );
-                    })}
+                      ))}
                   </tbody>
                 </table>
               </div>
