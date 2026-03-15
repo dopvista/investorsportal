@@ -615,11 +615,12 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
-  // Users in the same CDS as the current user
-  const cdsUsers = useMemo(
-    () => cds ? allUsers.filter((u) => u.cds_number === cds) : allUsers,
-    [allUsers, cds]
-  );
+  // allUsers is already RPC-scoped:
+  //   SA → all system users
+  //   AD → all users sharing any CDS with this AD (via user_cds join in get_all_users)
+  // No further client-side filter needed — u.cds_number === cds would wrongly
+  // exclude users whose assigned CDS differs from their profile.cds_number
+  const cdsUsers = allUsers;
 
   useEffect(() => {
     if (expanded !== null) {
@@ -862,7 +863,13 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           icon="👥"
           label="Total Users"
           value={loading ? "—" : (userCount ?? "—")}
-          subLabel={`${cdsUsers.length} in CDS ${cds || "—"}`}
+          subLabel={
+            role === "AD"
+              ? `${allUsers.length} sharing your CDS`
+              : cds
+                ? `${allUsers.filter(u => u.cds_number === cds).length} on ${cds}`
+                : `${allUsers.length} total`
+          }
           accent="#2563eb"
           accentBg="#2563eb"
           onClick={onToggleUsers}
@@ -1013,7 +1020,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
       )}
 
       {expanded === "users" && (
-        <ExpandPanel title="👥 Users — CDS Account" accentColor="#2563eb" onClose={onCloseExpand}>
+        <ExpandPanel title={role === "AD" ? `👥 Users sharing your CDS accounts (${allUsers.length})` : `👥 Users — ${cds ? `CDS ${cds}` : "All"} (${allUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
           {loading ? (
             <Spinner />
           ) : cdsUsers.length === 0 ? (
