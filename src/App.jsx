@@ -550,6 +550,7 @@ export default function App() {
               key={`dashboard-${activeCdsNumber||"none"}`}
               profile={activeProfile} role={role} session={session}
               showToast={showToast} onNavigate={setTab}
+              activeCds={activeCds}
             />
           )}
           {tab==="companies"&&(
