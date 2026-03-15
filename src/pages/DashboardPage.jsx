@@ -1,7 +1,7 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { C } from "../components/ui";
-import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers } from "../lib/supabase";
+import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
 
 // ── Formatters ─────────────────────────────────────────────────────
 const fmt = (n) => {
@@ -333,11 +333,12 @@ function Empty({ msg }) {
 }
 
 // ── Main DashboardPage ─────────────────────────────────────────────
-export default function DashboardPage({ profile, role, session, showToast, onNavigate }) {
+export default function DashboardPage({ profile, role, session, showToast, onNavigate, activeCds }) {
   const [portfolio, setPortfolio] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [userCount, setUserCount] = useState(null);
-  const [allUsers,   setAllUsers]   = useState([]);
+  const [userCount, setUserCount]     = useState(null);
+  const [allUsers,   setAllUsers]     = useState([]);
+  const [cdsMembers, setCdsMembers]   = useState([]);  // all users assigned to active CDS
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null); // "companies" | "realized" | "users" | null
 
@@ -356,10 +357,14 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     const load = async () => {
       setLoading(true);
       try {
-        const [port, txns, users] = await Promise.all([
+        const activeCdsId = activeCds?.cds_id;
+
+        const [port, txns, users, members] = await Promise.all([
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
           sbGetAllUsers().catch(() => []),
+          // Load all users assigned to the active CDS (regardless of their own active CDS)
+          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
         ]);
 
         if (cancelled) return;
@@ -369,6 +374,19 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         if (users) {
           setUserCount(users.length);
           setAllUsers(users);
+        }
+        // cdsMembers from RPC returns { user_id, full_name, role_code, is_active, assigned_at }
+        // Map to a shape compatible with the users table display
+        if (members && members.length > 0) {
+          setCdsMembers(members.map(m => ({
+            id:        m.user_id,
+            full_name: m.full_name,
+            role_code: m.role_code,
+            is_active: m.is_active,
+            // phone/email/avatar not returned by this RPC — cross-reference from allUsers
+          })));
+        } else {
+          setCdsMembers([]);
         }
       } catch {
         if (!cancelled) showToast?.("Dashboard load error", "error");
@@ -381,7 +399,7 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
     return () => {
       cancelled = true;
     };
-  }, [profile?.cds_number, isSAAD]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.cds_number, activeCds?.cds_id, isSAAD]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
@@ -615,13 +633,25 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
-  // cdsUsers: all users whose ACTIVE CDS matches the current user's active CDS
-  // The RPC returns profiles.cds_number which is always the active CDS.
-  // This lets the user see their fellow members on the same active CDS account.
-  const cdsUsers = useMemo(
-    () => cds ? allUsers.filter((u) => u.cds_number === cds) : allUsers,
-    [allUsers, cds]
-  );
+  // cdsUsers: all users assigned to the active CDS (via user_cds table)
+  // Uses sbGetCDSAssignedUsers RPC which joins user_cds — catches users whose
+  // active CDS differs from profile.cds_number (e.g. Naomi assigned CDS-783580
+  // but her own active CDS is CDS-647305)
+  // Cross-reference with allUsers to enrich with phone, email, avatar
+  const cdsUsers = useMemo(() => {
+    if (!cdsMembers.length) return [];
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    return cdsMembers.map(m => {
+      const full = userMap.get(m.id) || {};
+      return {
+        ...m,
+        phone:     full.phone     || m.phone     || null,
+        email:     full.email     || m.email     || null,
+        avatar_url: full.avatar_url || null,
+        role_code: m.role_code || full.role_code || null,
+      };
+    });
+  }, [cdsMembers, allUsers]);
 
   useEffect(() => {
     if (expanded !== null) {
