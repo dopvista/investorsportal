@@ -375,15 +375,16 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
           setUserCount(users.length);
           setAllUsers(users);
         }
-        // cdsMembers from RPC returns { user_id, full_name, role_code, is_active, assigned_at }
-        // Map to a shape compatible with the users table display
+        // cdsMembers from get_cds_assigned_users RPC — includes phone, email, avatar_url
         if (members && members.length > 0) {
           setCdsMembers(members.map(m => ({
-            id:        m.user_id,
-            full_name: m.full_name,
-            role_code: m.role_code,
-            is_active: m.is_active,
-            // phone/email/avatar not returned by this RPC — cross-reference from allUsers
+            id:         m.user_id,
+            full_name:  m.full_name,
+            role_code:  m.role_code,
+            is_active:  m.is_active,
+            phone:      m.phone      || null,
+            email:      m.email      || null,
+            avatar_url: m.avatar_url || null,
           })));
         } else {
           setCdsMembers([]);
@@ -633,25 +634,10 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
 
   // ── Scroll to top after collapse — only after a real close, not on mount ──
   const hasExpandedRef = useRef(false);
-  // cdsUsers: all users assigned to the active CDS (via user_cds table)
-  // Uses sbGetCDSAssignedUsers RPC which joins user_cds — catches users whose
-  // active CDS differs from profile.cds_number (e.g. Naomi assigned CDS-783580
-  // but her own active CDS is CDS-647305)
-  // Cross-reference with allUsers to enrich with phone, email, avatar
-  const cdsUsers = useMemo(() => {
-    if (!cdsMembers.length) return [];
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-    return cdsMembers.map(m => {
-      const full = userMap.get(m.id) || {};
-      return {
-        ...m,
-        phone:     full.phone     || m.phone     || null,
-        email:     full.email     || m.email     || null,
-        avatar_url: full.avatar_url || null,
-        role_code: m.role_code || full.role_code || null,
-      };
-    });
-  }, [cdsMembers, allUsers]);
+  // cdsUsers: all users assigned to the active CDS — directly from get_cds_assigned_users RPC
+  // RPC now returns phone, email, avatar_url — no cross-reference needed
+  // Works for all roles (DE/VR/RO) since get_cds_assigned_users is SECURITY DEFINER
+  const cdsUsers = cdsMembers;
 
   useEffect(() => {
     if (expanded !== null) {
