@@ -863,8 +863,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
         <StatCard
           icon="👥"
           label="Total Users"
-          value={loading ? "—" : (userCount ?? "—")}
-          subLabel={cds ? `${cdsUsers.length} on ${cds}` : `${allUsers.length} total`}
+          value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
+          subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
           accent="#2563eb"
           accentBg="#2563eb"
           onClick={onToggleUsers}
