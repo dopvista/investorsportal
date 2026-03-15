@@ -1066,7 +1066,8 @@ export default function DashboardPage({ profile, role, session, showToast, onNav
                   <tbody>
                     {cdsUsers.map((u, i) => {
                       const isActive    = u.is_active !== false && u.status !== "inactive";
-                      const roleName    = u.role_name || u.role || u.role_code || "—";
+                      const ROLE_NAMES   = { SA: "Super Admin", AD: "Admin", DE: "Data Entrant", VR: "Verifier", RO: "Read Only" };
+                      const roleName    = ROLE_NAMES[u.role_name || u.role || u.role_code] || u.role_name || u.role || u.role_code || "—";
                       const initials    = (u.full_name || u.email || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
                       const avatarColor = AVATAR_COLORS[(u.full_name || u.email || "").charCodeAt(0) % AVATAR_COLORS.length];
                       const avatarUrl   = u.avatar_url || null;
