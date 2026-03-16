@@ -39,14 +39,14 @@ export const fmtSmart = (n) => {
 };
 
 // ─── DSE Fee Calculator ────────────────────────────────────────────
-// Official DSE equity fee schedule — applies identically to Buy and Sell
+// Official DSE equity fee schedule — same rates for Buy and Sell
 // Buy:  grandTotal = tradeValue + fees  (investor pays more)
 // Sell: grandTotal = tradeValue − fees  (investor receives less)
 // Broker:   tiered 1.7%(≤10M) / 1.5%(10–50M) / 0.8%(>50M) + 18% VAT
-// CMSA:     0.14% flat — no VAT (regulatory body)
+// CMSA:     0.14% flat — no VAT
 // DSE:      0.14% flat + 18% VAT
 // CSDR:     0.06% flat + 18% VAT
-// Fidelity: 0.02% flat — no VAT (investor protection fund)
+// Fidelity: 0.02% flat — no VAT
 export const calcFees = (tradeValue) => {
   const tv = Number(tradeValue) || 0;
   if (tv <= 0) return { broker: 0, cmsa: 0, dse: 0, csdr: 0, fidelity: 0, total: 0 };
@@ -168,7 +168,8 @@ export function Btn({ children, variant = "primary", loading, icon, ...props }) 
     navy:      { background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color: C.white, border: "none", boxShadow: "0 4px 12px rgba(11,31,58,0.3)" },
   };
   return (
-    <button {...props} disabled={loading || props.disabled} style={{ padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: loading ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: 7, transition: "opacity 0.2s", fontFamily: "inherit", ...variants[variant], ...props.style }}
+    <button {...props} disabled={loading || props.disabled}
+      style={{ padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: loading ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: 7, transition: "opacity 0.2s", fontFamily: "inherit", ...variants[variant], ...props.style }}
       onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = "0.88"; }}
       onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
       {loading ? <Spinner size={14} color={variant === "primary" || variant === "navy" ? C.white : C.green} /> : icon && <span>{icon}</span>}
@@ -180,7 +181,7 @@ export function Btn({ children, variant = "primary", loading, icon, ...props }) 
 // ─── Action Menu (⋯ dropdown) ─────────────────────────────────────
 export function ActionMenu({ actions }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos]   = useState({ top: 0, left: 0 });
   const ref = useRef(null);
 
   useEffect(() => {
@@ -209,7 +210,8 @@ export function ActionMenu({ actions }) {
       {open && (
         <div style={{ position: "fixed", top: pos.top, left: pos.left, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 9999, minWidth: 160, overflow: "hidden" }}>
           {actions.map((a, i) => (
-            <button key={i} onClick={() => { setOpen(false); a.onClick(); }} style={{ width: "100%", padding: "10px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: a.danger ? C.red : C.text, textAlign: "left", borderBottom: i < actions.length - 1 ? `1px solid ${C.gray100}` : "none", fontFamily: "inherit" }}
+            <button key={i} onClick={() => { setOpen(false); a.onClick(); }}
+              style={{ width: "100%", padding: "10px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: a.danger ? C.red : C.text, textAlign: "left", borderBottom: i < actions.length - 1 ? `1px solid ${C.gray100}` : "none", fontFamily: "inherit" }}
               onMouseEnter={e => e.currentTarget.style.background = a.danger ? C.redBg : C.gray50}
               onMouseLeave={e => e.currentTarget.style.background = "none"}>
               <span>{a.icon}</span>{a.label}
@@ -274,16 +276,15 @@ export function Modal({ type = "confirm", title, message, onConfirm, onClose }) 
 // ─── Company Form Modal ───────────────────────────────────────────
 export function CompanyFormModal({ company, onConfirm, onClose }) {
   const isEdit = !!company;
-  const [name, setName] = useState(company?.name || "");
-  const [price, setPrice] = useState("");
+  const [name, setName]       = useState(company?.name || "");
+  const [price, setPrice]     = useState("");
   const [remarks, setRemarks] = useState(company?.remarks || "");
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
 
   const handle = () => {
     if (!name.trim()) { setError("Company name is required."); return; }
     if (!isEdit && (!price || Number(price) <= 0)) { setError("A valid opening price is required."); return; }
-    setError("");
-    onClose();
+    setError(""); onClose();
     onConfirm({ name: name.trim(), price: isEdit ? undefined : Number(price), remarks });
   };
 
@@ -308,8 +309,8 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   const localDatetime = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [newPrice, setNewPrice] = useState("");
   const [datetime, setDatetime] = useState(localDatetime);
-  const [reason, setReason] = useState("Normal Price Change");
-  const [error, setError] = useState("");
+  const [reason, setReason]     = useState("Normal Price Change");
+  const [error, setError]       = useState("");
 
   if (!company) return null;
 
@@ -450,7 +451,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
           )}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: 36  }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} />
+              <col style={{ width: 36 }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} />
               <col style={{ width: 100 }} /><col style={{ width: 110 }} /><col style={{ width: 100 }} />
               <col style={{ width: 160 }} /><col style={{ width: 130 }} />
             </colgroup>
@@ -502,12 +503,14 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── TRANSACTION FORM MODAL ───────────────────────────────────────
-// CHANGES vs original:
-//  1. Transaction Type moved FIRST (before Company)
-//  2. Company filtered to holdings-only when type = Sell
-//  3. Fees auto-calculated by calcFees() — no manual fee input
-//  4. Control Number field added (digits only, max 15 chars)
-//  5. New prop: transactions[] — used to compute net holdings
+// Changes from original:
+//  ✅ Transaction Type → <select> dropdown (first field)
+//  ✅ Company → searchable custom dropdown
+//  ✅ Control Number → Buy only (hidden on Sell)
+//  ✅ Fees → auto-calculated, no user input
+//  ✅ Cannot sell more than holdings
+//  ✅ "Total Paid" label (was "Total to Pay")
+//  ✅ Condensed summary row (fees breakdown stays inline)
 // ═══════════════════════════════════════════════════════════════════
 export function TransactionFormModal({ transaction, companies, transactions = [], onConfirm, onClose }) {
   const today  = new Date().toISOString().split("T")[0];
@@ -528,14 +531,26 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   );
   const [error, setError]                       = useState("");
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
+  const [companySearch, setCompanySearch]       = useState("");
+  const [companyOpen, setCompanyOpen]           = useState(false);
+  const companyRef                              = useRef(null);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    if (!companyOpen) return;
+    const handle = (e) => { if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false); };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [companyOpen]);
+
+  const isBuy = form.type === "Buy";
 
   // ── Auto-calculated values ────────────────────────────────────
   const tradeValue   = useMemo(() => (Number(form.qty) || 0) * (Number(form.price) || 0), [form.qty, form.price]);
   const feeBreakdown = useMemo(() => calcFees(tradeValue), [tradeValue]);
-  const isBuy        = form.type === "Buy";
   const grandTotal   = isBuy ? tradeValue + feeBreakdown.total : tradeValue - feeBreakdown.total;
 
-  // ── Net holdings — company_id → net shares owned ─────────────
+  // ── Net holdings map: company_id → net shares owned ──────────
   const netMap = useMemo(() => {
     const m = {};
     transactions.forEach(t => {
@@ -545,35 +560,49 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     return m;
   }, [transactions]);
 
-  // ── Company list: all on Buy; holdings-only on Sell ───────────
-  const availableCompanies = useMemo(() => {
-    if (form.type === "Buy") return companies;
-    const ownedIds = new Set(
-      Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id)
-    );
-    return ownedIds.size === 0 ? companies : companies.filter(c => ownedIds.has(c.id));
-  }, [form.type, companies, netMap]);
+  // Max shares user can sell for selected company
+  const maxSellQty = form.companyId ? Math.max(0, netMap[form.companyId] || 0) : 0;
 
-  const isSellFiltered = form.type === "Sell" && availableCompanies.length < companies.length;
+  // ── Companies: all on Buy, holdings-only on Sell ──────────────
+  const availableCompanies = useMemo(() => {
+    if (isBuy) return companies;
+    const ownedIds = new Set(Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id));
+    return ownedIds.size === 0 ? companies : companies.filter(c => ownedIds.has(c.id));
+  }, [isBuy, companies, netMap]);
+
+  const isSellFiltered = !isBuy && availableCompanies.length < companies.length;
+
+  // ── Filter companies by search query ─────────────────────────
+  const filteredCompanies = useMemo(() => {
+    const q = companySearch.trim().toLowerCase();
+    if (!q) return availableCompanies;
+    return availableCompanies.filter(c => c.name.toLowerCase().includes(q));
+  }, [availableCompanies, companySearch]);
+
+  const selectedCompanyName = useMemo(
+    () => companies.find(c => c.id === form.companyId)?.name || "",
+    [companies, form.companyId]
+  );
 
   // When switching to Sell, clear company if not in holdings
   const handleTypeChange = useCallback((newType) => {
     setForm(f => {
       if (newType === "Sell" && f.companyId) {
-        const owned = new Set(
-          Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id)
-        );
+        const owned = new Set(Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id));
         if (owned.size > 0 && !owned.has(f.companyId)) return { ...f, type: newType, companyId: "" };
       }
       return { ...f, type: newType };
     });
+    setCompanySearch("");
+    setError("");
   }, [netMap]);
 
   const handleSubmit = () => {
-    if (!form.date)                               { setError("Date is required.");                          return; }
-    if (!form.companyId)                          { setError("Please select a company.");                  return; }
-    if (!form.qty   || Number(form.qty)   <= 0)   { setError("Quantity must be greater than 0.");          return; }
-    if (!form.price || Number(form.price) <= 0)   { setError("Price per share must be greater than 0.");  return; }
+    if (!form.date)                              { setError("Date is required.");                                   return; }
+    if (!form.companyId)                         { setError("Please select a company.");                            return; }
+    if (!form.qty   || Number(form.qty)   <= 0)  { setError("Quantity must be greater than 0.");                    return; }
+    if (!form.price || Number(form.price) <= 0)  { setError("Price per share must be greater than 0.");             return; }
+    if (!isBuy && Number(form.qty) > maxSellQty) { setError(`You only have ${fmtInt(maxSellQty)} shares to sell.`); return; }
     setError("");
     onConfirm({
       date:          form.date,
@@ -581,62 +610,52 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       type:          form.type,
       qty:           form.qty,
       price:         form.price,
-      fees:          feeBreakdown.total,       // ← always system-calculated
-      controlNumber: form.controlNumber || null,
+      fees:          feeBreakdown.total,                        // always system-calculated
+      controlNumber: isBuy ? (form.controlNumber || null) : null, // Buy only
       remarks:       form.remarks || null,
       total:         tradeValue,
     });
   };
 
   const feeItems = [
-    { label: "Broker",   value: feeBreakdown.broker,   note: "+18% VAT" },
-    { label: "CMSA",     value: feeBreakdown.cmsa,     note: "0.14%"    },
-    { label: "DSE",      value: feeBreakdown.dse,      note: "+18% VAT" },
-    { label: "CSDR",     value: feeBreakdown.csdr,     note: "+18% VAT" },
-    { label: "Fidelity", value: feeBreakdown.fidelity, note: "0.02%"    },
+    { label: "Broker",   value: feeBreakdown.broker,   note: "+VAT" },
+    { label: "CMSA",     value: feeBreakdown.cmsa,     note: "0.14%" },
+    { label: "DSE",      value: feeBreakdown.dse,      note: "+VAT"  },
+    { label: "CSDR",     value: feeBreakdown.csdr,     note: "+VAT"  },
+    { label: "Fidelity", value: feeBreakdown.fidelity, note: "0.02%" },
   ];
 
   return (
     <ModalShell
       title={isEdit ? "✏️ Edit Transaction" : "📝 Record New Transaction"}
       subtitle={isEdit ? "Update the details below and save" : "Enter details — fees are calculated automatically by the system"}
-      onClose={onClose} maxWidth={600}
+      onClose={onClose} maxWidth={580}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
       {error && (
-        <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
+        <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
           ⚠️ {error}
         </div>
       )}
 
-      {/* ── Row 1: Type (FIRST) · Date · Control Number ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      {/* ── Row 1: Type · Date · Control Number (Buy only) ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
 
-        {/* Transaction Type — visual toggle, FIRST field */}
+        {/* Transaction Type — dropdown FIRST */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
             Transaction Type <span style={{ color: C.red }}>*</span>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {["Buy", "Sell"].map(t => {
-              const active = form.type === t;
-              const col    = t === "Buy" ? C.green : C.red;
-              const bg     = t === "Buy" ? C.greenBg : C.redBg;
-              return (
-                <button key={t} type="button" onClick={() => handleTypeChange(t)}
-                  style={{
-                    flex: 1, padding: "10px 0", borderRadius: 8,
-                    border: `1.5px solid ${active ? col : C.gray200}`,
-                    background: active ? bg : C.white,
-                    color: active ? col : C.gray500,
-                    fontWeight: 700, fontSize: 13, cursor: "pointer",
-                    fontFamily: "inherit", transition: "all 0.15s",
-                  }}>
-                  {t === "Buy" ? "▲ Buy" : "▼ Sell"}
-                </button>
-              );
-            })}
-          </div>
+          <select
+            value={form.type}
+            onChange={e => handleTypeChange(e.target.value)}
+            style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, transition: "border-color 0.2s" }}
+            onFocus={e => (e.target.style.borderColor = C.green)}
+            onBlur={e => (e.target.style.borderColor = C.gray200)}
+          >
+            <option value="Buy">▲ Buy</option>
+            <option value="Sell">▼ Sell</option>
+          </select>
         </div>
 
         {/* Date */}
@@ -646,33 +665,26 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
         />
 
-        {/* Control Number — digits only, max 15 chars */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-            Control Number
+        {/* Control Number — Buy only; empty spacer on Sell */}
+        {isBuy ? (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+              Control Number
+            </div>
+            <input
+              type="text" inputMode="numeric"
+              value={form.controlNumber}
+              onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.replace(/\D/g, "").slice(0, 15) }))}
+              placeholder="e.g. 991051763663"
+              style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
+              onFocus={e => (e.target.style.borderColor = C.green)}
+              onBlur={e => (e.target.style.borderColor = C.gray200)}
+            />
           </div>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={form.controlNumber}
-            onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.replace(/\D/g, "").slice(0, 15) }))}
-            placeholder="e.g. 991051763663"
-            style={{
-              border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px",
-              fontSize: 14, outline: "none", background: C.white, color: C.text,
-              width: "100%", boxSizing: "border-box", fontFamily: "inherit",
-              letterSpacing: "0.04em", transition: "border-color 0.2s",
-            }}
-            onFocus={e => (e.target.style.borderColor = C.green)}
-            onBlur={e => (e.target.style.borderColor = C.gray200)}
-          />
-          <div style={{ fontSize: 10, color: C.gray400, marginTop: 3 }}>
-            Digits only · DSE payment reference
-          </div>
-        </div>
+        ) : <div />}
       </div>
 
-      {/* ── Row 2: Company — full width, filtered when Sell ── */}
+      {/* ── Row 2: Searchable Company dropdown ── */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
           Company <span style={{ color: C.red }}>*</span>
@@ -682,33 +694,78 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             </span>
           )}
         </div>
-        <select
-          value={form.companyId}
-          onChange={e => { setForm(f => ({ ...f, companyId: e.target.value })); setError(""); }}
-          style={{ ...inputStyle(false), cursor: "pointer" }}
-          onFocus={e => (e.target.style.borderColor = C.green)}
-          onBlur={e => (e.target.style.borderColor = C.gray200)}
-        >
-          <option value="">{isSellFiltered ? "Select company with shares..." : "Select company..."}</option>
-          {availableCompanies.map(c => {
-            const netQty = netMap[c.id] || 0;
-            return (
-              <option key={c.id} value={c.id}>
-                {c.name}{isSellFiltered && netQty > 0 ? `  (${fmtInt(netQty)} shares)` : ""}
-              </option>
-            );
-          })}
-        </select>
+        <div ref={companyRef} style={{ position: "relative" }}>
+          {/* Trigger */}
+          <button
+            type="button"
+            onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
+            style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: form.companyId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
+          >
+            {form.companyId
+              ? <>{selectedCompanyName}{!isBuy && maxSellQty > 0 && <span style={{ color: C.gray400, fontSize: 12, marginLeft: 8 }}>({fmtInt(maxSellQty)} shares)</span>}</>
+              : (isSellFiltered ? "Select company with shares..." : "Select company...")}
+            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
+              {companyOpen ? "▲" : "▼"}
+            </span>
+          </button>
+
+          {/* Dropdown */}
+          {companyOpen && (
+            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+              {/* Search */}
+              <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
+                  <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..."
+                    style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
+                    onFocus={e => (e.target.style.borderColor = C.green)}
+                    onBlur={e => (e.target.style.borderColor = C.gray200)} />
+                </div>
+              </div>
+              {/* Options */}
+              <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                {filteredCompanies.length === 0 ? (
+                  <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
+                ) : filteredCompanies.map(c => {
+                  const netQty     = netMap[c.id] || 0;
+                  const isSelected = form.companyId === c.id;
+                  return (
+                    <button key={c.id} type="button"
+                      onClick={() => { setForm(f => ({ ...f, companyId: c.id, qty: "" })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                      style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text }}>{c.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                        {!isBuy && netQty > 0 && <span style={{ fontSize: 11, color: C.gray400 }}>{fmtInt(netQty)} shares</span>}
+                        {isSelected && <span style={{ color: C.green, fontSize: 13 }}>✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Row 3: Qty · Price ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <FInput
-          label="Quantity (Shares)" required type="number" min="1"
-          value={form.qty}
-          onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
-          placeholder="0"
-        />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div>
+          <FInput
+            label={!isBuy && maxSellQty > 0 ? `Quantity (max ${fmtInt(maxSellQty)})` : "Quantity (Shares)"}
+            required type="number" min="1"
+            max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
+            value={form.qty}
+            onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
+            placeholder="0"
+            style={!isBuy && form.qty && Number(form.qty) > maxSellQty ? { borderColor: C.red } : {}}
+          />
+          {!isBuy && form.qty && Number(form.qty) > maxSellQty && maxSellQty > 0 && (
+            <div style={{ fontSize: 11, color: C.red, marginTop: 3 }}>⚠ Exceeds your {fmtInt(maxSellQty)} shares</div>
+          )}
+        </div>
         <FInput
           label="Price per Share (TZS)" required type="number" min="0.01"
           value={form.price}
@@ -717,68 +774,48 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         />
       </div>
 
-      {/* ── Summary panel — shown when qty × price is filled ── */}
+      {/* ── Condensed summary + fee breakdown ── */}
       {tradeValue > 0 && (
-        <div style={{
-          background: isBuy ? C.greenBg : C.redBg,
-          border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`,
-          borderRadius: 12, padding: 16,
-        }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-
-            {/* Trade Value */}
-            <div>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Trade Value</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>TZS {fmt(tradeValue)}</div>
-              <div style={{ fontSize: 10, color: C.gray400, marginTop: 2 }}>{fmtInt(form.qty)} × {fmt(form.price)}</div>
+        <div style={{ background: isBuy ? C.greenBg : C.redBg, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, borderRadius: 10, padding: "10px 14px" }}>
+          {/* Single horizontal summary row */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>TZS {fmt(tradeValue)}</div>
             </div>
-
-            {/* Commission Fees — ⓘ expands breakdown */}
-            <div>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
-                Commission Fees
-                <button
-                  type="button"
-                  onClick={() => setShowFeeBreakdown(v => !v)}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: showFeeBreakdown ? C.navy : C.gray400, padding: 0, lineHeight: 1 }}
-                  title={showFeeBreakdown ? "Hide breakdown" : "Show breakdown"}
-                >
+            <div style={{ color: C.gray400, fontSize: 12, padding: "0 8px" }}>{isBuy ? "+" : "−"}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
+                Fees
+                <button type="button" onClick={() => setShowFeeBreakdown(v => !v)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: showFeeBreakdown ? C.navy : C.gray400, padding: 0, lineHeight: 1 }}
+                  title={showFeeBreakdown ? "Hide breakdown" : "Show breakdown"}>
                   {showFeeBreakdown ? "▲" : "ⓘ"}
                 </button>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>TZS {fmt(feeBreakdown.total)}</div>
-              <div style={{ fontSize: 10, color: C.gray400, marginTop: 2 }}>Auto-calculated · DSE rates</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>TZS {fmt(feeBreakdown.total)}</div>
             </div>
-
-            {/* Grand Total */}
-            <div>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                {isBuy ? "Total to Pay" : "Net Proceeds"}
+            <div style={{ color: C.gray400, fontSize: 12, padding: "0 8px" }}>=</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {isBuy ? "Total Paid" : "Net Proceeds"}
               </div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: isBuy ? C.green : C.red }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: isBuy ? C.green : C.red, marginTop: 2 }}>
                 TZS {fmt(grandTotal)}
-              </div>
-              <div style={{ fontSize: 10, color: isBuy ? C.green : C.red, marginTop: 2 }}>
-                {isBuy ? "Trade + fees" : "Trade − fees"}
               </div>
             </div>
           </div>
 
-          {/* Expandable fee breakdown */}
+          {/* Inline fee breakdown — only when expanded */}
           {showFeeBreakdown && (
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-                {feeItems.map(({ label, value, note }) => (
-                  <div key={label} style={{ background: "rgba(255,255,255,0.65)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-                    <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{note}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginTop: 4 }}>{fmt(value)}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 10, color: C.gray500, marginTop: 8, textAlign: "center" }}>
-                {isBuy ? "Fees added to trade value" : "Fees deducted from proceeds"} · Per DSE official fee schedule
-              </div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, display: "flex", gap: 4 }}>
+              {feeItems.map(({ label, value, note }) => (
+                <div key={label} style={{ flex: 1, background: "rgba(255,255,255,0.6)", borderRadius: 6, padding: "5px 4px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase" }}>{label}</div>
+                  <div style={{ fontSize: 9, color: C.gray400 }}>{note}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmt(value)}</div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -790,7 +827,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         value={form.remarks}
         onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))}
         placeholder="Optional notes..."
-        style={{ minHeight: 56 }}
+        style={{ minHeight: 48 }}
       />
     </ModalShell>
   );
@@ -798,11 +835,9 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
-// CHANGES vs original:
-//  1. Column F in Excel = Control Number (optional, digits only)
-//  2. Column G in Excel = Remarks (was F)
-//  3. Fees are AUTO-CALCULATED from qty × price — not read from file
-//  4. Preview table shows Control Number + Calculated Fees columns
+// Fees auto-calculated — not read from Excel file
+// Column F = Control Number (optional, digits only)
+// Column G = Remarks
 // ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, onImport, onClose }) {
   const [step, setStep]           = useState("upload");
@@ -877,15 +912,13 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         const getRaw = (idx) => cells[idx];
         const get    = (idx) => String(cells[idx] ?? "").trim();
 
-        const dateRaw = getRaw(0);
-        const company = get(1);
-        const type    = get(2);
-        const qty     = parseFloat(get(3));
-        const price   = parseFloat(get(4));
-        // Col F (index 5): Control Number — digits only, optional
-        const controlNumber = get(5).replace(/\D/g, "").slice(0, 15) || null;
-        // Col G (index 6): Remarks
-        const remarks = get(6);
+        const dateRaw       = getRaw(0);
+        const company       = get(1);
+        const type          = get(2);
+        const qty           = parseFloat(get(3));
+        const price         = parseFloat(get(4));
+        const controlNumber = get(5).replace(/\D/g, "").slice(0, 15) || null; // Col F: Control No.
+        const remarks       = get(6);                                           // Col G: Remarks
         // Col H (index 7): Excel-calculated total — ignored, we recalculate
 
         const rowErrs = [];
@@ -923,14 +956,13 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
           errs.push({ row: rowNum, errors: rowErrs });
         } else {
           const tradeValue = qty * price;
-          const fees       = calcFees(tradeValue).total; // ← always system-calculated
           parsed.push({
             date,
             company_id:     matchedCompany.id,
             company_name:   matchedCompany.name,
             type, qty, price,
-            fees,
-            control_number: controlNumber,
+            fees:           calcFees(tradeValue).total, // auto-calculated
+            control_number: type === "Buy" ? controlNumber : null, // Buy only
             remarks:        remarks || null,
             total:          tradeValue,
           });
@@ -948,8 +980,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
 
   const handleImport = async () => {
     if (!rows.length) return;
-    setImporting(true);
-    setProgress(0);
+    setImporting(true); setProgress(0);
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 6 + 2;
@@ -958,17 +989,13 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
     }, 180);
     try {
       await onImport(rows);
-      clearInterval(interval);
-      setProgress(100);
+      clearInterval(interval); setProgress(100);
       await new Promise(r => setTimeout(r, 500));
       onClose();
     } catch (e) {
-      clearInterval(interval);
-      setProgress(0);
+      clearInterval(interval); setProgress(0);
       alert("Import failed: " + e.message);
-    } finally {
-      setImporting(false);
-    }
+    } finally { setImporting(false); }
   };
 
   const UploadStep = () => (
@@ -1000,16 +1027,13 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
           </div>
         </div>
       </div>
-
-      {/* Column guide */}
       <div style={{ background: "#EFF6FF", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
         <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.8 }}>
           <strong>Template columns:</strong> A Date · B Company · C Type (Buy/Sell) · D Qty · E Price · <strong>F Control No.</strong> · G Remarks<br/>
-          Commission fees are <strong>calculated automatically</strong> — no need to enter them in the file.
+          Commission fees are <strong>calculated automatically</strong> — no need to enter them.
         </div>
       </div>
-
       <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
         <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.7 }}>
