@@ -45,41 +45,16 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
   return (
     <>
       <style>{`@keyframes _txSpin { to { transform: rotate(360deg); } }`}</style>
-      <span
-        style={{
-          display: "inline-block",
-          width: size,
-          height: size,
-          border: `2px solid ${color}33`,
-          borderTop: `2px solid ${color}`,
-          borderRadius: "50%",
-          animation: "_txSpin 0.65s linear infinite",
-          flexShrink: 0,
-          ...style,
-        }}
-      />
+      <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
     </>
   );
 });
 
+// ── Status Badge ───────────────────────────────────────────────────
 const StatusBadge = memo(function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.pending;
   return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        border: `1px solid ${s.border}`,
-        padding: "3px 10px",
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 700,
-        whiteSpace: "nowrap",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-      }}
-    >
+    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
       {s.icon} {s.label}
     </span>
   );
@@ -94,12 +69,8 @@ function RejectModal({ count, onConfirm, onClose }) {
   const handleSubmit = useCallback(async () => {
     if (!comment.trim()) return setErr("Rejection reason is required");
     setSaving(true);
-    try {
-      await onConfirm(comment.trim());
-    } catch (e) {
-      setErr(e.message);
-      setSaving(false);
-    }
+    try { await onConfirm(comment.trim()); }
+    catch (e) { setErr(e.message); setSaving(false); }
   }, [comment, onConfirm]);
 
   return (
@@ -115,15 +86,9 @@ function RejectModal({ count, onConfirm, onClose }) {
         <div style={{ padding: "20px" }}>
           {err && <div style={{ background: C.redBg, border: `1px solid #FECACA`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
           <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Rejection Reason <span style={{ color: C.red }}>*</span></label>
-          <textarea
-            value={comment}
-            onChange={e => { setComment(e.target.value); setErr(""); }}
-            placeholder="Explain why this transaction is being rejected..."
-            rows={4}
+          <textarea value={comment} onChange={e => { setComment(e.target.value); setErr(""); }} placeholder="Explain why this transaction is being rejected..." rows={4}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, boxSizing: "border-box" }}
-            onFocus={e => { e.target.style.borderColor = C.red; }}
-            onBlur={e => { e.target.style.borderColor = C.gray200; }}
-          />
+            onFocus={e => { e.target.style.borderColor = C.red; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
           <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>This comment will be visible to the Data Entrant.</div>
         </div>
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
@@ -174,8 +139,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
           <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : accentColor, color: C.white, fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
             {loading
               ? <><Spinner size={13} color="#fff" />{isVerify ? "Verifying..." : "Confirming..."}</>
-              : <>{icon} {isVerify ? (count > 1 ? `Verify ${count}` : "Verify") : "Confirm"}</>
-            }
+              : <>{icon} {isVerify ? (count > 1 ? `Verify ${count}` : "Verify") : "Confirm"}</>}
           </button>
         </div>
       </div>
@@ -183,7 +147,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   );
 });
 
-// ── Simple confirmation modal for bulk delete / unverify ──────────
+// ── Simple Confirm Modal ───────────────────────────────────────────
 const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, count, onConfirm, onClose, loading }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
@@ -213,13 +177,11 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
 const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPage, setPageSize, total, filtered }) {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, filtered);
-
   const pages = [];
   for (let i = 1; i <= totalPages; i++) {
     if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) pages.push(i);
     else if (pages[pages.length - 1] !== "...") pages.push("...");
   }
-
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -227,11 +189,8 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
           Showing <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
           {filtered !== total ? ` (${total} total)` : ""}
         </span>
-        <select
-          value={pageSize}
-          onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-          style={{ padding: "3px 8px", borderRadius: 6, border: `1.5px solid ${C.gray200}`, fontSize: 11, fontFamily: "inherit", color: C.gray600, outline: "none", background: C.white, cursor: "pointer" }}
-        >
+        <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          style={{ padding: "3px 8px", borderRadius: 6, border: `1.5px solid ${C.gray200}`, fontSize: 11, fontFamily: "inherit", color: C.gray600, outline: "none", background: C.white, cursor: "pointer" }}>
           <option value={50}>50 / page</option>
           <option value={100}>100 / page</option>
           <option value={200}>200 / page</option>
@@ -241,13 +200,11 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <PgBtn onClick={() => setPage(1)} disabled={page === 1} label="«" />
           <PgBtn onClick={() => setPage(p => p - 1)} disabled={page === 1} label="‹" />
-          {pages.map((p, i) =>
-            p === "..." ? (
-              <span key={`e${i}`} style={{ padding: "0 4px", color: C.gray400, fontSize: 12 }}>…</span>
-            ) : (
-              <PgBtn key={p} onClick={() => setPage(p)} active={p === page} label={p} />
-            )
-          )}
+          {pages.map((p, i) => p === "..." ? (
+            <span key={`e${i}`} style={{ padding: "0 4px", color: C.gray400, fontSize: 12 }}>…</span>
+          ) : (
+            <PgBtn key={p} onClick={() => setPage(p)} active={p === page} label={p} />
+          ))}
           <PgBtn onClick={() => setPage(p => p + 1)} disabled={page === totalPages} label="›" />
           <PgBtn onClick={() => setPage(totalPages)} disabled={page === totalPages} label="»" />
         </div>
@@ -258,23 +215,14 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
 
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        width: 28, height: 28, borderRadius: 6,
-        border: `1.5px solid ${active ? C.navy : C.gray200}`,
-        background: active ? C.navy : disabled ? C.gray50 : C.white,
-        color: active ? C.white : disabled ? C.gray400 : C.gray600,
-        fontWeight: active ? 700 : 500, fontSize: 12,
-        cursor: disabled ? "default" : "pointer",
-        fontFamily: "inherit",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}
-    >{label}</button>
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`, background: active ? C.navy : disabled ? C.gray50 : C.white, color: active ? C.white : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {label}
+    </button>
   );
 });
 
+// ── Row permissions helper ─────────────────────────────────────────
 const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   const isPending   = transaction.status === "pending";
   const isConfirmed = transaction.status === "confirmed";
@@ -300,13 +248,13 @@ const TransactionRow = memo(function TransactionRow({
   deletingId, bulkDeletingIds,
   isDE, isVR, isSAAD, showCheckbox, showActions,
 }) {
-  const isBuy    = transaction.type === "Buy";
-  const total    = Number(transaction.total || 0);
-  const fees     = Number(transaction.fees  || 0);
-  // FIX: Buy → investor pays total + fees; Sell → investor receives total − fees
-  const gt       = isBuy ? total + fees : total - fees;
+  const isBuy     = transaction.type === "Buy";
+  const tradeVal  = Number(transaction.total || 0);
+  const fees      = Number(transaction.fees  || 0);
+  // FIX: Buy = investor pays trade+fees; Sell = investor receives trade−fees
+  const gt        = isBuy ? tradeVal + fees : tradeVal - fees;
   const isChecked = selected.has(transaction.id);
-  const perms    = getRowPermissions({ transaction, isDE, isVR, isSAAD });
+  const perms     = getRowPermissions({ transaction, isDE, isVR, isSAAD });
 
   const isRowConfirming  = confirmingIds.has(transaction.id);
   const isRowVerifying   = verifyingIds.has(transaction.id);
@@ -331,7 +279,8 @@ const TransactionRow = memo(function TransactionRow({
     >
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }}>
-          <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy} style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
+          <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
@@ -352,7 +301,7 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
         {fees ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}
       </td>
-      {/* Grand Total: Buy = paid out (total + fees), Sell = received (total − fees) */}
+      {/* Grand Total — Buy: total paid out; Sell: net received */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
@@ -361,9 +310,9 @@ const TransactionRow = memo(function TransactionRow({
           {isBuy ? "TOTAL PAID" : "NET RECV"}
         </div>
       </td>
-      {/* Control Number */}
+      {/* Control Number — only Buy transactions have it */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        {transaction.control_number
+        {isBuy && transaction.control_number
           ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.03em" }}>{transaction.control_number}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
@@ -396,7 +345,26 @@ const TransactionRow = memo(function TransactionRow({
   );
 });
 
-// ── Main Page ──────────────────────────────────────────────────────
+// ── Table column headers (defined once, not inline) ────────────────
+const buildTableHeaders = (showActions) => [
+  { label: "#",           align: "left"  },
+  { label: "Date",        align: "left"  },
+  { label: "Company",     align: "left"  },
+  { label: "Type",        align: "left"  },
+  { label: "Qty",         align: "right" },
+  { label: "Price/Share", align: "right" },
+  { label: "Total",       align: "right" },
+  { label: "Fees",        align: "right" },
+  { label: "Grand Total", align: "right" },
+  { label: "Control No.", align: "left"  },
+  { label: "Remarks",     align: "left"  },
+  { label: "Status",      align: "left"  },
+  ...(showActions ? [{ label: "Actions", align: "right" }] : []),
+];
+
+// ══════════════════════════════════════════════════════════════════
+// ── MAIN PAGE ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage({ companies, transactions, setTransactions, showToast, role, cdsNumber }) {
   const isDE   = role === "DE";
   const isVR   = role === "VR";
@@ -446,6 +414,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const toolbarInputStyle   = useMemo(() => ({ ...toolbarControlStyle, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text }), [toolbarControlStyle]);
   const toolbarSelectStyle  = useMemo(() => ({ ...toolbarControlStyle, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 }), [toolbarControlStyle]);
 
+  // ── Data loading ──────────────────────────────────────────────
   const loadTransactions = useCallback(async () => {
     const requestId = ++txLoadRef.current;
     if (isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
@@ -521,19 +490,18 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
     if (normalizedSearch) {
       list = list.filter(t =>
-        t.company_name?.toLowerCase().includes(normalizedSearch) ||
-        t.type?.toLowerCase().includes(normalizedSearch) ||
-        t.date?.includes(normalizedSearch) ||
-        t.remarks?.toLowerCase().includes(normalizedSearch) ||
-        t.status?.toLowerCase().includes(normalizedSearch) ||
-        t.control_number?.includes(normalizedSearch)          // ← search by control number
+        t.company_name?.toLowerCase().includes(normalizedSearch)  ||
+        t.type?.toLowerCase().includes(normalizedSearch)          ||
+        t.date?.includes(normalizedSearch)                        ||
+        t.remarks?.toLowerCase().includes(normalizedSearch)       ||
+        t.status?.toLowerCase().includes(normalizedSearch)        ||
+        t.control_number?.includes(normalizedSearch)              // search by control number
       );
     }
     const isActive = s => s === "pending" || s === "confirmed" || s === "rejected";
     return [...list].sort((a, b) => {
-      const aActive = isActive(a.status);
-      const bActive = isActive(b.status);
-      if (aActive !== bActive) return aActive ? -1 : 1;
+      const aA = isActive(a.status), bA = isActive(b.status);
+      if (aA !== bA) return aA ? -1 : 1;
       return (b.date || "").localeCompare(a.date || "");
     });
   }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
@@ -545,6 +513,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const resetPage    = useCallback(() => setPage(1), []);
   const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
+  // Corrected totals: sell grand deducts fees
   const totals = useMemo(() => {
     const buyFees  = filtered.filter(t => t.type === "Buy") .reduce((s, t) => s + Number(t.fees || 0), 0);
     const sellFees = filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.fees || 0), 0);
@@ -554,10 +523,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       buyAmount:  buyAmt,
       sellAmount: sellAmt,
       fees:       buyFees + sellFees,
-      // Buy grand = total paid out (trade + fees)
-      // Sell grand = net received (trade − fees)
-      buyGrand:  buyAmt  + buyFees,
-      sellGrand: sellAmt - sellFees,
+      buyGrand:   buyAmt  + buyFees,    // total paid out
+      sellGrand:  sellAmt - sellFees,   // net received
     };
   }, [filtered]);
 
@@ -601,7 +568,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const openRejectModal = useCallback((ids) => setRejectModal({ ids }), []);
   const openDeleteModal = useCallback((transaction) => setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name }), []);
 
-  // ── handleFormConfirm — includes control_number in payload ────
+  // ── handleFormConfirm — includes control_number ───────────────
   const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total }) => {
     const isEdit  = !!formModal.transaction;
     const company = companyById.get(companyId);
@@ -614,7 +581,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       price:          Number(price),
       total,
       fees:           fees ? Number(fees) : null,
-      control_number: controlNumber || null,   // ← new field
+      control_number: controlNumber || null,
       remarks:        remarks || null,
       cds_number:     cdsNumber || null,
     };
@@ -648,15 +615,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setActionModal(null);
     setConfirmingIds(new Set(ids));
     try {
-      const updatedTransactions = [...myTransactions];
+      const updated = [...myTransactions];
       for (const id of ids) {
         const rows = await sbConfirmTransaction(id);
         if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
-        const idx = updatedTransactions.findIndex(t => t.id === id);
-        if (idx !== -1) updatedTransactions[idx] = rows[0];
+        const idx = updated.findIndex(t => t.id === id);
+        if (idx !== -1) updated[idx] = rows[0];
       }
       if (!isMountedRef.current) return;
-      setTransactions(updatedTransactions);
+      setTransactions(updated);
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
     } catch (e) {
@@ -816,40 +783,42 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyVal - stats.totalSellVal))}`, sub: stats.totalBuyVal >= stats.totalSellVal ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
     ];
     return [
-      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,          icon: "📋", color: C.navy  },
-      { label: "Total Bought",       value: `TZZ ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,   icon: "📥", color: C.green },
+      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,                    icon: "📋", color: C.navy  },
+      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,   icon: "📥", color: C.green },
       { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red   },
       { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold },
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
 
-  const showCheckbox = true;
-  const showActions  = !isRO;
+  const showCheckbox   = true;
+  const showActions    = !isRO;
+  const tableHeaders   = useMemo(() => buildTableHeaders(showActions), [showActions]);
+  // tfoot extra colspan: Control No. + Remarks + Status + (Actions)
+  const tfootRightCols = 1 + 1 + 1 + (showActions ? 1 : 0);
 
-  // Table column headers — includes Control No.
-  const tableHeaders = [
-    { label: "#",            align: "left"  },
-    { label: "Date",         align: "left"  },
-    { label: "Company",      align: "left"  },
-    { label: "Type",         align: "left"  },
-    { label: "Qty",          align: "right" },
-    { label: "Price/Share",  align: "right" },
-    { label: "Total",        align: "right" },
-    { label: "Fees",         align: "right" },
-    { label: "Grand Total",  align: "right" },
-    { label: "Control No.",  align: "left"  },
-    { label: "Remarks",      align: "left"  },
-    { label: "Status",       align: "left"  },
-    ...(showActions ? [{ label: "Actions", align: "right" }] : []),
-  ];
-
+  // ── Render ────────────────────────────────────────────────────
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {deleteModal && <Modal type="confirm" title="Delete Transaction" message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`} onConfirm={handleDelete} onClose={() => setDeleteModal(null)} />}
-      {bulkDeleteModal && <SimpleConfirmModal title="Delete Transactions" message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`} count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete} onClose={() => setBulkDeleteModal(null)} />}
-      {bulkUnverifyModal && <SimpleConfirmModal title="Unverify Transactions" message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`} count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying} onConfirm={doBulkUnverify} onClose={() => setBulkUnverifyModal(null)} />}
 
-      {/* Pass myTransactions so the form can filter companies by holdings on Sell */}
+      {/* ── Modals ── */}
+      {deleteModal && (
+        <Modal type="confirm" title="Delete Transaction"
+          message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
+          onConfirm={handleDelete} onClose={() => setDeleteModal(null)} />
+      )}
+      {bulkDeleteModal && (
+        <SimpleConfirmModal title="Delete Transactions"
+          message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`}
+          count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0}
+          onConfirm={doBulkDelete} onClose={() => setBulkDeleteModal(null)} />
+      )}
+      {bulkUnverifyModal && (
+        <SimpleConfirmModal title="Unverify Transactions"
+          message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`}
+          count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying}
+          onConfirm={doBulkUnverify} onClose={() => setBulkUnverifyModal(null)} />
+      )}
+      {/* Pass myTransactions so form can filter companies by holdings on Sell */}
       {formModal.open && (
         <TransactionFormModal
           key={formModal.transaction?.id || "new"}
@@ -860,25 +829,41 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onClose={() => setFormModal({ open: false, transaction: null })}
         />
       )}
-
       {importModal && <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={() => setImportModal(false)} />}
-      {actionModal && <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company} loading={isAnyConfirming || isAnyVerifying} onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm} onClose={() => setActionModal(null)} />}
+      {actionModal && (
+        <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company}
+          loading={isAnyConfirming || isAnyVerifying}
+          onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm}
+          onClose={() => setActionModal(null)} />
+      )}
       {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={() => setRejectModal(null)} />}
 
+      {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
         {statCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
+      {/* ── Toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
-          <div style={{ flex: 1, minWidth: 220, maxWidth: 340, position: "relative" }}>
+          <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-            <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, control no., date, remarks..." style={toolbarInputStyle} onFocus={e => { e.target.style.borderColor = C.navy; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
+              placeholder="Search company, control no., status..."
+              style={toolbarInputStyle}
+              onFocus={e => { e.target.style.borderColor = C.navy; }}
+              onBlur={e => { e.target.style.borderColor = C.gray200; }} />
           </div>
           {["All", "Buy", "Sell"].map(t => (
-            <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }} style={{ ...toolbarButtonStyle, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>{t}</button>
+            <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
+              style={{ ...toolbarButtonStyle, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+              {t}
+            </button>
           ))}
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }} style={{ ...toolbarSelectStyle, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }} onFocus={e => { e.target.style.borderColor = C.navy; }} onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+            style={{ ...toolbarSelectStyle, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+            onFocus={e => { e.target.style.borderColor = C.navy; }}
+            onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
             {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
@@ -904,6 +889,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         </div>
       </div>
 
+      {/* ── Table ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
           {loadingTransactions ? (
@@ -937,14 +923,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
-                    <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
+                    <tr>
                       {showCheckbox && (
-                        <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36 }}>
-                          <input type="checkbox" checked={allSelected} ref={el => el && (el.indeterminate = someSelected && !allSelected)} onChange={toggleAll} style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
+                        <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: "#f5f6fa" }}>
+                          <input type="checkbox" checked={allSelected}
+                            ref={el => el && (el.indeterminate = someSelected && !allSelected)}
+                            onChange={toggleAll}
+                            style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
                         </th>
                       )}
                       {tableHeaders.map(h => (
-                        <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>{h.label}</th>
+                        <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>
+                          {h.label}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -975,7 +966,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   </tbody>
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
-                      {/* colspan covers: checkbox + # + Date + Company + Type + Qty + Price = 7 cols */}
+                      {/* #, Date, Company, Type, Qty, Price/Share = 6 data cols + optional checkbox */}
                       <td colSpan={showCheckbox ? 7 : 6} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
@@ -992,12 +983,16 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
                       {/* Control No. + Remarks + Status + Actions */}
-                      <td colSpan={1 + 1 + 1 + (showActions ? 1 : 0)} />
+                      <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
                 </table>
               </div>
-              <Pagination page={safePage} totalPages={totalPages} pageSize={pageSize} setPage={setPage} setPageSize={setPageSize} total={stats.total} filtered={filtered.length} />
+              <Pagination
+                page={safePage} totalPages={totalPages} pageSize={pageSize}
+                setPage={setPage} setPageSize={setPageSize}
+                total={stats.total} filtered={filtered.length}
+              />
             </>
           )}
         </SectionCard>
