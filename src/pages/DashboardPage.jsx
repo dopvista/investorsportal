@@ -704,11 +704,16 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           }
         />
 
+        {/* ── FIX 2: Sub line now shows total shares held with fmt() comma separator ── */}
         <SnapCard
           label="Invested Capital"
           loading={loading}
           value={metrics.hasCostData ? fmtShort(metrics.investedCapital) : "—"}
-          sub={metrics.hasCostData ? "Cost of currently held shares" : "No verified buy transactions"}
+          sub={
+            metrics.hasCostData
+              ? `${fmt(metrics.totalNetShares)} shares held`
+              : "No verified buy transactions"
+          }
         />
 
         <SnapCard
@@ -1005,8 +1010,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   <tfoot>
                     <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                       <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                      {/* ── FIX 1: fmt() applied so total shares has comma separator ── */}
                       <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                        {metrics.totalNetShares}
+                        {fmt(metrics.totalNetShares)}
                       </td>
                       <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
                         {fmt(metrics.investedCapital)}
