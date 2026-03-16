@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 
 // ─── App Brand Colors ─────────────────────────────────────────────
@@ -36,6 +36,30 @@ export const fmtSmart = (n) => {
   if (v >= 1_000_000)     return (v / 1_000_000).toLocaleString("en-US",     { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "M";
   if (v >= 1_000)         return (v / 1_000).toLocaleString("en-US",         { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "K";
   return v.toLocaleString("en-US");
+};
+
+// ─── DSE Fee Calculator ────────────────────────────────────────────
+// Official DSE equity fee schedule — applies identically to Buy and Sell
+// Buy:  grandTotal = tradeValue + fees  (investor pays more)
+// Sell: grandTotal = tradeValue − fees  (investor receives less)
+// Broker:   tiered 1.7%(≤10M) / 1.5%(10–50M) / 0.8%(>50M) + 18% VAT
+// CMSA:     0.14% flat — no VAT (regulatory body)
+// DSE:      0.14% flat + 18% VAT
+// CSDR:     0.06% flat + 18% VAT
+// Fidelity: 0.02% flat — no VAT (investor protection fund)
+export const calcFees = (tradeValue) => {
+  const tv = Number(tradeValue) || 0;
+  if (tv <= 0) return { broker: 0, cmsa: 0, dse: 0, csdr: 0, fidelity: 0, total: 0 };
+  let brokerBase = 0;
+  if      (tv <= 10_000_000) brokerBase = tv * 0.017;
+  else if (tv <= 50_000_000) brokerBase = 10_000_000 * 0.017 + (tv - 10_000_000) * 0.015;
+  else                        brokerBase = 10_000_000 * 0.017 + 40_000_000 * 0.015 + (tv - 50_000_000) * 0.008;
+  const broker   = Math.round(brokerBase  * 1.18);
+  const cmsa     = Math.round(tv * 0.0014);
+  const dse      = Math.round(tv * 0.0014 * 1.18);
+  const csdr     = Math.round(tv * 0.0006 * 1.18);
+  const fidelity = Math.round(tv * 0.0002);
+  return { broker, cmsa, dse, csdr, fidelity, total: broker + cmsa + dse + csdr + fidelity };
 };
 
 // ─── Spinner ──────────────────────────────────────────────────────
@@ -198,7 +222,7 @@ export function ActionMenu({ actions }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ─── MODAL SHELL ─────────────────────────────────────────────────
+// ─── MODAL SHELL ──────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   return (
@@ -351,42 +375,35 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
   if (!company) return null;
 
-  // Remove zero-change noise (price set to same value) — keep initial entries
   const meaningful = history.filter(h => {
     const isInitial = !h.old_price || Number(h.old_price) === 0;
     if (isInitial) return true;
     return Number(h.change_amount) !== 0;
   });
 
-  // Filter to current month only
   const now       = new Date();
   const thisMonth = meaningful.filter(h => {
     const d = new Date(h.created_at);
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   });
-  const monthLabel  = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const totalPages  = Math.ceil(thisMonth.length / PAGE_SIZE);
+  const monthLabel   = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const totalPages   = Math.ceil(thisMonth.length / PAGE_SIZE);
   const pagedHistory = thisMonth.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const PaginationBar = () => totalPages <= 1 ? null : (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0 2px" }}>
-      <button onClick={() => setPage(1)} disabled={page === 1}
-        style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
-      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-        style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
+      <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
+      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
       {Array.from({ length: totalPages }, (_, i) => i + 1)
         .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
         .reduce((acc, p, i, arr) => { if (i > 0 && arr[i-1] !== p - 1) acc.push("..."); acc.push(p); return acc; }, [])
         .map((p, i) => p === "..." ? (
           <span key={`d${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
         ) : (
-          <button key={p} onClick={() => setPage(p)}
-            style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${p === page ? C.navy : C.gray200}`, background: p === page ? C.navy : C.white, color: p === page ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500, fontFamily: "inherit", minWidth: 30 }}>{p}</button>
+          <button key={p} onClick={() => setPage(p)} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${p === page ? C.navy : C.gray200}`, background: p === page ? C.navy : C.white, color: p === page ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500, fontFamily: "inherit", minWidth: 30 }}>{p}</button>
         ))}
-      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-        style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
-      <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-        style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
+      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
+      <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
     </div>
   );
 
@@ -406,7 +423,6 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       }
     >
-      {/* Month filter banner */}
       <div style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 14 }}>📅</span>
         <div style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600 }}>
@@ -434,14 +450,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
           )}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: 36  }} />
-              <col style={{ width: 130 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 160 }} />
-              <col style={{ width: 130 }} />
+              <col style={{ width: 36  }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} />
+              <col style={{ width: 100 }} /><col style={{ width: 110 }} /><col style={{ width: 100 }} />
+              <col style={{ width: 160 }} /><col style={{ width: 130 }} />
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
@@ -467,17 +478,13 @@ export function PriceHistoryModal({ company, history, onClose }) {
                         {new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                       </div>
                     </td>
-                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>
-                      {isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}
-                    </td>
+                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>{isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}</td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: isFirstEntry ? C.gray400 : up ? C.green : C.red }}>
                       {isFirstEntry ? <span style={{ color: C.gray400 }}>Initial</span> : <>{up ? "▲" : "▼"} {fmt(Math.abs(h.change_amount))}</>}
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                      {isFirstEntry
-                        ? <span style={{ color: C.gray400, fontSize: 12 }}>—</span>
-                        : <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{Number(h.change_percent).toFixed(2)}%</span>}
+                      {isFirstEntry ? <span style={{ color: C.gray400, fontSize: 12 }}>—</span> : <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{Number(h.change_percent).toFixed(2)}%</span>}
                     </td>
                     <td style={{ padding: "10px 12px", color: C.gray600, maxWidth: 160 }}>{h.notes || <span style={{ color: C.gray400 }}>—</span>}</td>
                     <td style={{ padding: "10px 12px" }}><span style={{ background: C.navy + "12", color: C.navy, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{h.updated_by}</span></td>
@@ -493,61 +500,310 @@ export function PriceHistoryModal({ company, history, onClose }) {
   );
 }
 
-// ─── Transaction Form Modal ───────────────────────────────────────
-export function TransactionFormModal({ transaction, companies, onConfirm, onClose }) {
-  const today = new Date().toISOString().split("T")[0];
+// ═══════════════════════════════════════════════════════════════════
+// ─── TRANSACTION FORM MODAL ───────────────────────────────────────
+// CHANGES vs original:
+//  1. Transaction Type moved FIRST (before Company)
+//  2. Company filtered to holdings-only when type = Sell
+//  3. Fees auto-calculated by calcFees() — no manual fee input
+//  4. Control Number field added (digits only, max 15 chars)
+//  5. New prop: transactions[] — used to compute net holdings
+// ═══════════════════════════════════════════════════════════════════
+export function TransactionFormModal({ transaction, companies, transactions = [], onConfirm, onClose }) {
+  const today  = new Date().toISOString().split("T")[0];
   const isEdit = !!transaction;
-  const [form, setForm] = useState(
+
+  const [form, setForm] = useState(() =>
     transaction
-      ? { date: transaction.date, companyId: transaction.company_id, type: transaction.type, qty: transaction.qty, price: transaction.price, fees: transaction.fees || "", remarks: transaction.remarks || "" }
-      : { date: today, companyId: "", type: "Buy", qty: "", price: "", fees: "", remarks: "" }
+      ? {
+          date:          transaction.date,
+          companyId:     transaction.company_id,
+          type:          transaction.type,
+          qty:           String(transaction.qty),
+          price:         String(transaction.price),
+          controlNumber: transaction.control_number || "",
+          remarks:       transaction.remarks || "",
+        }
+      : { date: today, companyId: "", type: "Buy", qty: "", price: "", controlNumber: "", remarks: "" }
   );
-  const [error, setError] = useState("");
+  const [error, setError]                       = useState("");
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
 
-  const total = (Number(form.qty) || 0) * (Number(form.price) || 0);
-  const grandTotal = total + (Number(form.fees) || 0);
+  // ── Auto-calculated values ────────────────────────────────────
+  const tradeValue   = useMemo(() => (Number(form.qty) || 0) * (Number(form.price) || 0), [form.qty, form.price]);
+  const feeBreakdown = useMemo(() => calcFees(tradeValue), [tradeValue]);
+  const isBuy        = form.type === "Buy";
+  const grandTotal   = isBuy ? tradeValue + feeBreakdown.total : tradeValue - feeBreakdown.total;
 
-  const handle = () => {
-    if (!form.date || !form.companyId || !form.qty || !form.price) { setError("Please fill in Date, Company, Quantity and Price per Share."); return; }
+  // ── Net holdings — company_id → net shares owned ─────────────
+  const netMap = useMemo(() => {
+    const m = {};
+    transactions.forEach(t => {
+      if (!t.company_id) return;
+      m[t.company_id] = (m[t.company_id] || 0) + (t.type === "Buy" ? Number(t.qty || 0) : -Number(t.qty || 0));
+    });
+    return m;
+  }, [transactions]);
+
+  // ── Company list: all on Buy; holdings-only on Sell ───────────
+  const availableCompanies = useMemo(() => {
+    if (form.type === "Buy") return companies;
+    const ownedIds = new Set(
+      Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id)
+    );
+    return ownedIds.size === 0 ? companies : companies.filter(c => ownedIds.has(c.id));
+  }, [form.type, companies, netMap]);
+
+  const isSellFiltered = form.type === "Sell" && availableCompanies.length < companies.length;
+
+  // When switching to Sell, clear company if not in holdings
+  const handleTypeChange = useCallback((newType) => {
+    setForm(f => {
+      if (newType === "Sell" && f.companyId) {
+        const owned = new Set(
+          Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id)
+        );
+        if (owned.size > 0 && !owned.has(f.companyId)) return { ...f, type: newType, companyId: "" };
+      }
+      return { ...f, type: newType };
+    });
+  }, [netMap]);
+
+  const handleSubmit = () => {
+    if (!form.date)                               { setError("Date is required.");                          return; }
+    if (!form.companyId)                          { setError("Please select a company.");                  return; }
+    if (!form.qty   || Number(form.qty)   <= 0)   { setError("Quantity must be greater than 0.");          return; }
+    if (!form.price || Number(form.price) <= 0)   { setError("Price per share must be greater than 0.");  return; }
     setError("");
-    onConfirm({ ...form, total, grandTotal });
+    onConfirm({
+      date:          form.date,
+      companyId:     form.companyId,
+      type:          form.type,
+      qty:           form.qty,
+      price:         form.price,
+      fees:          feeBreakdown.total,       // ← always system-calculated
+      controlNumber: form.controlNumber || null,
+      remarks:       form.remarks || null,
+      total:         tradeValue,
+    });
   };
+
+  const feeItems = [
+    { label: "Broker",   value: feeBreakdown.broker,   note: "+18% VAT" },
+    { label: "CMSA",     value: feeBreakdown.cmsa,     note: "0.14%"    },
+    { label: "DSE",      value: feeBreakdown.dse,      note: "+18% VAT" },
+    { label: "CSDR",     value: feeBreakdown.csdr,     note: "+18% VAT" },
+    { label: "Fidelity", value: feeBreakdown.fidelity, note: "0.02%"    },
+  ];
 
   return (
     <ModalShell
       title={isEdit ? "✏️ Edit Transaction" : "📝 Record New Transaction"}
-      subtitle={isEdit ? "Update the details below and save" : "Record a new buy or sell order"}
-      onClose={onClose} maxWidth={620}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handle} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
+      subtitle={isEdit ? "Update the details below and save" : "Enter details — fees are calculated automatically by the system"}
+      onClose={onClose} maxWidth={600}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
-      {error && <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>⚠️ {error}</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-        <FInput label="Date" required type="date" value={form.date} onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }} />
-        <FSelect label="Company" required value={form.companyId} onChange={e => { setForm(f => ({ ...f, companyId: e.target.value })); setError(""); }}>
-          <option value="">Select company...</option>
-          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </FSelect>
-        <FSelect label="Transaction Type" required value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-          <option value="Buy">🟢 Buy</option>
-          <option value="Sell">🔴 Sell</option>
-        </FSelect>
-        <FInput label="Quantity" required type="number" value={form.qty} onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }} placeholder="0" />
-        <FInput label="Price per Share (TZS)" required type="number" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }} placeholder="0.00" />
-        <FInput label="Other Fees (TZS)" type="number" value={form.fees} onChange={e => setForm(f => ({ ...f, fees: e.target.value }))} placeholder="0.00" />
-      </div>
-      {total > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: 16 }}>
-          <div style={{ minWidth: 0 }}><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Shares Total</div><div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>TZS {fmt(total)}</div></div>
-          <div style={{ minWidth: 0 }}><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fees</div><div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>TZS {fmt(form.fees || 0)}</div></div>
-          <div style={{ minWidth: 0 }}><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Grand Total</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>TZS {fmt(grandTotal)}</div></div>
+      {error && (
+        <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
+          ⚠️ {error}
         </div>
       )}
-      <FTextarea label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." style={{ minHeight: 56 }} />
+
+      {/* ── Row 1: Type (FIRST) · Date · Control Number ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+
+        {/* Transaction Type — visual toggle, FIRST field */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            Transaction Type <span style={{ color: C.red }}>*</span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {["Buy", "Sell"].map(t => {
+              const active = form.type === t;
+              const col    = t === "Buy" ? C.green : C.red;
+              const bg     = t === "Buy" ? C.greenBg : C.redBg;
+              return (
+                <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8,
+                    border: `1.5px solid ${active ? col : C.gray200}`,
+                    background: active ? bg : C.white,
+                    color: active ? col : C.gray500,
+                    fontWeight: 700, fontSize: 13, cursor: "pointer",
+                    fontFamily: "inherit", transition: "all 0.15s",
+                  }}>
+                  {t === "Buy" ? "▲ Buy" : "▼ Sell"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Date */}
+        <FInput
+          label="Date" required type="date"
+          value={form.date}
+          onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
+        />
+
+        {/* Control Number — digits only, max 15 chars */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            Control Number
+          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={form.controlNumber}
+            onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.replace(/\D/g, "").slice(0, 15) }))}
+            placeholder="e.g. 991051763663"
+            style={{
+              border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px",
+              fontSize: 14, outline: "none", background: C.white, color: C.text,
+              width: "100%", boxSizing: "border-box", fontFamily: "inherit",
+              letterSpacing: "0.04em", transition: "border-color 0.2s",
+            }}
+            onFocus={e => (e.target.style.borderColor = C.green)}
+            onBlur={e => (e.target.style.borderColor = C.gray200)}
+          />
+          <div style={{ fontSize: 10, color: C.gray400, marginTop: 3 }}>
+            Digits only · DSE payment reference
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Company — full width, filtered when Sell ── */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+          Company <span style={{ color: C.red }}>*</span>
+          {isSellFiltered && (
+            <span style={{ fontSize: 10, fontWeight: 600, background: C.redBg, color: C.red, border: `1px solid #FECACA`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
+              ▼ Holdings only
+            </span>
+          )}
+        </div>
+        <select
+          value={form.companyId}
+          onChange={e => { setForm(f => ({ ...f, companyId: e.target.value })); setError(""); }}
+          style={{ ...inputStyle(false), cursor: "pointer" }}
+          onFocus={e => (e.target.style.borderColor = C.green)}
+          onBlur={e => (e.target.style.borderColor = C.gray200)}
+        >
+          <option value="">{isSellFiltered ? "Select company with shares..." : "Select company..."}</option>
+          {availableCompanies.map(c => {
+            const netQty = netMap[c.id] || 0;
+            return (
+              <option key={c.id} value={c.id}>
+                {c.name}{isSellFiltered && netQty > 0 ? `  (${fmtInt(netQty)} shares)` : ""}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+
+      {/* ── Row 3: Qty · Price ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <FInput
+          label="Quantity (Shares)" required type="number" min="1"
+          value={form.qty}
+          onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
+          placeholder="0"
+        />
+        <FInput
+          label="Price per Share (TZS)" required type="number" min="0.01"
+          value={form.price}
+          onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }}
+          placeholder="0.00"
+        />
+      </div>
+
+      {/* ── Summary panel — shown when qty × price is filled ── */}
+      {tradeValue > 0 && (
+        <div style={{
+          background: isBuy ? C.greenBg : C.redBg,
+          border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`,
+          borderRadius: 12, padding: 16,
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+
+            {/* Trade Value */}
+            <div>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Trade Value</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>TZS {fmt(tradeValue)}</div>
+              <div style={{ fontSize: 10, color: C.gray400, marginTop: 2 }}>{fmtInt(form.qty)} × {fmt(form.price)}</div>
+            </div>
+
+            {/* Commission Fees — ⓘ expands breakdown */}
+            <div>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                Commission Fees
+                <button
+                  type="button"
+                  onClick={() => setShowFeeBreakdown(v => !v)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: showFeeBreakdown ? C.navy : C.gray400, padding: 0, lineHeight: 1 }}
+                  title={showFeeBreakdown ? "Hide breakdown" : "Show breakdown"}
+                >
+                  {showFeeBreakdown ? "▲" : "ⓘ"}
+                </button>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>TZS {fmt(feeBreakdown.total)}</div>
+              <div style={{ fontSize: 10, color: C.gray400, marginTop: 2 }}>Auto-calculated · DSE rates</div>
+            </div>
+
+            {/* Grand Total */}
+            <div>
+              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                {isBuy ? "Total to Pay" : "Net Proceeds"}
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: isBuy ? C.green : C.red }}>
+                TZS {fmt(grandTotal)}
+              </div>
+              <div style={{ fontSize: 10, color: isBuy ? C.green : C.red, marginTop: 2 }}>
+                {isBuy ? "Trade + fees" : "Trade − fees"}
+              </div>
+            </div>
+          </div>
+
+          {/* Expandable fee breakdown */}
+          {showFeeBreakdown && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+                {feeItems.map(({ label, value, note }) => (
+                  <div key={label} style={{ background: "rgba(255,255,255,0.65)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                    <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{note}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginTop: 4 }}>{fmt(value)}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: C.gray500, marginTop: 8, textAlign: "center" }}>
+                {isBuy ? "Fees added to trade value" : "Fees deducted from proceeds"} · Per DSE official fee schedule
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Remarks ── */}
+      <FTextarea
+        label="Remarks"
+        value={form.remarks}
+        onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))}
+        placeholder="Optional notes..."
+        style={{ minHeight: 56 }}
+      />
     </ModalShell>
   );
 }
 
-// ─── Import Transactions Modal ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
+// CHANGES vs original:
+//  1. Column F in Excel = Control Number (optional, digits only)
+//  2. Column G in Excel = Remarks (was F)
+//  3. Fees are AUTO-CALCULATED from qty × price — not read from file
+//  4. Preview table shows Control Number + Calculated Fees columns
+// ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, onImport, onClose }) {
   const [step, setStep]           = useState("upload");
   const [rows, setRows]           = useState([]);
@@ -571,7 +827,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const REQUIRED_SHEET = "Transactlons."; // exact sheet name of official DSE template (includes dot)
+  const REQUIRED_SHEET = "Transactlons.";
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -583,7 +839,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       const data = await file.arrayBuffer();
       const wb   = XLSX.read(data, { type: "array", cellDates: true });
 
-      // ── Sheet name check — must use the official import template ───
       if (!wb.SheetNames.includes(REQUIRED_SHEET)) {
         alert("Invalid file.\n\nPlease use the official Investors Portal import template.\nCustom Excel files are not accepted.");
         setParsing(false);
@@ -591,33 +846,20 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         return;
       }
 
-      const ws = wb.Sheets[REQUIRED_SHEET];
-
-      // ── Parse as raw 2D array (no auto-header detection) ───────────
-      // Template structure: rows 1-5 are headers, data is rows 6-505, row 506 is empty
-      // Column 8 (Total Amount) is auto-calculated in Excel — ignored on import
+      const ws  = wb.Sheets[REQUIRED_SHEET];
       const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true, cellDates: true });
 
-      const PLACEHOLDER  = "select company name";
-      const END_MARKER   = "end of importation template"; // row 506 in template
+      const PLACEHOLDER = "select company name";
+      const END_MARKER  = "end of importation template";
+      const dataRows    = [];
 
-      const dataRows = [];
       for (let i = 5; i < raw.length; i++) {
         const row       = raw[i];
         const firstCell = String(row[0] ?? "").trim().toLowerCase();
-
-        // Stop at end-of-template marker (row 506)
         if (firstCell.includes(END_MARKER)) break;
-
-        // Skip completely empty rows
-        const hasContent = row.slice(0, 7).some(cell => String(cell ?? "").trim() !== "");
-        if (!hasContent) continue;
-
-        // Skip placeholder/example row
-        const companyCell = String(row[1] ?? "").trim().toLowerCase();
-        if (companyCell === PLACEHOLDER) continue;
-
-        dataRows.push({ rowNum: i + 1, cells: row }); // rowNum = 1-based Excel row number
+        if (!row.slice(0, 7).some(cell => String(cell ?? "").trim() !== "")) continue;
+        if (String(row[1] ?? "").trim().toLowerCase() === PLACEHOLDER) continue;
+        dataRows.push({ rowNum: i + 1, cells: row });
       }
 
       if (dataRows.length > MAX_ROWS) {
@@ -629,7 +871,6 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
 
       if (dataRows.length === 0) { setRows([]); setErrors([]); setStep("preview"); setParsing(false); return; }
 
-      // ── Parse and validate each row ────────────────────────────────
       const parsed = [], errs = [];
 
       dataRows.forEach(({ rowNum, cells }) => {
@@ -641,28 +882,19 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         const type    = get(2);
         const qty     = parseFloat(get(3));
         const price   = parseFloat(get(4));
-        const fees    = parseFloat(get(5)) || 0;
+        // Col F (index 5): Control Number — digits only, optional
+        const controlNumber = get(5).replace(/\D/g, "").slice(0, 15) || null;
+        // Col G (index 6): Remarks
         const remarks = get(6);
-        // Column 8 (index 7) = Total Amount — auto-calculated in Excel, ignored here
+        // Col H (index 7): Excel-calculated total — ignored, we recalculate
 
         const rowErrs = [];
-
-        // Date
         if (!dateRaw || String(dateRaw).trim() === "") rowErrs.push("Missing date");
-
-        // Company
         if (!company) rowErrs.push("Missing company name");
-
-        // Type
         if (!["Buy", "Sell"].includes(type)) rowErrs.push("Type must be exactly 'Buy' or 'Sell'");
-
-        // Quantity
-        if (isNaN(qty) || qty <= 0) rowErrs.push("Invalid quantity");
-
-        // Price
+        if (isNaN(qty)   || qty   <= 0) rowErrs.push("Invalid quantity");
         if (isNaN(price) || price <= 0) rowErrs.push("Invalid price");
 
-        // Company lookup
         const matchedCompany = company
           ? companies.find(c => c.name.toLowerCase().trim() === company.toLowerCase())
           : null;
@@ -683,24 +915,24 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               const [dd, mm, yyyy] = parts;
               date = `${yyyy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
             }
-          } else {
-            date = dateStr;
-          }
+          } else { date = dateStr; }
         }
-
-        if (!date && rowErrs.filter(e => e === "Missing date").length === 0) rowErrs.push("Invalid date format");
+        if (!date && !rowErrs.includes("Missing date")) rowErrs.push("Invalid date format");
 
         if (rowErrs.length) {
           errs.push({ row: rowNum, errors: rowErrs });
         } else {
+          const tradeValue = qty * price;
+          const fees       = calcFees(tradeValue).total; // ← always system-calculated
           parsed.push({
             date,
-            company_id:   matchedCompany.id,
-            company_name: matchedCompany.name,
+            company_id:     matchedCompany.id,
+            company_name:   matchedCompany.name,
             type, qty, price,
-            fees:    fees || null,
-            remarks: remarks || null,
-            total:   qty * price,
+            fees,
+            control_number: controlNumber,
+            remarks:        remarks || null,
+            total:          tradeValue,
           });
         }
       });
@@ -718,20 +950,17 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
     if (!rows.length) return;
     setImporting(true);
     setProgress(0);
-
-    // Animate progress bar 0 → 85% while waiting for server
     let current = 0;
     const interval = setInterval(() => {
-      current += Math.random() * 6 + 2; // 2–8% increments
+      current += Math.random() * 6 + 2;
       if (current >= 85) { current = 85; clearInterval(interval); }
       setProgress(Math.round(current));
     }, 180);
-
     try {
       await onImport(rows);
       clearInterval(interval);
       setProgress(100);
-      await new Promise(r => setTimeout(r, 500)); // briefly show 100%
+      await new Promise(r => setTimeout(r, 500));
       onClose();
     } catch (e) {
       clearInterval(interval);
@@ -771,6 +1000,16 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
           </div>
         </div>
       </div>
+
+      {/* Column guide */}
+      <div style={{ background: "#EFF6FF", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
+        <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.8 }}>
+          <strong>Template columns:</strong> A Date · B Company · C Type (Buy/Sell) · D Qty · E Price · <strong>F Control No.</strong> · G Remarks<br/>
+          Commission fees are <strong>calculated automatically</strong> — no need to enter them in the file.
+        </div>
+      </div>
+
       <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
         <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.7 }}>
@@ -780,10 +1019,10 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
     </div>
   );
 
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE  = 10;
   const [previewPage, setPreviewPage] = useState(1);
-  const totalPages   = Math.ceil(rows.length / PAGE_SIZE);
-  const pagedRows    = rows.slice((previewPage - 1) * PAGE_SIZE, previewPage * PAGE_SIZE);
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+  const pagedRows  = rows.slice((previewPage - 1) * PAGE_SIZE, previewPage * PAGE_SIZE);
 
   const PreviewStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -801,21 +1040,15 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       {rows.length > 0 && (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
-              ✅ Preview — {rows.length} rows ready to import
-            </div>
-            {totalPages > 1 && (
-              <div style={{ fontSize: 12, color: C.gray400 }}>
-                Showing {(previewPage - 1) * PAGE_SIZE + 1}–{Math.min(previewPage * PAGE_SIZE, rows.length)} of {rows.length}
-              </div>
-            )}
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>✅ Preview — {rows.length} rows ready to import</div>
+            {totalPages > 1 && <div style={{ fontSize: 12, color: C.gray400 }}>Showing {(previewPage - 1) * PAGE_SIZE + 1}–{Math.min(previewPage * PAGE_SIZE, rows.length)} of {rows.length}</div>}
           </div>
           <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 10, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
               <thead>
                 <tr style={{ background: C.navy }}>
-                  {[["#","4%","center"],["Date","13%","left"],["Company","17%","left"],["Type","10%","left"],["Qty","10%","right"],["Price","14%","right"],["Fees","14%","right"],["Total","18%","right"]].map(([h, w, align]) => (
-                    <th key={h} style={{ padding: "8px 10px", color: C.white, fontWeight: 700, fontSize: 11, textAlign: align, whiteSpace: "nowrap", width: w }}>{h}</th>
+                  {[["#","4%","center"],["Date","11%","left"],["Company","16%","left"],["Type","8%","left"],["Qty","8%","right"],["Price","11%","right"],["Ctrl No.","13%","left"],["Calc. Fees","14%","right"],["Total","15%","right"]].map(([h, w, align]) => (
+                    <th key={h} style={{ padding: "8px 8px", color: C.white, fontWeight: 700, fontSize: 10, textAlign: align, whiteSpace: "nowrap", width: w }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -825,14 +1058,19 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
                   const displayDate = r.date && r.date.includes("-") ? r.date.split("-").reverse().join("/") : r.date;
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 === 0 ? C.white : C.gray50 }}>
-                      <td style={{ padding: "7px 10px", color: C.gray400, textAlign: "center" }}>{globalIdx + 1}</td>
-                      <td style={{ padding: "7px 10px", color: C.text, whiteSpace: "nowrap" }}>{displayDate}</td>
-                      <td style={{ padding: "7px 10px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.company_name}</td>
-                      <td style={{ padding: "7px 10px" }}><span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 8px", borderRadius: 12, fontWeight: 700, fontSize: 11 }}>{r.type}</span></td>
-                      <td style={{ padding: "7px 10px", color: C.text, textAlign: "right" }}>{fmtInt(r.qty)}</td>
-                      <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
-                      <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right" }}>{r.fees ? fmtInt(r.fees) : "—"}</td>
-                      <td style={{ padding: "7px 10px", fontWeight: 700, color: r.type === "Buy" ? C.green : r.type === "Sell" ? C.red : C.text, textAlign: "right" }}>{fmtInt(r.total)}</td>
+                      <td style={{ padding: "6px 8px", color: C.gray400, textAlign: "center" }}>{globalIdx + 1}</td>
+                      <td style={{ padding: "6px 8px", color: C.text, whiteSpace: "nowrap" }}>{displayDate}</td>
+                      <td style={{ padding: "6px 8px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.company_name}</td>
+                      <td style={{ padding: "6px 8px" }}><span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 7px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span></td>
+                      <td style={{ padding: "6px 8px", color: C.text, textAlign: "right" }}>{fmtInt(r.qty)}</td>
+                      <td style={{ padding: "6px 8px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
+                      <td style={{ padding: "6px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.control_number
+                          ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "1px 6px", borderRadius: 5, fontWeight: 600, fontSize: 11 }}>{r.control_number}</span>
+                          : <span style={{ color: C.gray400 }}>—</span>}
+                      </td>
+                      <td style={{ padding: "6px 8px", color: C.gray600, textAlign: "right" }}>{fmtInt(r.fees)}</td>
+                      <td style={{ padding: "6px 8px", fontWeight: 700, color: r.type === "Buy" ? C.green : C.red, textAlign: "right" }}>{fmtInt(r.total)}</td>
                     </tr>
                   );
                 })}
@@ -841,23 +1079,18 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
           </div>
           {totalPages > 1 && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10 }}>
-              <button onClick={() => setPreviewPage(1)} disabled={previewPage === 1}
-                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
-              <button onClick={() => setPreviewPage(p => Math.max(1, p - 1))} disabled={previewPage === 1}
-                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
+              <button onClick={() => setPreviewPage(1)} disabled={previewPage === 1} style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
+              <button onClick={() => setPreviewPage(p => Math.max(1, p - 1))} disabled={previewPage === 1} style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === 1 ? C.gray400 : C.text, cursor: previewPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
               {Array.from({ length: totalPages }, (_, idx) => idx + 1)
                 .filter(p => p === 1 || p === totalPages || Math.abs(p - previewPage) <= 1)
                 .reduce((acc, p, i, arr) => { if (i > 0 && arr[i-1] !== p-1) acc.push("..."); acc.push(p); return acc; }, [])
                 .map((p, i) => p === "..." ? (
                   <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400, padding: "0 2px" }}>…</span>
                 ) : (
-                  <button key={p} onClick={() => setPreviewPage(p)}
-                    style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${p === previewPage ? C.navy : C.gray200}`, background: p === previewPage ? C.navy : C.white, color: p === previewPage ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === previewPage ? 700 : 500, fontFamily: "inherit", minWidth: 32 }}>{p}</button>
+                  <button key={p} onClick={() => setPreviewPage(p)} style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${p === previewPage ? C.navy : C.gray200}`, background: p === previewPage ? C.navy : C.white, color: p === previewPage ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === previewPage ? 700 : 500, fontFamily: "inherit", minWidth: 32 }}>{p}</button>
                 ))}
-              <button onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))} disabled={previewPage === totalPages}
-                style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
-              <button onClick={() => setPreviewPage(totalPages)} disabled={previewPage === totalPages}
-                style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
+              <button onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))} disabled={previewPage === totalPages} style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
+              <button onClick={() => setPreviewPage(totalPages)} disabled={previewPage === totalPages} style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: previewPage === totalPages ? C.gray400 : C.text, cursor: previewPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
             </div>
           )}
         </div>
@@ -878,7 +1111,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       subtitle={importing
         ? `Importing ${rows.length} transaction${rows.length !== 1 ? "s" : ""}… please wait`
         : step === "upload" ? "Upload your filled Excel template" : `Reviewing ${rows.length + errors.length} rows from "${fileName}"`}
-      onClose={onClose} maxWidth={640} lockBackdrop={importing}
+      onClose={onClose} maxWidth={660} lockBackdrop={importing}
       footer={
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
           {importing && (
@@ -890,9 +1123,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
               <div style={{ height: 10, background: C.gray200, borderRadius: 99, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${progress}%`, background: `linear-gradient(90deg, ${C.green}, ${C.greenLight})`, borderRadius: 99, transition: "width 0.3s ease" }} />
               </div>
-              {progress === 100 && (
-                <div style={{ fontSize: 12, color: C.green, fontWeight: 600, marginTop: 5, textAlign: "center" }}>✅ Import complete!</div>
-              )}
+              {progress === 100 && <div style={{ fontSize: 12, color: C.green, fontWeight: 600, marginTop: 5, textAlign: "center" }}>✅ Import complete!</div>}
             </div>
           )}
           {!importing && (
