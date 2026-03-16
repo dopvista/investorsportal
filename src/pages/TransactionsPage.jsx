@@ -297,22 +297,18 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
-      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{fmt(transaction.total)}</td>
       <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
         {fees ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}
       </td>
-      {/* Grand Total — Buy: total paid out; Sell: net received */}
+      {/* Grand Total — Buy: trade + fees; Sell: trade − fees */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
-        <div style={{ fontSize: 9, color: C.gray400, textAlign: "right", marginTop: 1, letterSpacing: "0.04em" }}>
-          {isBuy ? "TOTAL PAID" : "NET RECV"}
-        </div>
       </td>
-      {/* Control Number — only Buy transactions have it */}
+      {/* Reference No. — shown for both Buy and Sell */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        {isBuy && transaction.control_number
+        {transaction.control_number
           ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.03em" }}>{transaction.control_number}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
@@ -347,18 +343,17 @@ const TransactionRow = memo(function TransactionRow({
 
 // ── Table column headers (defined once, not inline) ────────────────
 const buildTableHeaders = (showActions) => [
-  { label: "#",           align: "left"  },
-  { label: "Date",        align: "left"  },
-  { label: "Company",     align: "left"  },
-  { label: "Type",        align: "left"  },
-  { label: "Qty",         align: "right" },
-  { label: "Price/Share", align: "right" },
-  { label: "Total",       align: "right" },
-  { label: "Fees",        align: "right" },
-  { label: "Grand Total", align: "right" },
-  { label: "Control No.", align: "left"  },
-  { label: "Remarks",     align: "left"  },
-  { label: "Status",      align: "left"  },
+  { label: "#",             align: "left"  },
+  { label: "Date",          align: "left"  },
+  { label: "Company",       align: "left"  },
+  { label: "Type",          align: "left"  },
+  { label: "Qty",           align: "right" },
+  { label: "Price/Share",   align: "right" },
+  { label: "Fees",          align: "right" },
+  { label: "Grand Total",   align: "right" },
+  { label: "Reference No.", align: "left"  },
+  { label: "Remarks",       align: "left"  },
+  { label: "Status",        align: "left"  },
   ...(showActions ? [{ label: "Actions", align: "right" }] : []),
 ];
 
@@ -966,14 +961,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   </tbody>
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
-                      {/* #, Date, Company, Type, Qty, Price/Share = 6 data cols + optional checkbox */}
+                      {/* checkbox + # Date Company Type Qty Price/Share = 7 cols (6 without checkbox) */}
                       <td colSpan={showCheckbox ? 7 : 6} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
-                      </td>
-                      {/* Total column */}
-                      <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyAmount)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellAmount)}</div>
                       </td>
                       {/* Fees column */}
                       <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, textAlign: "right", fontSize: 13 }}>{fmt(totals.fees)}</td>
@@ -982,7 +972,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
-                      {/* Control No. + Remarks + Status + Actions */}
+                      {/* Reference No. + Remarks + Status + Actions */}
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
