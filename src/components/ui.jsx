@@ -506,7 +506,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
 // Changes from original:
 //  ✅ Transaction Type → <select> dropdown (first field)
 //  ✅ Company → searchable custom dropdown
-//  ✅ Control Number → Buy only (hidden on Sell)
+//  ✅ Reference No. → both Buy and Sell, varchar 20 (text+digits)
 //  ✅ Fees → auto-calculated, no user input
 //  ✅ Cannot sell more than holdings
 //  ✅ "Total Paid" label (was "Total to Pay")
@@ -611,7 +611,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       qty:           form.qty,
       price:         form.price,
       fees:          feeBreakdown.total,                        // always system-calculated
-      controlNumber: isBuy ? (form.controlNumber || null) : null, // Buy only
+      controlNumber: form.controlNumber || null,
       remarks:       form.remarks || null,
       total:         tradeValue,
     });
@@ -638,7 +638,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       )}
 
-      {/* ── Row 1: Type · Date · Control Number (Buy only) ── */}
+      {/* ── Row 1: Type · Date · Reference No. ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
 
         {/* Transaction Type — dropdown FIRST */}
@@ -665,23 +665,21 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
         />
 
-        {/* Control Number — Buy only; empty spacer on Sell */}
-        {isBuy ? (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-              Control Number
-            </div>
-            <input
-              type="text" inputMode="numeric"
-              value={form.controlNumber}
-              onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.replace(/\D/g, "").slice(0, 15) }))}
-              placeholder="e.g. 991051763663"
-              style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
-              onFocus={e => (e.target.style.borderColor = C.green)}
-              onBlur={e => (e.target.style.borderColor = C.gray200)}
-            />
+        {/* Reference No. — shown for both Buy and Sell, varchar max 20 */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            Reference No.
           </div>
-        ) : <div />}
+          <input
+            type="text"
+            value={form.controlNumber}
+            onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.slice(0, 20) }))}
+            placeholder="e.g. REF-2024-001"
+            style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
+            onFocus={e => (e.target.style.borderColor = C.green)}
+            onBlur={e => (e.target.style.borderColor = C.gray200)}
+          />
+        </div>
       </div>
 
       {/* ── Row 2: Searchable Company dropdown ── */}
@@ -836,7 +834,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
 // Fees auto-calculated — not read from Excel file
-// Column F = Control Number (optional, digits only)
+// Column F = Reference No. (optional, varchar 20 — text or digits)
 // Column G = Remarks
 // ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, onImport, onClose }) {
@@ -917,7 +915,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         const type          = get(2);
         const qty           = parseFloat(get(3));
         const price         = parseFloat(get(4));
-        const controlNumber = get(5).replace(/\D/g, "").slice(0, 15) || null; // Col F: Control No.
+        const controlNumber = get(5).slice(0, 20) || null; // Col F: Reference No. (varchar 20)
         const remarks       = get(6);                                           // Col G: Remarks
         // Col H (index 7): Excel-calculated total — ignored, we recalculate
 
@@ -962,7 +960,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
             company_name:   matchedCompany.name,
             type, qty, price,
             fees:           calcFees(tradeValue).total, // auto-calculated
-            control_number: type === "Buy" ? controlNumber : null, // Buy only
+            control_number: controlNumber || null, // shown for both Buy and Sell
             remarks:        remarks || null,
             total:          tradeValue,
           });
