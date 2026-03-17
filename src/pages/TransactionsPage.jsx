@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import {
   sbGetAllCompanies,
   sbGetTransactions,
+  sbGetTransactionsByIds,
   sbInsertTransaction,
   sbUpdateTransaction,
   sbDeleteTransaction,
@@ -902,15 +903,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setActionModal(null);
     setConfirmingIds(new Set(ids));
     try {
-      const updated = [...myTransactions];
       for (const id of ids) {
         const rows = await sbConfirmTransaction(id);
         if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
-        const idx = updated.findIndex(t => t.id === id);
-        if (idx !== -1) updated[idx] = rows[0];
       }
+      // Re-fetch enriched (with names) so audit trail shows correctly
+      const enriched = await sbGetTransactionsByIds(ids);
       if (!isMountedRef.current) return;
-      setTransactions(updated);
+      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
+      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
     } catch (e) {
@@ -930,8 +931,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setVerifyingIds(new Set(ids));
     try {
       await sbVerifyTransactions(ids);
+      // Re-fetch enriched so verified_at + verified_by_name are correct
+      const enriched = await sbGetTransactionsByIds(ids);
       if (!isMountedRef.current) return;
-      setTransactions(p => p.map(t => ids.includes(t.id) ? { ...t, status: "verified" } : t));
+      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
+      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} verified!`, "success");
     } catch (e) {
@@ -948,8 +952,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setRejectingIds(new Set(ids));
     try {
       await sbRejectTransactions(ids, comment);
+      // Re-fetch enriched so rejected_at + rejected_by_name are correct
+      const enriched = await sbGetTransactionsByIds(ids);
       if (!isMountedRef.current) return;
-      setTransactions(p => p.map(t => ids.includes(t.id) ? { ...t, status: "rejected", rejection_comment: comment } : t));
+      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
+      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
       setSelected(new Set());
       setRejectModal(null);
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} rejected.`, "error");
@@ -966,8 +973,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     try {
       const rows = await sbUnverifyTransaction(id);
       if (!rows || rows.length === 0) throw new Error("Unverify failed.");
+      // Re-fetch enriched so names are preserved
+      const enriched = await sbGetTransactionsByIds([id]);
       if (!isMountedRef.current) return;
-      setTransactions(p => p.map(t => t.id === id ? rows[0] : t));
+      const updated = enriched[0] || rows[0];
+      setTransactions(p => p.map(t => t.id === id ? updated : t));
       showToast("Transaction unverified and returned to Pending.", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -985,9 +995,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     try {
       const rows = await sbUnverifyTransactions(ids);
       if (!rows || rows.length === 0) throw new Error("No verified transactions could be unverified.");
+      // Re-fetch enriched so names are preserved
+      const enriched = await sbGetTransactionsByIds(ids);
       if (!isMountedRef.current) return;
-      const rowMap = new Map(rows.map(r => [r.id, r]));
-      setTransactions(p => p.map(t => rowMap.get(t.id) || t));
+      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
+      const fallbackMap = new Map(rows.map(r => [r.id, r]));
+      setTransactions(p => p.map(t => enrichedMap.get(t.id) || fallbackMap.get(t.id) || t));
       setSelected(new Set());
       showToast(`${rows.length} transaction${rows.length > 1 ? "s" : ""} unverified.`, "success");
     } catch (e) {
