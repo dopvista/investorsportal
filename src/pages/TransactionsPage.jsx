@@ -66,7 +66,7 @@ const statusOptions = [
 // ── Table headers ─────────────────────────────────────────────────
 // Column order: # | Date | Company | Type | Qty | Price/Share | Total Fees | Grand Total | Broker | Status | Actions
 const TABLE_HEADERS_WITH_ACTIONS = [
-  { label: "#",           align: "left"  },
+  { label: "#",           align: "right" },
   { label: "Date",        align: "left"  },
   { label: "Company",     align: "left"  },
   { label: "Type",        align: "left"  },
@@ -76,7 +76,7 @@ const TABLE_HEADERS_WITH_ACTIONS = [
   { label: "Grand Total", align: "right" },
   { label: "Broker",      align: "left"  },
   { label: "Status",      align: "left"  },
-  { label: "Actions",     align: "right" },
+  { label: "Actions",     align: "center" },
 ];
 const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
 
@@ -624,16 +624,16 @@ const TransactionRow = memo(function TransactionRow({
         </td>
       )}
       {/* # */}
-      <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
+      <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
       {/* Date */}
-      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(transaction.date)}</td>
+      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(transaction.date)}</td>
       {/* Company */}
       <td style={{ padding: "7px 10px" }}>
-        <div style={{ fontWeight: 700, color: C.text, fontSize: 13, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
+        <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
       </td>
       {/* Type */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {isBuy ? "▲ Buy" : "▼ Sell"}
         </span>
       </td>
@@ -641,22 +641,22 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right" }}>{fmtInt(transaction.qty)}</td>
       {/* Price/Share */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
+        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
       {/* Total Fees */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
-        <span style={{ color: C.gold, fontWeight: 700, fontSize: 12 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
+        <span style={{ color: C.gold, fontWeight: 700 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
       {/* Grand Total */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
-        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
       </td>
       {/* Broker */}
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
-          ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
+          ? <span style={{ fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
       {/* Status */}
@@ -1361,12 +1361,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
                       {/* TOTALS label — spans checkbox through Price/Share */}
-                      <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
                       {/* Total Fees column */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
                       </td>
                       {/* Grand Total column — buy and sell stacked */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
