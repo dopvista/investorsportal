@@ -1196,7 +1196,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
                       <td style={{ padding: "7px 10px", color: C.text, whiteSpace: "nowrap" }}>{displayDate}</td>
                       <td style={{ padding: "7px 10px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.company_name}>{r.company_name}</td>
                       <td style={{ padding: "7px 10px" }}>
-                        <span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 8px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span>
+                        <span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 8px", borderRadius: 12, fontWeight: 700 }}>{r.type}</span>
                       </td>
                       <td style={{ padding: "7px 10px", color: C.text, textAlign: "right", fontWeight: 600 }}>{fmtInt(r.qty)}</td>
                       <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmtInt(r.price)}>{fmtInt(r.price)}</td>
