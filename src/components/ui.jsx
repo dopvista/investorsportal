@@ -512,7 +512,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
 //  ✅ "Total Paid" label (was "Total to Pay")
 //  ✅ Condensed summary row (fees breakdown stays inline)
 // ═══════════════════════════════════════════════════════════════════
-export function TransactionFormModal({ transaction, companies, transactions = [], onConfirm, onClose }) {
+export function TransactionFormModal({ transaction, companies, transactions = [], brokers = [], onConfirm, onClose }) {
   const today  = new Date().toISOString().split("T")[0];
   const isEdit = !!transaction;
 
@@ -526,14 +526,19 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           price:         String(transaction.price),
           controlNumber: transaction.control_number || "",
           remarks:       transaction.remarks || "",
+          brokerId:      transaction.broker_id   || "",
+          brokerName:    transaction.broker_name || "",
         }
-      : { date: today, companyId: "", type: "Buy", qty: "", price: "", controlNumber: "", remarks: "" }
+      : { date: today, companyId: "", type: "Buy", qty: "", price: "", controlNumber: "", remarks: "", brokerId: "", brokerName: "" }
   );
   const [error, setError]                       = useState("");
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [companySearch, setCompanySearch]       = useState("");
   const [companyOpen, setCompanyOpen]           = useState(false);
   const companyRef                              = useRef(null);
+  const [brokerSearch, setBrokerSearch]         = useState("");
+  const [brokerOpen, setBrokerOpen]             = useState(false);
+  const brokerRef                               = useRef(null);
 
   // Close company dropdown on outside click
   useEffect(() => {
@@ -542,6 +547,14 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [companyOpen]);
+
+  // Close broker dropdown on outside click
+  useEffect(() => {
+    if (!brokerOpen) return;
+    const handle = (e) => { if (brokerRef.current && !brokerRef.current.contains(e.target)) setBrokerOpen(false); };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [brokerOpen]);
 
   const isBuy = form.type === "Buy";
 
@@ -584,6 +597,16 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     [companies, form.companyId]
   );
 
+  // ── Filter brokers by search query (active only in dropdown) ─
+  const filteredBrokers = useMemo(() => {
+    const q = brokerSearch.trim().toLowerCase();
+    if (!q) return brokers;
+    return brokers.filter(b =>
+      b.broker_name.toLowerCase().includes(q) ||
+      b.broker_code.toLowerCase().includes(q)
+    );
+  }, [brokers, brokerSearch]);
+
   // When switching to Sell, clear company if not in holdings
   const handleTypeChange = useCallback((newType) => {
     setForm(f => {
@@ -600,6 +623,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   const handleSubmit = () => {
     if (!form.date)                              { setError("Date is required.");                                   return; }
     if (!form.companyId)                         { setError("Please select a company.");                            return; }
+    if (!form.brokerId)                          { setError("Please select a broker.");                             return; }
     if (!form.qty   || Number(form.qty)   <= 0)  { setError("Quantity must be greater than 0.");                    return; }
     if (!form.price || Number(form.price) <= 0)  { setError("Price per share must be greater than 0.");             return; }
     if (!isBuy && Number(form.qty) > maxSellQty) { setError(`You only have ${fmtInt(maxSellQty)} shares to sell.`); return; }
@@ -610,10 +634,12 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       type:          form.type,
       qty:           form.qty,
       price:         form.price,
-      fees:          feeBreakdown.total,                        // always system-calculated
+      fees:          feeBreakdown.total,
       controlNumber: form.controlNumber || null,
       remarks:       form.remarks || null,
       total:         tradeValue,
+      brokerId:      form.brokerId,
+      brokerName:    form.brokerName,
     });
   };
 
@@ -748,7 +774,78 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       </div>
 
-      {/* ── Row 3: Qty · Price ── */}
+      {/* ── Row 3: Searchable Broker dropdown ── */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+          Broker <span style={{ color: C.red }}>*</span>
+          {brokers.length === 0 && (
+            <span style={{ fontSize: 10, color: C.gold, fontWeight: 600, background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
+              No brokers — ask SA to add
+            </span>
+          )}
+        </div>
+        <div ref={brokerRef} style={{ position: "relative" }}>
+          {/* Trigger */}
+          <button
+            type="button"
+            onClick={() => { setBrokerOpen(o => !o); setBrokerSearch(""); }}
+            style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${form.brokerId ? C.gray200 : brokerOpen ? C.green : C.gray200}`, background: C.white, color: form.brokerId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
+          >
+            {form.brokerId
+              ? <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{form.brokerName}</span>
+                  <span style={{ fontSize: 11, color: C.gray400, background: C.gray100, borderRadius: 5, padding: "1px 6px" }}>
+                    {brokers.find(b => b.id === form.brokerId)?.broker_code || ""}
+                  </span>
+                </span>
+              : "Select broker..."}
+            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
+              {brokerOpen ? "▲" : "▼"}
+            </span>
+          </button>
+
+          {/* Dropdown */}
+          {brokerOpen && (
+            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+              {/* Search */}
+              <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
+                  <input autoFocus type="text" value={brokerSearch} onChange={e => setBrokerSearch(e.target.value)}
+                    placeholder="Search broker name or code..."
+                    style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
+                    onFocus={e => (e.target.style.borderColor = C.green)}
+                    onBlur={e => (e.target.style.borderColor = C.gray200)} />
+                </div>
+              </div>
+              {/* Options */}
+              <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                {filteredBrokers.length === 0 ? (
+                  <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No brokers found</div>
+                ) : filteredBrokers.map(b => {
+                  const isSelected = form.brokerId === b.id;
+                  return (
+                    <button key={b.id} type="button"
+                      onClick={() => { setForm(f => ({ ...f, brokerId: b.id, brokerName: b.broker_name })); setBrokerOpen(false); setBrokerSearch(""); setError(""); }}
+                      style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text }}>{b.broker_name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                        <span style={{ fontSize: 11, color: C.gray400, background: C.gray100, borderRadius: 5, padding: "1px 6px", fontWeight: 600 }}>{b.broker_code}</span>
+                        {isSelected && <span style={{ color: C.green, fontSize: 13 }}>✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Row 4: Qty · Price ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
           <FInput
