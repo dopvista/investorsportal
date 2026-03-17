@@ -373,7 +373,49 @@ export async function sbGetTransactions() {
   }));
 }
 
-// ── FIFO Gain/Loss for a CDS (optionally filtered by company) ──────
+// ── Fetch specific transactions by IDs — enriched with user names ──
+// Used after every mutation to keep *_by_name fields fresh in state
+export async function sbGetTransactionsByIds(ids) {
+  if (!ids?.length) return [];
+  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=in.${idList}`,
+    { headers: headers(token()) },
+    "Failed to re-fetch transactions"
+  );
+  const rows = await res.json();
+  if (!rows.length) return rows;
+
+  // Collect unique user UUIDs and resolve names
+  const uids = [...new Set([
+    ...rows.map(t => t.created_by),
+    ...rows.map(t => t.confirmed_by),
+    ...rows.map(t => t.verified_by),
+    ...rows.map(t => t.rejected_by),
+  ].filter(Boolean))];
+
+  let nameMap = {};
+  if (uids.length) {
+    try {
+      const uidList = `(${uids.map(id => `"${id}"`).join(",")})`;
+      const profileRes = await fetchWithAuthRetry(
+        `${BASE}/rest/v1/profiles?id=in.${uidList}&select=id,full_name`,
+        { headers: headers(token()) },
+        ""
+      );
+      const profiles = await profileRes.json();
+      nameMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name || null]));
+    } catch { /* names non-critical */ }
+  }
+
+  return rows.map(t => ({
+    ...t,
+    created_by_name:   nameMap[t.created_by]   || null,
+    confirmed_by_name: nameMap[t.confirmed_by] || null,
+    verified_by_name:  nameMap[t.verified_by]  || null,
+    rejected_by_name:  nameMap[t.rejected_by]  || null,
+  }));
+}
 export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_fifo_gain_loss`,
