@@ -377,7 +377,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                       onMouseLeave={e => { e.currentTarget.style.background = !isActive ? "#FAFAFA" : "transparent"; }}
                     >
                       <td style={{ padding: "10px 14px", color: C.gray400, fontWeight: 600, textAlign: "center", fontSize: 12 }}>{i + 1}</td>
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: C.text }}>{b.broker_name}</td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: C.text, maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={b.broker_name}>{b.broker_name}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <span style={{ background: `${C.navy}10`, color: C.navy, padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>{b.broker_code}</span>
                       </td>
