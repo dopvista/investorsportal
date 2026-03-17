@@ -34,24 +34,6 @@ const TOOLBAR_BUTTON = { ...TOOLBAR_BASE, padding: "0 14px", display: "inline-fl
 const TOOLBAR_INPUT  = { ...TOOLBAR_BASE, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text };
 const TOOLBAR_SELECT = { ...TOOLBAR_BASE, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 };
 
-// ── Shared number cell styles ─────────────────────────────────────
-const NUM_CELL_BASE = {
-  textAlign: "right",
-  whiteSpace: "nowrap",
-  fontVariantNumeric: "tabular-nums",
-  fontFeatureSettings: '"tnum"',
-};
-
-const NUM_BADGE_BASE = {
-  display: "inline-block",
-  maxWidth: "100%",
-  overflow: "visible",
-  textOverflow: "clip",
-  whiteSpace: "nowrap",
-  fontVariantNumeric: "tabular-nums",
-  fontFeatureSettings: '"tnum"',
-};
-
 // ── Formatters ────────────────────────────────────────────────────
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -640,37 +622,43 @@ const TransactionRow = memo(function TransactionRow({
             style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
       )}
+      {/* # */}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, fontSize: 12 }}>{globalIdx}</td>
+      {/* Date */}
       <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(transaction.date)}</td>
+      {/* Company */}
       <td style={{ padding: "7px 10px" }}>
         <div style={{ fontWeight: 700, color: C.text, fontSize: 13, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
       </td>
+      {/* Type */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {isBuy ? "▲ Buy" : "▼ Sell"}
         </span>
       </td>
-      <td style={{ padding: "7px 10px", fontWeight: 700, ...NUM_CELL_BASE }}>{fmtInt(transaction.qty)}</td>
-      <td style={{ padding: "7px 10px", ...NUM_CELL_BASE }}>
-        <span style={{ ...NUM_BADGE_BASE, background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-          {fmt(transaction.price)}
-        </span>
+      {/* Qty */}
+      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right" }}>{fmtInt(transaction.qty)}</td>
+      {/* Price/Share */}
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
-      <td style={{ padding: "7px 10px", ...NUM_CELL_BASE }} title={fees > 0 ? fmt(fees) : ""}>
-        {fees > 0
-          ? <span style={{ ...NUM_BADGE_BASE, color: C.gold, fontWeight: 800, fontSize: 12.5 }}>{fmt(fees)}</span>
-          : <span style={{ color: C.gray400 }}>—</span>}
+      {/* Total Fees */}
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
+        <span style={{ color: C.gold, fontWeight: 700, fontSize: 12 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
-      <td style={{ padding: "7px 10px", ...NUM_CELL_BASE }} title={fmt(gt)}>
-        <span style={{ ...NUM_BADGE_BASE, background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+      {/* Grand Total */}
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
       </td>
-      <td style={{ padding: "7px 10px", maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      {/* Broker */}
+      <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
           ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
+      {/* Status */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <StatusBadge status={transaction.status} />
         {perms.isRejected && transaction.rejection_comment && (
@@ -679,6 +667,7 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         )}
       </td>
+      {/* Actions */}
       {showActions && (
         <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
           {perms.canConfirm && (
@@ -861,6 +850,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const resetPage    = useCallback(() => setPage(1), []);
   const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
+  // Single-pass totals
   const totals = useMemo(() => {
     let buyAmt = 0, sellAmt = 0, buyFees = 0, sellFees = 0;
     for (const t of filtered) {
@@ -1141,6 +1131,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const showActions  = !isRO;
   const tableHeaders = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
 
+  // tfoot column span calculation for new layout:
+  // Left span: checkbox + # + Date + Company + Type + Qty + Price/Share = 7 (with checkbox) / 6 (without)
+  // Then: Total Fees cell (1) + Grand Total cell (1)
+  // Right empty: Broker + Status + Actions(if shown) = 2 + (showActions ? 1 : 0)
   const tfootLeftCols  = showCheckbox ? 7 : 6;
   const tfootRightCols = 2 + (showActions ? 1 : 0);
 
@@ -1149,19 +1143,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [detailModal, myTransactions]
   );
 
-  const closeDelete       = useCallback(() => setDeleteModal(null),                             []);
-  const closeBulkDelete   = useCallback(() => setBulkDeleteModal(null),                         []);
-  const closeBulkUnverify = useCallback(() => setBulkUnverifyModal(null),                       []);
+  const closeDelete       = useCallback(() => setDeleteModal(null),                            []);
+  const closeBulkDelete   = useCallback(() => setBulkDeleteModal(null),                        []);
+  const closeBulkUnverify = useCallback(() => setBulkUnverifyModal(null),                      []);
   const closeForm         = useCallback(() => setFormModal({ open: false, transaction: null }), []);
-  const closeImport       = useCallback(() => setImportModal(false),                            []);
-  const closeAction       = useCallback(() => setActionModal(null),                             []);
-  const closeReject       = useCallback(() => setRejectModal(null),                             []);
-  const closeDetail       = useCallback(() => setDetailModal(null),                             []);
+  const closeImport       = useCallback(() => setImportModal(false),                           []);
+  const closeAction       = useCallback(() => setActionModal(null),                            []);
+  const closeReject       = useCallback(() => setRejectModal(null),                            []);
+  const closeDetail       = useCallback(() => setDetailModal(null),                            []);
 
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      {/* ── Modals ── */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1214,10 +1209,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
+      {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
         {statCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
+      {/* ── Toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
           <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
@@ -1263,6 +1260,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         </div>
       </div>
 
+      {/* ── Table ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
           {loadingTransactions ? (
@@ -1293,35 +1291,35 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           ) : (
             <>
               <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
-                <table style={{ width: "100%", minWidth: showActions ? 1210 : 1120, borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
                   {showActions ? (
                   <colgroup>
-                    <col style={{ width: 36 }} />
-                    <col style={{ width: 42 }} />
-                    <col style={{ width: 102 }} />
-                    <col style={{ width: 190 }} />
-                    <col style={{ width: 74 }} />
-                    <col style={{ width: 84 }} />
-                    <col style={{ width: 112 }} />
-                    <col style={{ width: 126 }} />
-                    <col style={{ width: 146 }} />
-                    <col style={{ width: 118 }} />
-                    <col style={{ width: 104 }} />
-                    <col style={{ width: 76 }} />
+                    <col style={{ width: 30 }} />
+                    <col style={{ width: 32 }} />
+                    <col style={{ width: 88 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 58 }} />
+                    <col style={{ width: 68 }} />
+                    <col style={{ width: 96 }} />
+                    <col style={{ width: 136 }} />
+                    <col style={{ width: 148 }} />
+                    <col style={{ width: 100 }} />
+                    <col style={{ width: 96 }} />
+                    <col style={{ width: 80 }} />
                   </colgroup>
                   ) : (
                   <colgroup>
-                    <col style={{ width: 36 }} />
-                    <col style={{ width: 42 }} />
-                    <col style={{ width: 102 }} />
-                    <col style={{ width: 220 }} />
-                    <col style={{ width: 74 }} />
-                    <col style={{ width: 84 }} />
-                    <col style={{ width: 112 }} />
-                    <col style={{ width: 126 }} />
-                    <col style={{ width: 146 }} />
-                    <col style={{ width: 118 }} />
-                    <col style={{ width: 104 }} />
+                    <col style={{ width: 30 }} />
+                    <col style={{ width: 32 }} />
+                    <col style={{ width: 88 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 58 }} />
+                    <col style={{ width: 68 }} />
+                    <col style={{ width: 96 }} />
+                    <col style={{ width: 136 }} />
+                    <col style={{ width: 148 }} />
+                    <col style={{ width: 100 }} />
+                    <col style={{ width: 96 }} />
                   </colgroup>
                   )}
                   <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
@@ -1370,20 +1368,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   {filtered.length > 1 && (
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
+                      {/* TOTALS label — spans checkbox through Price/Share */}
                       <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
-                      <td style={{ padding: "8px 10px", ...NUM_CELL_BASE }} title={fmt(totals.fees)}>
-                        <div style={{ fontSize: 12.5, fontWeight: 800, color: C.gold }}>{fmt(totals.fees)}</div>
+                      {/* Total Fees column */}
+                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
                       </td>
-                      <td style={{ padding: "8px 10px", ...NUM_CELL_BASE }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                          <span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}>
-                          <span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}
-                        </div>
+                      {/* Grand Total column — buy and sell stacked */}
+                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
+                      {/* Empty right cols: Broker + Status + Actions */}
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
