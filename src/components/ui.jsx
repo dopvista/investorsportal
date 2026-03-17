@@ -1146,15 +1146,14 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
   // Preview table: # | Date | Company | Type | Qty | Price | Broker | Ref No. | Total
   // Broker and Ref No. given generous widths for full visibility
   const PREVIEW_COLS = [
-    ["#",        "4%",  "center"],
-    ["Date",     "11%", "left"  ],
-    ["Company",  "18%", "left"  ],
-    ["Type",     "7%",  "left"  ],
-    ["Qty",      "7%",  "right" ],
-    ["Price",    "10%", "right" ],
-    ["Broker",   "18%", "left"  ],
-    ["Ref No.",  "14%", "left"  ],
-    ["Total",    "11%", "right" ],
+    ["#",       "5%",  "center"],
+    ["Date",    "13%", "left"  ],
+    ["Company", "26%", "left"  ],
+    ["Type",    "8%",  "left"  ],
+    ["Qty",     "10%", "right" ],
+    ["Price",   "12%", "right" ],
+    ["Fees",    "12%", "right" ],
+    ["Total",   "14%", "right" ],
   ];
 
   const PreviewStep = () => (
@@ -1201,16 +1200,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
                       </td>
                       <td style={{ padding: "7px 10px", color: C.text, textAlign: "right", fontWeight: 600 }}>{fmtInt(r.qty)}</td>
                       <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
-                      {/* Broker — full name, wider column */}
-                      <td style={{ padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.broker_name}>
-                        <span style={{ background: C.navy + "0d", color: C.navy, padding: "2px 8px", borderRadius: 5, fontWeight: 700, fontSize: 11 }}>{r.broker_name}</span>
-                      </td>
-                      {/* Ref No. — wider column */}
-                      <td style={{ padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {r.control_number
-                          ? <span style={{ background: C.gray100, color: C.gray600, padding: "2px 8px", borderRadius: 5, fontWeight: 600, fontSize: 11 }}>{r.control_number}</span>
-                          : <span style={{ color: C.gray400, fontSize: 11 }}>—</span>}
-                      </td>
+                      <td style={{ padding: "7px 10px", color: C.gold, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.fees)}</td>
                       <td style={{ padding: "7px 10px", fontWeight: 800, color: r.type === "Buy" ? C.green : C.red, textAlign: "right" }}>{fmtInt(r.total)}</td>
                     </tr>
                   );
