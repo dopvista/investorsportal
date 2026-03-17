@@ -643,11 +643,11 @@ const TransactionRow = memo(function TransactionRow({
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
       {/* Total Fees */}
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
         <span style={{ color: C.gold, fontWeight: 700, fontSize: 12 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
       {/* Grand Total */}
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
@@ -1373,11 +1373,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
                       {/* Total Fees column */}
-                      <td style={{ padding: "8px 10px", textAlign: "right" }}>
+                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
                       </td>
                       {/* Grand Total column — buy and sell stacked */}
-                      <td style={{ padding: "8px 10px", textAlign: "right" }}>
+                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
                         <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
