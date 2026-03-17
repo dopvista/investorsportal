@@ -247,18 +247,19 @@ const fmtDateTime = (d) => {
   return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], onClose }) {
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
   if (!transaction) return null;
 
-  const isBuy     = transaction.type === "Buy";
-  const tradeVal  = Number(transaction.total || 0);
-  const fees      = Number(transaction.fees  || 0);
-  const gt        = isBuy ? tradeVal + fees : tradeVal - fees;
-  const st        = STATUS[transaction.status] || STATUS.pending;
-  const bd        = calcFees(tradeVal);
-  const totalFees = fees || bd.total;
-  const feePct    = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
-  const qty       = Number(transaction.qty || 0);
+  const isBuy      = transaction.type === "Buy";
+  const isVerified = transaction.status === "verified";
+  const tradeVal   = Number(transaction.total || 0);
+  const fees       = Number(transaction.fees  || 0);
+  const gt         = isBuy ? tradeVal + fees : tradeVal - fees;
+  const st         = STATUS[transaction.status] || STATUS.pending;
+  const bd         = calcFees(tradeVal);
+  const totalFees  = fees || bd.total;
+  const feePct     = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
+  const qty        = Number(transaction.qty || 0);
 
   const accentColor = isBuy ? C.green : "#EF4444";
   const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
@@ -266,6 +267,20 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
   // ── All-in cost per share (Buy) ───────────────────────────────
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
+
+  // ── Unrealized G/L — verified Buy only ───────────────────────
+  // a = current price × qty,  b = all-in cost per share × qty = gt
+  const unrealizedGL = useMemo(() => {
+    if (!isBuy || !isVerified || !qty) return null;
+    const company = companies.find(c => c.id === transaction.company_id);
+    const currentPrice = Number(company?.price || company?.cds_price || 0);
+    if (!currentPrice) return null;
+    const currentValue = currentPrice * qty;
+    const costBasis    = gt; // all-in cost = grand total paid (trade + fees)
+    const gain         = currentValue - costBasis;
+    const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
+    return { currentPrice, currentValue, costBasis, gain, pct };
+  }, [isBuy, isVerified, qty, companies, transaction.company_id, gt]);
 
   // ── FIFO realized G/L (Sell only) ────────────────────────────
   const realizedGL = useMemo(() => {
@@ -414,6 +429,36 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Total Fees</span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>TZS {fmt(totalFees)}</span>
               </div>
+
+              {/* ── Unrealized G/L — verified Buy only, compact ── */}
+              {unrealizedGL && (
+                <div style={{ marginTop: 8, padding: "8px 10px", background: unrealizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Unrealized Gain / Loss
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ fontSize: 11, color: C.gray500 }}>Current Price × {fmtInt(qty)} shares</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.currentValue)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, paddingBottom: 6, borderBottom: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
+                    <span style={{ fontSize: 11, color: C.gray500 }}>All-in Cost (trade + fees)</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.costBasis)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                      {unrealizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                        {unrealizedGL.gain >= 0 ? "+" : ""}TZS {fmt(Math.round(unrealizedGL.gain))}
+                      </span>
+                      <span style={{ fontSize: 10, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", marginLeft: 6 }}>
+                        ({unrealizedGL.gain >= 0 ? "+" : ""}{unrealizedGL.pct.toFixed(2)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Realized G/L (Sell only, FIFO) ── */}
@@ -1143,7 +1188,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       {detailModal && (() => {
         const liveTransaction = myTransactions.find(t => t.id === detailModal) || null;
         return liveTransaction
-          ? <TransactionDetailModal transaction={liveTransaction} transactions={myTransactions} onClose={() => setDetailModal(null)} />
+          ? <TransactionDetailModal transaction={liveTransaction} transactions={myTransactions} companies={effectiveCompanies} onClose={() => setDetailModal(null)} />
           : null;
       })()}
 
