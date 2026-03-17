@@ -1189,7 +1189,16 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onClose={closeForm}
         />
       )}
-      {importModal && <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={closeImport} />}
+      {/* ── CHANGED: brokers={brokers} added so ImportTransactionsModal
+            has access to the live broker list, matching single entry ── */}
+      {importModal && (
+        <ImportTransactionsModal
+          companies={effectiveCompanies}
+          brokers={brokers}
+          onImport={handleImport}
+          onClose={closeImport}
+        />
+      )}
       {actionModal && (
         <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company}
           loading={isAnyConfirming || isAnyVerifying}
