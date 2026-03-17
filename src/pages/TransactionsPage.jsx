@@ -257,7 +257,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const bd        = calcFees(tradeVal);
   const totalFees = fees || bd.total;
   const feePct    = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
-  const shortId   = (uid) => uid ? uid.slice(0, 8).toUpperCase() : null;
   const qty       = Number(transaction.qty || 0);
 
   const accentColor = isBuy ? C.green : "#EF4444";
@@ -310,11 +309,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   }, [isBuy, transaction, transactions]);
 
   const AUDIT_STEPS = [
-    { icon: "📝", label: "Recorded",  time: transaction.created_at,   uid: transaction.created_by,   stepColor: C.gray600, activeBg: C.gray100  },
-    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, uid: transaction.confirmed_by, stepColor: "#1D4ED8", activeBg: "#EFF6FF"  },
-    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  uid: transaction.verified_by,  stepColor: C.green,   activeBg: C.greenBg  },
+    { icon: "📝", label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
+    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: "#EFF6FF" },
+    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
     ...(transaction.status === "rejected"
-      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, uid: transaction.rejected_by, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
+      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
       : []
     ),
   ];
@@ -340,8 +339,14 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
             </div>
             <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 12, flexWrap: "wrap" }}>
               <span>📅 {fmtDate(transaction.date)}</span>
-              {transaction.broker_name && <span>🏦 {transaction.broker_name}</span>}
-              {transaction.cds_number  && <span>🪪 {transaction.cds_number}</span>}
+              {transaction.cds_number && (
+                <span>
+                  🪪 {transaction.cds_number}
+                  {transaction.created_by_name && (
+                    <span style={{ color: C.gray600, fontWeight: 600 }}> — {transaction.created_by_name}</span>
+                  )}
+                </span>
+              )}
             </div>
           </div>
           <button onClick={onClose}
@@ -486,9 +491,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                         <div style={{ fontSize: 12, fontWeight: 700, color: done ? step.stepColor : C.gray400 }}>{step.label}</div>
                         <div style={{ fontSize: 10, color: C.gray400 }}>{done ? fmtDateTime(step.time) : "Awaiting"}</div>
                       </div>
-                      {done && step.uid && (
-                        <span style={{ fontSize: 9, color: C.gray400, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 4, padding: "2px 5px", fontFamily: "monospace", flexShrink: 0 }}>
-                          {shortId(step.uid)}
+                      {done && step.name && (
+                        <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {step.name}
                         </span>
                       )}
                     </div>
