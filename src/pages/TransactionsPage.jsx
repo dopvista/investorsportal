@@ -246,28 +246,6 @@ const fmtDateTime = (d) => {
   return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-const DetailRow = memo(function DetailRow({ label, value, accent, mono }) {
-  if (value === null || value === undefined || value === "") return null;
-  return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.gray100}`, gap: 12, minWidth: 0 }}>
-      <span style={{ fontSize: 12, color: C.gray400, fontWeight: 600, flexShrink: 0, minWidth: 110 }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: accent || C.text, textAlign: "right", wordBreak: "break-word", fontFamily: mono ? "monospace" : "inherit" }}>{value}</span>
-    </div>
-  );
-});
-
-const DetailSection = memo(function DetailSection({ title, icon, children, color }) {
-  return (
-    <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "9px 14px", background: color || C.gray50, borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ fontSize: 14 }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: color ? C.white : C.navy, textTransform: "uppercase", letterSpacing: "0.05em" }}>{title}</span>
-      </div>
-      <div style={{ padding: "4px 14px 6px" }}>{children}</div>
-    </div>
-  );
-});
-
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, onClose }) {
   if (!transaction) return null;
 
@@ -276,127 +254,165 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const fees     = Number(transaction.fees  || 0);
   const gt       = isBuy ? tradeVal + fees : tradeVal - fees;
   const st       = STATUS[transaction.status] || STATUS.pending;
-
-  // Reconstruct fee breakdown from total using calcFees — matches what was stored
   const breakdown = calcFees(tradeVal);
+  const shortId  = (uid) => uid ? uid.slice(0, 8).toUpperCase() : null;
 
-  const shortId = (uid) => uid ? uid.slice(0, 8).toUpperCase() : null;
+  // ── Reusable row inside a section ────
+  const Row = ({ label, value, valueColor, mono, noBorder }) => {
+    if (!value && value !== 0) return null;
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: noBorder ? "none" : `1px solid ${C.gray100}`, gap: 16, minWidth: 0 }}>
+        <span style={{ fontSize: 12, color: C.gray500, fontWeight: 500, flexShrink: 0 }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: valueColor || C.text, textAlign: "right", wordBreak: "break-word", fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.03em" : 0 }}>{value}</span>
+      </div>
+    );
+  };
+
+  const auditItems = [
+    transaction.created_at  && { icon: "📝", label: "Recorded",  time: transaction.created_at,  uid: transaction.created_by,  color: C.gray600  },
+    transaction.confirmed_at && { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, uid: transaction.confirmed_by, color: "#1D4ED8" },
+    transaction.verified_at  && { icon: "✔️", label: "Verified",  time: transaction.verified_at,  uid: transaction.verified_by,  color: C.green   },
+    transaction.rejected_at  && { icon: "✖",  label: "Rejected",  time: transaction.rejected_at,  uid: transaction.rejected_by,  color: "#EF4444" },
+  ].filter(Boolean);
 
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(2px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: C.gray50, borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 580, maxHeight: "92vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" }}>
 
-        {/* ── Header ── */}
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "18px 22px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <span style={{ background: isBuy ? C.green : "#EF4444", color: C.white, padding: "3px 12px", borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
+        {/* ══ HEADER — matches system modal pattern ══ */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "20px 24px 0", flexShrink: 0 }}>
+          {/* Top row: badges + close */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ background: isBuy ? C.green : "#EF4444", color: C.white, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 800, letterSpacing: "0.03em" }}>
                 {isBuy ? "▲ Buy" : "▼ Sell"}
               </span>
-              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                 {st.icon} {st.label}
               </span>
             </div>
-            <div style={{ color: C.white, fontWeight: 800, fontSize: 18, lineHeight: 1.2 }}>{transaction.company_name}</div>
-            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 4 }}>{fmtDate(transaction.date)}</div>
+            <button onClick={onClose}
+              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", cursor: "pointer", fontSize: 15, color: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              ✕
+            </button>
           </div>
-          <div style={{ textAlign: "right", marginLeft: 16, flexShrink: 0 }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{isBuy ? "Total Paid" : "Net Received"}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: isBuy ? "#6EE7B7" : "#FCA5A5", marginTop: 2 }}>
-              TZS {fmt(gt)}
+
+          {/* Company + date */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ color: C.white, fontWeight: 800, fontSize: 20, lineHeight: 1.2 }}>{transaction.company_name}</div>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4 }}>
+              {fmtDate(transaction.date)}
+              {transaction.broker_name && <span style={{ marginLeft: 10, color: "rgba(255,255,255,0.45)" }}>· {transaction.broker_name}</span>}
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ marginLeft: 16, width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 15, color: C.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            ✕
-          </button>
+
+          {/* ── Key Financials bar — always visible at top ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 1, borderRadius: "10px 10px 0 0", overflow: "hidden", background: "rgba(255,255,255,0.06)" }}>
+            {[
+              { label: "Trade Value",  value: `TZS ${fmt(tradeVal)}`, sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, color: "rgba(255,255,255,0.85)" },
+              { label: "Total Fees",   value: `TZS ${fmt(fees || breakdown.total)}`,   sub: `${((fees || breakdown.total) / tradeVal * 100).toFixed(2)}% of trade value`, color: "#FCD34D" },
+              { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`, sub: isBuy ? "incl. all fees" : "after all fees", color: isBuy ? "#6EE7B7" : "#FCA5A5" },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: "12px 16px", background: i === 2 ? "rgba(255,255,255,0.1)" : "transparent", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: item.color, lineHeight: 1.2 }}>{item.value}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* ── Scrollable body ── */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* ══ SCROLLABLE BODY ══ */}
+        <div style={{ overflowY: "auto", flex: 1, padding: "0" }}>
 
-          {/* ── Transaction details ── */}
-          <DetailSection title="Transaction" icon="📋">
-            <DetailRow label="Date"         value={fmtDate(transaction.date)} />
-            <DetailRow label="Quantity"     value={`${fmtInt(transaction.qty)} shares`} />
-            <DetailRow label="Price/Share"  value={`TZS ${fmt(transaction.price)}`} />
-            <DetailRow label="Trade Value"  value={`TZS ${fmt(tradeVal)}`} />
-          </DetailSection>
-
-          {/* ── Fee breakdown ── */}
-          <DetailSection title="Commission & Fees" icon="💰">
-            <DetailRow label="Broker (+VAT)"  value={`TZS ${fmt(breakdown.broker)}`}   accent={C.gray600} />
-            <DetailRow label="CMSA (0.14%)"   value={`TZS ${fmt(breakdown.cmsa)}`}     accent={C.gray600} />
-            <DetailRow label="DSE (+VAT)"     value={`TZS ${fmt(breakdown.dse)}`}      accent={C.gray600} />
-            <DetailRow label="CSDR (+VAT)"    value={`TZS ${fmt(breakdown.csdr)}`}     accent={C.gray600} />
-            <DetailRow label="Fidelity (0.02%)" value={`TZS ${fmt(breakdown.fidelity)}`} accent={C.gray600} />
-            <div style={{ borderTop: `2px solid ${C.gray200}`, marginTop: 4, paddingTop: 4 }}>
-              <DetailRow label="Total Fees"   value={`TZS ${fmt(fees || breakdown.total)}`} accent={C.navy} />
-              <DetailRow
-                label={isBuy ? "Total Paid" : "Net Received"}
-                value={`TZS ${fmt(gt)}`}
-                accent={isBuy ? C.green : "#EF4444"}
-              />
+          {/* ── Fee Breakdown ── */}
+          <div style={{ borderBottom: `1px solid ${C.gray100}` }}>
+            <div style={{ padding: "12px 24px 0", display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em" }}>💰 Commission Breakdown</span>
             </div>
-          </DetailSection>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 0, padding: "10px 24px 14px" }}>
+              {[
+                { label: "Broker",   note: "+VAT",   value: breakdown.broker   },
+                { label: "CMSA",     note: "0.14%",  value: breakdown.cmsa     },
+                { label: "DSE",      note: "+VAT",   value: breakdown.dse      },
+                { label: "CSDR",     note: "+VAT",   value: breakdown.csdr     },
+                { label: "Fidelity", note: "0.02%",  value: breakdown.fidelity },
+              ].map((f, i) => (
+                <div key={f.label} style={{ textAlign: "center", padding: "10px 6px", background: C.gray50, borderRadius: 8, margin: "0 3px", border: `1px solid ${C.gray100}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</div>
+                  <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{f.note}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.navy, marginTop: 4 }}>{fmt(f.value)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          {/* ── Reference & Broker ── */}
-          <DetailSection title="Reference & Broker" icon="🏦">
-            <DetailRow label="Broker"       value={transaction.broker_name || null} />
-            <DetailRow label="Reference No." value={transaction.control_number || null} mono />
-            <DetailRow label="Remarks"      value={transaction.remarks || null} accent={C.gray600} />
-          </DetailSection>
+          {/* ── Two columns: Transaction Details + Reference & Broker ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, borderBottom: `1px solid ${C.gray100}` }}>
+
+            {/* Transaction details */}
+            <div style={{ padding: "14px 24px", borderRight: `1px solid ${C.gray100}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>📋 Transaction</div>
+              <Row label="Date"        value={fmtDate(transaction.date)} />
+              <Row label="Quantity"    value={`${fmtInt(transaction.qty)} shares`} />
+              <Row label="Price/Share" value={`TZS ${fmt(transaction.price)}`} />
+              <Row label="Trade Value" value={`TZS ${fmt(tradeVal)}`} noBorder />
+            </div>
+
+            {/* Reference & Broker */}
+            <div style={{ padding: "14px 24px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>🏦 Reference & Broker</div>
+              <Row label="Broker"      value={transaction.broker_name || "—"} />
+              <Row label="Ref No."     value={transaction.control_number || "—"} mono />
+              <Row label="Remarks"     value={transaction.remarks || "—"} valueColor={C.gray500} noBorder />
+            </div>
+          </div>
+
+          {/* ── Rejection reason (if rejected) ── */}
+          {transaction.status === "rejected" && transaction.rejection_comment && (
+            <div style={{ margin: "0", padding: "12px 24px", background: "#FEF2F2", borderBottom: `1px solid #FECACA`, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection Reason</div>
+                <div style={{ fontSize: 13, color: "#7F1D1D", lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
+              </div>
+            </div>
+          )}
 
           {/* ── Audit Trail ── */}
-          <DetailSection title="Audit Trail" icon="🔍" color={C.navy}>
-            <DetailRow
-              label="Created"
-              value={transaction.created_at
-                ? `${fmtDateTime(transaction.created_at)}${transaction.created_by ? `  ·  ID: ${shortId(transaction.created_by)}` : ""}`
-                : null}
-              accent={C.gray600}
-            />
-            <DetailRow
-              label="Confirmed"
-              value={transaction.confirmed_at
-                ? `${fmtDateTime(transaction.confirmed_at)}${transaction.confirmed_by ? `  ·  ID: ${shortId(transaction.confirmed_by)}` : ""}`
-                : null}
-              accent="#1D4ED8"
-            />
-            <DetailRow
-              label="Verified"
-              value={transaction.verified_at
-                ? `${fmtDateTime(transaction.verified_at)}${transaction.verified_by ? `  ·  ID: ${shortId(transaction.verified_by)}` : ""}`
-                : null}
-              accent={C.green}
-            />
-            {transaction.status === "rejected" && (
-              <>
-                <DetailRow
-                  label="Rejected"
-                  value={transaction.rejected_at
-                    ? `${fmtDateTime(transaction.rejected_at)}${transaction.rejected_by ? `  ·  ID: ${shortId(transaction.rejected_by)}` : ""}`
-                    : "—"}
-                  accent="#EF4444"
-                />
-                {transaction.rejection_comment && (
-                  <DetailRow label="Reason" value={transaction.rejection_comment} accent="#EF4444" />
-                )}
-              </>
-            )}
-            {!transaction.confirmed_at && !transaction.verified_at && transaction.status !== "rejected" && (
-              <div style={{ padding: "10px 0 4px", fontSize: 12, color: C.gray400, textAlign: "center" }}>
-                No workflow actions yet — transaction is pending confirmation
+          <div style={{ padding: "14px 24px 6px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>🔍 Audit Trail</div>
+            {auditItems.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.gray400, padding: "8px 0" }}>No workflow actions recorded yet.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {auditItems.map((item, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderBottom: i < auditItems.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: item.color + "15", border: `1.5px solid ${item.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
+                      {item.icon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: item.color }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{fmtDateTime(item.time)}</div>
+                    </div>
+                    {item.uid && (
+                      <span style={{ fontSize: 10, color: C.gray400, background: C.gray100, borderRadius: 5, padding: "2px 7px", fontFamily: "monospace", letterSpacing: "0.04em", flexShrink: 0 }}>
+                        {shortId(item.uid)}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
-          </DetailSection>
+          </div>
 
-          {/* ── Transaction ID ── */}
-          <div style={{ textAlign: "center", padding: "4px 0 2px" }}>
-            <span style={{ fontSize: 10, color: C.gray400, fontFamily: "monospace" }}>ID: {transaction.id}</span>
+          {/* ── Footer: transaction ID ── */}
+          <div style={{ padding: "10px 24px 16px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 10, color: C.gray400, fontFamily: "monospace" }}>TXN: {transaction.id}</span>
+            <span style={{ fontSize: 10, color: C.gray400 }}>CDS: {transaction.cds_number}</span>
           </div>
         </div>
       </div>
