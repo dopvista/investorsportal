@@ -601,13 +601,14 @@ const TransactionRow = memo(function TransactionRow({
   const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
 
   const rowActions = useMemo(() => [
+    ...(perms.canConfirm ? [{ icon: isRowConfirming ? null : "✅", label: isRowConfirming ? "Confirming..." : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
     ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",       disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
     ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
     ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
     ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
     ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
-  ], [perms, isRowBusy, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
-      transaction, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
+  ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
+      transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
   return (
     <tr
@@ -667,18 +668,9 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         )}
       </td>
-      {/* Actions */}
+      {/* Actions — always just the ⋯ menu, never inline buttons */}
       {showActions && (
-        <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-          {perms.canConfirm && (
-            <button
-              onClick={() => onHandleConfirm(transaction.id, transaction.company_name, transaction.status)}
-              disabled={isRowBusy}
-              style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: isRowConfirming ? C.gray100 : "#EFF6FF", color: isRowConfirming ? C.gray400 : "#1D4ED8", fontWeight: 700, fontSize: 11, cursor: isRowBusy ? "not-allowed" : "pointer", fontFamily: "inherit", marginRight: rowActions.length ? 6 : 0, display: "inline-flex", alignItems: "center", gap: 5, minWidth: 80, justifyContent: "center" }}
-            >
-              {isRowConfirming ? <><Spinner size={11} color={C.gray400} /> Confirming</> : "✅ Confirm"}
-            </button>
-          )}
+        <td style={{ padding: "7px 12px", textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
           {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
         </td>
       )}
