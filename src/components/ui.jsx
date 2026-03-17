@@ -1201,7 +1201,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
                       <td style={{ padding: "7px 10px", color: C.text, textAlign: "right", fontWeight: 600 }}>{fmtInt(r.qty)}</td>
                       <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
                       <td style={{ padding: "7px 10px", color: C.gold, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.fees)}</td>
-                      <td style={{ padding: "7px 10px", fontWeight: 800, color: r.type === "Buy" ? C.green : C.red, textAlign: "right" }}>{fmtInt(r.total)}</td>
+                      <td style={{ padding: "7px 10px", fontWeight: 800, color: r.type === "Buy" ? C.green : C.red, textAlign: "right" }}>{fmtInt(r.type === "Buy" ? r.total + r.fees : r.total - r.fees)}</td>
                     </tr>
                   );
                 })}
