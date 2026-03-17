@@ -1365,8 +1365,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                       />
                     ))}
                   </tbody>
+                  {filtered.length > 1 && (
                   <tfoot>
-                    <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
+                    <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
                       {/* TOTALS label — spans checkbox through Price/Share */}
                       <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
@@ -1384,6 +1385,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
+                  )}
                 </table>
               </div>
               <Pagination
