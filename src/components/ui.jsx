@@ -1146,14 +1146,14 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
   // Preview table: # | Date | Company | Type | Qty | Price | Broker | Ref No. | Total
   // Broker and Ref No. given generous widths for full visibility
   const PREVIEW_COLS = [
-    ["#",       "5%",  "center"],
-    ["Date",    "13%", "left"  ],
-    ["Company", "26%", "left"  ],
-    ["Type",    "8%",  "left"  ],
+    ["#",       "4%",  "center"],
+    ["Date",    "11%", "left"  ],
+    ["Company", "18%", "left"  ],
+    ["Type",    "7%",  "left"  ],
     ["Qty",     "10%", "right" ],
     ["Price",   "12%", "right" ],
-    ["Fees",    "12%", "right" ],
-    ["Total",   "14%", "right" ],
+    ["Fees",    "17%", "right" ],
+    ["Total",   "21%", "right" ],
   ];
 
   const PreviewStep = () => (
@@ -1243,7 +1243,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
       subtitle={importing
         ? `Importing ${rows.length} transaction${rows.length !== 1 ? "s" : ""}… please wait`
         : step === "upload" ? "Upload your filled Excel template" : `Reviewing ${rows.length + errors.length} rows from "${fileName}"`}
-      onClose={onClose} maxWidth={680} lockBackdrop={importing}
+      onClose={onClose} maxWidth={760} lockBackdrop={importing}
       footer={
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
           {importing && (
