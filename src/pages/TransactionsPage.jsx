@@ -254,152 +254,178 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const fees      = Number(transaction.fees  || 0);
   const gt        = isBuy ? tradeVal + fees : tradeVal - fees;
   const st        = STATUS[transaction.status] || STATUS.pending;
-  const breakdown = calcFees(tradeVal);
+  const bd        = calcFees(tradeVal);
+  const totalFees = fees || bd.total;
+  const feePct    = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
   const shortId   = (uid) => uid ? uid.slice(0, 8).toUpperCase() : null;
-  const feePct    = tradeVal > 0 ? ((fees || breakdown.total) / tradeVal * 100).toFixed(2) : "0.00";
 
-  // Inline reusable row
-  const R = ({ label, value, color, mono, last }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: last ? "none" : `1px solid ${C.gray100}`, gap: 8, minWidth: 0 }}>
-      <span style={{ fontSize: 11, color: C.gray500, flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: color || C.text, textAlign: "right", fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, wordBreak: "break-all" }}>{value || "—"}</span>
-    </div>
-  );
+  const accentColor = isBuy ? C.green : "#EF4444";
+  const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
+  const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
 
-  // All 4 audit steps — always shown (greyed if not done yet)
   const AUDIT_STEPS = [
-    { icon: "📝", label: "Recorded",  time: transaction.created_at,   uid: transaction.created_by,   color: C.gray600,   doneColor: C.gray600  },
-    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, uid: transaction.confirmed_by, color: "#1D4ED8",   doneColor: "#1D4ED8"  },
-    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  uid: transaction.verified_by,  color: C.green,     doneColor: C.green    },
-    { icon: "✖",  label: "Rejected",  time: transaction.rejected_at,  uid: transaction.rejected_by,  color: "#EF4444",   doneColor: "#EF4444"  },
+    { icon: "📝", label: "Recorded",  time: transaction.created_at,   uid: transaction.created_by,   stepColor: C.gray600, activeBg: C.gray100  },
+    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, uid: transaction.confirmed_by, stepColor: "#1D4ED8", activeBg: "#EFF6FF"  },
+    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  uid: transaction.verified_by,  stepColor: C.green,   activeBg: C.greenBg  },
+    ...(transaction.status === "rejected"
+      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, uid: transaction.rejected_by, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
+      : []
+    ),
   ];
 
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(2px)" }}
+      style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 720, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", border: `1px solid ${C.gray200}` }}>
 
-        {/* ══ HEADER ══ */}
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "16px 20px 0", flexShrink: 0 }}>
-          {/* Top bar: badges + company + close */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ background: isBuy ? C.green : "#EF4444", color: C.white, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-              {isBuy ? "▲ Buy" : "▼ Sell"}
-            </span>
-            <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              {st.icon} {st.label}
-            </span>
-            <span style={{ color: C.white, fontSize: 16, fontWeight: 800, marginLeft: 4 }}>{transaction.company_name}</span>
-            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
-              · {fmtDate(transaction.date)}{transaction.broker_name ? ` · ${transaction.broker_name}` : ""}
-            </span>
-            <div style={{ flex: 1 }} />
-            <button onClick={onClose}
-              style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              ✕
-            </button>
+        {/* ══ HEADER — exact same pattern as system modals ══ */}
+        <div style={{ padding: "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Company + badges row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{transaction.company_name}</span>
+              <span style={{ background: isBuy ? C.greenBg : "#FEF2F2", color: accentColor, border: `1px solid ${accentBdr}`, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                {isBuy ? "▲ Buy" : "▼ Sell"}
+              </span>
+              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                {st.icon} {st.label}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 12 }}>
+              <span>📅 {fmtDate(transaction.date)}</span>
+              {transaction.broker_name && <span>🏦 {transaction.broker_name}</span>}
+              {transaction.cds_number  && <span>🪪 {transaction.cds_number}</span>}
+            </div>
           </div>
-
-          {/* 3-col financial summary bar */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderRadius: "8px 8px 0 0", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none" }}>
-            {[
-              { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,           sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, color: "rgba(255,255,255,0.88)", bg: "rgba(255,255,255,0.05)" },
-              { label: "Total Fees",                           value: `TZS ${fmt(fees || breakdown.total)}`, sub: `${feePct}% of trade value`,                           color: "#FCD34D",                  bg: "rgba(255,255,255,0.05)" },
-              { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`,                  sub: isBuy ? "incl. all fees" : "after all fees",               color: isBuy ? "#6EE7B7" : "#FCA5A5", bg: "rgba(0,132,61,0.18)"    },
-            ].map((item, i) => (
-              <div key={i} style={{ padding: "10px 14px", background: item.bg, borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.38)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{item.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: item.color, lineHeight: 1.2 }}>{item.value}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", marginTop: 2 }}>{item.sub}</div>
-              </div>
-            ))}
-          </div>
+          <button onClick={onClose}
+            style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>
+            ✕
+          </button>
         </div>
 
-        {/* ══ BODY — two columns, zero scroll ══ */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", flex: 1 }}>
+        {/* ══ FINANCIAL SUMMARY BAR ══ */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50 }}>
+          {[
+            { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
+            { label: "Total Fees",                           value: `TZS ${fmt(totalFees)}`, sub: `${feePct}% of trade value`,                                     valueColor: C.gold     },
+            { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`,         sub: isBuy ? "trade + fees" : "trade − fees",                        valueColor: accentColor },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: "12px 20px", borderLeft: i > 0 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? accentBg : "transparent" }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{item.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.value}</div>
+              <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
+            </div>
+          ))}
+        </div>
 
-          {/* ── LEFT column ── */}
-          <div style={{ borderRight: `1px solid ${C.gray100}` }}>
+        {/* ══ BODY — 2 columns, no scroll ══ */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
 
-            {/* Transaction details */}
-            <div style={{ padding: "11px 18px", borderBottom: `1px solid ${C.gray100}` }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 7 }}>Transaction</div>
-              <R label="Date"        value={fmtDate(transaction.date)} />
-              <R label="Quantity"    value={`${fmtInt(transaction.qty)} shares`} />
-              <R label="Price/Share" value={`TZS ${fmt(transaction.price)}`} />
-              <R label="Trade Value" value={`TZS ${fmt(tradeVal)}`} last />
+          {/* ── LEFT: Transaction + Fee Breakdown ── */}
+          <div style={{ borderRight: `1px solid ${C.gray200}` }}>
+
+            {/* Transaction */}
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Transaction</div>
+              {[
+                ["Date",        fmtDate(transaction.date)],
+                ["Quantity",    `${fmtInt(transaction.qty)} shares`],
+                ["Price/Share", `TZS ${fmt(transaction.price)}`],
+                ["Trade Value", `TZS ${fmt(tradeVal)}`],
+              ].map(([label, value], i, arr) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
+                  <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{value}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Commission breakdown */}
-            <div style={{ padding: "11px 18px" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 7 }}>Commission breakdown</div>
+            {/* Fee Breakdown */}
+            <div style={{ padding: "14px 20px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Commission breakdown</div>
               {[
-                { label: "Broker (+VAT)",   value: breakdown.broker   },
-                { label: "CMSA (0.14%)",    value: breakdown.cmsa     },
-                { label: "DSE (+VAT)",      value: breakdown.dse      },
-                { label: "CSDR (+VAT)",     value: breakdown.csdr     },
-                { label: "Fidelity (0.02%)",value: breakdown.fidelity },
-              ].map((f, i, arr) => (
-                <R key={f.label} label={f.label} value={`TZS ${fmt(f.value)}`} last={i === arr.length - 1} />
+                ["Broker (+VAT)",    bd.broker,   ],
+                ["CMSA (0.14%)",     bd.cmsa      ],
+                ["DSE (+VAT)",       bd.dse       ],
+                ["CSDR (+VAT)",      bd.csdr      ],
+                ["Fidelity (0.02%)", bd.fidelity  ],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}` }}>
+                  <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(value)}</span>
+                </div>
               ))}
+              {/* ── Fee total sum ── */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", marginTop: 6, background: C.navy + "0c", borderRadius: 8, border: `1px solid ${C.navy}18` }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>Total Fees</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.navy }}>TZS {fmt(totalFees)}</span>
+              </div>
             </div>
           </div>
 
-          {/* ── RIGHT column ── */}
+          {/* ── RIGHT: Ref & Broker + Audit Trail ── */}
           <div>
 
             {/* Reference & Broker */}
-            <div style={{ padding: "11px 18px", borderBottom: `1px solid ${C.gray100}` }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 7 }}>Reference & Broker</div>
-              <R label="Broker"   value={transaction.broker_name} />
-              <R label="Ref No."  value={transaction.control_number} mono />
-              <R label="Remarks"  value={transaction.remarks} color={C.gray500} last />
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Reference & Broker</div>
+              {[
+                ["Broker",   transaction.broker_name,   false],
+                ["Ref No.",  transaction.control_number, true ],
+                ["Remarks",  transaction.remarks,        false],
+              ].map(([label, value, mono]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}`, gap: 10 }}>
+                  <span style={{ fontSize: 12, color: C.gray500, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: value ? C.text : C.gray400, fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, textAlign: "right", wordBreak: "break-all" }}>
+                    {value || "—"}
+                  </span>
+                </div>
+              ))}
+              {/* Rejection reason inline if rejected */}
+              {transaction.status === "rejected" && transaction.rejection_comment && (
+                <div style={{ marginTop: 8, padding: "8px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
+                  <div style={{ fontSize: 12, color: "#7F1D1D", lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
+                </div>
+              )}
             </div>
 
-            {/* Rejection reason — only if rejected */}
-            {transaction.status === "rejected" && transaction.rejection_comment && (
-              <div style={{ margin: "0", padding: "9px 18px", background: "#FEF2F2", borderBottom: `1px solid #FECACA`, display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
-                <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>Rejection reason</div>
-                  <div style={{ fontSize: 11, color: "#7F1D1D", lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
-                </div>
-              </div>
-            )}
-
             {/* Audit Trail */}
-            <div style={{ padding: "11px 18px" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Audit trail</div>
-              {AUDIT_STEPS.filter(s => !(s.label === "Rejected" && transaction.status !== "rejected")).map((step, i, arr) => {
-                const done = !!step.time;
-                return (
-                  <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none", opacity: done ? 1 : 0.4 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? step.color + "18" : C.gray100, border: `1px solid ${done ? step.color + "33" : C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>
-                      {step.icon}
+            <div style={{ padding: "14px 20px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Audit trail</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {AUDIT_STEPS.map((step, i, arr) => {
+                  const done = !!step.time;
+                  return (
+                    <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: done ? step.activeBg : "transparent", border: `1px solid ${done ? step.stepColor + "22" : C.gray100}`, opacity: done ? 1 : 0.45 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: "50%", background: done ? step.stepColor + "20" : C.gray100, border: `1.5px solid ${done ? step.stepColor + "40" : C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>
+                        {step.icon}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: done ? step.stepColor : C.gray400 }}>{step.label}</div>
+                        <div style={{ fontSize: 10, color: C.gray400 }}>{done ? fmtDateTime(step.time) : "Awaiting"}</div>
+                      </div>
+                      {done && step.uid && (
+                        <span style={{ fontSize: 9, color: C.gray400, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 4, padding: "2px 5px", fontFamily: "monospace", flexShrink: 0 }}>
+                          {shortId(step.uid)}
+                        </span>
+                      )}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: done ? step.color : C.gray400 }}>{step.label}</div>
-                      <div style={{ fontSize: 10, color: C.gray400 }}>{done ? fmtDateTime(step.time) : "Not yet"}</div>
-                    </div>
-                    {done && step.uid && (
-                      <span style={{ fontSize: 9, color: C.gray400, background: C.gray100, borderRadius: 4, padding: "2px 5px", fontFamily: "monospace", flexShrink: 0 }}>
-                        {shortId(step.uid)}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
         {/* ══ FOOTER ══ */}
-        <div style={{ padding: "7px 20px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50 }}>
-          <span style={{ fontSize: 10, color: C.gray400, fontFamily: "monospace" }}>TXN: {transaction.id}</span>
-          <span style={{ fontSize: 10, color: C.gray400 }}>CDS: {transaction.cds_number}</span>
+        <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50 }}>
+          <span style={{ fontSize: 10, color: C.gray400, fontFamily: "monospace", letterSpacing: "0.02em" }}>ID: {transaction.id}</span>
+          <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            Close
+          </button>
         </div>
       </div>
     </div>
