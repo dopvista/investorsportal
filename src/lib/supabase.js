@@ -329,28 +329,47 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetTransactions() {
-  // Use PostgREST resource embedding to join profiles for user names
-  // This avoids any view/schema cache dependency
+  // Step 1 — fetch transactions as normal (no join needed)
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc` +
-    `&select=*` +
-    `,created_by_profile:profiles!transactions_created_by_fkey(full_name)` +
-    `,confirmed_by_profile:profiles!transactions_confirmed_by_fkey(full_name)` +
-    `,verified_by_profile:profiles!transactions_verified_by_fkey(full_name)` +
-    `,rejected_by_profile:profiles!transactions_rejected_by_fkey(full_name)`,
+    `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`,
     { headers: headers(token()) },
     "Failed to fetch transactions"
   );
   const rows = await res.json();
+  if (!rows.length) return rows;
 
-  // Flatten the nested profile objects into flat *_by_name fields
-  // so the rest of the app doesn't need to change
+  // Step 2 — collect unique user UUIDs from all audit columns
+  const uids = [...new Set([
+    ...rows.map(t => t.created_by),
+    ...rows.map(t => t.confirmed_by),
+    ...rows.map(t => t.verified_by),
+    ...rows.map(t => t.rejected_by),
+  ].filter(Boolean))];
+
+  if (!uids.length) return rows;
+
+  // Step 3 — fetch full_name for those UUIDs from profiles in one query
+  const idList = `(${uids.map(id => `"${id}"`).join(",")})`;
+  let nameMap = {};
+  try {
+    const profileRes = await fetchWithAuthRetry(
+      `${BASE}/rest/v1/profiles?id=in.${idList}&select=id,full_name`,
+      { headers: headers(token()) },
+      "Failed to fetch profile names"
+    );
+    const profiles = await profileRes.json();
+    nameMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name || null]));
+  } catch {
+    // Names are non-critical — transactions still load without them
+  }
+
+  // Step 4 — merge names onto each transaction row
   return rows.map(t => ({
     ...t,
-    created_by_name:   t.created_by_profile?.full_name   || null,
-    confirmed_by_name: t.confirmed_by_profile?.full_name || null,
-    verified_by_name:  t.verified_by_profile?.full_name  || null,
-    rejected_by_name:  t.rejected_by_profile?.full_name  || null,
+    created_by_name:   nameMap[t.created_by]   || null,
+    confirmed_by_name: nameMap[t.confirmed_by] || null,
+    verified_by_name:  nameMap[t.verified_by]  || null,
+    rejected_by_name:  nameMap[t.rejected_by]  || null,
   }));
 }
 
