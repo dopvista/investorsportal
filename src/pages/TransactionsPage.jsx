@@ -627,8 +627,8 @@ const TransactionRow = memo(function TransactionRow({
       {/* Date */}
       <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap", fontSize: 12 }}>{fmtDate(transaction.date)}</td>
       {/* Company */}
-      <td style={{ padding: "7px 10px", minWidth: 100 }}>
-        <div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{transaction.company_name}</div>
+      <td style={{ padding: "7px 10px" }}>
+        <div style={{ fontWeight: 700, color: C.text, fontSize: 13, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
       </td>
       {/* Type */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
@@ -644,12 +644,12 @@ const TransactionRow = memo(function TransactionRow({
       </td>
       {/* Total Fees */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
-        <span style={{ color: C.gold, fontWeight: 700, fontSize: 12 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
+        <span style={{ color: C.gold, fontWeight: 700, fontSize: 12 }}>{fees > 0 ? fmtSmart(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
       {/* Grand Total */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
-          {fmt(gt)}
+          {fmtSmart(gt)}
         </span>
       </td>
       {/* Broker */}
@@ -1297,12 +1297,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <col style={{ width: 36 }} />
                     <col style={{ width: 40 }} />
                     <col style={{ width: 100 }} />
-                    <col />
+                    <col style={{ width: 130 }} />
                     <col style={{ width: 68 }} />
                     <col style={{ width: 72 }} />
                     <col style={{ width: 90 }} />
-                    <col style={{ width: 100 }} />
-                    <col style={{ width: 112 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 130 }} />
                     <col style={{ width: 112 }} />
                     <col style={{ width: 104 }} />
                     <col style={{ width: 88 }} />
@@ -1312,12 +1312,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <col style={{ width: 36 }} />
                     <col style={{ width: 40 }} />
                     <col style={{ width: 100 }} />
-                    <col />
+                    <col style={{ width: 130 }} />
                     <col style={{ width: 68 }} />
                     <col style={{ width: 72 }} />
                     <col style={{ width: 90 }} />
-                    <col style={{ width: 100 }} />
-                    <col style={{ width: 112 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 130 }} />
                     <col style={{ width: 112 }} />
                     <col style={{ width: 104 }} />
                   </colgroup>
@@ -1374,12 +1374,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                       </td>
                       {/* Total Fees column */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{fmtSmart(totals.fees)}</div>
                       </td>
                       {/* Grand Total column — buy and sell stacked */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmtSmart(totals.buyGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmtSmart(totals.sellGrand)}</div>
                       </td>
                       {/* Empty right cols: Broker + Status + Actions */}
                       <td colSpan={tfootRightCols} />
