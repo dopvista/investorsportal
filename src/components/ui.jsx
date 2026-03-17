@@ -930,11 +930,19 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
+// Matches single entry field completeness:
+//   Col A = Date
+//   Col B = Company Name
+//   Col C = Type (Buy / Sell)
+//   Col D = Quantity
+//   Col E = Price per Share
+//   Col F = Broker Name (required — matched by name or code)  ← NEW
+//   Col G = Control No. (optional, varchar 20)
+//   Col H = Remarks (optional)
+//   Col I = Total Amount (Excel formula — ignored, recalculated in app)
 // Fees auto-calculated — not read from Excel file
-// Column F = Reference No. (optional, varchar 20 — text or digits)
-// Column G = Remarks
 // ═══════════════════════════════════════════════════════════════════
-export function ImportTransactionsModal({ companies, onImport, onClose }) {
+export function ImportTransactionsModal({ companies, brokers = [], onImport, onClose }) {
   const [step, setStep]           = useState("upload");
   const [rows, setRows]           = useState([]);
   const [errors, setErrors]       = useState([]);
@@ -987,7 +995,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         const row       = raw[i];
         const firstCell = String(row[0] ?? "").trim().toLowerCase();
         if (firstCell.includes(END_MARKER)) break;
-        if (!row.slice(0, 7).some(cell => String(cell ?? "").trim() !== "")) continue;
+        if (!row.slice(0, 8).some(cell => String(cell ?? "").trim() !== "")) continue;
         if (String(row[1] ?? "").trim().toLowerCase() === PLACEHOLDER) continue;
         dataRows.push({ rowNum: i + 1, cells: row });
       }
@@ -1007,28 +1015,44 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
         const getRaw = (idx) => cells[idx];
         const get    = (idx) => String(cells[idx] ?? "").trim();
 
-        const dateRaw       = getRaw(0);
-        const company       = get(1);
-        const type          = get(2);
-        const qty           = parseFloat(get(3));
-        const price         = parseFloat(get(4));
-        const controlNumber = get(5).slice(0, 20) || null; // Col F: Reference No. (varchar 20)
-        const remarks       = get(6);                                           // Col G: Remarks
-        // Col H (index 7): Excel-calculated total — ignored, we recalculate
+        // ── Column mapping (updated to include Broker at F) ──────
+        const dateRaw       = getRaw(0);           // Col A: Date
+        const company       = get(1);              // Col B: Company Name
+        const type          = get(2);              // Col C: Type
+        const qty           = parseFloat(get(3));  // Col D: Quantity
+        const price         = parseFloat(get(4));  // Col E: Price per Share
+        const brokerRaw     = get(5);              // Col F: Broker Name (required) ← NEW
+        const controlNumber = get(6).slice(0, 20) || null; // Col G: Control No. (varchar 20)
+        const remarks       = get(7);              // Col H: Remarks
+        // Col I (index 8): Excel-calculated total — ignored, recalculated below
 
         const rowErrs = [];
+
+        // ── Required field validation ────────────────────────────
         if (!dateRaw || String(dateRaw).trim() === "") rowErrs.push("Missing date");
         if (!company) rowErrs.push("Missing company name");
         if (!["Buy", "Sell"].includes(type)) rowErrs.push("Type must be exactly 'Buy' or 'Sell'");
         if (isNaN(qty)   || qty   <= 0) rowErrs.push("Invalid quantity");
         if (isNaN(price) || price <= 0) rowErrs.push("Invalid price");
 
+        // ── Company resolution ───────────────────────────────────
         const matchedCompany = company
-          ? companies.find(c => c.name.toLowerCase().trim() === company.toLowerCase())
+          ? companies.find(c => c.name.toLowerCase().trim() === company.toLowerCase().trim())
           : null;
         if (company && !matchedCompany) rowErrs.push(`Company "${company}" not found in system`);
 
-        // Parse date
+        // ── Broker resolution — match by name or code ────────────
+        // Matching is case-insensitive on both broker_name and broker_code
+        const matchedBroker = brokerRaw
+          ? brokers.find(b =>
+              b.broker_name.toLowerCase().trim() === brokerRaw.toLowerCase().trim() ||
+              b.broker_code.toLowerCase().trim()  === brokerRaw.toLowerCase().trim()
+            )
+          : null;
+        if (!brokerRaw) rowErrs.push("Missing broker name");
+        else if (!matchedBroker) rowErrs.push(`Broker "${brokerRaw}" not found — use exact name or code`);
+
+        // ── Date parsing ─────────────────────────────────────────
         let date = "";
         if (dateRaw instanceof Date && !isNaN(dateRaw)) {
           date = `${dateRaw.getFullYear()}-${String(dateRaw.getMonth()+1).padStart(2,"0")}-${String(dateRaw.getDate()).padStart(2,"0")}`;
@@ -1056,10 +1080,12 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
             company_id:     matchedCompany.id,
             company_name:   matchedCompany.name,
             type, qty, price,
-            fees:           calcFees(tradeValue).total, // auto-calculated
-            control_number: controlNumber || null, // shown for both Buy and Sell
+            fees:           calcFees(tradeValue).total, // auto-calculated — same as single entry
+            control_number: controlNumber || null,
             remarks:        remarks || null,
             total:          tradeValue,
+            broker_id:      matchedBroker.id,           // ← NEW: matches single entry payload
+            broker_name:    matchedBroker.broker_name,  // ← NEW: matches single entry payload
           });
         }
       });
@@ -1122,13 +1148,26 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
           </div>
         </div>
       </div>
+
+      {/* ── Column reference ── */}
       <div style={{ background: "#EFF6FF", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
         <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.8 }}>
-          <strong>Template columns:</strong> A Date · B Company · C Type (Buy/Sell) · D Qty · E Price · <strong>F Control No.</strong> · G Remarks<br/>
+          <strong>Template columns:</strong> A Date · B Company · C Type (Buy/Sell) · D Qty · E Price · <strong>F Broker</strong> · G Control No. · H Remarks<br/>
           Commission fees are <strong>calculated automatically</strong> — no need to enter them.
         </div>
       </div>
+
+      {/* ── No brokers warning — mirrors the form's gold badge ── */}
+      {brokers.length === 0 && (
+        <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+          <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.7 }}>
+            <strong>No brokers configured.</strong> Ask your SA to add brokers before importing. Every row requires a valid broker name or code in column F.
+          </div>
+        </div>
+      )}
+
       <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
         <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.7 }}>
@@ -1166,7 +1205,19 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
               <thead>
                 <tr style={{ background: C.navy }}>
-                  {[["#","4%","center"],["Date","11%","left"],["Company","16%","left"],["Type","8%","left"],["Qty","8%","right"],["Price","11%","right"],["Ctrl No.","13%","left"],["Calc. Fees","14%","right"],["Total","15%","right"]].map(([h, w, align]) => (
+                  {/* Widths redistributed to fit the new Broker column */}
+                  {[
+                    ["#",          "4%",  "center"],
+                    ["Date",       "10%", "left"  ],
+                    ["Company",    "14%", "left"  ],
+                    ["Broker",     "13%", "left"  ],
+                    ["Type",       "7%",  "left"  ],
+                    ["Qty",        "7%",  "right" ],
+                    ["Price",      "10%", "right" ],
+                    ["Ctrl No.",   "11%", "left"  ],
+                    ["Calc. Fees", "12%", "right" ],
+                    ["Total",      "12%", "right" ],
+                  ].map(([h, w, align]) => (
                     <th key={h} style={{ padding: "8px 8px", color: C.white, fontWeight: 700, fontSize: 10, textAlign: align, whiteSpace: "nowrap", width: w }}>{h}</th>
                   ))}
                 </tr>
@@ -1179,7 +1230,13 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
                     <tr key={i} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 === 0 ? C.white : C.gray50 }}>
                       <td style={{ padding: "6px 8px", color: C.gray400, textAlign: "center" }}>{globalIdx + 1}</td>
                       <td style={{ padding: "6px 8px", color: C.text, whiteSpace: "nowrap" }}>{displayDate}</td>
-                      <td style={{ padding: "6px 8px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.company_name}</td>
+                      <td style={{ padding: "6px 8px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.company_name}>{r.company_name}</td>
+                      {/* Broker cell — truncated with tooltip on hover */}
+                      <td style={{ padding: "6px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.broker_name}>
+                        {r.broker_name
+                          ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "1px 6px", borderRadius: 5, fontWeight: 600, fontSize: 11 }}>{r.broker_name}</span>
+                          : <span style={{ color: C.gray400 }}>—</span>}
+                      </td>
                       <td style={{ padding: "6px 8px" }}><span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 7px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span></td>
                       <td style={{ padding: "6px 8px", color: C.text, textAlign: "right" }}>{fmtInt(r.qty)}</td>
                       <td style={{ padding: "6px 8px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
@@ -1230,7 +1287,7 @@ export function ImportTransactionsModal({ companies, onImport, onClose }) {
       subtitle={importing
         ? `Importing ${rows.length} transaction${rows.length !== 1 ? "s" : ""}… please wait`
         : step === "upload" ? "Upload your filled Excel template" : `Reviewing ${rows.length + errors.length} rows from "${fileName}"`}
-      onClose={onClose} maxWidth={660} lockBackdrop={importing}
+      onClose={onClose} maxWidth={720} lockBackdrop={importing}
       footer={
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
           {importing && (
