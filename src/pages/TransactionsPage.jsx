@@ -551,7 +551,7 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <tr
       style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
-      onClick={() => onOpenDetail(transaction)}
+      onClick={() => onOpenDetail(transaction.id)}
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
       onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
     >
@@ -669,7 +669,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [importModal,       setImportModal]       = useState(false);
   const [actionModal,       setActionModal]       = useState(null);
   const [rejectModal,       setRejectModal]       = useState(null);
-  const [detailModal,       setDetailModal]       = useState(null); // transaction detail popup
+  const [detailModal,       setDetailModal]       = useState(null); // transaction ID only — always reads live state
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
@@ -1126,7 +1126,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onClose={() => setActionModal(null)} />
       )}
       {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={() => setRejectModal(null)} />}
-      {detailModal && <TransactionDetailModal transaction={detailModal} transactions={myTransactions} onClose={() => setDetailModal(null)} />}
+      {/* Always derive from live myTransactions — never stale snapshot */}
+      {detailModal && (() => {
+        const liveTransaction = myTransactions.find(t => t.id === detailModal) || null;
+        return liveTransaction
+          ? <TransactionDetailModal transaction={liveTransaction} transactions={myTransactions} onClose={() => setDetailModal(null)} />
+          : null;
+      })()}
 
       {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
