@@ -540,7 +540,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   const [brokerOpen, setBrokerOpen]             = useState(false);
   const brokerRef                               = useRef(null);
 
-  // Close company dropdown on outside click
   useEffect(() => {
     if (!companyOpen) return;
     const handle = (e) => { if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false); };
@@ -548,7 +547,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     return () => document.removeEventListener("mousedown", handle);
   }, [companyOpen]);
 
-  // Close broker dropdown on outside click
   useEffect(() => {
     if (!brokerOpen) return;
     const handle = (e) => { if (brokerRef.current && !brokerRef.current.contains(e.target)) setBrokerOpen(false); };
@@ -558,12 +556,10 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
   const isBuy = form.type === "Buy";
 
-  // ── Auto-calculated values ────────────────────────────────────
   const tradeValue   = useMemo(() => (Number(form.qty) || 0) * (Number(form.price) || 0), [form.qty, form.price]);
   const feeBreakdown = useMemo(() => calcFees(tradeValue), [tradeValue]);
   const grandTotal   = isBuy ? tradeValue + feeBreakdown.total : tradeValue - feeBreakdown.total;
 
-  // ── Net holdings map: company_id → net shares owned ──────────
   const netMap = useMemo(() => {
     const m = {};
     transactions.forEach(t => {
@@ -573,10 +569,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     return m;
   }, [transactions]);
 
-  // Max shares user can sell for selected company
   const maxSellQty = form.companyId ? Math.max(0, netMap[form.companyId] || 0) : 0;
 
-  // ── Companies: all on Buy, holdings-only on Sell ──────────────
   const availableCompanies = useMemo(() => {
     if (isBuy) return companies;
     const ownedIds = new Set(Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id));
@@ -585,7 +579,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
   const isSellFiltered = !isBuy && availableCompanies.length < companies.length;
 
-  // ── Filter companies by search query ─────────────────────────
   const filteredCompanies = useMemo(() => {
     const q = companySearch.trim().toLowerCase();
     if (!q) return availableCompanies;
@@ -597,7 +590,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     [companies, form.companyId]
   );
 
-  // ── Filter brokers by search query (active only in dropdown) ─
   const filteredBrokers = useMemo(() => {
     const q = brokerSearch.trim().toLowerCase();
     if (!q) return brokers;
@@ -607,7 +599,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     );
   }, [brokers, brokerSearch]);
 
-  // When switching to Sell, clear company if not in holdings
   const handleTypeChange = useCallback((newType) => {
     setForm(f => {
       if (newType === "Sell" && f.companyId) {
@@ -666,8 +657,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
       {/* ── Row 1: Type · Date · Reference No. ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-
-        {/* Transaction Type — dropdown FIRST */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
             Transaction Type <span style={{ color: C.red }}>*</span>
@@ -683,15 +672,11 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             <option value="Sell">▼ Sell</option>
           </select>
         </div>
-
-        {/* Date */}
         <FInput
           label="Date" required type="date"
           value={form.date}
           onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
         />
-
-        {/* Reference No. — shown for both Buy and Sell, varchar max 20 */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
             Reference No.
@@ -708,7 +693,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       </div>
 
-      {/* ── Row 2: Searchable Company dropdown ── */}
+      {/* ── Row 2: Company ── */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
           Company <span style={{ color: C.red }}>*</span>
@@ -719,7 +704,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           )}
         </div>
         <div ref={companyRef} style={{ position: "relative" }}>
-          {/* Trigger */}
           <button
             type="button"
             onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
@@ -732,11 +716,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               {companyOpen ? "▲" : "▼"}
             </span>
           </button>
-
-          {/* Dropdown */}
           {companyOpen && (
             <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
-              {/* Search */}
               <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
@@ -746,7 +727,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                     onBlur={e => (e.target.style.borderColor = C.gray200)} />
                 </div>
               </div>
-              {/* Options */}
               <div style={{ maxHeight: 200, overflowY: "auto" }}>
                 {filteredCompanies.length === 0 ? (
                   <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
@@ -774,7 +754,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       </div>
 
-      {/* ── Row 3: Searchable Broker dropdown ── */}
+      {/* ── Row 3: Broker ── */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
           Broker <span style={{ color: C.red }}>*</span>
@@ -785,7 +765,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           )}
         </div>
         <div ref={brokerRef} style={{ position: "relative" }}>
-          {/* Trigger */}
           <button
             type="button"
             onClick={() => { setBrokerOpen(o => !o); setBrokerSearch(""); }}
@@ -803,11 +782,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               {brokerOpen ? "▲" : "▼"}
             </span>
           </button>
-
-          {/* Dropdown */}
           {brokerOpen && (
             <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
-              {/* Search */}
               <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
@@ -818,7 +794,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                     onBlur={e => (e.target.style.borderColor = C.gray200)} />
                 </div>
               </div>
-              {/* Options */}
               <div style={{ maxHeight: 200, overflowY: "auto" }}>
                 {filteredBrokers.length === 0 ? (
                   <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No brokers found</div>
@@ -869,10 +844,9 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         />
       </div>
 
-      {/* ── Condensed summary + fee breakdown ── */}
+      {/* ── Fee summary ── */}
       {tradeValue > 0 && (
         <div style={{ background: isBuy ? C.greenBg : C.redBg, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, borderRadius: 10, padding: "10px 14px" }}>
-          {/* Single horizontal summary row */}
           <div style={{ display: "flex", alignItems: "center" }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
@@ -900,8 +874,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               </div>
             </div>
           </div>
-
-          {/* Inline fee breakdown — only when expanded */}
           {showFeeBreakdown && (
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, display: "flex", gap: 4 }}>
               {feeItems.map(({ label, value, note }) => (
@@ -930,17 +902,17 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
-// Matches single entry field completeness:
-//   Col A = Date
-//   Col B = Company Name
-//   Col C = Type (Buy / Sell)
-//   Col D = Quantity
-//   Col E = Price per Share
-//   Col F = Broker Name (required — matched by name or code)  ← NEW
-//   Col G = Control No. (optional, varchar 20)
-//   Col H = Remarks (optional)
-//   Col I = Total Amount (Excel formula — ignored, recalculated in app)
-// Fees auto-calculated — not read from Excel file
+// Final confirmed column layout — matches the live Excel template:
+//   Col A (index 0) = Date
+//   Col B (index 1) = Company Name
+//   Col C (index 2) = Type (Buy / Sell)
+//   Col D (index 3) = Quantity
+//   Col E (index 4) = Price per Share
+//   Col F (index 5) = Total Fees     ← Excel formula — IGNORED, app recalculates
+//   Col G (index 6) = Total Amount   ← Excel formula — IGNORED, app recalculates
+//   Col H (index 7) = Broker         ← required, matched by name or broker code
+//   Col I (index 8) = Reference No.  ← optional, varchar 20
+//   Col J (index 9) = Remarks        ← optional
 // ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, brokers = [], onImport, onClose }) {
   const [step, setStep]           = useState("upload");
@@ -995,7 +967,8 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         const row       = raw[i];
         const firstCell = String(row[0] ?? "").trim().toLowerCase();
         if (firstCell.includes(END_MARKER)) break;
-        if (!row.slice(0, 8).some(cell => String(cell ?? "").trim() !== "")) continue;
+        // Check cols A–J (indices 0–9) — row has data if any cell is non-empty
+        if (!row.slice(0, 10).some(cell => String(cell ?? "").trim() !== "")) continue;
         if (String(row[1] ?? "").trim().toLowerCase() === PLACEHOLDER) continue;
         dataRows.push({ rowNum: i + 1, cells: row });
       }
@@ -1015,44 +988,44 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         const getRaw = (idx) => cells[idx];
         const get    = (idx) => String(cells[idx] ?? "").trim();
 
-        // ── Column mapping (updated to include Broker at F) ──────
+        // ── Column reads — exact indices matching final template layout ──
         const dateRaw       = getRaw(0);           // Col A: Date
         const company       = get(1);              // Col B: Company Name
         const type          = get(2);              // Col C: Type
         const qty           = parseFloat(get(3));  // Col D: Quantity
         const price         = parseFloat(get(4));  // Col E: Price per Share
-        const brokerRaw     = get(5);              // Col F: Broker Name (required) ← NEW
-        const controlNumber = get(6).slice(0, 20) || null; // Col G: Control No. (varchar 20)
-        const remarks       = get(7);              // Col H: Remarks
-        // Col I (index 8): Excel-calculated total — ignored, recalculated below
+        // index 5 (Col F: Total Fees)   — intentionally skipped, app recalculates
+        // index 6 (Col G: Total Amount) — intentionally skipped, app recalculates
+        const brokerRaw     = get(7);              // Col H: Broker (required)
+        const controlNumber = get(8).slice(0, 20) || null; // Col I: Reference No.
+        const remarks       = get(9);              // Col J: Remarks
 
         const rowErrs = [];
 
         // ── Required field validation ────────────────────────────
         if (!dateRaw || String(dateRaw).trim() === "") rowErrs.push("Missing date");
-        if (!company) rowErrs.push("Missing company name");
-        if (!["Buy", "Sell"].includes(type)) rowErrs.push("Type must be exactly 'Buy' or 'Sell'");
-        if (isNaN(qty)   || qty   <= 0) rowErrs.push("Invalid quantity");
-        if (isNaN(price) || price <= 0) rowErrs.push("Invalid price");
+        if (!company)                                  rowErrs.push("Missing company name");
+        if (!["Buy", "Sell"].includes(type))           rowErrs.push("Type must be exactly 'Buy' or 'Sell'");
+        if (isNaN(qty)   || qty   <= 0)                rowErrs.push("Invalid quantity");
+        if (isNaN(price) || price <= 0)                rowErrs.push("Invalid price");
 
-        // ── Company resolution ───────────────────────────────────
+        // ── Company resolution — exact name match, case-insensitive ─
         const matchedCompany = company
           ? companies.find(c => c.name.toLowerCase().trim() === company.toLowerCase().trim())
           : null;
         if (company && !matchedCompany) rowErrs.push(`Company "${company}" not found in system`);
 
-        // ── Broker resolution — match by name or code ────────────
-        // Matching is case-insensitive on both broker_name and broker_code
+        // ── Broker resolution — name or code, case-insensitive ───
         const matchedBroker = brokerRaw
           ? brokers.find(b =>
               b.broker_name.toLowerCase().trim() === brokerRaw.toLowerCase().trim() ||
               b.broker_code.toLowerCase().trim()  === brokerRaw.toLowerCase().trim()
             )
           : null;
-        if (!brokerRaw) rowErrs.push("Missing broker name");
+        if (!brokerRaw)          rowErrs.push("Missing broker — add broker name or code in column H");
         else if (!matchedBroker) rowErrs.push(`Broker "${brokerRaw}" not found — use exact name or code`);
 
-        // ── Date parsing ─────────────────────────────────────────
+        // ── Date parsing — handles Date object, serial number, string ─
         let date = "";
         if (dateRaw instanceof Date && !isNaN(dateRaw)) {
           date = `${dateRaw.getFullYear()}-${String(dateRaw.getMonth()+1).padStart(2,"0")}-${String(dateRaw.getDate()).padStart(2,"0")}`;
@@ -1074,18 +1047,21 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         if (rowErrs.length) {
           errs.push({ row: rowNum, errors: rowErrs });
         } else {
+          // ── App always recalculates — never trusts Excel columns F/G ─
           const tradeValue = qty * price;
           parsed.push({
             date,
             company_id:     matchedCompany.id,
             company_name:   matchedCompany.name,
-            type, qty, price,
-            fees:           calcFees(tradeValue).total, // auto-calculated — same as single entry
+            type,
+            qty,
+            price,
+            fees:           calcFees(tradeValue).total, // identical to single entry logic
+            total:          tradeValue,                 // qty × price, matches single entry
+            broker_id:      matchedBroker.id,           // matches single entry payload
+            broker_name:    matchedBroker.broker_name,  // matches single entry payload
             control_number: controlNumber || null,
             remarks:        remarks || null,
-            total:          tradeValue,
-            broker_id:      matchedBroker.id,           // ← NEW: matches single entry payload
-            broker_name:    matchedBroker.broker_name,  // ← NEW: matches single entry payload
           });
         }
       });
@@ -1121,6 +1097,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 
   const UploadStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Step 1 — download */}
       <div style={{ background: C.gray50, border: `1.5px solid ${C.gray200}`, borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{ width: 42, height: 42, background: `${C.green}15`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📥</div>
@@ -1133,6 +1110,8 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
           </div>
         </div>
       </div>
+
+      {/* Step 2 — upload */}
       <div style={{ background: C.gray50, border: `1.5px dashed ${C.gray300}`, borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{ width: 42, height: 42, background: `${C.navy}15`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
@@ -1149,21 +1128,23 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         </div>
       </div>
 
-      {/* ── Column reference ── */}
+      {/* Column reference — mirrors the live template exactly */}
       <div style={{ background: "#EFF6FF", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
-        <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.8 }}>
-          <strong>Template columns:</strong> A Date · B Company · C Type (Buy/Sell) · D Qty · E Price · <strong>F Broker</strong> · G Control No. · H Remarks<br/>
-          Commission fees are <strong>calculated automatically</strong> — no need to enter them.
+        <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.9 }}>
+          <strong>Template columns:</strong><br />
+          A Date &nbsp;·&nbsp; B Company Name &nbsp;·&nbsp; C Type (Buy/Sell) &nbsp;·&nbsp; D Quantity &nbsp;·&nbsp; E Price per Share<br />
+          F Total Fees <em>(auto-calculated, read-only)</em> &nbsp;·&nbsp; G Total Amount <em>(auto-calculated, read-only)</em><br />
+          <strong>H Broker</strong> <em>(required — exact broker name or code)</em> &nbsp;·&nbsp; I Reference No. &nbsp;·&nbsp; J Remarks
         </div>
       </div>
 
-      {/* ── No brokers warning — mirrors the form's gold badge ── */}
+      {/* No brokers warning */}
       {brokers.length === 0 && (
         <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
           <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.7 }}>
-            <strong>No brokers configured.</strong> Ask your SA to add brokers before importing. Every row requires a valid broker name or code in column F.
+            <strong>No brokers configured.</strong> Ask your SA to add brokers before importing. Column H requires a valid broker name or code in every row.
           </div>
         </div>
       )}
@@ -1189,12 +1170,14 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         <div style={{ background: errors.length ? C.redBg : C.gray50, border: `1px solid ${errors.length ? C.red : C.gray200}33`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: errors.length ? C.red : C.gray400 }}>{errors.length}</div><div style={{ fontSize: 11, color: errors.length ? C.red : C.gray400, fontWeight: 600, marginTop: 2 }}>Rows with Errors</div></div>
         <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.navy }}>{rows.length + errors.length}</div><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, marginTop: 2 }}>Total Rows Found</div></div>
       </div>
+
       {errors.length > 0 && (
         <div style={{ background: C.redBg, border: `1px solid ${C.red}33`, borderRadius: 10, padding: "12px 16px", maxHeight: 120, overflowY: "auto" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.red, marginBottom: 8 }}>⚠️ {errors.length} row(s) will be skipped:</div>
           {errors.map((e, i) => <div key={i} style={{ fontSize: 12, color: C.red, marginBottom: 4 }}><strong>Row {e.row}:</strong> {e.errors.join(" · ")}</div>)}
         </div>
       )}
+
       {rows.length > 0 && (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -1205,17 +1188,16 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
               <thead>
                 <tr style={{ background: C.navy }}>
-                  {/* Widths redistributed to fit the new Broker column */}
                   {[
                     ["#",          "4%",  "center"],
                     ["Date",       "10%", "left"  ],
-                    ["Company",    "14%", "left"  ],
+                    ["Company",    "15%", "left"  ],
                     ["Broker",     "13%", "left"  ],
-                    ["Type",       "7%",  "left"  ],
-                    ["Qty",        "7%",  "right" ],
+                    ["Type",        "7%", "left"  ],
+                    ["Qty",         "7%", "right" ],
                     ["Price",      "10%", "right" ],
-                    ["Ctrl No.",   "11%", "left"  ],
-                    ["Calc. Fees", "12%", "right" ],
+                    ["Ref No.",    "11%", "left"  ],
+                    ["Calc. Fees", "11%", "right" ],
                     ["Total",      "12%", "right" ],
                   ].map(([h, w, align]) => (
                     <th key={h} style={{ padding: "8px 8px", color: C.white, fontWeight: 700, fontSize: 10, textAlign: align, whiteSpace: "nowrap", width: w }}>{h}</th>
@@ -1231,13 +1213,14 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
                       <td style={{ padding: "6px 8px", color: C.gray400, textAlign: "center" }}>{globalIdx + 1}</td>
                       <td style={{ padding: "6px 8px", color: C.text, whiteSpace: "nowrap" }}>{displayDate}</td>
                       <td style={{ padding: "6px 8px", fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.company_name}>{r.company_name}</td>
-                      {/* Broker cell — truncated with tooltip on hover */}
                       <td style={{ padding: "6px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.broker_name}>
                         {r.broker_name
                           ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "1px 6px", borderRadius: 5, fontWeight: 600, fontSize: 11 }}>{r.broker_name}</span>
                           : <span style={{ color: C.gray400 }}>—</span>}
                       </td>
-                      <td style={{ padding: "6px 8px" }}><span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 7px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span></td>
+                      <td style={{ padding: "6px 8px" }}>
+                        <span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 7px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span>
+                      </td>
                       <td style={{ padding: "6px 8px", color: C.text, textAlign: "right" }}>{fmtInt(r.qty)}</td>
                       <td style={{ padding: "6px 8px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
                       <td style={{ padding: "6px 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1271,6 +1254,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
           )}
         </div>
       )}
+
       {rows.length === 0 && (
         <div style={{ textAlign: "center", padding: "30px", color: C.gray400 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>😟</div>
