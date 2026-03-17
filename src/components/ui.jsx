@@ -1199,9 +1199,9 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
                         <span style={{ background: r.type === "Buy" ? C.greenBg : C.redBg, color: r.type === "Buy" ? C.green : C.red, padding: "2px 8px", borderRadius: 12, fontWeight: 700, fontSize: 10 }}>{r.type}</span>
                       </td>
                       <td style={{ padding: "7px 10px", color: C.text, textAlign: "right", fontWeight: 600 }}>{fmtInt(r.qty)}</td>
-                      <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.price)}</td>
-                      <td style={{ padding: "7px 10px", color: C.gold, fontWeight: 600, textAlign: "right" }}>{fmtInt(r.fees)}</td>
-                      <td style={{ padding: "7px 10px", fontWeight: 800, color: r.type === "Buy" ? C.green : C.red, textAlign: "right" }}>{fmtInt(r.type === "Buy" ? r.total + r.fees : r.total - r.fees)}</td>
+                      <td style={{ padding: "7px 10px", color: C.green, fontWeight: 600, textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmtInt(r.price)}>{fmtInt(r.price)}</td>
+                      <td style={{ padding: "7px 10px", color: C.gold, fontWeight: 600, textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmtInt(r.fees)}>{fmtInt(r.fees)}</td>
+                      <td style={{ padding: "7px 10px", fontWeight: 800, color: r.type === "Buy" ? C.green : C.red, textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmtInt(r.type === "Buy" ? r.total + r.fees : r.total - r.fees)}>{fmtInt(r.type === "Buy" ? r.total + r.fees : r.total - r.fees)}</td>
                     </tr>
                   );
                 })}
