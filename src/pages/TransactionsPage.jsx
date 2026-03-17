@@ -299,11 +299,11 @@ const TransactionRow = memo(function TransactionRow({
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
       {/* Broker */}
-      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
-          ? <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{transaction.broker_name}</div>
-            </div>
+          ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>
+              {transaction.broker_name}
+            </span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
       <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
@@ -844,12 +844,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onConfirm={doBulkUnverify} onClose={() => setBulkUnverifyModal(null)} />
       )}
       {/* Pass myTransactions so form can filter companies by holdings on Sell */}
+      {/* Pass brokers so the broker searchable dropdown is populated */}
       {formModal.open && (
         <TransactionFormModal
           key={formModal.transaction?.id || "new"}
           transaction={formModal.transaction}
           companies={effectiveCompanies}
           transactions={myTransactions}
+          brokers={brokers}
           onConfirm={handleFormConfirm}
           onClose={() => setFormModal({ open: false, transaction: null })}
         />
