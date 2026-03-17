@@ -329,13 +329,29 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetTransactions() {
-  // Use the view that joins profiles — adds *_by_name columns for display
+  // Use PostgREST resource embedding to join profiles for user names
+  // This avoids any view/schema cache dependency
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/transactions_with_names?order=date.desc,created_at.desc`,
+    `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc` +
+    `&select=*` +
+    `,created_by_profile:profiles!transactions_created_by_fkey(full_name)` +
+    `,confirmed_by_profile:profiles!transactions_confirmed_by_fkey(full_name)` +
+    `,verified_by_profile:profiles!transactions_verified_by_fkey(full_name)` +
+    `,rejected_by_profile:profiles!transactions_rejected_by_fkey(full_name)`,
     { headers: headers(token()) },
     "Failed to fetch transactions"
   );
-  return res.json();
+  const rows = await res.json();
+
+  // Flatten the nested profile objects into flat *_by_name fields
+  // so the rest of the app doesn't need to change
+  return rows.map(t => ({
+    ...t,
+    created_by_name:   t.created_by_profile?.full_name   || null,
+    confirmed_by_name: t.confirmed_by_profile?.full_name || null,
+    verified_by_name:  t.verified_by_profile?.full_name  || null,
+    rejected_by_name:  t.rejected_by_profile?.full_name  || null,
+  }));
 }
 
 // ── FIFO Gain/Loss for a CDS (optionally filtered by company) ──────
