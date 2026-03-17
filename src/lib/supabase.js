@@ -329,10 +329,28 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetTransactions() {
+  // Use the view that joins profiles — adds *_by_name columns for display
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`,
+    `${BASE}/rest/v1/transactions_with_names?order=date.desc,created_at.desc`,
     { headers: headers(token()) },
     "Failed to fetch transactions"
+  );
+  return res.json();
+}
+
+// ── FIFO Gain/Loss for a CDS (optionally filtered by company) ──────
+export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_fifo_gain_loss`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        p_cds_number: cdsNumber,
+        ...(companyId ? { p_company_id: companyId } : {}),
+      }),
+    },
+    "Failed to fetch gain/loss data"
   );
   return res.json();
 }
