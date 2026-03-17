@@ -1291,7 +1291,37 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           ) : (
             <>
               <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                  {showActions ? (
+                  <colgroup>
+                    <col style={{ width: 36 }} />
+                    <col style={{ width: 40 }} />
+                    <col style={{ width: 100 }} />
+                    <col />
+                    <col style={{ width: 68 }} />
+                    <col style={{ width: 72 }} />
+                    <col style={{ width: 90 }} />
+                    <col style={{ width: 100 }} />
+                    <col style={{ width: 112 }} />
+                    <col style={{ width: 112 }} />
+                    <col style={{ width: 104 }} />
+                    <col style={{ width: 88 }} />
+                  </colgroup>
+                  ) : (
+                  <colgroup>
+                    <col style={{ width: 36 }} />
+                    <col style={{ width: 40 }} />
+                    <col style={{ width: 100 }} />
+                    <col />
+                    <col style={{ width: 68 }} />
+                    <col style={{ width: 72 }} />
+                    <col style={{ width: 90 }} />
+                    <col style={{ width: 100 }} />
+                    <col style={{ width: 112 }} />
+                    <col style={{ width: 112 }} />
+                    <col style={{ width: 104 }} />
+                  </colgroup>
+                  )}
                   <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                     <tr>
                       {showCheckbox && (
