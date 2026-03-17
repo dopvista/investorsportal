@@ -11,6 +11,7 @@ import {
   sbRejectTransactions,
   sbUnverifyTransaction,
   sbUnverifyTransactions,
+  sbGetActiveBrokers,
 } from "../lib/supabase";
 import {
   C, fmt, fmtInt, fmtSmart,
@@ -297,6 +298,14 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
+      {/* Broker */}
+      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+        {transaction.broker_name
+          ? <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{transaction.broker_name}</div>
+            </div>
+          : <span style={{ color: C.gray400 }}>—</span>}
+      </td>
       <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
         {fees ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}
       </td>
@@ -349,6 +358,7 @@ const buildTableHeaders = (showActions) => [
   { label: "Type",          align: "left"  },
   { label: "Qty",           align: "right" },
   { label: "Price/Share",   align: "right" },
+  { label: "Broker",        align: "left"  },
   { label: "Fees",          align: "right" },
   { label: "Grand Total",   align: "right" },
   { label: "Reference No.", align: "left"  },
@@ -371,8 +381,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const companyLoadRef = useRef(0);
 
   const [localCompanies, setLocalCompanies]           = useState([]);
+  const [brokers, setBrokers]                         = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [loadingCompanies, setLoadingCompanies]       = useState(true);
+  const [loadingBrokers, setLoadingBrokers]           = useState(true);
   const [pageError, setPageError]                     = useState(null);
 
   const [search, setSearch]             = useState("");
@@ -440,11 +452,27 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     }
   }, [showToast]);
 
+  const loadBrokers = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    setLoadingBrokers(true);
+    try {
+      const data = await sbGetActiveBrokers();
+      if (!isMountedRef.current) return;
+      setBrokers(data);
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error loading brokers: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setLoadingBrokers(false);
+    }
+  }, [showToast]);
+
   useEffect(() => { loadTransactions(); }, [loadTransactions]);
   useEffect(() => {
     if (companies?.length) { setLoadingCompanies(false); return; }
     loadCompanies();
   }, [companies, loadCompanies]);
+  useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
   const isAnyConfirming  = confirmingIds.size > 0;
   const isAnyVerifying   = verifyingIds.size > 0;
@@ -564,7 +592,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const openDeleteModal = useCallback((transaction) => setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name }), []);
 
   // ── handleFormConfirm — includes control_number ───────────────
-  const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total }) => {
+  const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total, brokerId, brokerName }) => {
     const isEdit  = !!formModal.transaction;
     const company = companyById.get(companyId);
     const payload = {
@@ -579,6 +607,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       control_number: controlNumber || null,
       remarks:        remarks || null,
       cds_number:     cdsNumber || null,
+      broker_id:      brokerId   || null,
+      broker_name:    brokerName || null,
     };
     try {
       if (isEdit) {
