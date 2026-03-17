@@ -20,12 +20,33 @@ import {
   TransactionFormModal, ImportTransactionsModal,
 } from "../components/ui";
 
+// ── Module-level CSS injection (once, not per-render) ─────────────
+if (typeof document !== "undefined" && !document.getElementById("_tx_keyframes")) {
+  const s = document.createElement("style");
+  s.id = "_tx_keyframes";
+  s.textContent = "@keyframes _txSpin{to{transform:rotate(360deg)}} @keyframes _txPageSpin{to{transform:rotate(360deg)}}";
+  document.head.appendChild(s);
+}
+
+// ── Module-level toolbar style constants (never change) ───────────
+const TOOLBAR_BASE   = { height: 36, borderRadius: 8, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" };
+const TOOLBAR_BUTTON = { ...TOOLBAR_BASE, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 };
+const TOOLBAR_INPUT  = { ...TOOLBAR_BASE, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text };
+const TOOLBAR_SELECT = { ...TOOLBAR_BASE, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 };
+
+// ── Formatters ────────────────────────────────────────────────────
 const fmtDate = (d) => {
   if (!d) return "—";
   const date = new Date(d.includes("T") ? d : d + "T00:00:00");
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const fmtDateTime = (d) => {
+  if (!d) return null;
+  return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
+// ── Status config ─────────────────────────────────────────────────
 const STATUS = {
   pending:   { label: "Pending",   bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA", icon: "🕐" },
   confirmed: { label: "Confirmed", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", icon: "✅" },
@@ -42,17 +63,29 @@ const statusOptions = [
   ["rejected", "✖ Rejected"],
 ];
 
-// ── Spinner ────────────────────────────────────────────────────────
+// ── Table headers (stable — built once outside component) ─────────
+const TABLE_HEADERS_WITH_ACTIONS    = [
+  { label: "#",           align: "left"  },
+  { label: "Date",        align: "left"  },
+  { label: "Company",     align: "left"  },
+  { label: "Type",        align: "left"  },
+  { label: "Qty",         align: "right" },
+  { label: "Price/Share", align: "right" },
+  { label: "Broker",      align: "left"  },
+  { label: "Grand Total", align: "right" },
+  { label: "Status",      align: "left"  },
+  { label: "Actions",     align: "right" },
+];
+const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
+
+// ── Spinner ───────────────────────────────────────────────────────
 const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} }) {
   return (
-    <>
-      <style>{`@keyframes _txSpin { to { transform: rotate(360deg); } }`}</style>
-      <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
-    </>
+    <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
   );
 });
 
-// ── Status Badge ───────────────────────────────────────────────────
+// ── Status Badge ──────────────────────────────────────────────────
 const StatusBadge = memo(function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.pending;
   return (
@@ -62,7 +95,7 @@ const StatusBadge = memo(function StatusBadge({ status }) {
   );
 });
 
-// ── Reject Modal ───────────────────────────────────────────────────
+// ── Reject Modal ──────────────────────────────────────────────────
 function RejectModal({ count, onConfirm, onClose }) {
   const [comment, setComment] = useState("");
   const [saving, setSaving]   = useState(false);
@@ -104,7 +137,7 @@ function RejectModal({ count, onConfirm, onClose }) {
   );
 }
 
-// ── Confirm Action Modal ───────────────────────────────────────────
+// ── Confirm Action Modal ──────────────────────────────────────────
 const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1, company, onConfirm, onClose, loading }) {
   const isVerify    = action === "verify";
   const accentColor = isVerify ? C.green : "#1D4ED8";
@@ -149,7 +182,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   );
 });
 
-// ── Simple Confirm Modal ───────────────────────────────────────────
+// ── Simple Confirm Modal ──────────────────────────────────────────
 const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, count, onConfirm, onClose, loading }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
@@ -175,15 +208,30 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   );
 });
 
-// ── Pagination ─────────────────────────────────────────────────────
+// ── Pagination ────────────────────────────────────────────────────
+const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`, background: active ? C.navy : disabled ? C.gray50 : C.white, color: active ? C.white : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {label}
+    </button>
+  );
+});
+
 const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPage, setPageSize, total, filtered }) {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, filtered);
-  const pages = [];
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) pages.push(i);
-    else if (pages[pages.length - 1] !== "...") pages.push("...");
-  }
+
+  // Memoize pages array — avoids rebuilding on every parent re-render
+  const pages = useMemo(() => {
+    const arr = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) arr.push(i);
+      else if (arr[arr.length - 1] !== "...") arr.push("...");
+    }
+    return arr;
+  }, [page, totalPages]);
+
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -215,16 +263,7 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
   );
 });
 
-const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`, background: active ? C.navy : disabled ? C.gray50 : C.white, color: active ? C.white : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {label}
-    </button>
-  );
-});
-
-// ── Row permissions helper ─────────────────────────────────────────
+// ── Row permissions helper ────────────────────────────────────────
 const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   const isPending   = transaction.status === "pending";
   const isConfirmed = transaction.status === "confirmed";
@@ -241,12 +280,7 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   };
 };
 
-// ── Transaction Detail Modal ───────────────────────────────────────
-const fmtDateTime = (d) => {
-  if (!d) return null;
-  return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-};
-
+// ── Transaction Detail Modal ──────────────────────────────────────
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
   if (!transaction) return null;
 
@@ -260,42 +294,36 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const totalFees  = fees || bd.total;
   const feePct     = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
   const qty        = Number(transaction.qty || 0);
-
   const accentColor = isBuy ? C.green : "#EF4444";
   const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
   const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
-
-  // ── All-in cost per share (Buy) ───────────────────────────────
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
   // ── Unrealized G/L — verified Buy only ───────────────────────
-  // a = current price × qty,  b = all-in cost per share × qty = gt
   const unrealizedGL = useMemo(() => {
     if (!isBuy || !isVerified || !qty) return null;
     const company = companies.find(c => c.id === transaction.company_id);
     const currentPrice = Number(company?.price || company?.cds_price || 0);
     if (!currentPrice) return null;
     const currentValue = currentPrice * qty;
-    const costBasis    = gt; // all-in cost = grand total paid (trade + fees)
+    const costBasis    = gt;
     const gain         = currentValue - costBasis;
     const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
     return { currentPrice, currentValue, costBasis, gain, pct };
   }, [isBuy, isVerified, qty, companies, transaction.company_id, gt]);
 
-  // ── FIFO realized G/L (Sell only) ────────────────────────────
+  // ── FIFO realized G/L — Sell only ────────────────────────────
   const realizedGL = useMemo(() => {
     if (isBuy || !transaction.company_id) return null;
-    const companyTxns = [...transactions]
+    // Cache timestamps before sort to avoid repeated Date construction
+    const companyTxns = transactions
       .filter(t => t.company_id === transaction.company_id)
-      .sort((a, b) => {
-        const da = new Date(a.date || a.created_at || 0).getTime();
-        const db = new Date(b.date || b.created_at || 0).getTime();
-        return da !== db ? da - db : new Date(a.created_at||0) - new Date(b.created_at||0);
-      });
+      .map(t => ({ ...t, _ts: new Date(t.date || t.created_at || 0).getTime() }))
+      .sort((a, b) => a._ts !== b._ts ? a._ts - b._ts : new Date(a.created_at||0) - new Date(b.created_at||0));
 
     let sharesHeld = 0, costHeld = 0, runningAvg = 0;
     for (const t of companyTxns) {
-      const tQty = Number(t.qty || 0);
+      const tQty   = Number(t.qty   || 0);
       const tTotal = Number(t.total || 0);
       const tFees  = Number(t.fees  || 0);
       if (t.type === "Buy") {
@@ -322,9 +350,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       }
     }
     return null;
-  }, [isBuy, transaction, transactions]);
+  }, [isBuy, transaction.id, transaction.company_id, transactions]);
 
-  const AUDIT_STEPS = [
+  const AUDIT_STEPS = useMemo(() => [
     { icon: "📝", label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
     { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: "#EFF6FF" },
     { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
@@ -332,7 +360,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
       : []
     ),
-  ];
+  ], [transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
+      transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name,
+      transaction.status]);
 
   return (
     <div
@@ -358,9 +388,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               {transaction.cds_number && (
                 <span>
                   🪪 {transaction.cds_number}
-                  {transaction.created_by_name && (
-                    <span style={{ color: C.gray600, fontWeight: 600 }}> — {transaction.created_by_name}</span>
-                  )}
+                  {transaction.created_by_name && <span style={{ color: C.gray600, fontWeight: 600 }}> — {transaction.created_by_name}</span>}
                 </span>
               )}
             </div>
@@ -389,7 +417,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         {/* ══ BODY — 2 columns ══ */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
 
-          {/* ── LEFT: Transaction + Fee Breakdown + G/L ── */}
+          {/* ── LEFT: Transaction + Fee Breakdown ── */}
           <div style={{ borderRight: `1px solid ${C.gray200}` }}>
 
             {/* Transaction */}
@@ -401,11 +429,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 ["Price/Share", `TZS ${fmt(transaction.price)}`],
                 ["Trade Value", `TZS ${fmt(tradeVal)}`],
                 ...(allInCostPerShare ? [["All-in Cost/Share", `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
-                ...(unrealizedGL ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]] : []),
+                ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]] : []),
               ].map(([label, value], i, arr) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
                   <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
-                  <span style={{ fontSize: 12, fontWeight: label === "All-in Cost/Share" ? 700 : 600, color: C.text }}>{value}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{value}</span>
                 </div>
               ))}
             </div>
@@ -425,19 +453,16 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                   <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(value)}</span>
                 </div>
               ))}
-              {/* Total Fees — bold divider row, no box */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Total Fees</span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>TZS {fmt(totalFees)}</span>
               </div>
             </div>
 
-            {/* ── Realized G/L (Sell only, FIFO) ── */}
+            {/* Realized G/L — Sell only */}
             {realizedGL && (
               <div style={{ padding: "14px 20px" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-                  Realized Gain / Loss
-                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Realized Gain / Loss</div>
                 {[
                   ["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`],
                   ["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`   ],
@@ -449,7 +474,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                     <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{value}</span>
                   </div>
                 ))}
-                {/* G/L total highlight */}
                 <div style={{ marginTop: 8, padding: "9px 12px", background: realizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${realizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: realizedGL.gain >= 0 ? C.green : "#EF4444" }}>
                     {realizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
@@ -467,7 +491,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
             )}
           </div>
 
-          {/* ── RIGHT: Ref & Broker + Audit Trail ── */}
+          {/* ── RIGHT: Ref & Broker + Audit Trail + G/L ── */}
           <div>
 
             {/* Reference & Broker */}
@@ -497,7 +521,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
             <div style={{ padding: "14px 20px" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Audit trail</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {AUDIT_STEPS.map((step, i, arr) => {
+                {AUDIT_STEPS.map((step, i) => {
                   const done = !!step.time;
                   return (
                     <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: done ? step.activeBg : "transparent", border: `1px solid ${done ? step.stepColor + "22" : C.gray100}`, opacity: done ? 1 : 0.45 }}>
@@ -519,7 +543,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               </div>
             </div>
 
-            {/* ── Unrealized G/L — verified Buy only, below audit trail ── */}
+            {/* Unrealized G/L — verified Buy only, below audit trail */}
             {unrealizedGL && (
               <div style={{ padding: "0 20px 14px" }}>
                 <div style={{ padding: "8px 10px", background: unrealizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
@@ -553,7 +577,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           </div>
         </div>
 
-        {/* ══ FOOTER — CDS + Close only ══ */}
+        {/* ══ FOOTER ══ */}
         <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50 }}>
           <span style={{ fontSize: 11, color: C.gray400 }}>CDS: {transaction.cds_number || "—"}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
@@ -564,7 +588,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     </div>
   );
 });
-// ── Transaction Row ────────────────────────────────────────────────
+
+// ── Transaction Row ───────────────────────────────────────────────
 const TransactionRow = memo(function TransactionRow({
   transaction, globalIdx, selected, onToggleOne,
   onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
@@ -574,13 +599,17 @@ const TransactionRow = memo(function TransactionRow({
   isDE, isVR, isSAAD, showCheckbox, showActions,
   onOpenDetail,
 }) {
-  const isBuy     = transaction.type === "Buy";
-  const tradeVal  = Number(transaction.total || 0);
-  const fees      = Number(transaction.fees  || 0);
-  // FIX: Buy = investor pays trade+fees; Sell = investor receives trade−fees
-  const gt        = isBuy ? tradeVal + fees : tradeVal - fees;
+  const isBuy    = transaction.type === "Buy";
+  const tradeVal = Number(transaction.total || 0);
+  const fees     = Number(transaction.fees  || 0);
+  const gt       = isBuy ? tradeVal + fees : tradeVal - fees;
   const isChecked = selected.has(transaction.id);
-  const perms     = getRowPermissions({ transaction, isDE, isVR, isSAAD });
+
+  // Memoize permissions — avoids recalculating when unrelated state changes
+  const perms = useMemo(
+    () => getRowPermissions({ transaction, isDE, isVR, isSAAD }),
+    [transaction, isDE, isVR, isSAAD]
+  );
 
   const isRowConfirming  = confirmingIds.has(transaction.id);
   const isRowVerifying   = verifyingIds.has(transaction.id);
@@ -589,13 +618,15 @@ const TransactionRow = memo(function TransactionRow({
   const isRowDeleting    = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
   const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
 
-  const rowActions = [
-    ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",      disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
-    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."  : "Verify",   disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
-    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."  : "Reject",   danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
-    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying...": "UnVerify", danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
-    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."   : "Delete",   danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
-  ];
+  // Memoize rowActions — avoids rebuilding array on every render
+  const rowActions = useMemo(() => [
+    ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",       disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+  ], [perms, isRowBusy, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
+      transaction, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
   return (
     <tr
@@ -624,19 +655,16 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
-      {/* Broker — single line truncated */}
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
           ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
-      {/* Grand Total */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
       </td>
-      {/* Status */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <StatusBadge status={transaction.status} />
         {perms.isRejected && transaction.rejection_comment && (
@@ -663,22 +691,8 @@ const TransactionRow = memo(function TransactionRow({
   );
 });
 
-// ── Table column headers ───────────────────────────────────────────
-const buildTableHeaders = (showActions) => [
-  { label: "#",           align: "left"  },
-  { label: "Date",        align: "left"  },
-  { label: "Company",     align: "left"  },
-  { label: "Type",        align: "left"  },
-  { label: "Qty",         align: "right" },
-  { label: "Price/Share", align: "right" },
-  { label: "Broker",      align: "left"  },
-  { label: "Grand Total", align: "right" },
-  { label: "Status",      align: "left"  },
-  ...(showActions ? [{ label: "Actions", align: "right" }] : []),
-];
-
 // ══════════════════════════════════════════════════════════════════
-// ── MAIN PAGE ─────────────────────────────────────────────────────
+// ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage({ companies, transactions, setTransactions, showToast, role, cdsNumber }) {
   const isDE   = role === "DE";
@@ -704,12 +718,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [pageSize, setPageSize]         = useState(50);
   const [selected, setSelected]         = useState(new Set());
 
-  const [confirmingIds,   setConfirmingIds]  = useState(new Set());
-  const [verifyingIds,    setVerifyingIds]   = useState(new Set());
-  const [rejectingIds,    setRejectingIds]   = useState(new Set());
-  const [unverifyingIds,  setUnverifyingIds] = useState(new Set());
-  const [deletingId,      setDeletingId]     = useState(null);
-  const [bulkDeletingIds, setBulkDeletingIds]= useState(new Set());
+  const [confirmingIds,   setConfirmingIds]   = useState(new Set());
+  const [verifyingIds,    setVerifyingIds]    = useState(new Set());
+  const [rejectingIds,    setRejectingIds]    = useState(new Set());
+  const [unverifyingIds,  setUnverifyingIds]  = useState(new Set());
+  const [deletingId,      setDeletingId]      = useState(null);
+  const [bulkDeletingIds, setBulkDeletingIds] = useState(new Set());
 
   const [deleteModal,       setDeleteModal]       = useState(null);
   const [bulkDeleteModal,   setBulkDeleteModal]   = useState(null);
@@ -718,7 +732,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [importModal,       setImportModal]       = useState(false);
   const [actionModal,       setActionModal]       = useState(null);
   const [rejectModal,       setRejectModal]       = useState(null);
-  const [detailModal,       setDetailModal]       = useState(null); // transaction ID only — always reads live state
+  const [detailModal,       setDetailModal]       = useState(null); // ID only — reads live state
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
@@ -726,11 +740,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     () => (companies?.length ? companies : localCompanies),
     [companies, localCompanies]
   );
-
-  const toolbarControlStyle = useMemo(() => ({ height: 36, borderRadius: 8, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" }), []);
-  const toolbarButtonStyle  = useMemo(() => ({ ...toolbarControlStyle, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }), [toolbarControlStyle]);
-  const toolbarInputStyle   = useMemo(() => ({ ...toolbarControlStyle, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text }), [toolbarControlStyle]);
-  const toolbarSelectStyle  = useMemo(() => ({ ...toolbarControlStyle, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 }), [toolbarControlStyle]);
 
   // ── Data loading ──────────────────────────────────────────────
   const loadTransactions = useCallback(async () => {
@@ -785,9 +794,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
-  const isAnyConfirming  = confirmingIds.size > 0;
-  const isAnyVerifying   = verifyingIds.size > 0;
-  const isAnyRejecting   = rejectingIds.size > 0;
+  const isAnyConfirming  = confirmingIds.size  > 0;
+  const isAnyVerifying   = verifyingIds.size   > 0;
+  const isAnyRejecting   = rejectingIds.size   > 0;
   const isAnyUnverifying = unverifyingIds.size > 0;
   const isAnyDeleting    = !!deletingId || bulkDeletingIds.size > 0;
   const hasSelection     = selected.size > 0;
@@ -802,20 +811,21 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const txById      = useMemo(() => new Map(myTransactions.map(t => [t.id, t])), [myTransactions]);
   const companyById = useMemo(() => new Map(effectiveCompanies.map(c => [c.id, c])), [effectiveCompanies]);
 
+  // Single-pass stats — avoids 6× iterations over myTransactions
   const stats = useMemo(() => {
-    const buys  = myTransactions.filter(t => t.type === "Buy");
-    const sells = myTransactions.filter(t => t.type === "Sell");
-    return {
-      total:        myTransactions.length,
-      buys:         buys.length,
-      sells:        sells.length,
-      totalBuyVal:  buys.reduce((s, t) => s + Number(t.total || 0), 0),
-      totalSellVal: sells.reduce((s, t) => s + Number(t.total || 0), 0),
-      pending:   myTransactions.filter(t => t.status === "pending").length,
-      confirmed: myTransactions.filter(t => t.status === "confirmed").length,
-      verified:  myTransactions.filter(t => t.status === "verified").length,
-      rejected:  myTransactions.filter(t => t.status === "rejected").length,
-    };
+    let total = 0, buys = 0, sells = 0, totalBuyVal = 0, totalSellVal = 0;
+    let pending = 0, confirmed = 0, verified = 0, rejected = 0;
+    for (const t of myTransactions) {
+      total++;
+      const v = Number(t.total || 0);
+      if (t.type === "Buy")  { buys++;  totalBuyVal  += v; }
+      else                   { sells++; totalSellVal += v; }
+      if      (t.status === "pending")   pending++;
+      else if (t.status === "confirmed") confirmed++;
+      else if (t.status === "verified")  verified++;
+      else if (t.status === "rejected")  rejected++;
+    }
+    return { total, buys, sells, totalBuyVal, totalSellVal, pending, confirmed, verified, rejected };
   }, [myTransactions]);
 
   const filtered = useMemo(() => {
@@ -829,14 +839,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         t.date?.includes(normalizedSearch)                        ||
         t.remarks?.toLowerCase().includes(normalizedSearch)       ||
         t.status?.toLowerCase().includes(normalizedSearch)        ||
-        t.control_number?.includes(normalizedSearch)              // search by control number
+        t.control_number?.includes(normalizedSearch)
       );
     }
-    const isActive = s => s === "pending" || s === "confirmed" || s === "rejected";
+    // Active transactions first, then by date desc — ISO strings compare correctly without Date()
     return [...list].sort((a, b) => {
-      const aA = isActive(a.status), bA = isActive(b.status);
-      if (aA !== bA) return aA ? -1 : 1;
-      return (b.date || "").localeCompare(a.date || "");
+      const aActive = a.status === "pending" || a.status === "confirmed" || a.status === "rejected";
+      const bActive = b.status === "pending" || b.status === "confirmed" || b.status === "rejected";
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return (b.date || "") > (a.date || "") ? 1 : -1;
     });
   }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
 
@@ -847,24 +858,25 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const resetPage    = useCallback(() => setPage(1), []);
   const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
-  // Corrected totals: sell grand deducts fees
+  // Single-pass totals — avoids 4× iterations over filtered
   const totals = useMemo(() => {
-    const buyFees  = filtered.filter(t => t.type === "Buy") .reduce((s, t) => s + Number(t.fees || 0), 0);
-    const sellFees = filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.fees || 0), 0);
-    const buyAmt   = filtered.filter(t => t.type === "Buy") .reduce((s, t) => s + Number(t.total || 0), 0);
-    const sellAmt  = filtered.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.total || 0), 0);
-    return {
-      buyAmount:  buyAmt,
-      sellAmount: sellAmt,
-      fees:       buyFees + sellFees,
-      buyGrand:   buyAmt  + buyFees,    // total paid out
-      sellGrand:  sellAmt - sellFees,   // net received
-    };
+    let buyAmt = 0, sellAmt = 0, buyFees = 0, sellFees = 0;
+    for (const t of filtered) {
+      const amt  = Number(t.total || 0);
+      const fees = Number(t.fees  || 0);
+      if (t.type === "Buy") { buyAmt  += amt; buyFees  += fees; }
+      else                  { sellAmt += amt; sellFees += fees; }
+    }
+    return { buyAmount: buyAmt, sellAmount: sellAmt, fees: buyFees + sellFees, buyGrand: buyAmt + buyFees, sellGrand: sellAmt - sellFees };
   }, [filtered]);
 
   const paginatedIds = useMemo(() => paginated.map(t => t.id), [paginated]);
-  const allSelected  = paginatedIds.length > 0 && paginatedIds.every(id => selected.has(id));
-  const someSelected = paginatedIds.some(id => selected.has(id));
+
+  // Memoize selection state — avoids .every()/.some() inline on every render
+  const { allSelected, someSelected } = useMemo(() => ({
+    allSelected:  paginatedIds.length > 0 && paginatedIds.every(id => selected.has(id)),
+    someSelected: paginatedIds.some(id => selected.has(id)),
+  }), [paginatedIds, selected]);
 
   const toggleAll = useCallback(() => {
     setSelected(prev => {
@@ -902,23 +914,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const openRejectModal = useCallback((ids) => setRejectModal({ ids }), []);
   const openDeleteModal = useCallback((transaction) => setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name }), []);
 
-  // ── handleFormConfirm — includes control_number ───────────────
   const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total, brokerId, brokerName }) => {
     const isEdit  = !!formModal.transaction;
     const company = companyById.get(companyId);
     const payload = {
-      date,
-      company_id:     companyId,
-      company_name:   company?.name,
-      type,
-      qty:            Number(qty),
-      price:          Number(price),
-      total,
+      date, company_id: companyId, company_name: company?.name, type,
+      qty: Number(qty), price: Number(price), total,
       fees:           fees ? Number(fees) : null,
       control_number: controlNumber || null,
       remarks:        remarks || null,
       cds_number:     cdsNumber || null,
-      broker_id:      brokerId   || null,
+      broker_id:      brokerId  || null,
       broker_name:    brokerName || null,
     };
     try {
@@ -941,6 +947,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     }
   }, [formModal.transaction, companyById, cdsNumber, setTransactions, showToast]);
 
+  // ── Shared enriched-refetch helper ───────────────────────────
+  const refetchEnriched = useCallback(async (ids) => {
+    const enriched = await sbGetTransactionsByIds(ids);
+    if (!isMountedRef.current) return;
+    const map = new Map(enriched.map(r => [r.id, r]));
+    setTransactions(p => p.map(t => map.get(t.id) || t));
+  }, [setTransactions]);
+
   const handleConfirm = useCallback((id, company, status) => {
     setActionModal({ action: status === "rejected" ? "confirm-rejected" : "confirm", ids: [id], company });
   }, []);
@@ -951,15 +965,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setActionModal(null);
     setConfirmingIds(new Set(ids));
     try {
-      for (const id of ids) {
+      // Parallelize confirmations
+      await Promise.all(ids.map(async id => {
         const rows = await sbConfirmTransaction(id);
         if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
-      }
-      // Re-fetch enriched (with names) so audit trail shows correctly
-      const enriched = await sbGetTransactionsByIds(ids);
-      if (!isMountedRef.current) return;
-      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
-      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
+      }));
+      await refetchEnriched(ids);
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
     } catch (e) {
@@ -968,7 +979,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       if (isMountedRef.current) setConfirmingIds(new Set());
     }
-  }, [actionModal, myTransactions, setTransactions, showToast]);
+  }, [actionModal, refetchEnriched, showToast]);
 
   const handleVerify = useCallback((ids, company) => setActionModal({ action: "verify", ids, company: company || null }), []);
 
@@ -979,11 +990,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setVerifyingIds(new Set(ids));
     try {
       await sbVerifyTransactions(ids);
-      // Re-fetch enriched so verified_at + verified_by_name are correct
-      const enriched = await sbGetTransactionsByIds(ids);
-      if (!isMountedRef.current) return;
-      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
-      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
+      await refetchEnriched(ids);
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} verified!`, "success");
     } catch (e) {
@@ -992,7 +999,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       if (isMountedRef.current) setVerifyingIds(new Set());
     }
-  }, [actionModal, setTransactions, showToast]);
+  }, [actionModal, refetchEnriched, showToast]);
 
   const handleReject = useCallback(async (comment) => {
     const ids = rejectModal?.ids;
@@ -1000,11 +1007,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setRejectingIds(new Set(ids));
     try {
       await sbRejectTransactions(ids, comment);
-      // Re-fetch enriched so rejected_at + rejected_by_name are correct
-      const enriched = await sbGetTransactionsByIds(ids);
-      if (!isMountedRef.current) return;
-      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
-      setTransactions(p => p.map(t => enrichedMap.get(t.id) || t));
+      await refetchEnriched(ids);
       setSelected(new Set());
       setRejectModal(null);
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} rejected.`, "error");
@@ -1014,18 +1017,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       if (isMountedRef.current) setRejectingIds(new Set());
     }
-  }, [rejectModal, setTransactions, showToast]);
+  }, [rejectModal, refetchEnriched, showToast]);
 
   const handleUnVerify = useCallback(async (id) => {
-    setUnverifyingIds(prev => new Set([...prev, id]));
+    setUnverifyingIds(prev => { const s = new Set(prev); s.add(id); return s; });
     try {
       const rows = await sbUnverifyTransaction(id);
       if (!rows || rows.length === 0) throw new Error("Unverify failed.");
-      // Re-fetch enriched so names are preserved
-      const enriched = await sbGetTransactionsByIds([id]);
-      if (!isMountedRef.current) return;
-      const updated = enriched[0] || rows[0];
-      setTransactions(p => p.map(t => t.id === id ? updated : t));
+      await refetchEnriched([id]);
       showToast("Transaction unverified and returned to Pending.", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -1033,7 +1032,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       if (isMountedRef.current) setUnverifyingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
-  }, [setTransactions, showToast]);
+  }, [refetchEnriched, showToast]);
 
   const doBulkUnverify = useCallback(async () => {
     const ids = bulkUnverifyModal?.ids;
@@ -1043,12 +1042,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     try {
       const rows = await sbUnverifyTransactions(ids);
       if (!rows || rows.length === 0) throw new Error("No verified transactions could be unverified.");
-      // Re-fetch enriched so names are preserved
-      const enriched = await sbGetTransactionsByIds(ids);
-      if (!isMountedRef.current) return;
-      const enrichedMap = new Map(enriched.map(r => [r.id, r]));
-      const fallbackMap = new Map(rows.map(r => [r.id, r]));
-      setTransactions(p => p.map(t => enrichedMap.get(t.id) || fallbackMap.get(t.id) || t));
+      await refetchEnriched(ids);
       setSelected(new Set());
       showToast(`${rows.length} transaction${rows.length > 1 ? "s" : ""} unverified.`, "success");
     } catch (e) {
@@ -1057,7 +1051,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } finally {
       if (isMountedRef.current) setUnverifyingIds(new Set());
     }
-  }, [bulkUnverifyModal, setTransactions, showToast]);
+  }, [bulkUnverifyModal, refetchEnriched, showToast]);
 
   const handleDelete = useCallback(async () => {
     const id = deleteModal?.id;
@@ -1084,9 +1078,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setBulkDeleteModal(null);
     setBulkDeletingIds(new Set(ids));
     try {
-      for (const id of ids) await sbDeleteTransaction(id);
+      // Parallelize deletions
+      await Promise.all(ids.map(id => sbDeleteTransaction(id)));
       if (!isMountedRef.current) return;
-      setTransactions(p => p.filter(t => !ids.includes(t.id)));
+      const idSet = new Set(ids);
+      setTransactions(p => p.filter(t => !idSet.has(t.id)));
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} deleted.`, "success");
     } catch (e) {
@@ -1104,7 +1100,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       const results = await Promise.all(rows.slice(i, i + BATCH).map(row => sbInsertTransaction({ ...row, cds_number: cdsNumber || null })));
       results.forEach(r => inserted.push(r[0]));
     }
-    inserted.sort((a, b) => new Date(b.date) - new Date(a.date));
+    inserted.sort((a, b) => (b.date || "") > (a.date || "") ? 1 : -1);
     if (!isMountedRef.current) return;
     setTransactions(p => [...inserted, ...p]);
     setImportModal(false);
@@ -1113,61 +1109,75 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const statCards = useMemo(() => {
     if (isVR) return [
-      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant",       icon: "📋", color: "#1D4ED8" },
-      { label: "Verified",        value: stats.verified,  sub: "Approved transactions",            icon: "✔️", color: C.green  },
-      { label: "Rejected",        value: stats.rejected,  sub: "Sent back for correction",         icon: "✖",  color: C.red    },
-      { label: "Selected",        value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below", icon: "☑️", color: C.gold },
+      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant",                                                                    icon: "📋", color: "#1D4ED8" },
+      { label: "Verified",        value: stats.verified,  sub: "Approved transactions",                                                                        icon: "✔️", color: C.green  },
+      { label: "Rejected",        value: stats.rejected,  sub: "Sent back for correction",                                                                     icon: "✖",  color: C.red    },
+      { label: "Selected",        value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below",                                 icon: "☑️", color: C.gold  },
     ];
     if (isDE) return [
-      { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,   icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red   },
-      { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation", icon: "🕐", color: C.gold  },
+      { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`,                icon: "📋", color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                                               icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                                             icon: "📤", color: C.red   },
+      { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation",                                             icon: "🕐", color: C.gold  },
     ];
     if (isRO) return [
-      { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`, icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,   icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red   },
+      { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`,                                             icon: "📋", color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                                               icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                                             icon: "📤", color: C.red   },
       { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyVal - stats.totalSellVal))}`, sub: stats.totalBuyVal >= stats.totalSellVal ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
     ];
     return [
-      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,                    icon: "📋", color: C.navy  },
-      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,   icon: "📥", color: C.green },
-      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`, icon: "📤", color: C.red   },
-      { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold },
+      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,                           icon: "📋", color: C.navy  },
+      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                                            icon: "📥", color: C.green },
+      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                                          icon: "📤", color: C.red   },
+      { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`,                icon: "⏳", color: C.gold  },
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
 
   const showCheckbox   = true;
   const showActions    = !isRO;
-  const tableHeaders   = useMemo(() => buildTableHeaders(showActions), [showActions]);
-  // tfoot right: Status + Actions
+  const tableHeaders   = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
   const tfootRightCols = 1 + (showActions ? 1 : 0);
+
+  // Derive live transaction for detail modal — never stale
+  const detailTransaction = useMemo(
+    () => detailModal ? (myTransactions.find(t => t.id === detailModal) || null) : null,
+    [detailModal, myTransactions]
+  );
+
+  // Close callbacks — stable references
+  const closeDelete       = useCallback(() => setDeleteModal(null),                            []);
+  const closeBulkDelete   = useCallback(() => setBulkDeleteModal(null),                        []);
+  const closeBulkUnverify = useCallback(() => setBulkUnverifyModal(null),                      []);
+  const closeForm         = useCallback(() => setFormModal({ open: false, transaction: null }), []);
+  const closeImport       = useCallback(() => setImportModal(false),                           []);
+  const closeAction       = useCallback(() => setActionModal(null),                            []);
+  const closeReject       = useCallback(() => setRejectModal(null),                            []);
+  const closeDetail       = useCallback(() => setDetailModal(null),                            []);
 
   // ── Render ────────────────────────────────────────────────────
   return (
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* ── Modals ── */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
-          onConfirm={handleDelete} onClose={() => setDeleteModal(null)} />
+          onConfirm={handleDelete} onClose={closeDelete} />
       )}
       {bulkDeleteModal && (
         <SimpleConfirmModal title="Delete Transactions"
           message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`}
           count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0}
-          onConfirm={doBulkDelete} onClose={() => setBulkDeleteModal(null)} />
+          onConfirm={doBulkDelete} onClose={closeBulkDelete} />
       )}
       {bulkUnverifyModal && (
         <SimpleConfirmModal title="Unverify Transactions"
           message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`}
           count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying}
-          onConfirm={doBulkUnverify} onClose={() => setBulkUnverifyModal(null)} />
+          onConfirm={doBulkUnverify} onClose={closeBulkUnverify} />
       )}
-      {/* Pass myTransactions so form can filter companies by holdings on Sell */}
-      {/* Pass brokers so the broker searchable dropdown is populated */}
       {formModal.open && (
         <TransactionFormModal
           key={formModal.transaction?.id || "new"}
@@ -1176,24 +1186,25 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           transactions={myTransactions}
           brokers={brokers}
           onConfirm={handleFormConfirm}
-          onClose={() => setFormModal({ open: false, transaction: null })}
+          onClose={closeForm}
         />
       )}
-      {importModal && <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={() => setImportModal(false)} />}
+      {importModal && <ImportTransactionsModal companies={effectiveCompanies} onImport={handleImport} onClose={closeImport} />}
       {actionModal && (
         <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company}
           loading={isAnyConfirming || isAnyVerifying}
           onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm}
-          onClose={() => setActionModal(null)} />
+          onClose={closeAction} />
       )}
-      {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={() => setRejectModal(null)} />}
-      {/* Always derive from live myTransactions — never stale snapshot */}
-      {detailModal && (() => {
-        const liveTransaction = myTransactions.find(t => t.id === detailModal) || null;
-        return liveTransaction
-          ? <TransactionDetailModal transaction={liveTransaction} transactions={myTransactions} companies={effectiveCompanies} onClose={() => setDetailModal(null)} />
-          : null;
-      })()}
+      {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={closeReject} />}
+      {detailTransaction && (
+        <TransactionDetailModal
+          transaction={detailTransaction}
+          transactions={myTransactions}
+          companies={effectiveCompanies}
+          onClose={closeDetail}
+        />
+      )}
 
       {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
@@ -1207,18 +1218,18 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
             <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
               placeholder="Search company, control no., status..."
-              style={toolbarInputStyle}
+              style={TOOLBAR_INPUT}
               onFocus={e => { e.target.style.borderColor = C.navy; }}
               onBlur={e => { e.target.style.borderColor = C.gray200; }} />
           </div>
           {["All", "Buy", "Sell"].map(t => (
             <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-              style={{ ...toolbarButtonStyle, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+              style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>
               {t}
             </button>
           ))}
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-            style={{ ...toolbarSelectStyle, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+            style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
             onFocus={e => { e.target.style.borderColor = C.navy; }}
             onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
             {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -1228,11 +1239,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
           {hasSelection ? (
             <>
-              {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...toolbarButtonStyle, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
-              {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...toolbarButtonStyle, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-              {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...toolbarButtonStyle, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
-              {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...toolbarButtonStyle, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-              {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...toolbarButtonStyle, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+              {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
+              {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
+              {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+              {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
+              {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
               <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
             </>
           ) : (
@@ -1251,7 +1262,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
           {loadingTransactions ? (
             <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
               <div style={{ fontSize: 13 }}>Loading transactions...</div>
             </div>
@@ -1324,16 +1334,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   </tbody>
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
-                      {/* checkbox + # Date Company Type Qty Price/Share Broker = 8 cols (7 without checkbox) */}
                       <td colSpan={showCheckbox ? 8 : 7} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
-                      {/* Grand Total column */}
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
                         <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
-                      {/* Status + Actions */}
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
