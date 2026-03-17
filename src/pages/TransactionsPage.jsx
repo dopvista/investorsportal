@@ -429,36 +429,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Total Fees</span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>TZS {fmt(totalFees)}</span>
               </div>
-
-              {/* ── Unrealized G/L — verified Buy only, compact ── */}
-              {unrealizedGL && (
-                <div style={{ marginTop: 8, padding: "8px 10px", background: unrealizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Unrealized Gain / Loss
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <span style={{ fontSize: 11, color: C.gray500 }}>Current Price × {fmtInt(qty)} shares</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.currentValue)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, paddingBottom: 6, borderBottom: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
-                    <span style={{ fontSize: 11, color: C.gray500 }}>All-in Cost (trade + fees)</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.costBasis)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
-                      {unrealizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
-                    </span>
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
-                        {unrealizedGL.gain >= 0 ? "+" : ""}TZS {fmt(Math.round(unrealizedGL.gain))}
-                      </span>
-                      <span style={{ fontSize: 10, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", marginLeft: 6 }}>
-                        ({unrealizedGL.gain >= 0 ? "+" : ""}{unrealizedGL.pct.toFixed(2)}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* ── Realized G/L (Sell only, FIFO) ── */}
@@ -547,6 +517,38 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 })}
               </div>
             </div>
+
+            {/* ── Unrealized G/L — verified Buy only, below audit trail ── */}
+            {unrealizedGL && (
+              <div style={{ padding: "0 20px 14px" }}>
+                <div style={{ padding: "8px 10px", background: unrealizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Unrealized Gain / Loss
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ fontSize: 11, color: C.gray500 }}>Current Price × {fmtInt(qty)} shares</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.currentValue)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, paddingBottom: 6, borderBottom: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
+                    <span style={{ fontSize: 11, color: C.gray500 }}>All-in Cost (trade + fees)</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>TZS {fmt(unrealizedGL.costBasis)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                      {unrealizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                        {unrealizedGL.gain >= 0 ? "+" : ""}TZS {fmt(Math.round(unrealizedGL.gain))}
+                      </span>
+                      <span style={{ fontSize: 10, color: unrealizedGL.gain >= 0 ? C.green : "#EF4444", marginLeft: 6 }}>
+                        ({unrealizedGL.gain >= 0 ? "+" : ""}{unrealizedGL.pct.toFixed(2)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
