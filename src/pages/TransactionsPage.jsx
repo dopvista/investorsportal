@@ -14,7 +14,7 @@ import {
   sbGetActiveBrokers,
 } from "../lib/supabase";
 import {
-  C, fmt, fmtInt, fmtSmart,
+  C, fmt, fmtInt, fmtSmart, calcFees,
   Btn, StatCard, SectionCard, Modal, ActionMenu,
   TransactionFormModal, ImportTransactionsModal,
 } from "../components/ui";
@@ -240,6 +240,170 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   };
 };
 
+// ── Transaction Detail Modal ───────────────────────────────────────
+const fmtDateTime = (d) => {
+  if (!d) return null;
+  return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
+const DetailRow = memo(function DetailRow({ label, value, accent, mono }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.gray100}`, gap: 12, minWidth: 0 }}>
+      <span style={{ fontSize: 12, color: C.gray400, fontWeight: 600, flexShrink: 0, minWidth: 110 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: accent || C.text, textAlign: "right", wordBreak: "break-word", fontFamily: mono ? "monospace" : "inherit" }}>{value}</span>
+    </div>
+  );
+});
+
+const DetailSection = memo(function DetailSection({ title, icon, children, color }) {
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ padding: "9px 14px", background: color || C.gray50, borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ fontSize: 14 }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: color ? C.white : C.navy, textTransform: "uppercase", letterSpacing: "0.05em" }}>{title}</span>
+      </div>
+      <div style={{ padding: "4px 14px 6px" }}>{children}</div>
+    </div>
+  );
+});
+
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, onClose }) {
+  if (!transaction) return null;
+
+  const isBuy    = transaction.type === "Buy";
+  const tradeVal = Number(transaction.total || 0);
+  const fees     = Number(transaction.fees  || 0);
+  const gt       = isBuy ? tradeVal + fees : tradeVal - fees;
+  const st       = STATUS[transaction.status] || STATUS.pending;
+
+  // Reconstruct fee breakdown from total using calcFees — matches what was stored
+  const breakdown = calcFees(tradeVal);
+
+  const shortId = (uid) => uid ? uid.slice(0, 8).toUpperCase() : null;
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(2px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: C.gray50, borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "18px 22px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span style={{ background: isBuy ? C.green : "#EF4444", color: C.white, padding: "3px 12px", borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
+                {isBuy ? "▲ Buy" : "▼ Sell"}
+              </span>
+              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                {st.icon} {st.label}
+              </span>
+            </div>
+            <div style={{ color: C.white, fontWeight: 800, fontSize: 18, lineHeight: 1.2 }}>{transaction.company_name}</div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 4 }}>{fmtDate(transaction.date)}</div>
+          </div>
+          <div style={{ textAlign: "right", marginLeft: 16, flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{isBuy ? "Total Paid" : "Net Received"}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: isBuy ? "#6EE7B7" : "#FCA5A5", marginTop: 2 }}>
+              TZS {fmt(gt)}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ marginLeft: 16, width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 15, color: C.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            ✕
+          </button>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div style={{ overflowY: "auto", flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* ── Transaction details ── */}
+          <DetailSection title="Transaction" icon="📋">
+            <DetailRow label="Date"         value={fmtDate(transaction.date)} />
+            <DetailRow label="Quantity"     value={`${fmtInt(transaction.qty)} shares`} />
+            <DetailRow label="Price/Share"  value={`TZS ${fmt(transaction.price)}`} />
+            <DetailRow label="Trade Value"  value={`TZS ${fmt(tradeVal)}`} />
+          </DetailSection>
+
+          {/* ── Fee breakdown ── */}
+          <DetailSection title="Commission & Fees" icon="💰">
+            <DetailRow label="Broker (+VAT)"  value={`TZS ${fmt(breakdown.broker)}`}   accent={C.gray600} />
+            <DetailRow label="CMSA (0.14%)"   value={`TZS ${fmt(breakdown.cmsa)}`}     accent={C.gray600} />
+            <DetailRow label="DSE (+VAT)"     value={`TZS ${fmt(breakdown.dse)}`}      accent={C.gray600} />
+            <DetailRow label="CSDR (+VAT)"    value={`TZS ${fmt(breakdown.csdr)}`}     accent={C.gray600} />
+            <DetailRow label="Fidelity (0.02%)" value={`TZS ${fmt(breakdown.fidelity)}`} accent={C.gray600} />
+            <div style={{ borderTop: `2px solid ${C.gray200}`, marginTop: 4, paddingTop: 4 }}>
+              <DetailRow label="Total Fees"   value={`TZS ${fmt(fees || breakdown.total)}`} accent={C.navy} />
+              <DetailRow
+                label={isBuy ? "Total Paid" : "Net Received"}
+                value={`TZS ${fmt(gt)}`}
+                accent={isBuy ? C.green : "#EF4444"}
+              />
+            </div>
+          </DetailSection>
+
+          {/* ── Reference & Broker ── */}
+          <DetailSection title="Reference & Broker" icon="🏦">
+            <DetailRow label="Broker"       value={transaction.broker_name || null} />
+            <DetailRow label="Reference No." value={transaction.control_number || null} mono />
+            <DetailRow label="Remarks"      value={transaction.remarks || null} accent={C.gray600} />
+          </DetailSection>
+
+          {/* ── Audit Trail ── */}
+          <DetailSection title="Audit Trail" icon="🔍" color={C.navy}>
+            <DetailRow
+              label="Created"
+              value={transaction.created_at
+                ? `${fmtDateTime(transaction.created_at)}${transaction.created_by ? `  ·  ID: ${shortId(transaction.created_by)}` : ""}`
+                : null}
+              accent={C.gray600}
+            />
+            <DetailRow
+              label="Confirmed"
+              value={transaction.confirmed_at
+                ? `${fmtDateTime(transaction.confirmed_at)}${transaction.confirmed_by ? `  ·  ID: ${shortId(transaction.confirmed_by)}` : ""}`
+                : null}
+              accent="#1D4ED8"
+            />
+            <DetailRow
+              label="Verified"
+              value={transaction.verified_at
+                ? `${fmtDateTime(transaction.verified_at)}${transaction.verified_by ? `  ·  ID: ${shortId(transaction.verified_by)}` : ""}`
+                : null}
+              accent={C.green}
+            />
+            {transaction.status === "rejected" && (
+              <>
+                <DetailRow
+                  label="Rejected"
+                  value={transaction.rejected_at
+                    ? `${fmtDateTime(transaction.rejected_at)}${transaction.rejected_by ? `  ·  ID: ${shortId(transaction.rejected_by)}` : ""}`
+                    : "—"}
+                  accent="#EF4444"
+                />
+                {transaction.rejection_comment && (
+                  <DetailRow label="Reason" value={transaction.rejection_comment} accent="#EF4444" />
+                )}
+              </>
+            )}
+            {!transaction.confirmed_at && !transaction.verified_at && transaction.status !== "rejected" && (
+              <div style={{ padding: "10px 0 4px", fontSize: 12, color: C.gray400, textAlign: "center" }}>
+                No workflow actions yet — transaction is pending confirmation
+              </div>
+            )}
+          </DetailSection>
+
+          {/* ── Transaction ID ── */}
+          <div style={{ textAlign: "center", padding: "4px 0 2px" }}>
+            <span style={{ fontSize: 10, color: C.gray400, fontFamily: "monospace" }}>ID: {transaction.id}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // ── Transaction Row ────────────────────────────────────────────────
 const TransactionRow = memo(function TransactionRow({
   transaction, globalIdx, selected, onToggleOne,
@@ -248,6 +412,7 @@ const TransactionRow = memo(function TransactionRow({
   confirmingIds, verifyingIds, rejectingIds, unverifyingIds,
   deletingId, bulkDeletingIds,
   isDE, isVR, isSAAD, showCheckbox, showActions,
+  onOpenDetail,
 }) {
   const isBuy     = transaction.type === "Buy";
   const tradeVal  = Number(transaction.total || 0);
@@ -274,12 +439,13 @@ const TransactionRow = memo(function TransactionRow({
 
   return (
     <tr
-      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto" }}
+      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+      onClick={() => onOpenDetail(transaction)}
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
       onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
     >
       {showCheckbox && (
-        <td style={{ padding: "7px 10px" }}>
+        <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
             style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
@@ -298,42 +464,29 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
-      {/* Broker */}
+      {/* Broker — single line truncated */}
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
-          ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>
-              {transaction.broker_name}
-            </span>
+          ? <span style={{ fontSize: 12, fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
-      <td style={{ padding: "7px 10px", color: C.gray600, textAlign: "right", whiteSpace: "nowrap" }}>
-        {fees ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}
-      </td>
-      {/* Grand Total — Buy: trade + fees; Sell: trade − fees */}
+      {/* Grand Total */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
       </td>
-      {/* Reference No. — shown for both Buy and Sell */}
-      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        {transaction.control_number
-          ? <span style={{ background: C.navy + "0d", color: C.navy, padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.03em" }}>{transaction.control_number}</span>
-          : <span style={{ color: C.gray400 }}>—</span>}
-      </td>
-      <td style={{ padding: "7px 10px", color: C.gray600, maxWidth: 120, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {transaction.remarks || <span style={{ color: C.gray400 }}>—</span>}
-      </td>
+      {/* Status */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <StatusBadge status={transaction.status} />
         {perms.isRejected && transaction.rejection_comment && (
-          <div style={{ fontSize: 10, color: C.red, marginTop: 3, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
+          <div style={{ fontSize: 10, color: "#EF4444", marginTop: 3, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
             💬 {transaction.rejection_comment}
           </div>
         )}
       </td>
       {showActions && (
-        <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <td style={{ padding: "7px 12px", textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
           {perms.canConfirm && (
             <button
               onClick={() => onHandleConfirm(transaction.id, transaction.company_name, transaction.status)}
@@ -350,20 +503,17 @@ const TransactionRow = memo(function TransactionRow({
   );
 });
 
-// ── Table column headers (defined once, not inline) ────────────────
+// ── Table column headers ───────────────────────────────────────────
 const buildTableHeaders = (showActions) => [
-  { label: "#",             align: "left"  },
-  { label: "Date",          align: "left"  },
-  { label: "Company",       align: "left"  },
-  { label: "Type",          align: "left"  },
-  { label: "Qty",           align: "right" },
-  { label: "Price/Share",   align: "right" },
-  { label: "Broker",        align: "left"  },
-  { label: "Fees",          align: "right" },
-  { label: "Grand Total",   align: "right" },
-  { label: "Reference No.", align: "left"  },
-  { label: "Remarks",       align: "left"  },
-  { label: "Status",        align: "left"  },
+  { label: "#",           align: "left"  },
+  { label: "Date",        align: "left"  },
+  { label: "Company",     align: "left"  },
+  { label: "Type",        align: "left"  },
+  { label: "Qty",         align: "right" },
+  { label: "Price/Share", align: "right" },
+  { label: "Broker",      align: "left"  },
+  { label: "Grand Total", align: "right" },
+  { label: "Status",      align: "left"  },
   ...(showActions ? [{ label: "Actions", align: "right" }] : []),
 ];
 
@@ -408,6 +558,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [importModal,       setImportModal]       = useState(false);
   const [actionModal,       setActionModal]       = useState(null);
   const [rejectModal,       setRejectModal]       = useState(null);
+  const [detailModal,       setDetailModal]       = useState(null); // transaction detail popup
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
@@ -818,8 +969,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const showCheckbox   = true;
   const showActions    = !isRO;
   const tableHeaders   = useMemo(() => buildTableHeaders(showActions), [showActions]);
-  // tfoot extra colspan: Control No. + Remarks + Status + (Actions)
-  const tfootRightCols = 1 + 1 + 1 + (showActions ? 1 : 0);
+  // tfoot right: Status + Actions
+  const tfootRightCols = 1 + (showActions ? 1 : 0);
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -864,6 +1015,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onClose={() => setActionModal(null)} />
       )}
       {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={() => setRejectModal(null)} />}
+      {detailModal && <TransactionDetailModal transaction={detailModal} onClose={() => setDetailModal(null)} />}
 
       {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
@@ -988,23 +1140,22 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         bulkDeletingIds={bulkDeletingIds}
                         isDE={isDE} isVR={isVR} isSAAD={isSAAD}
                         showCheckbox={showCheckbox} showActions={showActions}
+                        onOpenDetail={setDetailModal}
                       />
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}` }}>
-                      {/* checkbox + # Date Company Type Qty Price/Share = 7 cols (6 without checkbox) */}
-                      <td colSpan={showCheckbox ? 7 : 6} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {/* checkbox + # Date Company Type Qty Price/Share Broker = 8 cols (7 without checkbox) */}
+                      <td colSpan={showCheckbox ? 8 : 7} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
-                      {/* Fees column */}
-                      <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, textAlign: "right", fontSize: 13 }}>{fmt(totals.fees)}</td>
                       {/* Grand Total column */}
                       <td style={{ padding: "8px 10px", textAlign: "right" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.red,   display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
-                      {/* Reference No. + Remarks + Status + Actions */}
+                      {/* Status + Actions */}
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
