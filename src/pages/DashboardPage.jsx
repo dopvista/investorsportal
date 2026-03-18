@@ -847,65 +847,73 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           ✕
         </button>
       </div>
-      {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades." /> : (
-        <div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <Th>Company</Th>
-                <Th right>Net Proceeds</Th>
-                <Th right>Gain / Loss</Th>
-                <Th right>Return %</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.realizedCompanies.map((c, i) => (
-                <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                  <Td bold>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                      {c.name}
-                    </div>
-                  </Td>
-                  <Td right>{fmt(c.totalSaleProceeds)}</Td>
-                  <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
-                    {(c.realizedGL >= 0 ? "+" : "") + fmtShort(c.realizedGL)}
-                  </Td>
-                  <Td right>
-                    <Badge
-                      value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                      positive={c.realizedGL >= 0}
-                    />
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-            {metrics.realizedCompanies.length > 1 && (
-              <tfoot>
-                <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                  <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmtShort(metrics.totalSaleProceeds)}</td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      fontWeight: 800,
-                      fontSize: 12,
-                      color: metrics.totalRealizedGL >= 0 ? C.green : C.red,
-                      textAlign: "right",
-                    }}
-                  >
-                    {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL)}
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                    <Badge
-                      value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                      positive={metrics.totalRealizedGL >= 0}
-                    />
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+          {metrics.realizedCompanies.length === 0 ? (
+            <Empty msg="No realized trades." />
+          ) : (
+            <div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <Th>Company</Th>
+                    <Th right>Net Proceeds</Th>
+                    <Th right>Gain / Loss</Th>
+                    <Th right>Return %</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.realizedCompanies.map((c, i) => (
+                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                      <Td bold>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                          {c.name}
+                        </div>
+                      </Td>
+                      <Td right>{fmt(c.totalSaleProceeds)}</Td>
+                      <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
+                        {(c.realizedGL >= 0 ? "+" : "") + fmtShort(c.realizedGL)}
+                      </Td>
+                      <Td right>
+                        <Badge
+                          value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
+                          positive={c.realizedGL >= 0}
+                        />
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+                {metrics.realizedCompanies.length > 1 && (
+                  <tfoot>
+                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmtShort(metrics.totalSaleProceeds)}</td>
+                      <td
+                        style={{
+                          padding: "8px 12px",
+                          fontWeight: 800,
+                          fontSize: 12,
+                          color: metrics.totalRealizedGL >= 0 ? C.green : C.red,
+                          textAlign: "right",
+                        }}
+                      >
+                        {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL)}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                        <Badge
+                          value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
+                          positive={metrics.totalRealizedGL >= 0}
+                        />
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -932,7 +940,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           borderBottom: `1px solid ${C.gray100}`,
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Holdings</div>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Top 5 Holdings</div>
         <button
           onClick={onCloseExpand}
           style={{
@@ -952,61 +960,69 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           ✕
         </button>
       </div>
-      {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions." /> : (
-        <div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <Th>Company</Th>
-                <Th right>Shares</Th>
-                <Th right>Market Val.</Th>
-                <Th right>Return %</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                  <Td bold>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                      {c.name}
-                    </div>
-                  </Td>
-                  <Td right>{fmt(c.netShares)}</Td>
-                  <Td right bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                  <Td right>
-                    {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
-                      <Badge
-                        value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
-                        positive={c.unrealizedRetPct >= 0}
-                      />
-                    ) : (
-                      <span style={{ color: C.gray400, fontSize: 11 }}>—</span>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-            {metrics.companyMetrics.length > 1 && (
-              <tfoot>
-                <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                  <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                  <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right" }}>
-                    {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                    {metrics.hasFinancials ? (
-                      <Badge
-                        value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
-                        positive={metrics.unrealizedRetPct >= 0}
-                      />
-                    ) : "—"}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+          {metrics.companyMetrics.length === 0 ? (
+            <Empty msg="No active positions." />
+          ) : (
+            <div style={{ padding: "0 16px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <Th>Company</Th>
+                    <Th right>Shares</Th>
+                    <Th right>Market Val.</Th>
+                    <Th right>Return %</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.companyMetrics.slice(0, 5).map((c, i) => (
+                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                      <Td bold>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                          {c.name}
+                        </div>
+                      </Td>
+                      <Td right>{fmt(c.netShares)}</Td>
+                      <Td right bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                      <Td right>
+                        {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
+                          <Badge
+                            value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
+                            positive={c.unrealizedRetPct >= 0}
+                          />
+                        ) : (
+                          <span style={{ color: C.gray400, fontSize: 11 }}>—</span>
+                        )}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+                {metrics.companyMetrics.length > 1 && (
+                  <tfoot>
+                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right" }}>
+                        {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                        {metrics.hasFinancials ? (
+                          <Badge
+                            value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
+                            positive={metrics.unrealizedRetPct >= 0}
+                          />
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1053,100 +1069,108 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           ✕
         </button>
       </div>
-      {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found." /> : (
-        <div>
-          {cdsUsers.map((u, i) => (
-            <div
-              key={u.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 16px",
-                borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none",
-              }}
-            >
-              <div style={{ position: "relative", flexShrink: 0 }}>
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+          {cdsUsers.length === 0 ? (
+            <Empty msg="No users found." />
+          ) : (
+            <div>
+              {cdsUsers.map((u, i) => (
                 <div
+                  key={u.id}
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 9,
-                    background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: C.white,
+                    gap: 10,
+                    padding: "10px 16px",
+                    borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none",
                   }}
                 >
-                  {u._initials}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 9,
+                        background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: C.white,
+                      }}
+                    >
+                      {u._initials}
+                    </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: -1,
+                        right: -1,
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        border: `2px solid ${C.white}`,
+                        background: u._isActive ? "#16a34a" : "#d1d5db",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color: C.text,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {u.full_name || "—"}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.gray400 }}>{u._roleName}</div>
+                  </div>
+                  <span
+                    style={{
+                      background: u._isActive ? "#f0fdf4" : "#fef2f2",
+                      color: u._isActive ? C.green : C.red,
+                      border: `1px solid ${u._isActive ? C.green : C.red}25`,
+                      borderRadius: 20,
+                      padding: "2px 9px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {u._isActive ? "Active" : "Inactive"}
+                  </span>
                 </div>
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: -1,
-                    right: -1,
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    border: `2px solid ${C.white}`,
-                    background: u._isActive ? "#16a34a" : "#d1d5db",
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: C.text,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {u.full_name || "—"}
+              ))}
+              {isSAAD && (
+                <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.gray100}` }}>
+                  <button
+                    onClick={onNavUserMgmt}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: 9,
+                      border: `1.5px solid ${C.navy}`,
+                      background: "none",
+                      color: C.navy,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Go to User Management →
+                  </button>
                 </div>
-                <div style={{ fontSize: 11, color: C.gray400 }}>{u._roleName}</div>
-              </div>
-              <span
-                style={{
-                  background: u._isActive ? "#f0fdf4" : "#fef2f2",
-                  color: u._isActive ? C.green : C.red,
-                  border: `1px solid ${u._isActive ? C.green : C.red}25`,
-                  borderRadius: 20,
-                  padding: "2px 9px",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                {u._isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-          ))}
-          {isSAAD && (
-            <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.gray100}` }}>
-              <button
-                onClick={onNavUserMgmt}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: 9,
-                  border: `1.5px solid ${C.navy}`,
-                  background: "none",
-                  color: C.navy,
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Go to User Management →
-              </button>
+              )}
             </div>
           )}
         </div>
@@ -1204,7 +1228,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               }}
             />
 
-            {/* Header: name + date (CDS is already in the top header) */}
+            {/* Header: "Shares Held" + total shares (replaces Portfolio and name) */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
               <div>
                 <div
@@ -1217,10 +1241,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     marginBottom: 2,
                   }}
                 >
-                  Portfolio
+                  Shares Held
                 </div>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>
-                  {profile?.full_name?.split(" ")[0] || "Investor"}
+                  {loading ? "—" : fmt(metrics.totalNetShares)}
                 </div>
               </div>
               <div
