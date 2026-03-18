@@ -575,15 +575,30 @@ export default function App() {
               <div style={{ fontWeight:800, fontSize:15, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{mobileHeaderTitle}</div>
             </div>
 
-            {/* Date chip — replaces CDS chip in mobile header */}
-            <div style={{ display:"flex", alignItems:"center", gap:5, background:`linear-gradient(135deg,${C.navy},#1e3a5f)`, borderRadius:10, padding:"6px 11px", boxShadow:"0 2px 8px rgba(11,31,58,0.25)", flexShrink:0 }}>
-              <span style={{ fontSize:12 }}>📅</span>
-              <div>
-                <div style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:"0.06em", lineHeight:1 }}>Today</div>
-                <div style={{ fontSize:11, fontWeight:700, color:C.white, lineHeight:1.3, whiteSpace:"nowrap" }}>
-                  {now.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
+            {/* CDS chip — compact mobile variant, full switcher behavior same as desktop */}
+            <div ref={cdsChipRef} style={{ position:"relative", flexShrink:0 }}>
+              <div
+                onClick={() => cdsList.length > 1 && setShowCdsSwitcher(v => !v)}
+                style={{
+                  display:"flex", alignItems:"center", gap:6,
+                  background:`linear-gradient(135deg,${C.navy},#1e3a5f)`,
+                  borderRadius:10, padding:"5px 10px",
+                  border: showCdsSwitcher ? `1.5px solid ${C.gold}` : "1.5px solid rgba(255,255,255,0.12)",
+                  cursor: cdsList.length > 1 ? "pointer" : "default",
+                  boxShadow:"0 2px 8px rgba(11,31,58,0.25)",
+                  userSelect:"none",
+                }}
+              >
+                <div style={{ width:22, height:22, borderRadius:6, background:"rgba(255,255,255,0.12)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, flexShrink:0 }}>🔒</div>
+                <div>
+                  <div style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1 }}>CDS</div>
+                  <div style={{ fontSize:12, fontWeight:800, color:C.white, letterSpacing:"0.04em", lineHeight:1.3 }}>{activeCdsNumber||"—"}</div>
                 </div>
+                {cdsList.length > 1 && (
+                  <span style={{ fontSize:10, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition:"transform 0.2s, color 0.15s", marginLeft:2, lineHeight:1 }}>▾</span>
+                )}
               </div>
+              {showCdsSwitcher && cdsList.length > 1 && renderCdsSwitcherPopover()}
             </div>
           </div>
         )}
