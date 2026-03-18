@@ -476,8 +476,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades." /> : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 340 }}>
+        <div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <Th>Company</Th>
@@ -533,8 +533,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions." /> : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 320 }}>
+        <div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <Th>Company</Th>
@@ -657,8 +657,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Market Value</div>
               <div style={{ fontSize: 34, fontWeight: 800, color: C.white, lineHeight: 1, letterSpacing: "-0.01em" }}>
                 {loading ? <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
-                  : metrics.hasFinancials ? `TZS ${fmtShort(metrics.totalMarketValue)}`
-                  : metrics.hasCostData   ? `TZS ${fmtShort(metrics.investedCapital)}`
+                  : metrics.hasFinancials ? `TZS ${fmt(metrics.totalMarketValue)}`
+                  : metrics.hasCostData   ? `TZS ${fmt(metrics.investedCapital)}`
                   : "—"}
               </div>
             </div>
