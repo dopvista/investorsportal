@@ -1272,41 +1272,42 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             </div>
 
             {/* Portfolio Value — big hero number (changed from Market Value) */}
-            <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
-              <div
-                style={{
-                  fontSize: 9,
-                  color: "rgba(255,255,255,0.4)",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                  marginBottom: 4,
-                }}
-              >
-                Portfolio Value
-              </div>
-              <div 
-                style={{ 
-                  fontSize: "min(12vw, 44px)", 
-                  fontWeight: 800, 
-                  color: "#FFD966", 
-                  lineHeight: 1.2, 
-                  letterSpacing: "-0.01em",
-                  textAlign: "center",
-                  width: "100%",
-                  whiteSpace: "nowrap",
-                  overflow: "visible",
-                }}
-              >
-                {loading ? (
-                  <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
-                ) : metrics.hasFinancials ? (
-                  `TZS ${fmt(metrics.totalMarketValue)}`
-                ) : metrics.hasCostData ? (
-                  `TZS ${fmt(metrics.investedCapital)}`
-                ) : "—"}
-              </div>
-            </div>
+
+			<div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
+			  <div
+				style={{
+				  fontSize: 9,
+				  color: "rgba(255,255,255,0.4)",
+				  fontWeight: 700,
+				  textTransform: "uppercase",
+				  letterSpacing: "0.07em",
+				  marginBottom: 4,
+				}}
+			  >
+				Portfolio Value
+			  </div>
+			  <div 
+				style={{ 
+				  fontSize: "min(8vw, 36px)",   // reduced max size to ensure fit
+				  fontWeight: 800, 
+				  color: "#FFD966", 
+				  lineHeight: 1.2, 
+				  letterSpacing: "-0.01em",
+				  textAlign: "center",
+				  width: "100%",
+				  whiteSpace: "nowrap",
+				  overflow: "visible",
+				}}
+			  >
+				{loading ? (
+				  <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
+				) : metrics.hasFinancials ? (
+				  `TZS ${fmt(metrics.totalMarketValue)}`
+				) : metrics.hasCostData ? (
+				  `TZS ${fmt(metrics.investedCapital)}`
+				) : "—"}
+			  </div>
+			</div>
 
             {/* Bottom row: Invested | Return | Holdings */}
             <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
