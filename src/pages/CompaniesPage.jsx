@@ -3,31 +3,159 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { sbInsert, sbUpdate, sbDelete, sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies } from "../lib/supabase";
 import { C, fmt, fmtSmart, Btn, StatCard, SectionCard, Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu } from "../components/ui";
 
+// ── Mobile breakpoint hook ────────────────────────────────────────
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
+// ── Mobile Portfolio Card ─────────────────────────────────────────
+function PortfolioMobileCard({ company: c, index, updating, loadingHistory, onUpdatePrice, onViewHistory }) {
+  const hasCdsPrice = c.cds_price != null;
+  const priceUp     = hasCdsPrice && c.cds_previous_price != null
+    ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
+  const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
+    ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
+
+  const actions = [
+    { icon: "💰", label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price", onClick: () => onUpdatePrice(c) },
+    { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => onViewHistory(c) },
+  ];
+
+  return (
+    <div style={{
+      background: !hasCdsPrice ? "#FFFBEB" : C.white,
+      border: `1px solid ${!hasCdsPrice ? "#FDE68A" : C.gray200}`,
+      borderRadius: 12,
+      padding: "12px 14px",
+      marginBottom: 8,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    }}>
+      {/* Row 1: Company name + action menu */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: c.remarks ? 2 : 0 }}>{c.name}</div>
+          {c.remarks && <div style={{ fontSize: 11, color: C.gray400 }}>{c.remarks}</div>}
+        </div>
+        <ActionMenu actions={actions} />
+      </div>
+
+      {/* Row 2: Price + Change + Previous */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3 }}>My Price</div>
+          {hasCdsPrice
+            ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
+            : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>
+          }
+        </div>
+
+        {priceUp !== null && changePct !== null && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3 }}>Change</div>
+            <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}` }}>
+              {priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
+            </span>
+          </div>
+        )}
+
+        {c.cds_previous_price != null && (
+          <div style={{ flexShrink: 0, textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3 }}>Prev</div>
+            <div style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>{fmt(c.cds_previous_price)}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Row 3: Updated by + date (compact) */}
+      {(c.cds_updated_at || c.cds_updated_by) && (
+        <div style={{ marginTop: 7, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {c.cds_updated_by && (
+            <span style={{ fontSize: 10, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 7px" }}>{c.cds_updated_by}</span>
+          )}
+          {c.cds_updated_at && (
+            <span style={{ fontSize: 10, color: C.gray400 }}>
+              {new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Mobile Manage Card (SA only) ──────────────────────────────────
+function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
+  const actions = [
+    { icon: "✏️", label: "Edit Company", onClick: () => onEdit(c) },
+    { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => onDelete(c) },
+  ];
+
+  return (
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.gray200}`,
+      borderRadius: 12,
+      padding: "12px 14px",
+      marginBottom: 8,
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.navy + "0f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+        <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
+          {c.remarks
+            ? <span style={{ color: C.gray500 }}>{c.remarks}</span>
+            : c.created_at
+              ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+              : "—"
+          }
+        </div>
+      </div>
+      <ActionMenu actions={actions} />
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── MAIN PAGE
+// ══════════════════════════════════════════════════════════════════
 export default function CompaniesPage({ companies: globalCompanies, setCompanies, transactions, showToast, role, profile, manageOnly = false }) {
-  const isSA = role === "SA";
+  const isSA      = role === "SA";
   const cdsNumber = profile?.cds_number || null;
+  const isMobile  = useIsMobile();
 
   const [activeTab, setActiveTab] = useState(manageOnly ? "manage" : "portfolio");
 
-  const [portfolio, setPortfolio]             = useState([]);
+  const [portfolio, setPortfolio]               = useState([]);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
-  const [portfolioError, setPortfolioError]   = useState(null);
+  const [portfolioError, setPortfolioError]     = useState(null);
 
-  const [masterList, setMasterList]     = useState([]);
+  const [masterList, setMasterList]       = useState([]);
   const [masterLoading, setMasterLoading] = useState(false);
 
-  const [search, setSearch]         = useState("");
-  const [deleting, setDeleting]     = useState(null);
-  const [updating, setUpdating]     = useState(null);
+  const [search, setSearch]                 = useState("");
+  const [deleting, setDeleting]             = useState(null);
+  const [updating, setUpdating]             = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(null);
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [historyModal, setHistoryModal] = useState({ open: false, company: null, history: [] });
-  const [updateModal, setUpdateModal]   = useState({ open: false, company: null });
-  const [formModal, setFormModal]       = useState({ open: false, company: null });
+  const [deleteModal, setDeleteModal]       = useState(null);
+  const [historyModal, setHistoryModal]     = useState({ open: false, company: null, history: [] });
+  const [updateModal, setUpdateModal]       = useState({ open: false, company: null });
+  const [formModal, setFormModal]           = useState({ open: false, company: null });
 
-  const isMountedRef     = useRef(true);
-  const portfolioReqRef  = useRef(0);
-  const masterReqRef     = useRef(0);
+  const isMountedRef    = useRef(true);
+  const portfolioReqRef = useRef(0);
+  const masterReqRef    = useRef(0);
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
   useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
@@ -35,12 +163,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
   const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  const closeDeleteModal  = useCallback(() => setDeleteModal(null), []);
-  const closeHistoryModal = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
-  const closeUpdateModal  = useCallback(() => setUpdateModal({ open: false, company: null }), []);
-  const closeFormModal    = useCallback(() => setFormModal({ open: false, company: null }), []);
+  const closeDeleteModal    = useCallback(() => setDeleteModal(null), []);
+  const closeHistoryModal   = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
+  const closeUpdateModal    = useCallback(() => setUpdateModal({ open: false, company: null }), []);
+  const closeFormModal      = useCallback(() => setFormModal({ open: false, company: null }), []);
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
+  // ── Data loaders (COMPLETELY UNCHANGED) ──────────────────────
   const loadPortfolio = useCallback(async () => {
     const reqId = ++portfolioReqRef.current;
     if (!cdsNumber) {
@@ -78,6 +207,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
   useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
 
+  // ── Stats (UNCHANGED) ─────────────────────────────────────────
   const portfolioStats = useMemo(() => {
     const priced   = portfolio.filter(c => c.cds_price != null);
     const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
@@ -95,6 +225,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
   }), [masterList, todayIso]);
 
+  // ── Handlers (COMPLETELY UNCHANGED) ──────────────────────────
   const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
     const company = updateModal.company;
     if (!company) return;
@@ -169,36 +300,58 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     }
   }, [deleteModal, showToast]);
 
+  // ── Spinner style (shared) ────────────────────────────────────
+  const spinnerEl = (color = C.green) => (
+    <>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${color}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+    </>
+  );
+
   return (
     <div>
+      {/* ── Modals (COMPLETELY UNCHANGED) ── */}
       {deleteModal  && <Modal type="confirm" title="Delete Company" message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`} onConfirm={confirmDelete} onClose={closeDeleteModal} />}
       {historyModal.open && <PriceHistoryModal company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null} history={historyModal.history} onClose={closeHistoryModal} />}
       {updateModal.open  && <UpdatePriceModal key={updateModal.company?.id} company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null} onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />}
       {formModal.open    && <CompanyFormModal key={formModal.company?.id || "new"} company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />}
 
+      {/* ══════════════════════════════════════════════════════════
+          PORTFOLIO TAB
+          ══════════════════════════════════════════════════════════ */}
       {activeTab === "portfolio" && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+          {/* Stat cards: 4-col desktop / 2×2 mobile */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 8 : 14, marginBottom: isMobile ? 14 : 24 }}>
             <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon="🏢" color={C.navy}  />
             <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon="📊" color={C.green} />
             <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon="🏆" color={C.gold}  />
             <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Tap ⋯ → Set Price to track"    icon="💰" color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          {/* Search + refresh toolbar */}
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16 }}>
             <div style={{ flex: 1, position: "relative" }}>
               <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search your holdings..." style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }} onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search your holdings..."
+                style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: isMobile ? 13 : 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
+                onFocus={e => { e.target.style.borderColor = C.green; }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; }} />
             </div>
             {search && <Btn variant="secondary" onClick={() => setSearch("")}>Clear</Btn>}
-            <Btn variant="secondary" icon="🔄" onClick={loadPortfolio}>Refresh</Btn>
+            {!isMobile && <Btn variant="secondary" icon="🔄" onClick={loadPortfolio}>Refresh</Btn>}
+            {isMobile && (
+              <button onClick={loadPortfolio} style={{ width: 40, height: 40, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🔄</button>
+            )}
           </div>
 
-          <SectionCard title={`Portfolio Holdings (${filteredPortfolio.length}${search ? ` of ${portfolio.length}` : ""})`} subtitle="Prices are your own CDS analysis prices — not shared with other users">
+          <SectionCard
+            title={`Portfolio Holdings (${filteredPortfolio.length}${search ? ` of ${portfolio.length}` : ""})`}
+            subtitle="Prices are your own CDS analysis prices — not shared with other users"
+          >
             {portfolioLoading ? (
               <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+                {spinnerEl(C.green)}
                 <div style={{ fontSize: 13 }}>Loading your portfolio...</div>
               </div>
             ) : portfolioError ? (
@@ -218,7 +371,23 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
                 <div style={{ fontWeight: 600 }}>No results for "{search}"</div>
               </div>
+            ) : isMobile ? (
+              /* ── Mobile: portfolio cards ── */
+              <div style={{ padding: "8px 12px" }}>
+                {filteredPortfolio.map((c, i) => (
+                  <PortfolioMobileCard
+                    key={c.id}
+                    company={c}
+                    index={i}
+                    updating={updating}
+                    loadingHistory={loadingHistory}
+                    onUpdatePrice={(company) => setUpdateModal({ open: true, company })}
+                    onViewHistory={viewHistory}
+                  />
+                ))}
+              </div>
             ) : (
+              /* ── Desktop: table — COMPLETELY UNCHANGED ── */
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
@@ -241,7 +410,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                       ];
 
                       return (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
+                        <tr key={c.id}
+                          style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
                           onMouseEnter={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFF8DC" : C.gray50; }}
                           onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFFBEB" : "transparent"; }}
                         >
@@ -285,21 +455,40 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         </>
       )}
 
+      {/* ══════════════════════════════════════════════════════════
+          MANAGE TAB (SA only)
+          ══════════════════════════════════════════════════════════ */}
       {activeTab === "manage" && isSA && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
-            <StatCard label="Total Companies"   value={manageStats.total}             sub="In master registry" icon="🏢" color={C.navy}  />
-            <StatCard label="Registered Today"  value={manageStats.registeredToday}   sub="Added today"        icon="✅" color={C.green} />
-            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
-              <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register New Company</Btn>
+          {/* Stats + Register button */}
+          {isMobile ? (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <StatCard label="Total Companies"  value={manageStats.total}           sub="In master registry" icon="🏢" color={C.navy}  />
+                <StatCard label="Registered Today" value={manageStats.registeredToday} sub="Added today"        icon="✅" color={C.green} />
+              </div>
+              <button onClick={openNewCompanyModal}
+                style={{ width: "100%", height: 42, borderRadius: 9, border: "none", background: C.navy, color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                + Register New Company
+              </button>
             </div>
-          </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+              <StatCard label="Total Companies"   value={manageStats.total}             sub="In master registry" icon="🏢" color={C.navy}  />
+              <StatCard label="Registered Today"  value={manageStats.registeredToday}   sub="Added today"        icon="✅" color={C.green} />
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
+                <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register New Company</Btn>
+              </div>
+            </div>
+          )}
 
-          <SectionCard title={`Master Company Registry (${masterList.length})`} subtitle="All listed companies available in the system">
+          <SectionCard
+            title={`Master Company Registry (${masterList.length})`}
+            subtitle="All listed companies available in the system"
+          >
             {masterLoading ? (
               <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+                {spinnerEl(C.navy)}
                 <div style={{ fontSize: 13 }}>Loading master registry...</div>
               </div>
             ) : masterList.length === 0 ? (
@@ -308,7 +497,21 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies registered yet</div>
                 <div style={{ fontSize: 13 }}>Click "Register Company" to add the first one</div>
               </div>
+            ) : isMobile ? (
+              /* ── Mobile: manage cards ── */
+              <div style={{ padding: "8px 12px" }}>
+                {masterList.map(c => (
+                  <ManageMobileCard
+                    key={c.id}
+                    company={c}
+                    deleting={deleting}
+                    onEdit={(company) => setFormModal({ open: true, company })}
+                    onDelete={(company) => setDeleteModal({ id: company.id, name: company.name })}
+                  />
+                ))}
+              </div>
             ) : (
+              /* ── Desktop: table — COMPLETELY UNCHANGED ── */
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
@@ -325,7 +528,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                       ];
                       return (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                        <tr key={c.id}
+                          style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
+                          onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                        >
                           <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
                           <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
                           <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
