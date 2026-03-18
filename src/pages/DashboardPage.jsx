@@ -920,6 +920,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   ), [metrics, loading, onCloseExpand]);
 
   // ── Mobile level 2: Companies panel ──────────────────────────────
+  // MODIFIED: Now fits without horizontal scroll
   const renderMobileCompaniesPanel = useCallback(() => (
     <div
       style={{
@@ -963,12 +964,18 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       {loading ? (
         <Spinner />
       ) : (
-        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "0 16px", overflowX: "hidden" }}>
           {metrics.companyMetrics.length === 0 ? (
             <Empty msg="No active positions." />
           ) : (
-            <div style={{ padding: "0 16px" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div style={{ width: "100%" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: "40%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "20%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <Th>Company</Th>
@@ -981,14 +988,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   {metrics.companyMetrics.slice(0, 5).map((c, i) => (
                     <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
                       <Td bold>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "normal", wordBreak: "break-word" }}>
                           <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
                           {c.name}
                         </div>
                       </Td>
-                      <Td right>{fmt(c.netShares)}</Td>
-                      <Td right bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                      <Td right>
+                      <Td right style={{ whiteSpace: "nowrap" }}>{fmt(c.netShares)}</Td>
+                      <Td right bold style={{ whiteSpace: "nowrap" }}>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                      <Td right style={{ whiteSpace: "nowrap" }}>
                         {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
                           <Badge
                             value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
@@ -1005,11 +1012,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   <tfoot>
                     <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                       <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right" }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right", whiteSpace: "nowrap" }}>{fmt(metrics.totalNetShares)}</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right", whiteSpace: "nowrap" }}>
                         {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
                       </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                      <td style={{ padding: "8px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {metrics.hasFinancials ? (
                           <Badge
                             value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
