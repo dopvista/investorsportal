@@ -13,6 +13,7 @@ import {
   sbUnverifyTransaction,
   sbUnverifyTransactions,
   sbGetActiveBrokers,
+  sbGetCdsAccount,
 } from "../lib/supabase";
 import {
   C, fmt, fmtInt, fmtSmart, calcFees,
@@ -286,7 +287,7 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 //   RIGHT panel: Reference & Broker → Audit Trail → Gain/Loss card at bottom
 //                  Buy  → Unrealized Gain/Loss
 //                  Sell → Realized   Gain/Loss  (same card style, sell-specific data)
-const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], cdsAccountName = "", onClose }) {
   if (!transaction) return null;
 
   const isBuy      = transaction.type === "Buy";
@@ -398,7 +399,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               {transaction.cds_number && (
                 <span>
                   🪪 {transaction.cds_number}
-                  {transaction.created_by_name && <span style={{ color: C.gray600, fontWeight: 600 }}> — {transaction.created_by_name}</span>}
+                  {cdsAccountName && <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>}
                 </span>
               )}
             </div>
@@ -811,6 +812,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
+  // ── CDS account name (owner of the CDS number) ────────────────
+  const [cdsAccountName, setCdsAccountName] = useState("");
+  useEffect(() => {
+    if (!cdsNumber) return;
+    sbGetCdsAccount(cdsNumber)
+      .then(acc => { if (acc?.cds_name && isMountedRef.current) setCdsAccountName(acc.cds_name); })
+      .catch(() => {});
+  }, [cdsNumber]);
+
   const isAnyConfirming  = confirmingIds.size  > 0;
   const isAnyVerifying   = verifyingIds.size   > 0;
   const isAnyRejecting   = rejectingIds.size   > 0;
@@ -1222,6 +1232,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           transaction={detailTransaction}
           transactions={myTransactions}
           companies={effectiveCompanies}
+          cdsAccountName={cdsAccountName}
           onClose={closeDetail}
         />
       )}
