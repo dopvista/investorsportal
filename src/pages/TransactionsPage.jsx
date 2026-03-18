@@ -892,14 +892,28 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     if (typeFilter !== "All")   list = list.filter(t => t.type === typeFilter);
     if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
     if (normalizedSearch) {
-      list = list.filter(t =>
-        t.company_name?.toLowerCase().includes(normalizedSearch)  ||
-        t.type?.toLowerCase().includes(normalizedSearch)          ||
-        t.date?.includes(normalizedSearch)                        ||
-        t.remarks?.toLowerCase().includes(normalizedSearch)       ||
-        t.status?.toLowerCase().includes(normalizedSearch)        ||
-        t.control_number?.includes(normalizedSearch)
-      );
+      list = list.filter(t => {
+        // Date: match month name (e.g. "jan", "february", "mar 2026")
+        const dateObj   = t.date ? new Date(t.date + "T00:00:00") : null;
+        const monthName = dateObj
+          ? dateObj.toLocaleDateString("en-GB", { month: "long" }).toLowerCase()
+          : "";
+        const monthShort = dateObj
+          ? dateObj.toLocaleDateString("en-GB", { month: "short" }).toLowerCase()
+          : "";
+        const yearStr    = dateObj ? String(dateObj.getFullYear()) : "";
+        const matchDate  = monthName.includes(normalizedSearch)
+                        || monthShort.includes(normalizedSearch)
+                        || (yearStr && normalizedSearch.length >= 4 && yearStr.includes(normalizedSearch));
+
+        return matchDate
+          || t.date?.includes(normalizedSearch)
+          || t.company_name?.toLowerCase().includes(normalizedSearch)
+          || t.type?.toLowerCase().includes(normalizedSearch)
+          || t.broker_name?.toLowerCase().includes(normalizedSearch)
+          || t.status?.toLowerCase().includes(normalizedSearch)
+          || t.remarks?.toLowerCase().includes(normalizedSearch);
+      });
     }
     // slice() avoids mutating the memoized list reference.
     // Three-value date comparator: returns 0 for equal dates (deterministic stable sort).
@@ -1290,7 +1304,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
             <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Search company, control no., status..."
+              placeholder="Search company, date, month, type, broker, status, remarks..."
               style={TOOLBAR_INPUT}
               onFocus={e => { e.target.style.borderColor = C.navy; }}
               onBlur={e => { e.target.style.borderColor = C.gray200; }} />
