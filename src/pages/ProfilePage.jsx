@@ -3,7 +3,19 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { C } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
-// CDS switching is owned by App.jsx — no direct switch imports needed here
+
+// ── Mobile breakpoint hook ────────────────────────────────────────
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
 
 const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -89,6 +101,7 @@ const inp = (extra = {}) => ({
 const focusGreen = (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
+// ── Desktop-only helpers ──────────────────────────────────────────
 function Section({ title, icon, children }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 6 }}>
@@ -162,7 +175,9 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
+// ── Change Password Modal — bottom sheet on mobile, centered on desktop ──
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -188,10 +203,10 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     if (/[^A-Za-z0-9]/.test(p)) s++;
     return [
       { score: 0, label: "", color: C.gray200 },
-      { score: 1, label: "Weak", color: "#ef4444" },
-      { score: 2, label: "Fair", color: "#f97316" },
-      { score: 3, label: "Good", color: "#eab308" },
-      { score: 4, label: "Strong", color: C.green },
+      { score: 1, label: "Weak",   color: "#ef4444" },
+      { score: 2, label: "Fair",   color: "#f97316" },
+      { score: 3, label: "Good",   color: "#eab308" },
+      { score: 4, label: "Strong", color: C.green   },
     ][s];
   };
   const pw = strength(newPw);
@@ -250,16 +265,21 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onMouseDown={e => e.stopPropagation()}>
-        <div style={{ background: C.white, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.25s ease" }}>
-          <div style={{ background: C.navy, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <div style={{ background: C.white, borderRadius: isMobile ? "18px 18px 0 0" : 18, overflow: "hidden", width: "100%", maxWidth: isMobile ? "100%" : 440, maxHeight: isMobile ? "92vh" : undefined, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.25s ease", display: "flex", flexDirection: "column" }}>
+          {/* Handle — mobile only */}
+          {isMobile && <div style={{ width: 36, height: 4, borderRadius: 2, background: C.gray200, margin: "12px auto 0" }} />}
+          <div style={{ background: C.navy, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div>
               <div style={{ color: C.white, fontWeight: 800, fontSize: 16 }}>Change Password</div>
               <div style={{ color: C.gold, fontSize: 11, marginTop: 2 }}>Verify your identity with a one-time code</div>
             </div>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
-          <div style={{ padding: "24px" }}>
+          <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
             {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
             {step === "send" && (
               <>
@@ -326,28 +346,31 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   );
 }
 
-// ── Main ProfilePage ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// MAIN ProfilePage
+// ════════════════════════════════════════════════════════════
 export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onSwitchCds }) {
-  const email = emailProp || session?.user?.email || session?.email || profile?.email || "";
-  const isMountedRef    = useRef(true);
-  const cdsCountReqRef  = useRef(0);
+  const email         = emailProp || session?.user?.email || session?.email || profile?.email || "";
+  const isMountedRef  = useRef(true);
+  const cdsCountReqRef= useRef(0);
+  const isMobile      = useIsMobile();
 
-  const [form, setForm]                   = useState(() => profileToForm(profile));
-  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null);
-  const [cropSrc, setCropSrc]             = useState(null);
+  const [form, setForm]                       = useState(() => profileToForm(profile));
+  const [avatarPreview, setAvatarPreview]     = useState(profile?.avatar_url || null);
+  const [cropSrc, setCropSrc]                 = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [saving, setSaving]               = useState(false);
-  const [showPwModal, setShowPwModal]     = useState(false);
-  const [cdsUserCount, setCdsUserCount]   = useState(1);
-  // ── CDS switch + expand state ──
-  const [switchTarget, setSwitchTarget]   = useState(null);
-  const [switching, setSwitching]         = useState(false);
-  const [cdsExpanded, setCdsExpanded]     = useState(false);
+  const [saving, setSaving]                   = useState(false);
+  const [showPwModal, setShowPwModal]         = useState(false);
+  const [cdsUserCount, setCdsUserCount]       = useState(1);
+  const [switchTarget, setSwitchTarget]       = useState(null);
+  const [switching, setSwitching]             = useState(false);
+  const [cdsExpanded, setCdsExpanded]         = useState(false);
+  // Mobile tab: "personal" | "more"
+  const [mobileTab, setMobileTab]             = useState("personal");
   const fileRef = useRef();
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  // Derived constants — declared early so all useEffects and callbacks can use them
   const uid             = session?.user?.id || profile?.id;
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
 
@@ -364,8 +387,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
-  // Fetch CDS user count for ACTIVE CDS (for account type display)
-  // Watches activeCdsNumber so account type updates immediately after a CDS switch
   useEffect(() => {
     const reqId = ++cdsCountReqRef.current;
     if (!activeCdsNumber) {
@@ -386,27 +407,20 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       .catch(() => { if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return; setCdsUserCount(1); });
   }, [activeCdsNumber, session?.access_token]);
 
-  const accountType    = cdsUserCount > 1 ? "Corporate" : "Individual";
-  const completion     = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
+  const accountType     = cdsUserCount > 1 ? "Corporate" : "Individual";
+  const completion      = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
   const completionColor = completion >= 80 ? C.green : completion >= 50 ? "#f59e0b" : C.red;
-  const roleMeta       = ROLE_META[role] || { label: role || "User", color: C.gray400 };
-  const initials       = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const lastSaved      = profile?.updated_at
+  const roleMeta        = ROLE_META[role] || { label: role || "User", color: C.gray400 };
+  const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const lastSaved       = profile?.updated_at
     ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
-  // ── CDS switch — delegates to App.jsx which is the single owner ──
   const handleSwitchCDS = useCallback(async () => {
     if (!switchTarget || !onSwitchCds) return;
     setSwitching(true);
-    try {
-      await onSwitchCds(switchTarget);
-      if (isMountedRef.current) setSwitchTarget(null);
-    } catch {
-      // App.jsx already shows the toast
-    } finally {
-      if (isMountedRef.current) setSwitching(false);
-    }
+    try { await onSwitchCds(switchTarget); if (isMountedRef.current) setSwitchTarget(null); }
+    catch {} finally { if (isMountedRef.current) setSwitching(false); }
   }, [switchTarget, onSwitchCds]);
 
   const handleFileSelect = useCallback((e) => {
@@ -423,7 +437,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     setCropSrc(null); setUploadingAvatar(true);
     try {
       const uid2 = session?.user?.id || profile?.id;
-      const tok = session?.access_token || KEY;
+      const tok  = session?.access_token || KEY;
       const uploadRes = await fetch(`${BASE}/storage/v1/object/avatars/${uid2}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
@@ -431,7 +445,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       });
       if (!uploadRes.ok) { const err = await uploadRes.json().catch(() => ({})); throw new Error(err.message || "Upload failed"); }
       const publicUrl = `${BASE}/storage/v1/object/public/avatars/${uid2}?t=${Date.now()}`;
-      const patchRes = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
+      const patchRes  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify({ avatar_url: publicUrl }),
@@ -445,19 +459,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } catch (err) {
       if (!isMountedRef.current) return;
       showToast("Upload failed: " + err.message, "error");
-    } finally {
-      if (isMountedRef.current) setUploadingAvatar(false);
-    }
+    } finally { if (isMountedRef.current) setUploadingAvatar(false); }
   }, [profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
   const handleSave = useCallback(async () => {
     if (!form.full_name.trim()) { showToast("Full name is required", "error"); return; }
-    if (!form.phone.trim()) { showToast("Phone number is required", "error"); return; }
+    if (!form.phone.trim())     { showToast("Phone number is required", "error"); return; }
     setSaving(true);
     try {
-      const tok = session?.access_token || KEY;
+      const tok  = session?.access_token || KEY;
       const uid2 = session?.user?.id || profile?.id;
-      const res = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
+      const res  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify(form),
@@ -470,13 +482,134 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setSaving(false);
-    }
+    } finally { if (isMountedRef.current) setSaving(false); }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
+  // ── Shared: avatar element (tappable) ─────────────────────────
+  const renderAvatarEl = (size = 56) => (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <div
+        style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: C.white, position: "relative" }}
+        onClick={() => !uploadingAvatar && fileRef.current?.click()}
+      >
+        {avatarPreview
+          ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : initials}
+        {uploadingAvatar && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
+            <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          </div>
+        )}
+      </div>
+      {/* Camera badge */}
+      <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 20, height: 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 9 }}>📷</div>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
+    </div>
+  );
+
+  // ── Shared: CDS accordion ─────────────────────────────────────
+  const renderCdsAccordion = () => (
+    <div style={{ marginBottom: 8 }}>
+      <div
+        onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
+        style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: "6px 9px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}
+      >
+        <span style={{ fontSize: 16 }}>🔒</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+          {cdsList.length > 1 && (
+            <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>
+              {cdsExpanded ? "Click to close" : "Click here to switch CDS"}
+            </div>
+          )}
+        </div>
+        {cdsList.length > 1 && (
+          <span style={{ fontSize: 11, color: cdsExpanded ? C.green : C.gray400, transform: cdsExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>
+        )}
+      </div>
+      {cdsExpanded && cdsList.length > 1 && (
+        <div style={{ border: `1px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden", background: C.white }}>
+          {cdsList.map((c, i) => {
+            const isActive = c.cds_number === activeCdsNumber;
+            return (
+              <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: isActive ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                  <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
+                </div>
+                {isActive
+                  ? <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                  : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity="0.8"} onMouseLeave={e => e.currentTarget.style.opacity="1"}>Switch</button>}
+              </div>
+            );
+          })}
+          <div style={{ padding: "5px 10px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
+            <div style={{ fontSize: 9, color: C.gray400 }}>Switching updates data system-wide.</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Shared: save button ───────────────────────────────────────
+  const renderSaveBtn = () => (
+    <button onClick={handleSave} disabled={saving}
+      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 14px ${C.green}44`, marginTop: 6 }}>
+      {saving
+        ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
+        : <>💾 Save Changes</>}
+    </button>
+  );
+
+  // ── CDS switch confirmation modal (shared) ────────────────────
+  const renderSwitchModal = () => switchTarget ? (
+    <>
+      <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease" }}>
+          <div style={{ background: C.navy, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
+              <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
+            </div>
+            <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+          <div style={{ padding: "20px 22px" }}>
+            <div style={{ textAlign: "center", marginBottom: 18 }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
+              {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
+              <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+                <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
+              </div>
+              <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
+                <div style={{ fontWeight: 800, color: C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={handleSwitchCDS} disabled={switching} style={{ flex: 2, padding: "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                {switching
+                  ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</>
+                  : "Yes, Switch Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  ) : null;
+
+  // ════════════════════════════════════════════════════════════════
   return (
-    <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ height: isMobile ? "auto" : "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
       <style>{`
         @keyframes spin   { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
@@ -489,281 +622,359 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
       {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
       {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
+      {renderSwitchModal()}
 
-      {/* ── CDS Switch Confirmation Modal ── */}
-      {switchTarget && (
-        <>
-          <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
-          <div style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease" }}>
-              <div style={{ background: C.navy, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
-                  <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
-                </div>
-                <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+      {/* ══════════════════════════════════════════════════════════
+          MOBILE LAYOUT — matches screenshot
+          ══════════════════════════════════════════════════════════ */}
+      {isMobile && (
+        <div>
+          {/* ── Profile hero card ── */}
+          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            {/* Navy banner */}
+            <div style={{ height: 56, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
+            {/* Body */}
+            <div style={{ padding: "0 16px 16px", marginTop: -32 }}>
+              {/* Avatar */}
+              <div style={{ marginBottom: 10 }}>{renderAvatarEl(64)}</div>
+              {/* Name */}
+              <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>
+                {form.full_name || "Your Name"}
               </div>
-              <div style={{ padding: "20px 22px" }}>
-                <div style={{ textAlign: "center", marginBottom: 18 }}>
-                  <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
-                  {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
-                  <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
-                  <div style={{ flex: 1, textAlign: "center" }}>
-                    <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
-                    <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
+              {/* Email */}
+              <div style={{ fontSize: 12, color: C.gray400, marginBottom: 10, fontWeight: 500 }}>{email}</div>
+              {/* Role badge */}
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}30`, borderRadius: 20, padding: "3px 11px" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                </span>
+              </div>
+              {/* CDS accordion */}
+              {renderCdsAccordion()}
+              {/* Completion */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.06em" }}>Profile Complete</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: completionColor }}>{completion}%</span>
+              </div>
+              <div style={{ height: 5, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Account Type ── */}
+          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+            <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+              <span style={{ fontSize: 14 }}>🏦</span>
+              <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
+            </div>
+            <div style={{ padding: "10px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 9, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
+                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>
+                    {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
                   </div>
-                  <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
-                  <div style={{ flex: 1, textAlign: "center" }}>
-                    <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
-                    <div style={{ fontWeight: 800, color: C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
+                </div>
+                <span style={{ fontSize: 22 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+              </div>
+              <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.7 }}>
+                <span>👤 <strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span><br />
+                <span>🏢 <strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Security ── */}
+          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
+            <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+              <span style={{ fontSize: 14 }}>🔐</span>
+              <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
+            </div>
+            <div style={{ padding: "10px 14px" }}>
+              <button onClick={() => setShowPwModal(true)}
+                style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
+              >🔑 Change Password</button>
+              {/* Daily usage bar */}
+              <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
+                ))}
+                <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>
+                  {remainingPwChanges(uid)}/{PW_MAX_DAILY} today
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Tab switcher: Personal | More Info ── */}
+          <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4 }}>
+            {[
+              { key: "personal", label: "Personal",  icon: "👤" },
+              { key: "more",     label: "More Info",  icon: "📋" },
+            ].map(tab => (
+              <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+                style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: mobileTab === tab.key ? C.white : "transparent", color: mobileTab === tab.key ? C.navy : C.gray500, fontWeight: mobileTab === tab.key ? 700 : 500, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "inherit", boxShadow: mobileTab === tab.key ? "0 1px 5px rgba(0,0,0,0.09)" : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <span>{tab.icon}</span> {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Personal tab ── */}
+          {mobileTab === "personal" && (
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Account Information</div>
+              {/* Full Name */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
+                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+              </div>
+              {/* Phone */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
+                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+              </div>
+              {/* Photo tip */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 10, padding: "9px 12px", marginBottom: 4 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>📷</span>
+                <div style={{ fontSize: 11, color: C.gray500, lineHeight: 1.5 }}>Tap your avatar at the top to upload a profile photo. Use the crop tool to center your face.</div>
+              </div>
+              {renderSaveBtn()}
+              {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
+            </div>
+          )}
+
+          {/* ── More Info tab ── */}
+          {mobileTab === "more" && (
+            <div>
+              {/* Identity section */}
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Details</div>
+                {/* Gender */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
+                  <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
+                    <option value="">Select gender</option>
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                {/* Date of Birth */}
+                <div style={{ marginBottom: 4 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
+              </div>
+              {/* Identity & Contact section */}
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity &amp; Contact</div>
+                {/* National ID */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>National ID (NIDA)</label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
+                {/* Nationality */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Nationality</label>
+                  <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
+                </div>
+                {/* Postal Address */}
+                <div style={{ marginBottom: 4 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Postal Address</label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
+              </div>
+              {renderSaveBtn()}
+              {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          DESKTOP LAYOUT — COMPLETELY UNCHANGED from document 3
+          ══════════════════════════════════════════════════════════ */}
+      {!isMobile && (
+        <>
+          <div style={{ marginBottom: 6, flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: C.gray400 }}>
+              Manage your personal information and security settings
+              {lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+            {/* ── Left column ── */}
+            <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
+              {/* Profile card */}
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
+                <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
+                  <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
+                    <div
+                      style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative" }}
+                      onClick={() => !uploadingAvatar && fileRef.current?.click()}
+                    >
+                      {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+                      {uploadingAvatar && (
+                        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
+                          <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                        </div>
+                      )}
+                    </div>
+                    <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
+                    <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
+                  </div>
+
+                  <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
+                  <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
+
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                    </span>
+                  </div>
+
+                  {/* CDS accordion */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div
+                      onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
+                      style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: "5px 8px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}
+                    >
+                      <span>🔒</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+                        {cdsList.length > 1 && <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>{cdsExpanded ? "Click to close" : "Click here to switch CDS"}</div>}
+                      </div>
+                      {cdsList.length > 1 && <span style={{ fontSize: 11, color: cdsExpanded ? C.green : C.gray400, transform: cdsExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>}
+                    </div>
+                    {cdsExpanded && cdsList.length > 1 && (
+                      <div style={{ border: `1px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden", background: C.white }}>
+                        {cdsList.map((c, i) => {
+                          const isActive = c.cds_number === activeCdsNumber;
+                          return (
+                            <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", background: isActive ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                                <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
+                              </div>
+                              {isActive
+                                ? <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                                : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity="0.8"} onMouseLeave={e => e.currentTarget.style.opacity="1"}>Switch</button>}
+                            </div>
+                          );
+                        })}
+                        <div style={{ padding: "5px 9px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
+                          <div style={{ fontSize: 9, color: C.gray400, lineHeight: 1.4 }}>Switching updates data system-wide.</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.04em" }}>Profile complete</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: completionColor }}>{completion}%</span>
+                  </div>
+                  <div style={{ height: 4, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
+                  </div>
+                  {completion < 100 && <div style={{ fontSize: 9, color: C.gray400, marginTop: 3 }}>{completion < 50 ? "Fill in more details" : "Almost there"}</div>}
+                </div>
+              </div>
+
+              <Section title="Account Type" icon="🏦">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
+                    <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
+                  </div>
+                  <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+                </div>
+                <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}><span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}><span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
+                </div>
+              </Section>
+
+              <Section title="Security" icon="🔐">
+                <button onClick={() => setShowPwModal(true)}
+                  style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
+                >🔑 Change Password</button>
+                <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
+                  {[1,2,3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
+                  <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
+                </div>
+              </Section>
+            </div>
+
+            {/* ── Right column — IDENTICAL to document 3 ── */}
+            <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
+              <Section title="Account Information" icon="👤">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <Field label="Full Name" required>
+                    <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </Field>
+                  <Field label="Phone Number" required>
+                    <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </Field>
+                  <Field label="Gender">
+                    <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
+                      <option value="">Select gender</option>
+                      {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Date of Birth">
+                    <input style={inp()} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </Field>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <Field label="National ID (NIDA)">
+                      <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
-                  <button onClick={handleSwitchCDS} disabled={switching} style={{ flex: 2, padding: "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                    {switching
-                      ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</>
-                      : "Yes, Switch Account"}
-                  </button>
+              </Section>
+
+              <Section title="Contact Details" icon="📍">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <Field label="Nationality">
+                    <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
+                  </Field>
+                  <div style={{ alignSelf: "start" }}>
+                    <Field label="Postal Address">
+                      <input style={inp({ padding: "5px 10px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
+                  </div>
                 </div>
+              </Section>
+
+              <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
+                  <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
+                {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
+                <button onClick={handleSave} disabled={saving}
+                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}>
+                  {saving
+                    ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
+                    : <>💾 Save Changes</>}
+                </button>
               </div>
             </div>
           </div>
         </>
       )}
-
-      <div style={{ marginBottom: 6, flexShrink: 0 }}>
-        <div style={{ fontSize: 12, color: C.gray400 }}>
-          Manage your personal information and security settings
-          {lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
-
-        {/* ── Left column ── */}
-        <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
-
-          {/* Profile card */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-            <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
-            <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
-              <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
-                <div
-                  style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative" }}
-                  onClick={() => !uploadingAvatar && fileRef.current?.click()}
-                >
-                  {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
-                  {uploadingAvatar && (
-                    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
-                      <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                    </div>
-                  )}
-                </div>
-                <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
-              </div>
-
-              <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
-              <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
-
-              <div style={{ marginBottom: 6 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
-                </span>
-              </div>
-
-              {/* ── Active CDS chip — expandable accordion when multiple CDS ── */}
-              <div style={{ marginBottom: 8 }}>
-                <div
-                  onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: cdsExpanded ? "#f0fdf4" : "#f0fdf4",
-                    border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`,
-                    borderRadius: cdsExpanded ? "8px 8px 0 0" : 8,
-                    padding: "5px 8px",
-                    cursor: cdsList.length > 1 ? "pointer" : "default",
-                    transition: "border-radius 0.15s, border 0.15s",
-                    userSelect: "none",
-                  }}
-                >
-                  <span>🔒</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
-                    {cdsList.length > 1 && (
-                      <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>
-                        {cdsExpanded ? "Click to close" : "Click here to switch CDS"}
-                      </div>
-                    )}
-                  </div>
-                  {cdsList.length > 1 && (
-                    <span style={{
-                      fontSize: 11,
-                      color: cdsExpanded ? C.green : C.gray400,
-                      transform: cdsExpanded ? "rotate(180deg)" : "none",
-                      transition: "transform 0.2s, color 0.15s",
-                      lineHeight: 1,
-                    }}>▾</span>
-                  )}
-                </div>
-
-                {/* Accordion body — CDS list */}
-                {cdsExpanded && cdsList.length > 1 && (
-                  <div style={{
-                    border: `1px solid ${C.green}`,
-                    borderTop: "none",
-                    borderRadius: "0 0 8px 8px",
-                    overflow: "hidden",
-                    background: C.white,
-                  }}>
-                    {cdsList.map((c, i) => {
-                      const isActive = c.cds_number === activeCdsNumber;
-                      return (
-                        <div key={c.cds_id || c.cds_number} style={{
-                          display: "flex", alignItems: "center", gap: 8,
-                          padding: "7px 9px",
-                          background: isActive ? `${C.green}07` : "transparent",
-                          borderTop: i > 0 ? `1px solid ${C.gray100}` : "none",
-                        }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
-                            <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
-                          </div>
-                          {isActive ? (
-                            <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
-                          ) : (
-                            <button
-                              onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }}
-                              style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0, transition: "opacity 0.15s" }}
-                              onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                            >Switch</button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <div style={{ padding: "5px 9px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
-                      <div style={{ fontSize: 9, color: C.gray400, lineHeight: 1.4 }}>Switching updates data system-wide.</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.04em" }}>Profile complete</span>
-                <span style={{ fontSize: 10, fontWeight: 800, color: completionColor }}>{completion}%</span>
-              </div>
-              <div style={{ height: 4, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
-              </div>
-              {completion < 100 && <div style={{ fontSize: 9, color: C.gray400, marginTop: 3 }}>{completion < 50 ? "Fill in more details" : "Almost there"}</div>}
-            </div>
-          </div>
-
-          <Section title="Account Type" icon="🏦">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
-                <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>
-                  {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
-                </div>
-              </div>
-              <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
-            </div>
-            <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}>
-                <span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-                <span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="Security" icon="🔐">
-            <button
-              onClick={() => setShowPwModal(true)}
-              style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
-            >🔑 Change Password</button>
-            <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
-              {[1,2,3].map(i => (
-                <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
-              ))}
-              <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
-            </div>
-          </Section>
-        </div>
-
-        {/* ── Right column ── */}
-        <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
-          <Section title="Account Information" icon="👤">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Full Name" required>
-                <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </Field>
-              <Field label="Phone Number" required>
-                <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </Field>
-              <Field label="Gender">
-                <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
-                  <option value="">Select gender</option>
-                  {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </Field>
-              <Field label="Date of Birth">
-                <input style={inp()} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </Field>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Field label="National ID (NIDA)">
-                  <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </Field>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="Contact Details" icon="📍">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Nationality">
-                <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
-              </Field>
-              <div style={{ alignSelf: "start" }}>
-                <Field label="Postal Address">
-                  <input style={inp({ padding: "5px 10px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </Field>
-              </div>
-            </div>
-          </Section>
-
-          <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
-              <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
-            {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}
-            >
-              {saving
-                ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
-                : <>💾 Save Changes</>}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
