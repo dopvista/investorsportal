@@ -524,7 +524,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand, fmt, fmtShort];
+  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
 
   // ── Mobile level 2: Companies panel ──────────────────────────────
   const renderMobileCompaniesPanel = useCallback(() => (
@@ -579,7 +579,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand, fmt, fmtShort];
+  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
 
   // ── Mobile level 2: Users panel ───────────────────────────────────
   const renderMobileUsersPanel = useCallback(() => (
