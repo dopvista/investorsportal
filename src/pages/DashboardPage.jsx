@@ -314,8 +314,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     let pending = 0;
 
     for (const t of myTxns) {
-      // Count only status==="pending" as pending (not confirmed/rejected/verified)
-      if (isPendingStatus(t)) pending++;
+      // Count pending + confirmed as "awaiting action" —
+      // pending = needs DE confirmation, confirmed = needs VR verification
+      const s = statusOf(t);
+      if (s === "pending" || s === "confirmed") pending++;
 
       if (!isVerified(t)) continue;
 
@@ -689,9 +691,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           accent="#2563eb" accentBg="#2563eb"
           onClick={onToggleUsers} active={expanded === "users"} loading={loading}
         />
-        <StatCard icon="⏳" label="Unverified Transactions"
+        <StatCard icon="⏳" label="Awaiting Action"
           value={loading ? "—" : metrics.pending}
-          subLabel={metrics.pending > 0 ? "awaiting action" : "all verified"}
+          subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
           accent="#f59e0b" accentBg="#f59e0b"
           onClick={onNavTransactions} navigates loading={loading}
         />
