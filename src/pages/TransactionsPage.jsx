@@ -442,7 +442,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 ["Trade Value", `TZS ${fmt(tradeVal)}`],
                 ...(allInCostPerShare ? [["All-in Cost/Share",  `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
                 ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]]     : []),
-                ...(realizedGL        ? [["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`]] : []),
+                ...(realizedGL        ? [["All-in Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`]] : []),
                 ...(realizedGL        ? [["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`]]    : []),
               ].map(([label, value], i, arr) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
