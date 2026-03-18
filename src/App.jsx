@@ -387,11 +387,20 @@ export default function App() {
   // ── Mobile-only nav constants ─────────────────────────────────────
   // 3 primary tabs always shown; "More" opens the full drawer.
   const BOTTOM_NAV = [
-    { id: "dashboard",    label: "Home",     icon: "🏠" },
-    { id: "companies",    label: "Portfolio", icon: "📊" },
-    { id: "transactions", label: "Trades",    icon: "📋" },
+    { id: "dashboard",       label: "Home",     icon: "🏠", roles: ["SA","AD","DE","VR","RO"] },
+    { id: "companies",       label: "Portfolio", icon: "📊", roles: ["SA","AD","DE","VR","RO"] },
+    { id: "transactions",    label: "Trades",    icon: "📋", roles: ["SA","AD","DE","VR","RO"] },
+    { id: "user-management", label: "Users",     icon: "👥", roles: ["SA","AD"] },
   ];
-  const moreIsActive = !BOTTOM_NAV.some(n => n.id === tab);
+  // Only show bottom nav items the current role can access
+  const filteredBottomNav = BOTTOM_NAV.filter(item =>
+    visibleNav.some(n => n.id === item.id)
+  );
+  // Mobile header: first name on dashboard, normal title elsewhere
+  const mobileHeaderTitle = tab === "dashboard"
+    ? (profile?.full_name?.split(" ")[0] || "Investor")
+    : currentMeta.title;
+  const moreIsActive = !filteredBottomNav.some(n => n.id === tab);
 
   // ── Sidebar inner content ─────────────────────────────────────────
   // Rendered as a plain function (not a React component) so it closes
@@ -434,7 +443,9 @@ export default function App() {
 
       <nav style={{ padding:"16px 12px", flex:1 }}>
         <div style={{ color:"rgba(255,255,255,0.3)", fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", padding:"0 12px", marginBottom:8 }}>Navigation</div>
-        {visibleNav.map(item => {
+        {visibleNav
+          .filter(item => !isMobile || item.id !== "system-settings")
+          .map(item => {
           const active = tab === item.id;
           return (
             <button
@@ -550,7 +561,6 @@ export default function App() {
       {/* ── Main content area ── */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, height:"100vh", overflow:"hidden" }}>
 
-        {/* ── Mobile Header ── */}
         {isMobile && (
           <div style={{ background:C.white, borderBottom:`1px solid ${C.gray200}`, padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, gap:12 }}>
             {/* Hamburger */}
@@ -560,35 +570,20 @@ export default function App() {
               style={{ width:38, height:38, borderRadius:9, border:`1.5px solid ${C.gray200}`, background:C.white, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, color:C.text, flexShrink:0, lineHeight:1 }}
             >☰</button>
 
-            {/* Page title — truncates gracefully */}
+            {/* Page title — first name on dashboard, normal title elsewhere */}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontWeight:800, fontSize:15, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{currentMeta.title}</div>
+              <div style={{ fontWeight:800, fontSize:15, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{mobileHeaderTitle}</div>
             </div>
 
-            {/* CDS chip — compact mobile variant, same logic as desktop */}
-            <div ref={cdsChipRef} style={{ position:"relative", flexShrink:0 }}>
-              <div
-                onClick={() => cdsList.length > 1 && setShowCdsSwitcher(v => !v)}
-                style={{
-                  display:"flex", alignItems:"center", gap:6,
-                  background:`linear-gradient(135deg,${C.navy},#1e3a5f)`,
-                  borderRadius:10, padding:"5px 10px",
-                  border: showCdsSwitcher ? `1.5px solid ${C.gold}` : "1.5px solid rgba(255,255,255,0.12)",
-                  cursor: cdsList.length > 1 ? "pointer" : "default",
-                  boxShadow:"0 2px 8px rgba(11,31,58,0.25)",
-                  userSelect:"none",
-                }}
-              >
-                <div style={{ width:22, height:22, borderRadius:6, background:"rgba(255,255,255,0.12)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, flexShrink:0 }}>🔒</div>
-                <div>
-                  <div style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.08em", lineHeight:1 }}>CDS</div>
-                  <div style={{ fontSize:12, fontWeight:800, color:C.white, letterSpacing:"0.04em", lineHeight:1.3 }}>{activeCdsNumber||"—"}</div>
+            {/* Date chip — replaces CDS chip in mobile header */}
+            <div style={{ display:"flex", alignItems:"center", gap:5, background:`linear-gradient(135deg,${C.navy},#1e3a5f)`, borderRadius:10, padding:"6px 11px", boxShadow:"0 2px 8px rgba(11,31,58,0.25)", flexShrink:0 }}>
+              <span style={{ fontSize:12 }}>📅</span>
+              <div>
+                <div style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:"0.06em", lineHeight:1 }}>Today</div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.white, lineHeight:1.3, whiteSpace:"nowrap" }}>
+                  {now.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
                 </div>
-                {cdsList.length > 1 && (
-                  <span style={{ fontSize:10, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition:"transform 0.2s, color 0.15s", marginLeft:2, lineHeight:1 }}>▾</span>
-                )}
               </div>
-              {showCdsSwitcher && cdsList.length > 1 && renderCdsSwitcherPopover()}
             </div>
           </div>
         )}
@@ -695,7 +690,7 @@ export default function App() {
       {/* ── Mobile Bottom Navigation ── */}
       {isMobile && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, height:60, background:C.white, borderTop:`1px solid ${C.gray200}`, display:"flex", alignItems:"stretch", zIndex:200, boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
-          {BOTTOM_NAV.filter(item => visibleNav.some(n => n.id === item.id)).map(item => {
+          {filteredBottomNav.map(item => {
             const active = tab === item.id;
             return (
               <button
@@ -708,12 +703,12 @@ export default function App() {
               </button>
             );
           })}
-          {/* More — opens the full drawer for Profile, User Mgmt, Settings, Sign Out */}
+          {/* ☰ More — Profile, Sign Out and other items via drawer */}
           <button
             onClick={() => setDrawerOpen(true)}
             style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, border:"none", background:"none", cursor:"pointer", padding:"8px 4px", borderTop: moreIsActive ? `3px solid ${C.green}` : "3px solid transparent", transition:"border-color 0.15s" }}
           >
-            <span style={{ fontSize:20, lineHeight:1 }}>⋯</span>
+            <span style={{ fontSize:20, lineHeight:1 }}>☰</span>
             <span style={{ fontSize:10, fontWeight: moreIsActive ? 700 : 500, color: moreIsActive ? C.green : C.gray400, lineHeight:1 }}>More</span>
           </button>
         </div>
