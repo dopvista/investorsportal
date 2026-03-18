@@ -800,6 +800,12 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [expanded]);
 
+  // ── Today string for hero card ─────────────────────────────────────
+  const todayStr = useMemo(
+    () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    []
+  );
+
   // ── Mobile level 2 expand panel: Realized GL (simplified table) ───
   const renderMobileRealizedPanel = useCallback(() => (
     <div
@@ -1216,6 +1222,28 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>
                   {profile?.full_name?.split(" ")[0] || "Investor"}
                 </div>
+              </div>
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  borderRadius: 9,
+                  padding: "5px 10px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  textAlign: "right",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "rgba(255,255,255,0.45)",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Today
+                </div>
+                <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
               </div>
             </div>
 
