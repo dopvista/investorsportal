@@ -292,14 +292,19 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   // Fetch the CDS account owner name for the transaction's CDS number.
   // Works for all roles — SA/AD have no cdsNumber prop at page level
   // so this uses transaction.cds_number directly.
-  const [cdsAccountName, setCdsAccountName] = useState("");
+  // null = still fetching | "" = fetch done, no name found | string = name found
+  const [cdsAccountName, setCdsAccountName] = useState(null);
   useEffect(() => {
     const cdsNum = transaction?.cds_number;
-    if (!cdsNum) return;
+    if (!cdsNum) { setCdsAccountName(""); return; }
+    setCdsAccountName(null); // reset to loading state on cds change
     let cancelled = false;
     sbGetCdsAccount(cdsNum)
-      .then(acc => { if (!cancelled && acc?.cds_name) setCdsAccountName(acc.cds_name); })
-      .catch(() => {});
+      .then(acc => {
+        if (cancelled) return;
+        setCdsAccountName(acc?.cds_name || "");
+      })
+      .catch(() => { if (!cancelled) setCdsAccountName(""); });
     return () => { cancelled = true; };
   }, [transaction?.cds_number]);
 
@@ -414,9 +419,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               {transaction.cds_number && (
                 <span>
                   🪪 {transaction.cds_number}
-                  {cdsAccountName
-                    ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
-                    : <span style={{ color: C.gray400 }}> — loading…</span>}
+                  {cdsAccountName === null
+                    ? <span style={{ color: C.gray400 }}> — …</span>
+                    : cdsAccountName
+                      ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
+                      : null}
                 </span>
               )}
             </div>
