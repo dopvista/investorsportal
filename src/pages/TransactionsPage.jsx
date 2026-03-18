@@ -325,10 +325,16 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
+  // Build a local O(1) Map so unrealizedGL lookup doesn't do O(n) find() on companies array
+  const companiesMap = useMemo(
+    () => new Map(companies.map(c => [c.id, c])),
+    [companies]
+  );
+
   // Unrealized GL — Buy only, verified only
   const unrealizedGL = useMemo(() => {
     if (!isBuy || !isVerified || !qty) return null;
-    const company = companies.find(c => c.id === transaction.company_id);
+    const company = companiesMap.get(transaction.company_id);
     const currentPrice = Number(company?.price || company?.cds_price || 0);
     if (!currentPrice) return null;
     const currentValue = currentPrice * qty;
@@ -336,13 +342,15 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     const gain         = currentValue - costBasis;
     const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
     return { currentPrice, currentValue, costBasis, gain, pct };
-  }, [isBuy, isVerified, qty, companies, transaction.company_id, gt]);
+  }, [isBuy, isVerified, qty, companiesMap, transaction.company_id, gt]);
 
   // Realized GL — Sell only, uses FIFO cost basis across all company transactions
   const realizedGL = useMemo(() => {
     if (isBuy || !transaction.company_id) return null;
+    // Filter to verified-only: pending/confirmed/rejected transactions should not
+    // affect cost basis — only settled verified buys count for accurate FIFO avg cost.
     const companyTxns = transactions
-      .filter(t => t.company_id === transaction.company_id)
+      .filter(t => t.company_id === transaction.company_id && t.status === "verified")
       .map(t => ({ ...t, _ts: new Date(t.date || t.created_at || 0).getTime() }))
       .sort((a, b) => a._ts !== b._ts ? a._ts - b._ts : new Date(a.created_at||0) - new Date(b.created_at||0));
 
@@ -884,11 +892,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         t.control_number?.includes(normalizedSearch)
       );
     }
-    return [...list].sort((a, b) => {
+    // slice() avoids mutating the memoized list reference.
+    // Three-value date comparator: returns 0 for equal dates (deterministic stable sort).
+    return list.slice().sort((a, b) => {
       const aActive = a.status === "pending" || a.status === "confirmed" || a.status === "rejected";
       const bActive = b.status === "pending" || b.status === "confirmed" || b.status === "rejected";
       if (aActive !== bActive) return aActive ? -1 : 1;
-      return (b.date || "") > (a.date || "") ? 1 : -1;
+      const da = a.date || "", db = b.date || "";
+      return db > da ? 1 : db < da ? -1 : 0;
     });
   }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
 
@@ -1008,10 +1019,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setActionModal(null);
     setConfirmingIds(new Set(ids));
     try {
-      await Promise.all(ids.map(async id => {
-        const rows = await sbConfirmTransaction(id);
-        if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
-      }));
+      // Batch confirmations in groups of 10 — avoids overwhelming DB with simultaneous requests
+      const BATCH = 10;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        await Promise.all(ids.slice(i, i + BATCH).map(async id => {
+          const rows = await sbConfirmTransaction(id);
+          if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
+        }));
+      }
       await refetchEnriched(ids);
       setSelected(new Set());
       showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
@@ -1120,7 +1135,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     setBulkDeleteModal(null);
     setBulkDeletingIds(new Set(ids));
     try {
-      await Promise.all(ids.map(id => sbDeleteTransaction(id)));
+      // Batch deletions in groups of 10 — consistent with doBulkConfirm and handleImport
+      const BATCH = 10;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        await Promise.all(ids.slice(i, i + BATCH).map(id => sbDeleteTransaction(id)));
+      }
       if (!isMountedRef.current) return;
       const idSet = new Set(ids);
       setTransactions(p => p.filter(t => !idSet.has(t.id)));
@@ -1182,9 +1201,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const tfootLeftCols  = showCheckbox ? 7 : 6;
   const tfootRightCols = 2 + (showActions ? 1 : 0);
 
+  // O(1) lookup via the already-built txById Map — avoids O(n) find() on every detailModal change
   const detailTransaction = useMemo(
-    () => detailModal ? (myTransactions.find(t => t.id === detailModal) || null) : null,
-    [detailModal, myTransactions]
+    () => detailModal ? (txById.get(detailModal) || null) : null,
+    [detailModal, txById]
   );
 
   const closeDelete       = useCallback(() => setDeleteModal(null),                            []);
