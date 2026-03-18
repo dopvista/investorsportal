@@ -1271,7 +1271,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* Market Value — big hero number */}
+            {/* Portfolio Value — big hero number (changed from Market Value) */}
             <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
               <div
                 style={{
@@ -1283,7 +1283,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   marginBottom: 4,
                 }}
               >
-                Market Value
+                Portfolio Value
               </div>
               <div 
                 style={{ 
