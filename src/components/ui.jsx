@@ -357,15 +357,17 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
 
   return (
     <ModalShell
-      title="💰 Update Share Price"
-      subtitle={<span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{company.name}</span>}
+      title={company.name}
+      subtitle="💰 Update share price"
+      headerRight={
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.navy }}>TZS {fmt(company.price)}</div>
+        </div>
+      }
       onClose={onClose} maxWidth={440}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleConfirm} icon="💾">Update Price</Btn></>}
     >
-      <div style={{ background: C.gray50, borderRadius: 10, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 12, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Price</div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.navy }}>TZS {fmt(company.price)}</div>
-      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Price (TZS) <span style={{ color: C.red }}>*</span></label>
         <input type="number" value={newPrice} onChange={e => { setNewPrice(e.target.value); setError(""); }} placeholder="Enter new price..." autoFocus
@@ -443,7 +445,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
       title="📈 Price History"
       subtitle={<span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{company.name}</span>}
       headerRight={<div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Price</div><div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div></div>}
-      onClose={onClose} maxWidth={900}
+      onClose={onClose} maxWidth={580}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <div style={{ fontSize: 12, color: C.gray400 }}>
@@ -454,14 +456,6 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       }
     >
-      <div style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)", border: `1px solid #BFDBFE`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 14 }}>📅</span>
-        <div style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600 }}>
-          Showing changes for <strong>{monthLabel}</strong>
-          {thisMonth.length === 0 && " — no changes this month"}
-        </div>
-      </div>
-
       {thisMonth.length === 0 ? (
         <div style={{ textAlign: "center", padding: "30px 20px", color: C.gray400 }}>
           <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
@@ -471,24 +465,26 @@ export function PriceHistoryModal({ company, history, onClose }) {
           </div>
         </div>
       ) : (
-        <div style={{ margin: "0 -28px", overflowX: "auto" }}>
+        <>
           {totalPages > 1 && (
-            <div style={{ padding: "0 28px", display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ fontSize: 12, color: C.gray400, paddingBottom: 6 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: C.gray400 }}>
                 Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, thisMonth.length)} of {thisMonth.length}
               </div>
             </div>
           )}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: 36 }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} />
-              <col style={{ width: 100 }} /><col style={{ width: 110 }} /><col style={{ width: 100 }} />
-              <col style={{ width: 160 }} /><col style={{ width: 130 }} />
+              <col style={{ width: "5%" }} />
+              <col style={{ width: "33%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "22%" }} />
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
-                {["#", "Date & Time", "Old Price", "New Price", "Change", "Change %", "Notes", "Updated By"].map(h => (
-                  <th key={h} style={{ padding: "11px 12px", textAlign: ["Old Price", "New Price", "Change", "Change %"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
+                {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -502,30 +498,30 @@ export function PriceHistoryModal({ company, history, onClose }) {
                     onMouseEnter={e => e.currentTarget.style.background = C.gray50}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "10px 12px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <div style={{ fontWeight: 600, color: C.text }}>
+                    <td style={{ padding: "10px 12px" }}>
+                      <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
                         {new Date(h.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                        <span style={{ color: C.gray400, margin: "0 5px" }}>|</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: C.gray400 }}>
                         {new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                       </div>
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>{isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}</td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
-                    <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: isFirstEntry ? C.gray400 : up ? C.green : C.red }}>
-                      {isFirstEntry ? <span style={{ color: C.gray400 }}>Initial</span> : <>{up ? "▲" : "▼"} {fmt(Math.abs(h.change_amount))}</>}
-                    </td>
                     <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                      {isFirstEntry ? <span style={{ color: C.gray400, fontSize: 12 }}>—</span> : <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{Number(h.change_percent).toFixed(2)}%</span>}
+                      {isFirstEntry
+                        ? <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span>
+                        : <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "3px 9px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                            {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
+                          </span>}
                     </td>
-                    <td style={{ padding: "10px 12px", color: C.gray600, maxWidth: 160 }}>{h.notes || <span style={{ color: C.gray400 }}>—</span>}</td>
-                    <td style={{ padding: "10px 12px" }}><span style={{ background: C.navy + "12", color: C.navy, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{h.updated_by}</span></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <div style={{ padding: "0 28px" }}><PaginationBar /></div>
-        </div>
+          <PaginationBar />
+        </>
       )}
     </ModalShell>
   );
