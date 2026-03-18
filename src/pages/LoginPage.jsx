@@ -3,42 +3,53 @@ import { sbSignIn, sbResetPassword } from "../lib/supabase";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
-// Fallback slides used when no settings are loaded
+// ── Mobile breakpoint (passive, no SSR issues) ────────────────────
+const useIsMobile = () => {
+  const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h, { passive: true });
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+};
+
 const DEFAULT_SLIDES = [
-  { id: 1, title: "Market Insights", sub: "Real-time data at your fingertips.", color: C.navy, image: "https://images.unsplash.com/photo-1611974717482-480928224732?auto=format&fit=crop&q=80" },
-  { id: 2, title: "Secure Investing", sub: "Your assets are protected with us.", color: "#064e3b", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80" },
-  { id: 3, title: "Digital Future", sub: "Managing investments has never been easier.", color: "#78350f", image: "https://images.unsplash.com/photo-1551288049-bbda38a5f9a2?auto=format&fit=crop&q=80" },
+  { id: 1, title: "Market Insights",   sub: "Real-time data at your fingertips.",                    color: C.navy,    image: "https://images.unsplash.com/photo-1611974717482-480928224732?auto=format&fit=crop&q=80" },
+  { id: 2, title: "Secure Investing",  sub: "Your assets are protected with us.",                    color: "#064e3b", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80" },
+  { id: 3, title: "Digital Future",    sub: "Managing investments has never been easier.",           color: "#78350f", image: "https://images.unsplash.com/photo-1551288049-bbda38a5f9a2?auto=format&fit=crop&q=80" },
 ];
 
 export default function LoginPage({ onLogin, loginSettings }) {
-  // Use settings from DB, fall back to defaults
-  const ADVERTS = (loginSettings?.slides || DEFAULT_SLIDES).map((s, i) => ({ ...s, id: i + 1 }));
+  const ADVERTS  = (loginSettings?.slides || DEFAULT_SLIDES).map((s, i) => ({ ...s, id: i + 1 }));
   const INTERVAL = loginSettings?.interval || 5000;
   const ANIMATED = loginSettings?.animated ?? true;
+  const isMobile = useIsMobile();
 
-  const [view, setView] = useState("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [activeAd, setActiveAd] = useState(0);
+  const [view,       setView]       = useState("login");
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [success,    setSuccess]    = useState("");
+  const [activeAd,   setActiveAd]   = useState(0);
   const [isHovering, setIsHovering] = useState(false);
+  const [showPw,     setShowPw]     = useState(false);
 
   useEffect(() => {
-    if (isHovering) return;
+    if (isHovering || isMobile) return;
     const t = setInterval(() => setActiveAd(p => (p + 1) % ADVERTS.length), INTERVAL);
     return () => clearInterval(t);
-  }, [isHovering, INTERVAL, ADVERTS.length]);
+  }, [isHovering, isMobile, INTERVAL, ADVERTS.length]);
 
   const inpStyle = {
-    width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
+    width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 14,
     border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "'Inter', sans-serif",
     background: C.gray50, color: C.text, transition: "border 0.2s", boxSizing: "border-box",
   };
 
   const Label = ({ text }) => (
-    <label style={{ fontSize: 12, fontWeight: 600, color: C.text, display: "block", marginBottom: 5 }}>{text}</label>
+    <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>{text}</label>
   );
 
   const handleLogin = async (e) => {
@@ -63,202 +74,211 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   const SubmitBtn = ({ label, loadingLabel }) => (
     <button type="submit" disabled={loading} style={{
-      width: "100%", padding: "10px", borderRadius: 9, border: "none",
+      width: "100%", padding: "13px", borderRadius: 10, border: "none",
       background: loading ? C.gray200 : C.green, color: C.white,
-      fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
+      fontWeight: 700, fontSize: 15, cursor: loading ? "not-allowed" : "pointer",
       fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      boxShadow: loading ? "none" : `0 4px 16px ${C.green}55`,
     }}>
-      {loading ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />{loadingLabel}</> : label}
+      {loading
+        ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />{loadingLabel}</>
+        : label}
     </button>
   );
 
-  return (
-    <div style={{ 
-      minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", 
-      fontFamily: "'Inter', sans-serif", padding: 16, boxSizing: "border-box", position: "relative", overflow: "hidden",
-      background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)"
-    }}>
-      {/* Subtle dot grid overlay */}
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-
-      {/* Glow orbs */}
-      <div style={{ position: "absolute", top: "-80px", right: "-80px", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-      <style>{`
-        @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes kenBurns { 0% { transform:scale(1); } 100% { transform:scale(1.08); } }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        ${ANIMATED ? ".ad-bg { animation: kenBurns 12s ease-in-out infinite alternate; }" : ""}
-        input:focus { border-color: ${C.green} !important; }
-        input::placeholder { color: #9ca3af; }
-      `}</style>
-
-      <div style={{
-        width: "min(960px, 92vw)",
-        background: "white",
-        borderRadius: 28,
-        boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-        display: "grid",
-        gridTemplateColumns: "1.68fr 0.85fr",
-        overflow: "hidden",
-        position: "relative",
-      }}>
-        {/* LEFT: Image slider — NO separation line at all */}
-        <div style={{ 
-          position: "relative", 
-          background: ADVERTS[activeAd].color, 
-          transition: "background 1s ease", 
-          overflow: "hidden",
-          aspectRatio: "4/3.07",
-          height: "auto"
-          /* Line completely removed */
-        }}>
-          {ADVERTS.map((ad, i) => (
-            <div 
-              key={ad.id} 
-              className={ANIMATED ? "ad-bg" : ""} 
-              style={{ 
-                position: "absolute", 
-                inset: 0, 
-                opacity: i === activeAd ? 1 : 0, 
-                backgroundImage: `url(${ad.image})`, 
-                backgroundSize: "cover", 
-                backgroundPosition: "center", 
-                backgroundRepeat: "no-repeat",
-                transition: "opacity 1.2s ease" 
-              }} 
-            />
-          ))}
-
-          {/* Simple color overlay */}
-          <div style={{ 
-            position: "absolute", 
-            inset: 0, 
-            background: `linear-gradient(135deg, ${ADVERTS[activeAd]?.color || "#064e3b"}${Math.round(((ADVERTS[activeAd]?.overlay ?? 0.35)) * 255).toString(16).padStart(2,"0")} 0%, transparent 100%)`, 
-            pointerEvents: "none" 
-          }} />
-
-          {/* Title + subtitle */}
-          <div style={{ 
-            position: "absolute", 
-            inset: 0, 
-            display: "flex", 
-            flexDirection: "column", 
-            justifyContent: "center", 
-            padding: "0 28px", 
-            zIndex: 2 
-          }}>
-            {ADVERTS.map((ad, i) => (
-              <div key={ad.id} style={{ display: i === activeAd ? "block" : "none", animation: "fadeIn 0.8s ease-out" }}>
-                <h2 style={{ fontSize: "clamp(22px, 3vw, 29px)", fontWeight: 800, color: "white", margin: "0 0 6px 0", lineHeight: 1.2 }}>{ad.title}</h2>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, maxWidth: 270, margin: 0 }}>{ad.sub}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Dots */}
-          <div style={{ position: "absolute", bottom: 20, left: 28, zIndex: 2, display: "flex", gap: 8 }}>
-            {ADVERTS.map((_, i) => (
-              <button 
-                key={i} 
-                onClick={() => setActiveAd(i)} 
-                onMouseEnter={() => setIsHovering(true)} 
-                onMouseLeave={() => setIsHovering(false)}
-                style={{ 
-                  width: i === activeAd ? 28 : 6, 
-                  height: 4, 
-                  borderRadius: 2, 
-                  background: "white", 
-                  opacity: i === activeAd ? 0.85 : 0.35, 
-                  transition: "all 0.3s", 
-                  cursor: "pointer", 
-                  border: "none", 
-                  padding: 0 
-                }} 
-              />
-            ))}
-          </div>
+  // ── Form content — shared between mobile and desktop ─────────────
+  const renderForm = () => (
+    <div style={{ width: "100%", maxWidth: isMobile ? "none" : 312, margin: "0 auto" }}>
+      {/* Logo + title */}
+      <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 20 }}>
+        <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 56 : 48, height: isMobile ? 56 : 48, borderRadius: 14, objectFit: "cover", marginBottom: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }} />
+        <div style={{ fontWeight: 800, fontSize: isMobile ? 20 : 16, color: isMobile ? C.white : C.text }}>Investors Portal</div>
+        <div style={{ fontSize: 13, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 3 }}>
+          {view === "login" ? "Sign in to your account" : "Reset your password"}
         </div>
+        {view === "reset" && (
+          <div style={{ marginTop: 10, background: isMobile ? "rgba(245,158,11,0.15)" : `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 9, padding: "9px 12px", fontSize: 12, color: C.gold, fontWeight: 600 }}>
+            Enter your email to receive a password reset link
+          </div>
+        )}
+      </div>
 
-        {/* RIGHT: Form — unchanged */}
-        <div style={{ 
-          background: "white", 
-          display: "flex", 
-          flexDirection: "column", 
-          justifyContent: "center", 
-          padding: "0 26px" 
-        }}>
-          <div style={{ width: "100%", maxWidth: "312px", margin: "0 auto" }}>
-            {/* Header */}
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <img src={logo} alt="Investors Portal" style={{ width: 48, height: 48, borderRadius: 13, objectFit: "cover", marginBottom: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }} />
-              <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Investors Portal</div>
-              <div style={{ fontSize: 12, color: C.gray400, marginTop: 3 }}>{view === "login" ? "Sign in to your account" : "Reset your password"}</div>
-              {view === "reset" && (
-                <div style={{ marginTop: 8, background: `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: C.gold, fontWeight: 600 }}>
-                  Enter email to receive a password reset link
-                </div>
-              )}
+      {/* Messages */}
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>⚠️</span> {error}
+        </div>
+      )}
+      {success && (
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>✅</span> {success}
+        </div>
+      )}
+
+      {/* Login form */}
+      {view === "login" && (
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: 14 }}>
+            <Label text="Email Address" />
+            <input
+              style={{ ...inpStyle, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+              type="email" placeholder="you@example.com" value={email}
+              onChange={e => setEmail(e.target.value)} autoComplete="email"
+              onFocus={e => { e.target.style.borderColor = C.green; }}
+              onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
+            />
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
+              <button type="button"
+                onClick={() => { setView("reset"); setError(""); setSuccess(""); }}
+                style={{ fontSize: 12, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
+                Forgot password?
+              </button>
             </div>
-
-            {/* Messages */}
-            {error && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
-            {success && <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 10, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{success}</div>}
-
-            {/* Login form */}
-            {view === "login" && (
-              <form onSubmit={handleLogin}>
-                <div style={{ marginBottom: 12 }}>
-                  <Label text="Email Address" />
-                  <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Password</label>
-                    <button type="button" onClick={() => { setView("reset"); setError(""); setSuccess(""); }}
-                      style={{ fontSize: 11, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
-                      Forgot password?
-                    </button>
-                  </div>
-                  <input style={inpStyle} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
-                </div>
-                <SubmitBtn label="Sign In →" loadingLabel="Signing in..." />
-              </form>
-            )}
-
-            {/* Reset form */}
-            {view === "reset" && (
-              <form onSubmit={handleReset}>
-                <div style={{ marginBottom: 16 }}>
-                  <Label text="Email Address" />
-                  <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
-                </div>
-                <div style={{ marginBottom: 8 }}>
-                  <SubmitBtn label="Send Reset Email" loadingLabel="Sending..." />
-                </div>
-                <button type="button" onClick={() => { setView("login"); setError(""); setSuccess(""); }}
-                  style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray400; }}>
-                  ← Back to Sign In
-                </button>
-              </form>
-            )}
-
-            {/* Footer */}
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.gray200}` }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
-                <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
-              </div>
-              <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
-                © 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
-              </div>
+            <div style={{ position: "relative" }}>
+              <input
+                style={{ ...inpStyle, paddingRight: 46, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+                type={showPw ? "text" : "password"} placeholder="••••••••" value={password}
+                onChange={e => setPassword(e.target.value)} autoComplete="current-password"
+                onFocus={e => { e.target.style.borderColor = C.green; }}
+                onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
+              />
+              <button type="button" onClick={() => setShowPw(v => !v)}
+                style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 17, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, lineHeight: 1 }}>
+                {showPw ? "🙈" : "👁"}
+              </button>
             </div>
           </div>
+          <SubmitBtn label="Sign In →" loadingLabel="Signing in..." />
+        </form>
+      )}
+
+      {/* Reset form */}
+      {view === "reset" && (
+        <form onSubmit={handleReset}>
+          <div style={{ marginBottom: 18 }}>
+            <Label text="Email Address" />
+            <input
+              style={{ ...inpStyle, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+              type="email" placeholder="you@example.com" value={email}
+              onChange={e => setEmail(e.target.value)} autoComplete="email"
+              onFocus={e => { e.target.style.borderColor = C.green; }}
+              onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
+            />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <SubmitBtn label="Send Reset Email" loadingLabel="Sending..." />
+          </div>
+          <button type="button"
+            onClick={() => { setView("login"); setError(""); setSuccess(""); }}
+            style={{ width: "100%", padding: "12px", borderRadius: 10, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = isMobile ? C.white : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.2)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.7)" : C.gray400; }}>
+            ← Back to Sign In
+          </button>
+        </form>
+      )}
+
+      {/* Footer */}
+      <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${isMobile ? "rgba(255,255,255,0.1)" : C.gray200}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
+          <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
+        </div>
+        <div style={{ textAlign: "center", fontSize: 10, color: isMobile ? "rgba(255,255,255,0.3)" : C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
+          © 2026 <span style={{ color: isMobile ? "rgba(255,255,255,0.55)" : C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div style={{
+      minHeight: "100vh", width: "100%",
+      fontFamily: "'Inter', sans-serif",
+      position: "relative", overflow: "hidden",
+      background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)",
+    }}>
+      <style>{`
+        @keyframes fadeIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes kenBurns{ 0% { transform:scale(1); } 100% { transform:scale(1.08); } }
+        @keyframes spin    { to { transform:rotate(360deg); } }
+        ${ANIMATED && !isMobile ? ".ad-bg { animation: kenBurns 12s ease-in-out infinite alternate; }" : ""}
+        input:focus { border-color: ${C.green} !important; }
+        input::placeholder { color: rgba(255,255,255,0.3) !important; }
+      `}</style>
+
+      {/* Dot grid */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      {/* Green glow */}
+      <div style={{ position: "absolute", top: "-80px", right: "-80px", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+      {/* Gold glow */}
+      <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+      {/* ══════════════════════════════════════════════════════════
+          MOBILE LAYOUT — full-screen form, no image slider
+          ══════════════════════════════════════════════════════════ */}
+      {isMobile && (
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
+          {/* Brand mark at top */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 36 }}>
+            <div style={{ width: 8, height: 8, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>Investors Portal</span>
+          </div>
+          {renderForm()}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          DESKTOP LAYOUT — image slider + form card. UNCHANGED.
+          ══════════════════════════════════════════════════════════ */}
+      {!isMobile && (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+          <div style={{
+            width: "min(960px, 92vw)", background: "white", borderRadius: 28,
+            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+            display: "grid", gridTemplateColumns: "1.68fr 0.85fr",
+            overflow: "hidden", position: "relative",
+          }}>
+            {/* LEFT: Image slider */}
+            <div style={{ position: "relative", background: ADVERTS[activeAd].color, transition: "background 1s ease", overflow: "hidden", aspectRatio: "4/3.07", height: "auto" }}>
+              {ADVERTS.map((ad, i) => (
+                <div
+                  key={ad.id}
+                  className={ANIMATED ? "ad-bg" : ""}
+                  style={{ position: "absolute", inset: 0, opacity: i === activeAd ? 1 : 0, backgroundImage: `url(${ad.image})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", transition: "opacity 1.2s ease" }}
+                />
+              ))}
+              {/* Color overlay */}
+              <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${ADVERTS[activeAd]?.color || "#064e3b"}${Math.round(((ADVERTS[activeAd]?.overlay ?? 0.35)) * 255).toString(16).padStart(2,"0")} 0%, transparent 100%)`, pointerEvents: "none" }} />
+              {/* Title + subtitle */}
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px", zIndex: 2 }}>
+                {ADVERTS.map((ad, i) => (
+                  <div key={ad.id} style={{ display: i === activeAd ? "block" : "none", animation: "fadeIn 0.8s ease-out" }}>
+                    <h2 style={{ fontSize: "clamp(22px, 3vw, 29px)", fontWeight: 800, color: "white", margin: "0 0 6px 0", lineHeight: 1.2 }}>{ad.title}</h2>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, maxWidth: 270, margin: 0 }}>{ad.sub}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Dots */}
+              <div style={{ position: "absolute", bottom: 20, left: 28, zIndex: 2, display: "flex", gap: 8 }}>
+                {ADVERTS.map((_, i) => (
+                  <button key={i} onClick={() => setActiveAd(i)} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
+                    style={{ width: i === activeAd ? 28 : 6, height: 4, borderRadius: 2, background: "white", opacity: i === activeAd ? 0.85 : 0.35, transition: "all 0.3s", cursor: "pointer", border: "none", padding: 0 }} />
+                ))}
+              </div>
+            </div>
+
+            {/* RIGHT: Form */}
+            <div style={{ background: "white", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 26px" }}>
+              <style>{`input::placeholder { color: #9ca3af !important; }`}</style>
+              {renderForm()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
