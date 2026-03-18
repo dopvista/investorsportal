@@ -279,7 +279,18 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         </div>
         {/* Footer */}
         {footer && (
-          <div style={{ padding: isMobile ? "12px 18px" : "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 16px 16px", flexShrink: 0 }}>
+          <div style={{
+            padding: isMobile ? "12px 18px" : "16px 28px",
+            borderTop: `1px solid ${C.gray200}`,
+            display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center",
+            background: C.gray50,
+            borderRadius: isMobile ? 0 : "0 0 16px 16px",
+            flexShrink: 0,
+            // Stick above keyboard on mobile so buttons are never hidden
+            position: isMobile ? "sticky" : "static",
+            bottom: 0,
+            zIndex: 2,
+          }}>
             {footer}
           </div>
         )}
@@ -442,9 +453,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
   return (
     <ModalShell
-      title="📈 Price History"
-      subtitle={<span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{company.name}</span>}
-      headerRight={<div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Price</div><div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div></div>}
+      title={company.name}
+      subtitle="📈 Price history"
+      headerRight={<div style={{ textAlign: "right", flexShrink: 0 }}><div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div><div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div></div>}
       onClose={onClose} maxWidth={580}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
