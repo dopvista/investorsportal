@@ -740,7 +740,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       {/* ── Row 2: Company (full-width desktop) / Company + Ref No. (mobile) ── */}
       <div style={{
         display: isMobile ? "grid" : "block",
-        gridTemplateColumns: isMobile ? "2fr 1fr" : undefined,
+        gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
         gap: isMobile ? 12 : undefined,
         alignItems: "end",
       }}>
@@ -761,8 +761,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: form.companyId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
             >
               {form.companyId
-                ? <>{selectedCompanyName}{!isBuy && maxSellQty > 0 && <span style={{ color: C.gray400, fontSize: 12, marginLeft: 8 }}>({fmtInt(maxSellQty)} shares)</span>}</>
-                : (isSellFiltered ? "Select company with shares..." : "Select company...")}
+                ? selectedCompanyName
+                : (isSellFiltered ? "Select holding..." : "Select company...")}
               <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
                 {companyOpen ? "▲" : "▼"}
               </span>
