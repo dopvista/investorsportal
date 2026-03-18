@@ -288,20 +288,22 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 //                  Buy  → Unrealized Gain/Loss
 //                  Sell → Realized   Gain/Loss  (same card style, sell-specific data)
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
-  if (!transaction) return null;
-
-  // Fetch CDS account owner name using the transaction's own cds_number.
-  // Done inside the modal so it works for all roles (SA/AD see all transactions
-  // and don't have a cdsNumber prop at page level).
+  // ── Hooks MUST be before any early return (Rules of Hooks) ───────
+  // Fetch the CDS account owner name for the transaction's CDS number.
+  // Works for all roles — SA/AD have no cdsNumber prop at page level
+  // so this uses transaction.cds_number directly.
   const [cdsAccountName, setCdsAccountName] = useState("");
   useEffect(() => {
-    if (!transaction.cds_number) return;
+    const cdsNum = transaction?.cds_number;
+    if (!cdsNum) return;
     let cancelled = false;
-    sbGetCdsAccount(transaction.cds_number)
+    sbGetCdsAccount(cdsNum)
       .then(acc => { if (!cancelled && acc?.cds_name) setCdsAccountName(acc.cds_name); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [transaction.cds_number]);
+  }, [transaction?.cds_number]);
+
+  if (!transaction) return null;
 
   const isBuy      = transaction.type === "Buy";
   const isVerified = transaction.status === "verified";
@@ -412,7 +414,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               {transaction.cds_number && (
                 <span>
                   🪪 {transaction.cds_number}
-                  {cdsAccountName && <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>}
+                  {cdsAccountName
+                    ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
+                    : <span style={{ color: C.gray400 }}> — loading…</span>}
                 </span>
               )}
             </div>
