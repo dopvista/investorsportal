@@ -640,15 +640,15 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Green glow */}
             <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-            {/* Header: name + CDS chip */}
+            {/* Header: name + date (CDS is already in the top header) */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
               <div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Portfolio</div>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>{profile?.full_name?.split(" ")[0] || "Investor"}</div>
               </div>
-              <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 9, padding: "5px 10px", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>CDS</div>
-                <div style={{ fontSize: 12, color: C.white, fontWeight: 800, letterSpacing: "0.04em" }}>{cds || "—"}</div>
+              <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 9, padding: "5px 10px", border: "1px solid rgba(255,255,255,0.1)", textAlign: "right" }}>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</div>
+                <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
               </div>
             </div>
 
