@@ -864,18 +864,27 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const stats = useMemo(() => {
     let total = 0, buys = 0, sells = 0, totalBuyVal = 0, totalSellVal = 0;
+    let totalBuyGrand = 0, totalSellGrand = 0;
     let pending = 0, confirmed = 0, verified = 0, rejected = 0;
     for (const t of myTransactions) {
       total++;
-      const v = Number(t.total || 0);
-      if (t.type === "Buy")  { buys++;  totalBuyVal  += v; }
-      else                   { sells++; totalSellVal += v; }
+      const v    = Number(t.total || 0);
+      const fees = Number(t.fees  || 0);
+      if (t.type === "Buy")  {
+        buys++;
+        totalBuyVal   += v;
+        totalBuyGrand += v + fees;       // grand total = trade + fees
+      } else {
+        sells++;
+        totalSellVal   += v;
+        totalSellGrand += v - fees;      // net received = trade - fees
+      }
       if      (t.status === "pending")   pending++;
       else if (t.status === "confirmed") confirmed++;
       else if (t.status === "verified")  verified++;
       else if (t.status === "rejected")  rejected++;
     }
-    return { total, buys, sells, totalBuyVal, totalSellVal, pending, confirmed, verified, rejected };
+    return { total, buys, sells, totalBuyVal, totalSellVal, totalBuyGrand, totalSellGrand, pending, confirmed, verified, rejected };
   }, [myTransactions]);
 
   const filtered = useMemo(() => {
@@ -1176,20 +1185,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     ];
     if (isDE) return [
       { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                               icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                             icon: "📤", color: C.red   },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
       { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation",                             icon: "🕐", color: C.gold  },
     ];
     if (isRO) return [
       { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`,                             icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                               icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                             icon: "📤", color: C.red   },
-      { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyVal - stats.totalSellVal))}`, sub: stats.totalBuyVal >= stats.totalSellVal ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
+      { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyGrand - stats.totalSellGrand))}`, sub: stats.totalBuyGrand >= stats.totalSellGrand ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
     ];
     return [
       { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,           icon: "📋", color: C.navy  },
-      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyVal)}`,  sub: `${stats.buys} buy orders`,                            icon: "📥", color: C.green },
-      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellVal)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
+      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                        icon: "📥", color: C.green },
+      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                       icon: "📤", color: C.red   },
       { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold  },
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
