@@ -64,18 +64,17 @@ const statusOptions = [
 ];
 
 // ── Table headers ─────────────────────────────────────────────────
-// Column order: # | Date | Company | Type | Qty | Price/Share | Total Fees | Grand Total | Broker | Status | Actions
 const TABLE_HEADERS_WITH_ACTIONS = [
-  { label: "#",           align: "right" },
-  { label: "Date",        align: "left"  },
-  { label: "Company",     align: "left"  },
-  { label: "Type",        align: "left"  },
-  { label: "Qty",         align: "right" },
-  { label: "Price/Share", align: "right" },
-  { label: "Total Fees",  align: "right" },
-  { label: "Grand Total", align: "right" },
-  { label: "Broker",      align: "left"  },
-  { label: "Status",      align: "left"  },
+  { label: "#",           align: "right"  },
+  { label: "Date",        align: "left"   },
+  { label: "Company",     align: "left"   },
+  { label: "Type",        align: "left"   },
+  { label: "Qty",         align: "right"  },
+  { label: "Price/Share", align: "right"  },
+  { label: "Total Fees",  align: "right"  },
+  { label: "Grand Total", align: "right"  },
+  { label: "Broker",      align: "left"   },
+  { label: "Status",      align: "left"   },
   { label: "Actions",     align: "center" },
 ];
 const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
@@ -282,6 +281,11 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 };
 
 // ── Transaction Detail Modal ──────────────────────────────────────
+// Layout (identical for Buy and Sell):
+//   LEFT  panel: Transaction details → Commission Breakdown  (always ends here)
+//   RIGHT panel: Reference & Broker → Audit Trail → Gain/Loss card at bottom
+//                  Buy  → Unrealized Gain/Loss
+//                  Sell → Realized   Gain/Loss  (same card style, sell-specific data)
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
   if (!transaction) return null;
 
@@ -300,6 +304,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
+  // Unrealized GL — Buy only, verified only
   const unrealizedGL = useMemo(() => {
     if (!isBuy || !isVerified || !qty) return null;
     const company = companies.find(c => c.id === transaction.company_id);
@@ -312,6 +317,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     return { currentPrice, currentValue, costBasis, gain, pct };
   }, [isBuy, isVerified, qty, companies, transaction.company_id, gt]);
 
+  // Realized GL — Sell only, uses FIFO cost basis across all company transactions
   const realizedGL = useMemo(() => {
     if (isBuy || !transaction.company_id) return null;
     const companyTxns = transactions
@@ -362,12 +368,20 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name,
       transaction.status]);
 
+  // Shared gain/loss card colors
+  const glGain = (unrealizedGL || realizedGL) ? ((unrealizedGL || realizedGL).gain >= 0) : true;
+  const glBg   = glGain ? C.greenBg  : "#FEF2F2";
+  const glBdr  = glGain ? "#BBF7D0"  : "#FECACA";
+  const glColor = glGain ? C.green   : "#EF4444";
+
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 720, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", border: `1px solid ${C.gray200}` }}>
+
+        {/* ── Header: company, type badge, status badge, date ── */}
         <div style={{ padding: "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -395,6 +409,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           </button>
         </div>
 
+        {/* ── Summary bar: Trade Value | Total Fees | Total Paid/Net Received ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50 }}>
           {[
             { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
@@ -409,8 +424,15 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
+        {/* ── Two-panel body ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+
+          {/* ════ LEFT PANEL: Transaction + Commission Breakdown ════
+              Always ends at Commission Breakdown for both Buy and Sell.
+              No GL section here — that lives exclusively in the right panel. */}
           <div style={{ borderRight: `1px solid ${C.gray200}` }}>
+
+            {/* Transaction section */}
             <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Transaction</div>
               {[
@@ -418,8 +440,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 ["Quantity",    `${fmtInt(transaction.qty)} shares`],
                 ["Price/Share", `TZS ${fmt(transaction.price)}`],
                 ["Trade Value", `TZS ${fmt(tradeVal)}`],
-                ...(allInCostPerShare ? [["All-in Cost/Share", `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
-                ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]] : []),
+                ...(allInCostPerShare ? [["All-in Cost/Share",  `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
+                ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]]     : []),
               ].map(([label, value], i, arr) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
                   <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
@@ -428,7 +450,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               ))}
             </div>
 
-            <div style={{ padding: "14px 20px", borderBottom: realizedGL ? `1px solid ${C.gray100}` : "none" }}>
+            {/* Commission Breakdown — always the last section in the left panel */}
+            <div style={{ padding: "14px 20px" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Commission breakdown</div>
               {[
                 ["Broker (+VAT)",    bd.broker   ],
@@ -448,38 +471,16 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               </div>
             </div>
 
-            {realizedGL && (
-              <div style={{ padding: "14px 20px" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Realized Gain / Loss</div>
-                {[
-                  ["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`],
-                  ["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`   ],
-                  ["Cost Basis",         `TZS ${fmt(Math.round(realizedGL.costBasis))}`         ],
-                  ["Net Proceeds",       `TZS ${fmt(Math.round(realizedGL.proceeds))}`          ],
-                ].map(([label, value], i, arr) => (
-                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
-                    <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{value}</span>
-                  </div>
-                ))}
-                <div style={{ marginTop: 8, padding: "9px 12px", background: realizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${realizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: realizedGL.gain >= 0 ? C.green : "#EF4444" }}>
-                    {realizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
-                  </span>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: realizedGL.gain >= 0 ? C.green : "#EF4444" }}>
-                      {realizedGL.gain >= 0 ? "+" : ""}TZS {fmt(Math.round(realizedGL.gain))}
-                    </div>
-                    <div style={{ fontSize: 10, color: realizedGL.gain >= 0 ? C.green : "#EF4444", marginTop: 1 }}>
-                      {realizedGL.gain >= 0 ? "+" : ""}{realizedGL.pct.toFixed(2)}% return
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          </div>{/* end LEFT panel */}
 
+          {/* ════ RIGHT PANEL: Reference & Broker → Audit Trail → Gain/Loss ════
+              Both Buy and Sell share this identical structure.
+              The only difference is which GL card renders at the bottom:
+                Buy  → Unrealized Gain/Loss (current market vs all-in cost)
+                Sell → Realized   Gain/Loss (FIFO proceeds vs cost basis) */}
           <div>
+
+            {/* Reference & Broker */}
             <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Reference & Broker</div>
               {[
@@ -502,6 +503,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               )}
             </div>
 
+            {/* Audit Trail */}
             <div style={{ padding: "14px 20px" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Audit trail</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -527,6 +529,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               </div>
             </div>
 
+            {/* ── Buy: Unrealized Gain/Loss ── */}
             {unrealizedGL && (
               <div style={{ padding: "0 20px 14px" }}>
                 <div style={{ padding: "8px 10px", background: unrealizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${unrealizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
@@ -557,22 +560,61 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
+            {/* ── Sell: Realized Gain/Loss — same card position and style as Buy's unrealized ── */}
+            {realizedGL && (
+              <div style={{ padding: "0 20px 14px" }}>
+                <div style={{ padding: "8px 10px", background: realizedGL.gain >= 0 ? C.greenBg : "#FEF2F2", borderRadius: 8, border: `1px solid ${realizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: realizedGL.gain >= 0 ? C.green : "#EF4444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Realized Gain / Loss
+                  </div>
+                  {/* Data rows inside the card — same density as unrealizedGL rows */}
+                  {[
+                    ["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`],
+                    ["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`   ],
+                    ["Cost Basis",         `TZS ${fmt(Math.round(realizedGL.costBasis))}`         ],
+                    ["Net Proceeds",       `TZS ${fmt(Math.round(realizedGL.proceeds))}`          ],
+                  ].map(([label, value], i, arr) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: i < arr.length - 1 ? 3 : 6, ...(i === arr.length - 1 ? { paddingBottom: 6, borderBottom: `1px solid ${realizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` } : {}) }}>
+                      <span style={{ fontSize: 11, color: C.gray500 }}>{label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{value}</span>
+                    </div>
+                  ))}
+                  {/* Gain / Loss summary — same layout as unrealizedGL */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: realizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                      {realizedGL.gain >= 0 ? "▲ Gain" : "▼ Loss"}
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: realizedGL.gain >= 0 ? C.green : "#EF4444" }}>
+                        {realizedGL.gain >= 0 ? "+" : ""}TZS {fmt(Math.round(realizedGL.gain))}
+                      </span>
+                      <span style={{ fontSize: 10, color: realizedGL.gain >= 0 ? C.green : "#EF4444", marginLeft: 6 }}>
+                        ({realizedGL.gain >= 0 ? "+" : ""}{realizedGL.pct.toFixed(2)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>{/* end RIGHT panel */}
+        </div>{/* end two-panel grid */}
+
+        {/* ── Footer ── */}
         <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50 }}>
           <span style={{ fontSize: 11, color: C.gray400 }}>CDS: {transaction.cds_number || "—"}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             Close
           </button>
         </div>
+
       </div>
     </div>
   );
 });
 
 // ── Transaction Row ───────────────────────────────────────────────
-// Column order: # | Date | Company | Type | Qty | Price/Share | Total Fees | Grand Total | Broker | Status | Actions
 const TransactionRow = memo(function TransactionRow({
   transaction, globalIdx, selected, onToggleOne,
   onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
@@ -623,43 +665,33 @@ const TransactionRow = memo(function TransactionRow({
             style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
       )}
-      {/* # */}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
-      {/* Date */}
       <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(transaction.date)}</td>
-      {/* Company */}
       <td style={{ padding: "7px 10px" }}>
         <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
       </td>
-      {/* Type */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {isBuy ? "▲ Buy" : "▼ Sell"}
         </span>
       </td>
-      {/* Qty */}
       <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right" }}>{fmtInt(transaction.qty)}</td>
-      {/* Price/Share */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{fmt(transaction.price)}</span>
       </td>
-      {/* Total Fees */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
         <span style={{ color: C.gold, fontWeight: 700 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
-      {/* Grand Total */}
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
         <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
           {fmt(gt)}
         </span>
       </td>
-      {/* Broker */}
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
           ? <span style={{ fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
-      {/* Status */}
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <StatusBadge status={transaction.status} />
         {perms.isRejected && transaction.rejection_comment && (
@@ -668,7 +700,6 @@ const TransactionRow = memo(function TransactionRow({
           </div>
         )}
       </td>
-      {/* Actions — always just the ⋯ menu, never inline buttons */}
       {showActions && (
         <td style={{ padding: "7px 12px", textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
           {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
@@ -842,7 +873,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const resetPage    = useCallback(() => setPage(1), []);
   const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
-  // Single-pass totals
   const totals = useMemo(() => {
     let buyAmt = 0, sellAmt = 0, buyFees = 0, sellFees = 0;
     for (const t of filtered) {
@@ -1123,10 +1153,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const showActions  = !isRO;
   const tableHeaders = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
 
-  // tfoot column span calculation for new layout:
-  // Left span: checkbox + # + Date + Company + Type + Qty + Price/Share = 7 (with checkbox) / 6 (without)
-  // Then: Total Fees cell (1) + Grand Total cell (1)
-  // Right empty: Broker + Status + Actions(if shown) = 2 + (showActions ? 1 : 0)
   const tfootLeftCols  = showCheckbox ? 7 : 6;
   const tfootRightCols = 2 + (showActions ? 1 : 0);
 
@@ -1148,7 +1174,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     <div style={{ height: "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Modals ── */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1201,12 +1226,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
-      {/* ── Stat Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8, flexShrink: 0 }}>
         {statCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
-      {/* ── Toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
           <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
@@ -1252,7 +1275,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         </div>
       </div>
 
-      {/* ── Table ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
           {loadingTransactions ? (
@@ -1360,20 +1382,16 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   {filtered.length > 1 && (
                   <tfoot>
                     <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
-                      {/* TOTALS label — spans checkbox through Price/Share */}
                       <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                       </td>
-                      {/* Total Fees column */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
                       </td>
-                      {/* Grand Total column — buy and sell stacked */}
                       <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
                         <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                       </td>
-                      {/* Empty right cols: Broker + Status + Actions */}
                       <td colSpan={tfootRightCols} />
                     </tr>
                   </tfoot>
