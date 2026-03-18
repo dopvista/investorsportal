@@ -19,8 +19,8 @@ import logo from "./assets/logo.jpg";
 
 const NAV = [
   { id: "dashboard",       label: "Dashboard",       icon: "🏠", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "companies",       label: "Portfolio",        icon: "📊", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "transactions",    label: "Transactions",     icon: "📋", roles: ["SA", "AD", "DE", "VR", "RO"] },
+  { id: "companies",       label: "Portfolio",        icon: "📈", roles: ["SA", "AD", "DE", "VR", "RO"] },
+  { id: "transactions",    label: "Transactions",     icon: "🔁", roles: ["SA", "AD", "DE", "VR", "RO"] },
   { id: "user-management", label: "User Management",  icon: "👥", roles: ["SA", "AD"] },
   { id: "system-settings", label: "System Settings",  icon: "⚙️", roles: ["SA"] },
 ];
@@ -34,9 +34,10 @@ const useIsMobile = () => {
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80); };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -388,8 +389,8 @@ export default function App() {
   // 3 primary tabs always shown; "More" opens the full drawer.
   const BOTTOM_NAV = [
     { id: "dashboard",       label: "Home",     icon: "🏠", roles: ["SA","AD","DE","VR","RO"] },
-    { id: "companies",       label: "Portfolio", icon: "📊", roles: ["SA","AD","DE","VR","RO"] },
-    { id: "transactions",    label: "Trades",    icon: "📋", roles: ["SA","AD","DE","VR","RO"] },
+    { id: "companies",       label: "Portfolio", icon: "📈", roles: ["SA","AD","DE","VR","RO"] },
+    { id: "transactions",    label: "Trades",    icon: "🔁", roles: ["SA","AD","DE","VR","RO"] },
     { id: "user-management", label: "Users",     icon: "👥", roles: ["SA","AD"] },
   ];
   // Only show bottom nav items the current role can access
@@ -414,7 +415,7 @@ export default function App() {
           <button
             onClick={() => setDrawerOpen(false)}
             aria-label="Close navigation"
-            style={{ position:"absolute", top:16, right:16, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.12)", border:"none", color:C.white, cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, flexShrink:0 }}
+            style={{ position:"absolute", top:14, right:14, width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.1)", color:C.white, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, flexShrink:0 }}
           >✕</button>
         )}
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -738,7 +739,7 @@ export default function App() {
                 <div style={{ color:C.white, fontWeight:800, fontSize:15 }}>Switch CDS Account</div>
                 <div style={{ color:C.gold, fontSize:11, marginTop:3, fontWeight:600 }}>Confirm account change</div>
               </div>
-              <button onClick={()=>!switching&&setSwitchTarget(null)} style={{ background:"rgba(255,255,255,0.1)", border:"none", color:C.white, width:28, height:28, borderRadius:"50%", cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <button onClick={()=>!switching&&setSwitchTarget(null)} style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.1)", color:C.white, width:40, height:40, borderRadius:"50%", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             </div>
             <div style={{ padding:"22px 24px" }}>
               <div style={{ textAlign:"center", marginBottom:20 }}>
