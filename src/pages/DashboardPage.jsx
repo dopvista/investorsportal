@@ -465,7 +465,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     const avgFirstBuyDays   = firstBuySharesDenominator > 0
       ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator)
       : null;
-    const realizedCompanies = activeCompanies.filter(c => c.realizedTrades.length > 0);
+    // realizedCompanies must come from ALL companies (companyMetricsRaw), not just
+    // activeCompanies — a fully-sold company has netShares=0 so it gets excluded from
+    // activeCompanies, but it still has realized trades that must appear in the panel.
+    const realizedCompanies = companyMetricsRaw.filter(c => c.realizedTrades.length > 0);
     const totalCompanies    = activeCompanies.length > 0
       ? activeCompanies.length
       : portfolio.length > 0
