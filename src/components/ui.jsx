@@ -748,11 +748,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
             Company <span style={{ color: C.red }}>*</span>
-            {isSellFiltered && (
-              <span style={{ fontSize: 10, fontWeight: 600, background: C.redBg, color: C.red, border: `1px solid #FECACA`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
-                ▼ Holdings only
-              </span>
-            )}
           </div>
           <div ref={companyRef} style={{ position: "relative" }}>
             <button
@@ -907,15 +902,20 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       </div>
 
       {/* ── Fee summary ── */}
-      {tradeValue > 0 && (
+      {tradeValue > 0 && (() => {
+        // Smart formatter: show 120M / 9B above 99M, else normal fmt — no TZS prefix
+        const fmtFee = n => n > 99_000_000 ? fmtSmart(n) : fmt(n);
+        return (
         <div style={{ background: isBuy ? C.greenBg : C.redBg, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, borderRadius: 10, padding: "10px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {/* Trade Value — wider flex */}
+            <div style={{ flex: 1.3, minWidth: 0 }}>
               <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>TZS {fmt(tradeValue)}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(tradeValue)}</div>
             </div>
-            <div style={{ color: C.gray400, fontSize: 12, padding: "0 8px" }}>{isBuy ? "+" : "−"}</div>
-            <div style={{ flex: 1 }}>
+            <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>{isBuy ? "+" : "−"}</div>
+            {/* Fees — narrower flex */}
+            <div style={{ flex: 0.9, minWidth: 0 }}>
               <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
                 Fees
                 <button type="button" onClick={() => setShowFeeBreakdown(v => !v)}
@@ -924,15 +924,16 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                   {showFeeBreakdown ? "▲" : "ⓘ"}
                 </button>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>TZS {fmt(feeBreakdown.total)}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(feeBreakdown.total)}</div>
             </div>
-            <div style={{ color: C.gray400, fontSize: 12, padding: "0 8px" }}>=</div>
-            <div style={{ flex: 1 }}>
+            <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>=</div>
+            {/* Net Proceeds / Total Paid — wider flex */}
+            <div style={{ flex: 1.4, minWidth: 0 }}>
               <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {isBuy ? "Total Paid" : "Net Proceeds"}
               </div>
               <div style={{ fontSize: 15, fontWeight: 800, color: isBuy ? C.green : C.red, marginTop: 2 }}>
-                TZS {fmt(grandTotal)}
+                {fmtFee(grandTotal)}
               </div>
             </div>
           </div>
@@ -948,7 +949,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Remarks ── */}
       <FTextarea
