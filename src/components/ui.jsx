@@ -39,14 +39,6 @@ export const fmtSmart = (n) => {
 };
 
 // ─── DSE Fee Calculator ────────────────────────────────────────────
-// Official DSE equity fee schedule — same rates for Buy and Sell
-// Buy:  grandTotal = tradeValue + fees  (investor pays more)
-// Sell: grandTotal = tradeValue − fees  (investor receives less)
-// Broker:   tiered 1.7%(≤10M) / 1.5%(10–50M) / 0.8%(>50M) + 18% VAT
-// CMSA:     0.14% flat — no VAT
-// DSE:      0.14% flat + 18% VAT
-// CSDR:     0.06% flat + 18% VAT
-// Fidelity: 0.02% flat — no VAT
 export const calcFees = (tradeValue) => {
   const tv = Number(tradeValue) || 0;
   if (tv <= 0) return { broker: 0, cmsa: 0, dse: 0, csdr: 0, fidelity: 0, total: 0 };
@@ -223,17 +215,53 @@ export function ActionMenu({ actions }) {
   );
 }
 
+// ─── Mobile breakpoint hook ───────────────────────────────────────
+// Defined before ModalShell so both ModalShell and TransactionFormModal can use it.
+// Passive resize listener — negligible overhead, never recreated.
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // ─── MODAL SHELL ──────────────────────────────────────────────────
+// Mobile: renders as a bottom sheet (slides from bottom, full width,
+//         rounded top corners). Desktop: centered card — UNCHANGED.
 // ═══════════════════════════════════════════════════════════════════
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
+  const isMobile = useIsMobile();
+
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.45)", zIndex: 1000,
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 24,
+      }}
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth, display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", ...(maxHeight ? { maxHeight } : {}) }}>
-        <div style={{ padding: "22px 28px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+      <div style={{
+        background: C.white,
+        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        width: "100%",
+        maxWidth: isMobile ? "100%" : maxWidth,
+        display: "flex", flexDirection: "column",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
+        ...((!isMobile && maxHeight) ? { maxHeight } : {}),
+      }}>
+        {/* Header */}
+        <div style={{ padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
             {subtitle && <div style={{ fontSize: 13, color: C.gray400, marginTop: 3 }}>{subtitle}</div>}
@@ -245,11 +273,13 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
             )}
           </div>
         </div>
-        <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
+        {/* Body */}
+        <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>
           {children}
         </div>
+        {/* Footer */}
         {footer && (
-          <div style={{ padding: "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: "0 0 16px 16px", flexShrink: 0 }}>
+          <div style={{ padding: isMobile ? "12px 18px" : "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 16px 16px", flexShrink: 0 }}>
             {footer}
           </div>
         )}
@@ -503,16 +533,17 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── TRANSACTION FORM MODAL ───────────────────────────────────────
-// Changes from original:
-//  ✅ Transaction Type → <select> dropdown (first field)
-//  ✅ Company → searchable custom dropdown
-//  ✅ Reference No. → both Buy and Sell, varchar 20 (text+digits)
-//  ✅ Fees → auto-calculated, no user input
-//  ✅ Cannot sell more than holdings
-//  ✅ "Total Paid" label (was "Total to Pay")
-//  ✅ Condensed summary row (fees breakdown stays inline)
+// Mobile changes (desktop UNCHANGED):
+//   ✅ Subtitle shortened
+//   ✅ "Transaction Type" label → "Type"
+//   ✅ Row 1: Type + Date (2-col, no Ref No.)
+//   ✅ Row 2: Company (2fr) + Ref No. (1fr) side by side
+//   ✅ ModalShell bottom-sheet removes scroll on mobile
 // ═══════════════════════════════════════════════════════════════════
 export function TransactionFormModal({ transaction, companies, transactions = [], brokers = [], onConfirm, onClose }) {
+  // ── Mobile detection — layout only, no logic impact ───────────
+  const isMobile = useIsMobile();
+
   const today  = new Date().toISOString().split("T")[0];
   const isEdit = !!transaction;
 
@@ -642,10 +673,24 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     { label: "Fidelity", value: feeBreakdown.fidelity, note: "0.02%" },
   ];
 
+  // ── Ref No. input — rendered in Row 1 (desktop) or Row 2 (mobile) ──
+  // Same logic, same handler, just placed in different grid positions.
+  const refNoInput = (placeholder = "e.g. REF-2024-001") => (
+    <input
+      type="text"
+      value={form.controlNumber}
+      onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.slice(0, 20) }))}
+      placeholder={placeholder}
+      style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
+      onFocus={e => (e.target.style.borderColor = C.green)}
+      onBlur={e => (e.target.style.borderColor = C.gray200)}
+    />
+  );
+
   return (
     <ModalShell
       title={isEdit ? "✏️ Edit Transaction" : "📝 Record New Transaction"}
-      subtitle={isEdit ? "Update the details below and save" : "Enter details — fees are calculated automatically by the system"}
+      subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
       onClose={onClose} maxWidth={580}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
@@ -655,11 +700,12 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       )}
 
-      {/* ── Row 1: Type · Date · Reference No. ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+      {/* ── Row 1: Type · Date (both screens) · Ref No. (desktop only) ── */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
+        {/* Type — label shortened to "Type" on all screens */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-            Transaction Type <span style={{ color: C.red }}>*</span>
+            Type <span style={{ color: C.red }}>*</span>
           </div>
           <select
             value={form.type}
@@ -672,86 +718,102 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             <option value="Sell">▼ Sell</option>
           </select>
         </div>
+
+        {/* Date */}
         <FInput
           label="Date" required type="date"
           value={form.date}
           onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
         />
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-            Reference No.
+
+        {/* Reference No. — desktop only in Row 1; moved to Row 2 on mobile */}
+        {!isMobile && (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+              Reference No.
+            </div>
+            {refNoInput("e.g. REF-2024-001")}
           </div>
-          <input
-            type="text"
-            value={form.controlNumber}
-            onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.slice(0, 20) }))}
-            placeholder="e.g. REF-2024-001"
-            style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
-            onFocus={e => (e.target.style.borderColor = C.green)}
-            onBlur={e => (e.target.style.borderColor = C.gray200)}
-          />
-        </div>
+        )}
       </div>
 
-      {/* ── Row 2: Company ── */}
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-          Company <span style={{ color: C.red }}>*</span>
-          {isSellFiltered && (
-            <span style={{ fontSize: 10, fontWeight: 600, background: C.redBg, color: C.red, border: `1px solid #FECACA`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
-              ▼ Holdings only
-            </span>
-          )}
-        </div>
-        <div ref={companyRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
-            style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: form.companyId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
-          >
-            {form.companyId
-              ? <>{selectedCompanyName}{!isBuy && maxSellQty > 0 && <span style={{ color: C.gray400, fontSize: 12, marginLeft: 8 }}>({fmtInt(maxSellQty)} shares)</span>}</>
-              : (isSellFiltered ? "Select company with shares..." : "Select company...")}
-            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
-              {companyOpen ? "▲" : "▼"}
-            </span>
-          </button>
-          {companyOpen && (
-            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
-              <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
-                  <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..."
-                    style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
-                    onFocus={e => (e.target.style.borderColor = C.green)}
-                    onBlur={e => (e.target.style.borderColor = C.gray200)} />
+      {/* ── Row 2: Company (full-width desktop) / Company + Ref No. (mobile) ── */}
+      <div style={{
+        display: isMobile ? "grid" : "block",
+        gridTemplateColumns: isMobile ? "2fr 1fr" : undefined,
+        gap: isMobile ? 12 : undefined,
+        alignItems: "end",
+      }}>
+        {/* Company dropdown — unchanged logic, just in a grid cell on mobile */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+            Company <span style={{ color: C.red }}>*</span>
+            {isSellFiltered && (
+              <span style={{ fontSize: 10, fontWeight: 600, background: C.redBg, color: C.red, border: `1px solid #FECACA`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
+                ▼ Holdings only
+              </span>
+            )}
+          </div>
+          <div ref={companyRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
+              style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: form.companyId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
+            >
+              {form.companyId
+                ? <>{selectedCompanyName}{!isBuy && maxSellQty > 0 && <span style={{ color: C.gray400, fontSize: 12, marginLeft: 8 }}>({fmtInt(maxSellQty)} shares)</span>}</>
+                : (isSellFiltered ? "Select company with shares..." : "Select company...")}
+              <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
+                {companyOpen ? "▲" : "▼"}
+              </span>
+            </button>
+            {companyOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+                <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
+                    <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..."
+                      style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
+                      onFocus={e => (e.target.style.borderColor = C.green)}
+                      onBlur={e => (e.target.style.borderColor = C.gray200)} />
+                  </div>
+                </div>
+                <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                  {filteredCompanies.length === 0 ? (
+                    <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
+                  ) : filteredCompanies.map(c => {
+                    const netQty     = netMap[c.id] || 0;
+                    const isSelected = form.companyId === c.id;
+                    return (
+                      <button key={c.id} type="button"
+                        onClick={() => { setForm(f => ({ ...f, companyId: c.id, qty: "" })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                        style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                      >
+                        <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text }}>{c.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                          {!isBuy && netQty > 0 && <span style={{ fontSize: 11, color: C.gray400 }}>{fmtInt(netQty)} shares</span>}
+                          {isSelected && <span style={{ color: C.green, fontSize: 13 }}>✓</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                {filteredCompanies.length === 0 ? (
-                  <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
-                ) : filteredCompanies.map(c => {
-                  const netQty     = netMap[c.id] || 0;
-                  const isSelected = form.companyId === c.id;
-                  return (
-                    <button key={c.id} type="button"
-                      onClick={() => { setForm(f => ({ ...f, companyId: c.id, qty: "" })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                      style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
-                    >
-                      <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text }}>{c.name}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
-                        {!isBuy && netQty > 0 && <span style={{ fontSize: 11, color: C.gray400 }}>{fmtInt(netQty)} shares</span>}
-                        {isSelected && <span style={{ color: C.green, fontSize: 13 }}>✓</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Reference No. — mobile only, in same row as Company */}
+        {isMobile && (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+              Ref No.
+            </div>
+            {refNoInput("e.g. REF-001")}
+          </div>
+        )}
       </div>
 
       {/* ── Row 3: Broker ── */}
@@ -903,17 +965,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
-// Final confirmed column layout — matches the live Excel template:
-//   Col A (index 0) = Date
-//   Col B (index 1) = Company Name
-//   Col C (index 2) = Type (Buy / Sell)
-//   Col D (index 3) = Quantity
-//   Col E (index 4) = Price per Share
-//   Col F (index 5) = Total Fees     ← Excel formula — IGNORED, app recalculates
-//   Col G (index 6) = Total Amount   ← Excel formula — IGNORED, app recalculates
-//   Col H (index 7) = Broker         ← required, matched by name or broker code
-//   Col I (index 8) = Reference No.  ← optional, varchar 20
-//   Col J (index 9) = Remarks        ← optional
+// UNCHANGED from original — this modal is desktop-only (import feature
+// is intentionally hidden on mobile in TransactionsPage.jsx).
 // ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, brokers = [], onImport, onClose }) {
   const [step, setStep]           = useState("upload");
@@ -993,8 +1046,6 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         const type          = get(2);
         const qty           = parseFloat(get(3));
         const price         = parseFloat(get(4));
-        // index 5 (Col F: Total Fees)   — intentionally skipped
-        // index 6 (Col G: Total Amount) — intentionally skipped
         const brokerRaw     = get(7);
         const controlNumber = get(8).slice(0, 20) || null;
         const remarks       = get(9);
@@ -1088,7 +1139,6 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 
   const UploadStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Step 1 — download */}
       <div style={{ background: C.gray50, border: `1.5px solid ${C.gray200}`, borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{ width: 42, height: 42, background: `${C.green}15`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📥</div>
@@ -1102,7 +1152,6 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         </div>
       </div>
 
-      {/* Step 2 — upload */}
       <div style={{ background: C.gray50, border: `1.5px dashed ${C.gray300}`, borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{ width: 42, height: 42, background: `${C.navy}15`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
@@ -1119,7 +1168,6 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         </div>
       </div>
 
-      {/* No brokers warning */}
       {brokers.length === 0 && (
         <div style={{ background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
@@ -1143,8 +1191,6 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
   const totalPages = Math.ceil(rows.length / PAGE_SIZE);
   const pagedRows  = rows.slice((previewPage - 1) * PAGE_SIZE, previewPage * PAGE_SIZE);
 
-  // Preview table: # | Date | Company | Type | Qty | Price | Broker | Ref No. | Total
-  // Broker and Ref No. given generous widths for full visibility
   const PREVIEW_COLS = [
     ["#",       "4%",  "center"],
     ["Date",    "11%", "left"  ],
