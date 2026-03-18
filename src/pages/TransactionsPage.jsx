@@ -442,6 +442,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 ["Trade Value", `TZS ${fmt(tradeVal)}`],
                 ...(allInCostPerShare ? [["All-in Cost/Share",  `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
                 ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]]     : []),
+                ...(realizedGL        ? [["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`]] : []),
+                ...(realizedGL        ? [["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`]]    : []),
               ].map(([label, value], i, arr) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
                   <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
@@ -570,10 +572,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                   </div>
                   {/* Data rows inside the card — same density as unrealizedGL rows */}
                   {[
-                    ["Avg Buy Cost/Share", `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`],
-                    ["Net Sell/Share",     `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`   ],
-                    ["Cost Basis",         `TZS ${fmt(Math.round(realizedGL.costBasis))}`         ],
-                    ["Net Proceeds",       `TZS ${fmt(Math.round(realizedGL.proceeds))}`          ],
+                    ["Cost Basis",   `TZS ${fmt(Math.round(realizedGL.costBasis))}`  ],
+                    ["Net Proceeds", `TZS ${fmt(Math.round(realizedGL.proceeds))}`   ],
                   ].map(([label, value], i, arr) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: i < arr.length - 1 ? 3 : 6, ...(i === arr.length - 1 ? { paddingBottom: 6, borderBottom: `1px solid ${realizedGL.gain >= 0 ? "#BBF7D0" : "#FECACA"}` } : {}) }}>
                       <span style={{ fontSize: 11, color: C.gray500 }}>{label}</span>
