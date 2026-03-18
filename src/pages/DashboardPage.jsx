@@ -800,12 +800,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [expanded]);
 
-  // ── Today string for hero card ─────────────────────────────────────
-  const todayStr = useMemo(
-    () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-    []
-  );
-
   // ── Mobile level 2 expand panel: Realized GL (simplified table) ───
   const renderMobileRealizedPanel = useCallback(() => (
     <div
@@ -1223,31 +1217,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   {profile?.full_name?.split(" ")[0] || "Investor"}
                 </div>
               </div>
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.1)",
-                  borderRadius: 9,
-                  padding: "5px 10px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  textAlign: "right",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: "rgba(255,255,255,0.45)",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  Today
-                </div>
-                <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
-              </div>
             </div>
 
-            {/* Market Value — big hero number */}
+            {/* Market Value — big hero number - MODIFIED: light gold yellow, expandable to fit */}
             <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
               <div
                 style={{
@@ -1261,7 +1233,20 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               >
                 Market Value
               </div>
-              <div style={{ fontSize: 34, fontWeight: 800, color: C.white, lineHeight: 1, letterSpacing: "-0.01em" }}>
+              <div 
+                style={{ 
+                  fontSize: "min(12vw, 44px)", 
+                  fontWeight: 800, 
+                  color: "#FFD966", 
+                  lineHeight: 1.2, 
+                  letterSpacing: "-0.01em",
+                  textAlign: "center",
+                  width: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
+                }}
+              >
                 {loading ? (
                   <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
                 ) : metrics.hasFinancials ? (
@@ -1321,22 +1306,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</div>
                 </div>
               ))}
-            </div>
-
-            {/* Date watermark */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 10,
-                right: 14,
-                fontSize: 9,
-                color: "rgba(255,255,255,0.2)",
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                zIndex: 1,
-              }}
-            >
-              {todayStr}
             </div>
           </div>
 
