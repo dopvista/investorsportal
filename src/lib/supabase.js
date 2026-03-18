@@ -334,18 +334,13 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 // next to the CDS number in the popup header.
 export async function sbGetCdsAccount(cdsNumber) {
   if (!cdsNumber) return null;
-  try {
-    const res = await fetchWithAuthRetry(
-      `${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,cds_number,cds_name,phone,email&limit=1`,
-      { headers: headers(token()) },
-      "Failed to fetch CDS account"
-    );
-    const rows = await res.json();
-    return rows[0] || null;
-  } catch {
-    // CDS name is non-critical — silently return null if fetch fails
-    return null;
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,cds_number,cds_name,phone,email&limit=1`,
+    { headers: headers(token()) },
+    "Failed to fetch CDS account"
+  );
+  const rows = await res.json();
+  return rows[0] || null;
 }
 
 // ── Insert a new CDS account ───────────────────────────────────────
