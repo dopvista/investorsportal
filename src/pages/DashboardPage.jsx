@@ -9,9 +9,10 @@ const useIsMobile = () => {
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80); };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -155,7 +156,7 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
     <div style={{ background: C.white, border: `1.5px solid ${accentColor || C.gray200}`, borderRadius: 14, padding: "20px 24px", marginBottom: 20, animation: "dashFadeDown 0.2s ease", boxShadow: accentColor ? `0 4px 20px ${accentColor}18` : "none" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{title}</div>
-        <button onClick={onClose} style={{ background: accentColor ? accentColor + "18" : C.gray100, border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 13, color: accentColor || C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onClose} style={{ background: accentColor ? accentColor + "18" : C.gray100, border: "none", borderRadius: "50%", width: 40, height: 40, cursor: "pointer", fontSize: 13, color: accentColor || C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {children}
     </div>
@@ -469,11 +470,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const todayStr = useMemo(() => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }), []);
 
   // ── Mobile level 2 expand panel: Realized GL (simplified table) ───
-  const renderMobileRealizedPanel = () => (
+  const renderMobileRealizedPanel = useCallback(() => (
     <div style={{ background: C.white, border: `1.5px solid ${metrics.totalRealizedGL >= 0 ? C.green : C.red}40`, borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease" }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📤 Realized Gain / Loss</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades." /> : (
         <div>
@@ -523,14 +524,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  );
+  ), [metrics, loading, onCloseExpand, fmt, fmtShort];
 
   // ── Mobile level 2: Companies panel ──────────────────────────────
-  const renderMobileCompaniesPanel = () => (
+  const renderMobileCompaniesPanel = useCallback(() => (
     <div style={{ background: C.white, border: `1.5px solid ${C.navy}40`, borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease" }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Holdings</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions." /> : (
         <div>
@@ -578,14 +579,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  );
+  ), [metrics, loading, onCloseExpand, fmt, fmtShort];
 
   // ── Mobile level 2: Users panel ───────────────────────────────────
-  const renderMobileUsersPanel = () => (
+  const renderMobileUsersPanel = useCallback(() => (
     <div style={{ background: C.white, border: "1.5px solid #2563eb40", borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease" }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>👥 Members ({cdsUsers.length})</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found." /> : (
         <div>
@@ -616,7 +617,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  );
+  ), [cdsUsers, loading, isSAAD, onCloseExpand, onNavUserMgmt]);
 
   // ──────────────────────────────────────────────────────────────────
   // ── RENDER
@@ -733,7 +734,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               onClick={onToggleUsers} active={expanded === "users"} accent="#2563eb"
             />
             <MobileStatPill
-              icon="⏳" label="Pending"
+              icon="🔔" label="Pending"
               value={loading ? "—" : metrics.pending}
               onClick={onNavTransactions} accent="#f59e0b" navigates
             />
@@ -824,7 +825,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22 }}>
             <StatCard icon="🏢" label="Companies" value={loading ? "—" : metrics.totalCompanies} subLabel={`${metrics.totalBuyTransactionCount} buy transactions`} accent={C.navy} accentBg="#0B1F3A" onClick={onToggleCompanies} active={expanded === "companies"} loading={loading} />
             <StatCard icon="👥" label="Total Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))} subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`} accent="#2563eb" accentBg="#2563eb" onClick={onToggleUsers} active={expanded === "users"} loading={loading} />
-            <StatCard icon="⏳" label="Awaiting Action" value={loading ? "—" : metrics.pending} subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"} accent="#f59e0b" accentBg="#f59e0b" onClick={onNavTransactions} navigates loading={loading} />
+            <StatCard icon="🔔" label="Awaiting Action" value={loading ? "—" : metrics.pending} subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"} accent="#f59e0b" accentBg="#f59e0b" onClick={onNavTransactions} navigates loading={loading} />
           </div>
 
           {/* ── Companies expand panel ── */}
@@ -979,5 +980,5 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </>
       )}
     </div>
-  );
+  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
 }
