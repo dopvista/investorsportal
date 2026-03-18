@@ -1281,14 +1281,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 				  fontWeight: 700,
 				  textTransform: "uppercase",
 				  letterSpacing: "0.07em",
-				  marginBottom: 4,
+				  marginBottom: 3,
 				}}
 			  >
 				Portfolio Value
 			  </div>
 			  <div 
 				style={{ 
-				  fontSize: "min(8vw, 36px)",   // reduced max size to ensure fit
+				  fontSize: "min(8vw, 40px)",   // reduced max size to ensure fit
 				  fontWeight: 800, 
 				  color: "#FFD966", 
 				  lineHeight: 1.2, 
