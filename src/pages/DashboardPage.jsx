@@ -1271,43 +1271,56 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* Portfolio Value — big hero number (changed from Market Value) */}
-
-			<div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
-			  <div
-				style={{
-				  fontSize: 9,
-				  color: "rgba(255,255,255,0.4)",
-				  fontWeight: 700,
-				  textTransform: "uppercase",
-				  letterSpacing: "0.07em",
-				  marginBottom: 3,
-				}}
-			  >
-				Portfolio Value
-			  </div>
-			  <div 
-				style={{ 
-				  fontSize: "min(8vw, 40px)",   // reduced max size to ensure fit
-				  fontWeight: 800, 
-				  color: "#FFD966", 
-				  lineHeight: 1.2, 
-				  letterSpacing: "-0.01em",
-				  textAlign: "center",
-				  width: "100%",
-				  whiteSpace: "nowrap",
-				  overflow: "visible",
-				}}
-			  >
-				{loading ? (
-				  <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
-				) : metrics.hasFinancials ? (
-				  `TZS ${fmt(metrics.totalMarketValue)}`
-				) : metrics.hasCostData ? (
-				  `TZS ${fmt(metrics.investedCapital)}`
-				) : "—"}
-			  </div>
-			</div>
+            {/* Portfolio Value — big hero number with dynamic font sizing */}
+            <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "rgba(255,255,255,0.4)",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
+                  marginBottom: 4,
+                }}
+              >
+                Portfolio Value
+              </div>
+              {(() => {
+                let displayValue = "—";
+                if (!loading) {
+                  if (metrics.hasFinancials) {
+                    displayValue = `TZS ${fmt(metrics.totalMarketValue)}`;
+                  } else if (metrics.hasCostData) {
+                    displayValue = `TZS ${fmt(metrics.investedCapital)}`;
+                  }
+                }
+                const charCount = displayValue.length;
+                let fontSize = "44px";
+                if (charCount > 20) fontSize = "26px";
+                else if (charCount > 16) fontSize = "30px";
+                else if (charCount > 12) fontSize = "36px";
+                
+                return (
+                  <div 
+                    style={{ 
+                      fontSize: fontSize,
+                      fontWeight: 800, 
+                      color: "#FFD966", 
+                      lineHeight: 1.2, 
+                      letterSpacing: "-0.01em",
+                      textAlign: "center",
+                      width: "100%",
+                      whiteSpace: "nowrap",
+                      overflow: "visible",
+                    }}
+                  >
+                    {loading ? (
+                      <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
+                    ) : displayValue}
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Bottom row: Invested | Return | Holdings */}
             <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
