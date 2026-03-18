@@ -325,6 +325,83 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// ── CDS ACCOUNTS
+// ══════════════════════════════════════════════════════════════════
+
+// ── Fetch a single CDS account by CDS number ──────────────────────
+// Returns { id, cds_number, cds_name, phone, email } or null.
+// Used by TransactionDetailModal to show the account owner's name
+// next to the CDS number in the popup header.
+export async function sbGetCdsAccount(cdsNumber) {
+  if (!cdsNumber) return null;
+  try {
+    const res = await fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,cds_number,cds_name,phone,email&limit=1`,
+      { headers: headers(token()) },
+      "Failed to fetch CDS account"
+    );
+    const rows = await res.json();
+    return rows[0] || null;
+  } catch {
+    // CDS name is non-critical — silently return null if fetch fails
+    return null;
+  }
+}
+
+// ── Insert a new CDS account ───────────────────────────────────────
+export async function sbInsertCdsAccount({ cds_number, cds_name, phone, email }) {
+  const uid = getSession()?.user?.id;
+  const res = await fetch(`${BASE}/rest/v1/cds_accounts`, {
+    method:  "POST",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      cds_number: cds_number.trim(),
+      cds_name:   cds_name.trim(),
+      phone:      phone?.trim()  || null,
+      email:      email?.trim()  || null,
+      created_by: uid            || null,
+    }),
+  });
+  if (!res.ok) {
+    const msg = await extractError(res, "Failed to create CDS account. CDS number may already exist.");
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// ── Update an existing CDS account ────────────────────────────────
+export async function sbUpdateCdsAccount(id, { cds_name, phone, email }) {
+  const res = await fetch(`${BASE}/rest/v1/cds_accounts?id=eq.${id}`, {
+    method:  "PATCH",
+    headers: headers(token()),
+    body:    JSON.stringify({
+      cds_name: cds_name.trim(),
+      phone:    phone?.trim()  || null,
+      email:    email?.trim()  || null,
+    }),
+  });
+  if (!res.ok) {
+    const msg = await extractError(res, "Failed to update CDS account.");
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// ── Search CDS accounts (for SA management table) ─────────────────
+export async function sbSearchCdsAccounts(query = "") {
+  const q = query.trim();
+  const filter = q
+    ? `or=(cds_number.ilike.*${encodeURIComponent(q)}*,cds_name.ilike.*${encodeURIComponent(q)}*)&`
+    : "";
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts?${filter}order=cds_name.asc&select=id,cds_number,cds_name,phone,email,created_at`,
+    { headers: headers(token()) },
+    "Failed to search CDS accounts"
+  );
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════════
 // ── TRANSACTIONS
 // ══════════════════════════════════════════════════════════════════
 
@@ -416,6 +493,7 @@ export async function sbGetTransactionsByIds(ids) {
     rejected_by_name:  nameMap[t.rejected_by]  || null,
   }));
 }
+
 export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_fifo_gain_loss`,
