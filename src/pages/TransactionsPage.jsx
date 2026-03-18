@@ -646,13 +646,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
             Desktop: 2-column side-by-side  |  Mobile: 1 column stacked */}
         <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
-            // Mobile: left panel then right panel, stacked
-            <>
-              {renderLeftPanel()}
-              <div style={{ height: 6, background: C.gray50, borderTop: `1px solid ${C.gray200}`, borderBottom: `1px solid ${C.gray200}` }} />
-              {renderRightPanel()}
-            </>
-          ) : (
+          // Mobile: right panel only — Transaction + Commission Breakdown sections removed
+          renderRightPanel()
+        ) : (
             // Desktop: side-by-side grid (UNCHANGED layout)
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
               <div style={{ borderRight: `1px solid ${C.gray200}` }}>
@@ -1349,6 +1345,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
 
+  // ── Mobile stat cards: only Total Bought + Total Sold ─────────────
+  // For VR who has neither, fall back to first 2 most relevant cards.
+  const mobileStatCards = useMemo(() => {
+    if (!isMobile) return statCards;
+    const preferred = statCards.filter(s => s.label === "Total Bought" || s.label === "Total Sold");
+    return preferred.length >= 2 ? preferred : statCards.slice(0, 2);
+  }, [isMobile, statCards]);
+
   // ── showCheckbox: false on mobile → disables all bulk action flows ──
   const showCheckbox = !isMobile;
   const showActions  = !isRO;
@@ -1441,7 +1445,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           Desktop: 4-column row (unchanged)
           Mobile:  2×2 grid */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
-        {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
       {/* ══════════════════════════════════════════════════════════
@@ -1452,7 +1456,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div style={{ marginBottom: 10, flexShrink: 0 }}>
-          {/* Search */}
+          {/* Row 1: Search — full width */}
           <div style={{ position: "relative", marginBottom: 7 }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
             <input
@@ -1464,36 +1468,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               onBlur={e => { e.target.style.borderColor = C.gray200; }}
             />
           </div>
-
-          {/* Type + Status row */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 7 }}>
-            {["All", "Buy", "Sell"].map(t => (
-              <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-                style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                {t}
-              </button>
-            ))}
+          {/* Row 2: All Statuses + Record button on one line */}
+          <div style={{ display: "flex", gap: 8 }}>
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-              style={{ flex: 2, height: 36, borderRadius: 8, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 12, fontFamily: "inherit", outline: "none", padding: "0 8px", cursor: "pointer" }}>
+              style={{ flex: 1, height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer" }}>
               {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-          </div>
-
-          {/* Action row — Import is intentionally absent on mobile */}
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={loadTransactions}
-              style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-              🔄 Refresh
-            </button>
-            {hasActiveFilters && (
-              <button onClick={resetFilters}
-                style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                Reset
-              </button>
-            )}
             {(isDE || isSAAD) && (
               <button onClick={() => openFormModal(null)} disabled={loadingCompanies}
-                style={{ flex: 2, height: 36, borderRadius: 8, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 12, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                 + Record
               </button>
             )}
