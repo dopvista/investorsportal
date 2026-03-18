@@ -524,7 +524,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
+  ), [metrics, loading, onCloseExpand]);
 
   // ── Mobile level 2: Companies panel ──────────────────────────────
   const renderMobileCompaniesPanel = useCallback(() => (
@@ -579,7 +579,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
+  ), [metrics, loading, onCloseExpand]);
 
   // ── Mobile level 2: Users panel ───────────────────────────────────
   const renderMobileUsersPanel = useCallback(() => (
@@ -971,8 +971,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         <td style={{ padding: "10px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>{metrics.avgFirstBuyDays !== null ? `avg ${metrics.avgFirstBuyDays}d` : "—"}</td>
                         <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
                       </tr>
-                    </tfoot>
-                  )}
+                    )}
                 </table>
               </div>
             )}
@@ -980,5 +979,5 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand, fmt, fmtShort]);
+  );
 }
