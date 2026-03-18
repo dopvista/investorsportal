@@ -1247,7 +1247,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* Market Value — big hero number - MODIFIED: light gold yellow, expandable to fit */}
+            {/* Market Value — big hero number */}
             <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
               <div
                 style={{
@@ -1270,9 +1270,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   letterSpacing: "-0.01em",
                   textAlign: "center",
                   width: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap"
+                  whiteSpace: "nowrap",
+                  overflow: "visible",
                 }}
               >
                 {loading ? (
