@@ -175,9 +175,9 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Change Password Modal — bottom sheet on mobile, centered on desktop ──
+// ── Change Password Modal — bottom sheet on mobile (same pattern as UserManagement modals) ──
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const isMobile = useIsMobile();
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -486,26 +486,50 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
   // ── Shared: avatar element (tappable) ─────────────────────────
-  const renderAvatarEl = (size = 56) => (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      <div
-        style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: C.white, position: "relative" }}
-        onClick={() => !uploadingAvatar && fileRef.current?.click()}
-      >
-        {avatarPreview
-          ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : initials}
-        {uploadingAvatar && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
-            <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+  const renderAvatarEl = (size = 56) => {
+    const mobileMode = isMobile && size >= 60;
+    return (
+      <div style={{ display: mobileMode ? "flex" : "inline-block", flexDirection: mobileMode ? "column" : undefined, alignItems: mobileMode ? "center" : undefined, gap: mobileMode ? 8 : undefined }}>
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <div
+            style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: C.white, position: "relative" }}
+            onClick={() => !uploadingAvatar && fileRef.current?.click()}
+          >
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : initials}
+            {/* Tap-to-edit overlay — mobile only */}
+            {mobileMode && !uploadingAvatar && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", opacity: 0, transition: "opacity 0.2s" }}
+                onTouchStart={e => e.currentTarget.style.opacity = "1"}
+                onTouchEnd={e => e.currentTarget.style.opacity = "0"}
+              >
+                <span style={{ fontSize: 22 }}>📷</span>
+              </div>
+            )}
+            {uploadingAvatar && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
+                <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              </div>
+            )}
           </div>
+          {/* Camera badge */}
+          <div onClick={() => !uploadingAvatar && fileRef.current?.click()} style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}>📷</div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
+        </div>
+        {/* Mobile: tap-to-edit button below avatar */}
+        {mobileMode && (
+          <button
+            onClick={() => !uploadingAvatar && fileRef.current?.click()}
+            disabled={uploadingAvatar}
+            style={{ background: uploadingAvatar ? C.gray100 : C.gray50, border: `1.5px solid ${C.gray200}`, borderRadius: 9, padding: "6px 16px", fontSize: 12, fontWeight: 600, color: C.gray600 || "#4b5563", cursor: uploadingAvatar ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <span>📷</span> {uploadingAvatar ? "Uploading..." : "Change Photo"}
+          </button>
         )}
       </div>
-      {/* Camera badge */}
-      <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 20, height: 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 9 }}>📷</div>
-      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
-    </div>
-  );
+    );
+  };
 
   // ── Shared: CDS accordion ─────────────────────────────────────
   const renderCdsAccordion = () => (
@@ -635,8 +659,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <div style={{ height: 56, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
             {/* Body */}
             <div style={{ padding: "0 16px 16px", marginTop: -32 }}>
-              {/* Avatar */}
-              <div style={{ marginBottom: 10 }}>{renderAvatarEl(64)}</div>
+              {/* Avatar — centered with Change Photo button */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 12 }}>
+                {renderAvatarEl(68)}
+              </div>
               {/* Name */}
               <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>
                 {form.full_name || "Your Name"}
@@ -736,11 +762,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
                 <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </div>
-              {/* Photo tip */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 10, padding: "9px 12px", marginBottom: 4 }}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>📷</span>
-                <div style={{ fontSize: 11, color: C.gray500, lineHeight: 1.5 }}>Tap your avatar at the top to upload a profile photo. Use the crop tool to center your face.</div>
               </div>
               {renderSaveBtn()}
               {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
