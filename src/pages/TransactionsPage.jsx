@@ -287,8 +287,21 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 //   RIGHT panel: Reference & Broker → Audit Trail → Gain/Loss card at bottom
 //                  Buy  → Unrealized Gain/Loss
 //                  Sell → Realized   Gain/Loss  (same card style, sell-specific data)
-const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], cdsAccountName = "", onClose }) {
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
   if (!transaction) return null;
+
+  // Fetch CDS account owner name using the transaction's own cds_number.
+  // Done inside the modal so it works for all roles (SA/AD see all transactions
+  // and don't have a cdsNumber prop at page level).
+  const [cdsAccountName, setCdsAccountName] = useState("");
+  useEffect(() => {
+    if (!transaction.cds_number) return;
+    let cancelled = false;
+    sbGetCdsAccount(transaction.cds_number)
+      .then(acc => { if (!cancelled && acc?.cds_name) setCdsAccountName(acc.cds_name); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [transaction.cds_number]);
 
   const isBuy      = transaction.type === "Buy";
   const isVerified = transaction.status === "verified";
@@ -604,7 +617,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
         {/* ── Footer ── */}
         <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50 }}>
-          <span style={{ fontSize: 11, color: C.gray400 }}>CDS: {transaction.cds_number || "—"}</span>
+          <span style={{ fontSize: 11, color: C.gray400, fontFamily: "monospace", letterSpacing: "0.03em" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             Close
           </button>
@@ -812,14 +825,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
-  // ── CDS account name (owner of the CDS number) ────────────────
-  const [cdsAccountName, setCdsAccountName] = useState("");
-  useEffect(() => {
-    if (!cdsNumber) return;
-    sbGetCdsAccount(cdsNumber)
-      .then(acc => { if (acc?.cds_name && isMountedRef.current) setCdsAccountName(acc.cds_name); })
-      .catch(() => {});
-  }, [cdsNumber]);
 
   const isAnyConfirming  = confirmingIds.size  > 0;
   const isAnyVerifying   = verifyingIds.size   > 0;
@@ -1232,7 +1237,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           transaction={detailTransaction}
           transactions={myTransactions}
           companies={effectiveCompanies}
-          cdsAccountName={cdsAccountName}
           onClose={closeDetail}
         />
       )}
