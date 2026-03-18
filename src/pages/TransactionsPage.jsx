@@ -663,7 +663,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
         {/* ── Footer ── */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: C.gray400, fontFamily: "monospace", letterSpacing: "0.03em" }}>ID: {transaction.id}</span>
+          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
         </div>
 
@@ -1468,17 +1468,20 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               onBlur={e => { e.target.style.borderColor = C.gray200; }}
             />
           </div>
-          {/* Row 2: All Statuses + Record button on one line */}
-          <div style={{ display: "flex", gap: 8 }}>
+          {/* Row 2: All Statuses + Record button — equal width grid matches stat cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-              style={{ flex: 1, height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer" }}>
+              style={{ width: "100%", height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer", boxSizing: "border-box" }}>
               {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            {(isDE || isSAAD) && (
+            {(isDE || isSAAD) ? (
               <button onClick={() => openFormModal(null)} disabled={loadingCompanies}
-                style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                style={{ width: "100%", height: 40, borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", boxSizing: "border-box" }}>
                 + Record
               </button>
+            ) : (
+              // spacer keeps grid balanced when Record is hidden
+              <div />
             )}
           </div>
         </div>
