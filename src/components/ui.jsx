@@ -198,7 +198,7 @@ export function ActionMenu({ actions }) {
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={handleOpen} style={{ width: 32, height: 32, borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: open ? C.gray100 : C.white, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600 }}>⋯</button>
+      <button onClick={handleOpen} style={{ width: 40, height: 40, borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: open ? C.gray100 : C.white, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600 }}>⋯</button>
       {open && (
         <div style={{ position: "fixed", top: pos.top, left: pos.left, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 9999, minWidth: 160, overflow: "hidden" }}>
           {actions.map((a, i) => (
@@ -223,9 +223,10 @@ const useIsMobile = () => {
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80); };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -269,7 +270,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
             {!lockBackdrop && (
-              <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600, flexShrink: 0 }}>✕</button>
+              <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600, flexShrink: 0 }}>✕</button>
             )}
           </div>
         </div>
@@ -305,7 +306,7 @@ export function Modal({ type = "confirm", title, message, onConfirm, onClose }) 
   const isWarn = type === "warning";
   return (
     <ModalShell
-      title={<span style={{ display: "flex", alignItems: "center", gap: 10 }}><span style={{ width: 34, height: 34, borderRadius: 10, background: isWarn ? C.redBg : "#FFF7ED", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{isWarn ? "🚫" : "🗑️"}</span>{title}</span>}
+      title={<span style={{ display: "flex", alignItems: "center", gap: 10 }}><span style={{ width: 40, height: 40, borderRadius: 10, background: isWarn ? C.redBg : "#FFF7ED", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{isWarn ? "🚫" : "🗑️"}</span>{title}</span>}
       onClose={onClose} maxWidth={420}
       footer={isWarn ? (<Btn variant="secondary" onClick={onClose}>Close</Btn>) : (<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="danger" onClick={onConfirm} style={{ background: C.red, color: C.white, border: "none" }}>Yes, Delete</Btn></>)}
     >
