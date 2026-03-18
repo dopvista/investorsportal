@@ -9,9 +9,10 @@ const useIsMobile = () => {
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80); };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -24,7 +25,7 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)" }}>
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform" }}>
         <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
         <div style={{ padding: "12px 20px 0", textAlign: "center" }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: C.gray200, margin: "0 auto 14px" }} />
@@ -301,7 +302,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const spinnerEl = (color = C.green) => (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${color}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+      <div style={{ width: 40, height: 40, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${color}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
     </>
   );
 
@@ -319,7 +320,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           company={actionSheetCompany}
           onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
           onViewHistory={viewHistory}
-          onClose={() => setActionSheetCompany(null)}
+          onClose={closeActionSheet}
         />
       )}
 
@@ -387,7 +388,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               // Mobile: tappable cards → action sheet
               <div style={{ padding: "8px 12px" }}>
                 {filteredPortfolio.map(c => (
-                  <PortfolioMobileCard key={c.id} company={c} onTap={(company) => setActionSheetCompany(company)} />
+                  <PortfolioMobileCard key={c.id} company={c} onTap={setActionSheetCompany} />
                 ))}
               </div>
             ) : (
