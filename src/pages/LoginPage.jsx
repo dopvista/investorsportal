@@ -82,7 +82,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
     setError(""); setSuccess("");
     if (!email.trim()) return setError("Enter your email address");
     setLoading(true);
-    try { await sbResetPassword(email.trim()); setSuccess("Password reset link sent to your email."); }
+    try { await sbResetPassword(email.trim()); setSuccess("Reset link sent to your email."); }
     catch (err) { setError(err.message || "Password reset failed"); }
     finally { setLoading(false); }
   }, [email]);
