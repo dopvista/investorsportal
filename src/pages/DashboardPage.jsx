@@ -523,7 +523,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   // ── Data load with cancellation ───────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    const reqId = {};
     const load = async () => {
       setLoading(true);
       try {
@@ -532,7 +531,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
           activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
-          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []),
+          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
         ]);
         if (!mountedRef.current) return;
         setPortfolio(port || []);
