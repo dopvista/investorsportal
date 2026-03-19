@@ -1,346 +1,174 @@
-// ── src/pages/CompaniesPage.jsx ───────────────────────────────────
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { sbInsert, sbUpdate, sbDelete, sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies } from "../lib/supabase";
-import { C, fmt, fmtSmart, Btn, StatCard, SectionCard, Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu } from "../components/ui";
+// ── src/components/ui.jsx (excerpt) ───────────────────────────────
+// ... (inside PriceHistoryModal component)
 
-export default function CompaniesPage({ companies: globalCompanies, setCompanies, transactions, showToast, role, profile, manageOnly = false }) {
-  const isSA = role === "SA";
-  const cdsNumber = profile?.cds_number || null;
+import { useIsMobile } from "./useIsMobile"; // Ensure this hook is exported
 
-  const [activeTab, setActiveTab] = useState(manageOnly ? "manage" : "portfolio");
+export function PriceHistoryModal({ company, history, onClose }) {
+  const isMobile = useIsMobile();
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
-  const [portfolio, setPortfolio]             = useState([]);
-  const [portfolioLoading, setPortfolioLoading] = useState(true);
-  const [portfolioError, setPortfolioError]   = useState(null);
+  if (!company) return null;
 
-  const [masterList, setMasterList]     = useState([]);
-  const [masterLoading, setMasterLoading] = useState(false);
+  const meaningful = history.filter(h => {
+    const isInitial = !h.old_price || Number(h.old_price) === 0;
+    if (isInitial) return true;
+    return Number(h.change_amount) !== 0;
+  });
 
-  const [search, setSearch]         = useState("");
-  const [deleting, setDeleting]     = useState(null);
-  const [updating, setUpdating]     = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(null);
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [historyModal, setHistoryModal] = useState({ open: false, company: null, history: [] });
-  const [updateModal, setUpdateModal]   = useState({ open: false, company: null });
-  const [formModal, setFormModal]       = useState({ open: false, company: null });
+  const now       = new Date();
+  const thisMonth = meaningful.filter(h => {
+    const d = new Date(h.created_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+  const monthLabel   = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const totalPages   = Math.ceil(thisMonth.length / PAGE_SIZE);
+  const pagedHistory = thisMonth.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const isMountedRef     = useRef(true);
-  const portfolioReqRef  = useRef(0);
-  const masterReqRef     = useRef(0);
+  const PaginationBar = () => totalPages <= 1 ? null : (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0 2px" }}>
+      {/* ... same pagination buttons ... */}
+    </div>
+  );
 
-  useEffect(() => () => { isMountedRef.current = false; }, []);
-  useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
-
-  const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
-  const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
-
-  const closeDeleteModal  = useCallback(() => setDeleteModal(null), []);
-  const closeHistoryModal = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
-  const closeUpdateModal  = useCallback(() => setUpdateModal({ open: false, company: null }), []);
-  const closeFormModal    = useCallback(() => setFormModal({ open: false, company: null }), []);
-  const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
-
-  const loadPortfolio = useCallback(async () => {
-    const reqId = ++portfolioReqRef.current;
-    if (!cdsNumber) {
-      if (isMountedRef.current && reqId === portfolioReqRef.current) { setPortfolio([]); setPortfolioError(null); setPortfolioLoading(false); }
-      return;
-    }
-    if (isMountedRef.current) { setPortfolioLoading(true); setPortfolioError(null); }
-    try {
-      const data = await sbGetPortfolio(cdsNumber);
-      if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
-      setPortfolio(data);
-    } catch (e) {
-      if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
-      setPortfolioError(e.message || "Failed to load portfolio.");
-    } finally {
-      if (isMountedRef.current && reqId === portfolioReqRef.current) setPortfolioLoading(false);
-    }
-  }, [cdsNumber]);
-
-  const loadMasterList = useCallback(async () => {
-    const reqId = ++masterReqRef.current;
-    if (isMountedRef.current) setMasterLoading(true);
-    try {
-      const data = await sbGetAllCompanies();
-      if (!isMountedRef.current || reqId !== masterReqRef.current) return;
-      setMasterList(data);
-    } catch (e) {
-      if (!isMountedRef.current || reqId !== masterReqRef.current) return;
-      showToast("Error loading companies: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current && reqId === masterReqRef.current) setMasterLoading(false);
-    }
-  }, [showToast]);
-
-  useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
-  useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
-
-  const portfolioStats = useMemo(() => {
-    const priced   = portfolio.filter(c => c.cds_price != null);
-    const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
-    const highest  = priced.length ? Math.max(...priced.map(c => Number(c.cds_price))) : 0;
-    return { total: portfolio.length, avgPrice, highest, unpriced: portfolio.length - priced.length };
-  }, [portfolio]);
-
-  const filteredPortfolio = useMemo(() => {
-    if (!normalizedSearch) return portfolio;
-    return portfolio.filter(c => c.name.toLowerCase().includes(normalizedSearch));
-  }, [portfolio, normalizedSearch]);
-
-  const manageStats = useMemo(() => ({
-    total: masterList.length,
-    registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
-  }), [masterList, todayIso]);
-
-  const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
-    const company = updateModal.company;
-    if (!company) return;
-    const oldPrice = company.cds_price != null ? Number(company.cds_price) : null;
-    setUpdateModal({ open: false, company: null });
-    setUpdating(company.id);
-    try {
-      const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
-      await sbUpsertCdsPrice({ companyId: company.id, companyName: company.name, cdsNumber, newPrice, oldPrice, reason, updatedBy: profile?.full_name || "Unknown", datetime });
-      if (!isMountedRef.current) return;
-      setPortfolio(prev => prev.map(c => c.id === company.id ? { ...c, cds_price: newPrice, cds_previous_price: oldPrice, cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt } : c));
-      showToast("Price updated for your portfolio!", "success");
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setUpdating(null);
-    }
-  }, [updateModal.company, cdsNumber, profile?.full_name, showToast]);
-
-  const viewHistory = useCallback(async (company) => {
-    setLoadingHistory(company.id);
-    try {
-      const history = await sbGetCdsPriceHistory(company.id, cdsNumber);
-      if (!isMountedRef.current) return;
-      setHistoryModal({ open: true, company, history });
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error loading history: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setLoadingHistory(null);
-    }
-  }, [cdsNumber, showToast]);
-
-  const handleFormConfirm = useCallback(async ({ name, price, remarks }) => {
-    const editingCompany = formModal.company;
-    const isEdit = !!editingCompany;
-    try {
-      if (isEdit) {
-        const rows = await sbUpdate("companies", editingCompany.id, { name, remarks });
-        if (!isMountedRef.current) return;
-        setMasterList(prev => prev.map(c => (c.id === editingCompany.id ? rows[0] : c)));
-        showToast("Company updated!", "success");
-      } else {
-        const rows = await sbInsert("companies", { name, price, remarks });
-        if (!isMountedRef.current) return;
-        setMasterList(prev => [rows[0], ...prev]);
-        showToast("Company registered!", "success");
-      }
-      setFormModal({ open: false, company: null });
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error: " + e.message, "error");
-    }
-  }, [formModal.company, showToast]);
-
-  const confirmDelete = useCallback(async () => {
-    const id = deleteModal?.id;
-    if (!id) return;
-    setDeleteModal(null);
-    setDeleting(id);
-    try {
-      await sbDelete("companies", id);
-      if (!isMountedRef.current) return;
-      setMasterList(prev => prev.filter(c => c.id !== id));
-      showToast("Company deleted.", "success");
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setDeleting(null);
-    }
-  }, [deleteModal, showToast]);
+  // Column widths based on screen size
+  const colWidths = isMobile
+    ? ["5%", "33%", "20%", "20%", "22%"]  // as before
+    : ["5%", "28%", "15%", "15%", "20%", "17%"]; // desktop: extra column for "Changed By"
 
   return (
-    <div>
-      {deleteModal  && <Modal type="confirm" title="Delete Company" message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`} onConfirm={confirmDelete} onClose={closeDeleteModal} />}
-      {historyModal.open && <PriceHistoryModal company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null} history={historyModal.history} onClose={closeHistoryModal} />}
-      {updateModal.open  && <UpdatePriceModal key={updateModal.company?.id} company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null} onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />}
-      {formModal.open    && <CompanyFormModal key={formModal.company?.id || "new"} company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />}
-
-      {activeTab === "portfolio" && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
-            <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon="🏢" color={C.navy}  />
-            <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon="📊" color={C.green} />
-            <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon="🏆" color={C.gold}  />
-            <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Tap ⋯ → Set Price to track"    icon="💰" color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search your holdings..." style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }} onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
-            </div>
-            {search && <Btn variant="secondary" onClick={() => setSearch("")}>Clear</Btn>}
-            <Btn variant="secondary" icon="🔄" onClick={loadPortfolio}>Refresh</Btn>
-          </div>
-
-          <SectionCard title={`Portfolio Holdings (${filteredPortfolio.length}${search ? ` of ${portfolio.length}` : ""})`} subtitle="Prices are your own CDS analysis prices — not shared with other users">
-            {portfolioLoading ? (
-              <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                <div style={{ fontSize: 13 }}>Loading your portfolio...</div>
-              </div>
-            ) : portfolioError ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: C.red }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
-                <div style={{ fontWeight: 600 }}>Failed to load portfolio</div>
-                <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{portfolioError}</div>
-              </div>
-            ) : portfolio.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>No holdings yet</div>
-                <div style={{ fontSize: 13 }}>Record transactions to see companies appear here automatically</div>
-              </div>
-            ) : filteredPortfolio.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-                <div style={{ fontWeight: 600 }}>No results for "{search}"</div>
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
-                      {["#", "Company", "My Price (TZS)", "Change", "Previous Price (TZS)", "Last Updated", "Updated By", "Actions"].map(h => (
-                        <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "My Price (TZS)" || h === "Change" || h === "Previous Price (TZS)" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPortfolio.map((c, i) => {
-                      const hasCdsPrice = c.cds_price != null;
-                      const priceUp     = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
-                      const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
-                        ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
-
-                      const portfolioActions = [
-                        { icon: "💰", label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price", onClick: () => setUpdateModal({ open: true, company: c }) },
-                        { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => viewHistory(c) },
-                      ];
-
-                      return (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
-                          onMouseEnter={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFF8DC" : C.gray50; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFFBEB" : "transparent"; }}
-                        >
-                          <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-                          <td style={{ padding: "10px 16px", minWidth: 140 }}>
-                            <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
-                            {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
-                          </td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {hasCdsPrice
-                              ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
-                              : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
-                          </td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {priceUp !== null && changePct !== null
-                              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
-                              : <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            {c.cds_previous_price != null ? <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span> : <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
-                            {c.cds_updated_at
-                              ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
-                              : <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "10px 16px" }}>
-                            {c.cds_updated_by ? <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span> : <span style={{ color: C.gray400 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "10px 16px", textAlign: "right" }}>
-                            <ActionMenu actions={portfolioActions} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+    <ModalShell
+      title={company.name}
+      subtitle="📈 Price history"
+      headerRight={
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div>
+        </div>
+      }
+      onClose={onClose}
+      maxWidth={isMobile ? 580 : 720} // slightly wider on desktop
+      footer={
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div style={{ fontSize: 12, color: C.gray400 }}>
+            {thisMonth.length} update{thisMonth.length !== 1 ? "s" : ""} in {monthLabel}
+            {thisMonth.length !== meaningful.length && (
+              <span style={{ marginLeft: 6, color: C.gray400 }}>· {meaningful.length} total all-time</span>
             )}
-          </SectionCard>
+          </div>
+          <Btn variant="secondary" onClick={onClose}>Close</Btn>
+        </div>
+      }
+    >
+      {thisMonth.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "30px 20px", color: C.gray400 }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+          <div style={{ fontWeight: 600 }}>No price changes in {monthLabel}</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>
+            {meaningful.length > 0 ? `${meaningful.length} update${meaningful.length !== 1 ? "s" : ""} exist in previous months` : "No price history recorded yet"}
+          </div>
+        </div>
+      ) : (
+        <>
+          {totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: C.gray400 }}>
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, thisMonth.length)} of {thisMonth.length}
+              </div>
+            </div>
+          )}
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: colWidths[0] }} />
+              <col style={{ width: colWidths[1] }} />
+              <col style={{ width: colWidths[2] }} />
+              <col style={{ width: colWidths[3] }} />
+              <col style={{ width: colWidths[4] }} />
+              {!isMobile && <col style={{ width: colWidths[5] }} />}
+            </colgroup>
+            <thead>
+              <tr style={{ background: C.gray50 }}>
+                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Changed By"].filter(Boolean).map(h => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: "10px 12px",
+                      textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left",
+                      color: C.gray400,
+                      fontWeight: 700,
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      borderBottom: `1px solid ${C.gray200}`,
+                      borderTop: `1px solid ${C.gray200}`,
+                      whiteSpace: "nowrap",
+                      background: C.gray50,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pagedHistory.map((h, i) => {
+                const globalIdx    = (page - 1) * PAGE_SIZE + i;
+                const isFirstEntry = !h.old_price || Number(h.old_price) === 0;
+                const up = !isFirstEntry && h.change_amount >= 0;
+                return (
+                  <tr
+                    key={h.id}
+                    style={{ borderBottom: `1px solid ${C.gray100}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.gray50}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <td style={{ padding: "10px 12px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                        {new Date(h.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.gray400 }}>
+                        {new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </td>
+                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>
+                      {isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}
+                    </td>
+                    <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
+                    <td style={{ padding: "10px 12px", textAlign: "right" }}>
+                      {isFirstEntry
+                        ? <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span>
+                        : <span style={{
+                            background: up ? C.greenBg : C.redBg,
+                            color: up ? C.green : C.red,
+                            padding: "3px 9px",
+                            borderRadius: 20,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                          }}>
+                            {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
+                          </span>}
+                    </td>
+                    {!isMobile && (
+                      <td style={{ padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}>
+                        {h.updated_by ? (
+                          <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>
+                            {h.updated_by}
+                          </span>
+                        ) : (
+                          <span style={{ color: C.gray400 }}>—</span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <PaginationBar />
         </>
       )}
-
-      {activeTab === "manage" && isSA && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
-            <StatCard label="Total Companies"   value={manageStats.total}             sub="In master registry" icon="🏢" color={C.navy}  />
-            <StatCard label="Registered Today"  value={manageStats.registeredToday}   sub="Added today"        icon="✅" color={C.green} />
-            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
-              <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register New Company</Btn>
-            </div>
-          </div>
-
-          <SectionCard title={`Master Company Registry (${masterList.length})`} subtitle="All listed companies available in the system">
-            {masterLoading ? (
-              <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                <div style={{ fontSize: 13 }}>Loading master registry...</div>
-              </div>
-            ) : masterList.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies registered yet</div>
-                <div style={{ fontSize: 13 }}>Click "Register Company" to add the first one</div>
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
-                      {["#", "Company Name", "Remarks", "Registered", "Actions"].map(h => (
-                        <th key={h} style={{ padding: "10px 18px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {masterList.map((c, i) => {
-                      const manageActions = [
-                        { icon: "✏️", label: "Edit Company", onClick: () => setFormModal({ open: true, company: c }) },
-                        { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
-                      ];
-                      return (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }} onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-                          <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-                          <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
-                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
-                          <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
-                          <td style={{ padding: "10px 18px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </SectionCard>
-        </>
-      )}
-    </div>
+    </ModalShell>
   );
 }
