@@ -361,54 +361,223 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     if (step === "send") {
       return (
         <>
-          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>For security, we'll send a one-time verification code to your email before allowing a password change.</p>
-          <div style={{ background: C.gray50, border: `1px solid ${C.gray100}`, borderRadius: 9, padding: "10px 13px", fontSize: 13, color: C.gray400, marginBottom: 20 }}>📧 {email}</div>
-          {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
+          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>
+            For security, we'll send a one-time verification code to your email before allowing a password change.
+          </p>
+          <div
+            style={{
+              background: C.gray50,
+              border: `1px solid ${C.gray100}`,
+              borderRadius: 9,
+              padding: "10px 13px",
+              fontSize: 15,
+              fontWeight: 600,
+              color: C.text,
+              marginBottom: 20,
+              textAlign: "center",
+            }}
+          >
+            📧 {email}
+          </div>
+          {error && (
+            <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={handleSendOtp} disabled={loading || remaining <= 0} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading || remaining <= 0 ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading || remaining <= 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            <button
+              onClick={handleSendOtp}
+              disabled={loading || remaining <= 0}
+              style={{
+                flex: 1,
+                padding: "12px",
+                borderRadius: 10,
+                border: "none",
+                background: loading || remaining <= 0 ? C.gray200 : C.green,
+                color: C.white,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: loading || remaining <= 0 ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
               {loading ? "Sending..." : "Send Verification Code"}
             </button>
-            <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: "12px",
+                borderRadius: 10,
+                border: `1.5px solid ${C.gray200}`,
+                background: C.white,
+                color: C.gray400,
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
+            </button>
           </div>
-          {remaining <= 0 && <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>Daily limit reached. Try again tomorrow.</div>}
+          {remaining <= 0 && (
+            <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>
+              Daily limit reached. Try again tomorrow.
+            </div>
+          )}
         </>
       );
     }
     if (step === "verify") {
       return (
         <>
-          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.</p>
-          {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
+          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>
+            An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.
+          </p>
+          {error && (
+            <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
           <Field label="Verification Code">
-            <input style={inp({ letterSpacing: "0.2em", fontWeight: 700, textAlign: "center", fontSize: 18 })} type="text" inputMode="numeric" maxLength={8} placeholder="00000000" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))} />
+            <input
+              style={inp({ letterSpacing: "0.2em", fontWeight: 700, textAlign: "center", fontSize: 18 })}
+              type="text"
+              inputMode="numeric"
+              maxLength={8}
+              placeholder="00000000"
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+            />
           </Field>
           <Field label="New Password">
             <div style={{ position: "relative" }}>
-              <input style={inp({ paddingRight: 44 })} type={show.new ? "text" : "password"} placeholder="At least 6 characters" value={newPw} onChange={e => setNewPw(e.target.value)} />
-              <button type="button" onClick={() => setShow(s => ({ ...s, new: !s.new }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.new ? "🙈" : "👁"}</button>
+              <input
+                style={inp({ paddingRight: 44 })}
+                type={show.new ? "text" : "password"}
+                placeholder="At least 6 characters"
+                value={newPw}
+                onChange={e => setNewPw(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShow(s => ({ ...s, new: !s.new }))}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  color: C.gray400,
+                }}
+              >
+                {show.new ? "🙈" : "👁"}
+              </button>
             </div>
             {newPw && (
               <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
-                {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
-                <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
+                {[1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 3,
+                      borderRadius: 3,
+                      background: i <= pw.score ? pw.color : C.gray100,
+                    }}
+                  />
+                ))}
+                <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>
+                  {pw.label}
+                </span>
               </div>
             )}
           </Field>
           <Field label="Confirm New Password">
             <div style={{ position: "relative" }}>
-              <input style={inp({ paddingRight: 44 })} type={show.confirm ? "text" : "password"} placeholder="Repeat new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-              <button type="button" onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.confirm ? "🙈" : "👁"}</button>
+              <input
+                style={inp({ paddingRight: 44 })}
+                type={show.confirm ? "text" : "password"}
+                placeholder="Repeat new password"
+                value={confirmPw}
+                onChange={e => setConfirmPw(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  color: C.gray400,
+                }}
+              >
+                {show.confirm ? "🙈" : "👁"}
+              </button>
             </div>
           </Field>
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button onClick={handleVerifyAndUpdate} disabled={loading} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            <button
+              onClick={handleVerifyAndUpdate}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: "12px",
+                borderRadius: 10,
+                border: "none",
+                background: loading ? C.gray200 : C.green,
+                color: C.white,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: loading ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
               {loading ? "Verifying..." : "Update Password"}
             </button>
-            <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: "12px",
+                borderRadius: 10,
+                border: `1.5px solid ${C.gray200}`,
+                background: C.white,
+                color: C.gray400,
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
+            </button>
           </div>
           <div style={{ textAlign: "center", marginTop: 12 }}>
-            <button onClick={countdown > 0 ? null : handleSendOtp} disabled={countdown > 0} style={{ background: "none", border: "none", fontSize: 12, color: countdown > 0 ? C.gray400 : C.green, cursor: countdown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-              {countdown > 0 ? `Resend in ${Math.floor(countdown/60)}:${String(countdown%60).padStart(2,"0")}` : "Resend code"}
+            <button
+              onClick={countdown > 0 ? null : handleSendOtp}
+              disabled={countdown > 0}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 12,
+                color: countdown > 0 ? C.gray400 : C.green,
+                cursor: countdown > 0 ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {countdown > 0
+                ? `Resend in ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, "0")}`
+                : "Resend code"}
             </button>
           </div>
         </>
@@ -417,10 +586,31 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     if (step === "done") {
       return (
         <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
-          <div style={{ width: 64, height: 64, background: `${C.green}15`, border: `2px solid ${C.green}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
-          <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>Password Updated!</div>
-          <div style={{ fontSize: 13, color: C.gray400 }}>Your password has been changed successfully.</div>
-          <div style={{ fontSize: 12, color: C.gray400, marginTop: 6 }}>{remainingPwChanges(uid)} of {PW_MAX_DAILY} changes remaining today</div>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              background: `${C.green}15`,
+              border: `2px solid ${C.green}`,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+              fontSize: 28,
+            }}
+          >
+            ✓
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>
+            Password Updated!
+          </div>
+          <div style={{ fontSize: 13, color: C.gray400 }}>
+            Your password has been changed successfully.
+          </div>
+          <div style={{ fontSize: 12, color: C.gray400, marginTop: 6 }}>
+            {remainingPwChanges(uid)} of {PW_MAX_DAILY} changes remaining today
+          </div>
         </div>
       );
     }
@@ -439,9 +629,9 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // MAIN ProfilePage
-// ════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onSwitchCds }) {
   const email         = emailProp || session?.user?.email || session?.email || profile?.email || "";
   const isMountedRef  = useRef(true);
@@ -859,7 +1049,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
-              {/* Date of Birth (moved from More Info) */}
+              {/* Date of Birth */}
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
                 <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
@@ -874,7 +1064,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <div>
               <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity & Contact</div>
-                {/* Phone Number (moved from Personal) */}
+                {/* Phone Number */}
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
                   <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
