@@ -38,7 +38,7 @@ function ModalShell({ title, subtitle, onClose, children, footer }) {
     >
       <div style={{
         background: C.white,
-        borderRadius: "16px 16px 0 0",
+        borderRadius: isMobile ? "18px 18px 0 0" : 18,
         width: "100%",
         maxWidth: "100%",
         display: "flex",
@@ -49,12 +49,14 @@ function ModalShell({ title, subtitle, onClose, children, footer }) {
         {/* Header */}
         <div style={{
           background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
-          padding: "18px 20px 14px",
+          padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
           borderBottom: `1px solid ${C.gray200}`,
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
           flexShrink: 0,
+          borderTopLeftRadius: isMobile ? "18px" : 18,
+          borderTopRightRadius: isMobile ? "18px" : 18,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{title}</div>
