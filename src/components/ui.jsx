@@ -774,6 +774,7 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
 
 // ─── Price History Modal ──────────────────────────────────────────
 export function PriceHistoryModal({ company, history, onClose }) {
+  const isMobile = useIsMobile();
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -892,6 +893,11 @@ export function PriceHistoryModal({ company, history, onClose }) {
     </div>
   );
 
+  // Column widths based on screen size
+  const colWidths = isMobile
+    ? ["5%", "33%", "20%", "20%", "22%"]
+    : ["5%", "28%", "15%", "15%", "20%", "17%"];
+
   return (
     <ModalShell
       title={company.name}
@@ -903,7 +909,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       }
       onClose={onClose}
-      maxWidth={580}
+      maxWidth={isMobile ? 580 : 720}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <div style={{ fontSize: 12, color: C.gray400 }}>
@@ -935,34 +941,37 @@ export function PriceHistoryModal({ company, history, onClose }) {
           )}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: "5%" }} />
-              <col style={{ width: "33%" }} />
-              <col style={{ width: "20%" }} />
-              <col style={{ width: "20%" }} />
-              <col style={{ width: "22%" }} />
+              <col style={{ width: colWidths[0] }} />
+              <col style={{ width: colWidths[1] }} />
+              <col style={{ width: colWidths[2] }} />
+              <col style={{ width: colWidths[3] }} />
+              <col style={{ width: colWidths[4] }} />
+              {!isMobile && <col style={{ width: colWidths[5] }} />}
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
-                {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "10px 12px",
-                      textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left",
-                      color: C.gray400,
-                      fontWeight: 700,
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      borderBottom: `1px solid ${C.gray200}`,
-                      borderTop: `1px solid ${C.gray200}`,
-                      whiteSpace: "nowrap",
-                      background: C.gray50,
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Changed By"]
+                  .filter(Boolean)
+                  .map(h => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 12px",
+                        textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left",
+                        color: C.gray400,
+                        fontWeight: 700,
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        borderBottom: `1px solid ${C.gray200}`,
+                        borderTop: `1px solid ${C.gray200}`,
+                        whiteSpace: "nowrap",
+                        background: C.gray50,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
               </tr>
             </thead>
             <tbody>
@@ -1006,6 +1015,17 @@ export function PriceHistoryModal({ company, history, onClose }) {
                           </span>
                       }
                     </td>
+                    {!isMobile && (
+                      <td style={{ padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}>
+                        {h.updated_by ? (
+                          <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>
+                            {h.updated_by}
+                          </span>
+                        ) : (
+                          <span style={{ color: C.gray400 }}>—</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
