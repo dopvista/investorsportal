@@ -73,10 +73,9 @@ export default function LoginPage({ onLogin, loginSettings }) {
     if (!email.trim() || !password.trim()) return setError("Email and password are required");
     setLoading(true);
     try {
-      const data = await sbSignIn(email.trim(), password);
-      // Clear loading before calling onLogin to ensure smooth transition
-      setLoading(false);
-      onLogin(data);
+      const session = await sbSignIn(email.trim(), password);
+      // session should contain { user, access_token, ... } – pass it directly
+      onLogin(session);
     } catch (err) {
       setError(err.message || "Invalid email or password");
       setLoading(false);
