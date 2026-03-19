@@ -175,9 +175,110 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Change Password Modal — bottom sheet on mobile (same pattern as UserManagement modals) ──
-function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
+// ── Modal Shell (copied from ui.jsx to ensure consistent style) ──
+function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const isMobile = useIsMobile();
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 24,
+      }}
+      onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: C.white,
+        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        width: "100%",
+        maxWidth: isMobile ? "100%" : maxWidth,
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
+        ...((!isMobile && maxHeight) ? { maxHeight } : {}),
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
+          borderBottom: `1px solid ${C.gray200}`,
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 13, color: C.gray400, marginTop: 3 }}>{subtitle}</div>}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
+            {headerRight}
+            {!lockBackdrop && (
+              <button
+                onClick={onClose}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  border: `1px solid ${C.gray200}`,
+                  background: C.gray50,
+                  cursor: "pointer",
+                  fontSize: 15,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: C.gray600,
+                  flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+        {/* Body */}
+        <div style={{
+          padding: isMobile ? "16px 18px" : "20px 28px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          overflowY: "auto",
+          flex: 1,
+        }}>
+          {children}
+        </div>
+        {/* Footer */}
+        {footer && (
+          <div style={{
+            padding: isMobile ? "12px 18px" : "16px 28px",
+            borderTop: `1px solid ${C.gray200}`,
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            alignItems: "center",
+            background: C.gray50,
+            borderRadius: isMobile ? 0 : "0 0 16px 16px",
+            flexShrink: 0,
+            position: isMobile ? "sticky" : "static",
+            bottom: 0,
+            zIndex: 2,
+          }}>
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Change Password Modal — now uses ModalShell for consistent style ──
+function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -210,13 +311,6 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     ][s];
   };
   const pw = strength(newPw);
-
-  const mInp = (extra = {}) => ({
-    width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 14,
-    border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
-    background: C.white, color: C.text, transition: "border 0.2s",
-    boxSizing: "border-box", ...extra,
-  });
 
   const handleSendOtp = async () => {
     if (remaining <= 0) { setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`); return; }
@@ -262,87 +356,85 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
-  return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
-      <div
-        style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}
-        onMouseDown={e => e.stopPropagation()}
-      >
-        <div style={{ background: C.white, borderRadius: isMobile ? "18px 18px 0 0" : 18, overflow: "hidden", width: "100%", maxWidth: isMobile ? "100%" : 440, maxHeight: isMobile ? "92vh" : undefined, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.25s ease", display: "flex", flexDirection: "column" }}>
-          {/* Handle — mobile only */}
-          {isMobile && <div style={{ width: 36, height: 4, borderRadius: 2, background: C.gray200, margin: "12px auto 0" }} />}
-          <div style={{ background: C.navy, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-            <div>
-              <div style={{ color: C.white, fontWeight: 800, fontSize: 16 }}>Change Password</div>
-              <div style={{ color: C.gold, fontSize: 11, marginTop: 2 }}>Verify your identity with a one-time code</div>
-            </div>
-            <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+  const renderContent = () => {
+    if (step === "send") {
+      return (
+        <>
+          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>For security, we'll send a one-time verification code to your email before allowing a password change.</p>
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray100}`, borderRadius: 9, padding: "10px 13px", fontSize: 13, color: C.gray400, marginBottom: 20 }}>📧 {email}</div>
+          {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={handleSendOtp} disabled={loading || remaining <= 0} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading || remaining <= 0 ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading || remaining <= 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              {loading ? "Sending..." : "Send Verification Code"}
+            </button>
+            <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
           </div>
-          <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-            {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
-            {step === "send" && (
-              <>
-                <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>For security, we'll send a one-time verification code to your email before allowing a password change.</p>
-                <div style={{ background: C.gray50, border: `1px solid ${C.gray100}`, borderRadius: 9, padding: "10px 13px", fontSize: 13, color: C.gray400, marginBottom: 20 }}>📧 {email}</div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={handleSendOtp} disabled={loading || remaining <= 0} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading || remaining <= 0 ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading || remaining <= 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {loading ? "Sending..." : "Send Verification Code"}
-                  </button>
-                  <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                </div>
-                {remaining <= 0 && <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>Daily limit reached. Try again tomorrow.</div>}
-              </>
-            )}
-            {step === "verify" && (
-              <>
-                <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.</p>
-                <Field label="Verification Code">
-                  <input style={mInp({ letterSpacing: "0.2em", fontWeight: 700, textAlign: "center", fontSize: 18 })} type="text" inputMode="numeric" maxLength={8} placeholder="00000000" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))} />
-                </Field>
-                <Field label="New Password">
-                  <div style={{ position: "relative" }}>
-                    <input style={mInp({ paddingRight: 44 })} type={show.new ? "text" : "password"} placeholder="At least 6 characters" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                    <button type="button" onClick={() => setShow(s => ({ ...s, new: !s.new }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.new ? "🙈" : "👁"}</button>
-                  </div>
-                  {newPw && (
-                    <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
-                      {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
-                      <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
-                    </div>
-                  )}
-                </Field>
-                <Field label="Confirm New Password">
-                  <div style={{ position: "relative" }}>
-                    <input style={mInp({ paddingRight: 44 })} type={show.confirm ? "text" : "password"} placeholder="Repeat new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-                    <button type="button" onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.confirm ? "🙈" : "👁"}</button>
-                  </div>
-                </Field>
-                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                  <button onClick={handleVerifyAndUpdate} disabled={loading} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {loading ? "Verifying..." : "Update Password"}
-                  </button>
-                  <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                </div>
-                <div style={{ textAlign: "center", marginTop: 12 }}>
-                  <button onClick={countdown > 0 ? null : handleSendOtp} disabled={countdown > 0} style={{ background: "none", border: "none", fontSize: 12, color: countdown > 0 ? C.gray400 : C.green, cursor: countdown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {countdown > 0 ? `Resend in ${Math.floor(countdown/60)}:${String(countdown%60).padStart(2,"0")}` : "Resend code"}
-                  </button>
-                </div>
-              </>
-            )}
-            {step === "done" && (
-              <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
-                <div style={{ width: 64, height: 64, background: `${C.green}15`, border: `2px solid ${C.green}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
-                <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>Password Updated!</div>
-                <div style={{ fontSize: 13, color: C.gray400 }}>Your password has been changed successfully.</div>
-                <div style={{ fontSize: 12, color: C.gray400, marginTop: 6 }}>{remainingPwChanges(uid)} of {PW_MAX_DAILY} changes remaining today</div>
+          {remaining <= 0 && <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>Daily limit reached. Try again tomorrow.</div>}
+        </>
+      );
+    }
+    if (step === "verify") {
+      return (
+        <>
+          <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.</p>
+          {error && <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</div>}
+          <Field label="Verification Code">
+            <input style={inp({ letterSpacing: "0.2em", fontWeight: 700, textAlign: "center", fontSize: 18 })} type="text" inputMode="numeric" maxLength={8} placeholder="00000000" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))} />
+          </Field>
+          <Field label="New Password">
+            <div style={{ position: "relative" }}>
+              <input style={inp({ paddingRight: 44 })} type={show.new ? "text" : "password"} placeholder="At least 6 characters" value={newPw} onChange={e => setNewPw(e.target.value)} />
+              <button type="button" onClick={() => setShow(s => ({ ...s, new: !s.new }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.new ? "🙈" : "👁"}</button>
+            </div>
+            {newPw && (
+              <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
+                {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />)}
+                <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
               </div>
             )}
+          </Field>
+          <Field label="Confirm New Password">
+            <div style={{ position: "relative" }}>
+              <input style={inp({ paddingRight: 44 })} type={show.confirm ? "text" : "password"} placeholder="Repeat new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+              <button type="button" onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}>{show.confirm ? "🙈" : "👁"}</button>
+            </div>
+          </Field>
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button onClick={handleVerifyAndUpdate} disabled={loading} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              {loading ? "Verifying..." : "Update Password"}
+            </button>
+            <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
           </div>
+          <div style={{ textAlign: "center", marginTop: 12 }}>
+            <button onClick={countdown > 0 ? null : handleSendOtp} disabled={countdown > 0} style={{ background: "none", border: "none", fontSize: 12, color: countdown > 0 ? C.gray400 : C.green, cursor: countdown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              {countdown > 0 ? `Resend in ${Math.floor(countdown/60)}:${String(countdown%60).padStart(2,"0")}` : "Resend code"}
+            </button>
+          </div>
+        </>
+      );
+    }
+    if (step === "done") {
+      return (
+        <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+          <div style={{ width: 64, height: 64, background: `${C.green}15`, border: `2px solid ${C.green}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>Password Updated!</div>
+          <div style={{ fontSize: 13, color: C.gray400 }}>Your password has been changed successfully.</div>
+          <div style={{ fontSize: 12, color: C.gray400, marginTop: 6 }}>{remainingPwChanges(uid)} of {PW_MAX_DAILY} changes remaining today</div>
         </div>
-      </div>
-    </>
+      );
+    }
+  };
+
+  return (
+    <ModalShell
+      title="Change Password"
+      subtitle="Verify your identity with a one-time code"
+      onClose={onClose}
+      maxWidth={440}
+      footer={null}
+    >
+      {renderContent()}
+    </ModalShell>
   );
 }
 
@@ -649,7 +741,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {renderSwitchModal()}
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — matches screenshot
+          MOBILE LAYOUT — matches screenshot, with Gender moved to Personal tab
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div>
@@ -749,7 +841,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             ))}
           </div>
 
-          {/* ── Personal tab ── */}
+          {/* ── Personal tab ── (now includes Gender) */}
           {mobileTab === "personal" && (
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Account Information</div>
@@ -758,7 +850,15 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
                 <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
               </div>
-              {/* Phone */}
+              {/* Gender (moved from More Info) */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
+                <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
+                  <option value="">Select gender</option>
+                  {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              {/* Phone Number */}
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
                 <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
@@ -768,29 +868,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
           )}
 
-          {/* ── More Info tab ── */}
+          {/* ── More Info tab ── (remaining fields) */}
           {mobileTab === "more" && (
             <div>
-              {/* Identity section */}
-              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Details</div>
-                {/* Gender */}
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
-                  <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
-                    <option value="">Select gender</option>
-                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-                {/* Date of Birth */}
-                <div style={{ marginBottom: 4 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
-                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </div>
-              </div>
               {/* Identity & Contact section */}
               <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity &amp; Contact</div>
+                {/* Date of Birth */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
                 {/* National ID */}
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>National ID (NIDA)</label>
@@ -815,7 +903,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — COMPLETELY UNCHANGED from document 3
+          DESKTOP LAYOUT — COMPLETELY UNCHANGED from original
           ══════════════════════════════════════════════════════════ */}
       {!isMobile && (
         <>
