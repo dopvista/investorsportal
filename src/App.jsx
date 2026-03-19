@@ -1,3 +1,4 @@
+// ── src/App.jsx ───────────────────────────────────────────────────
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   getSession,
@@ -82,6 +83,16 @@ export default function App() {
   // ── Mobile state ─────────────────────────────────────────────────
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Safety timeout to force loading false after 10 seconds
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      console.warn("Loading timeout – forcing loading false");
+      setLoading(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Close drawer on tab change or on resize back to desktop
   useEffect(() => {
@@ -312,6 +323,7 @@ export default function App() {
         setTransactions([]);
       } catch (e) {
         if (!cancelled) {
+          console.error("loadAppCore error:", e);
           setDbError(e?.message || "Failed to load application data.");
         }
       } finally {
