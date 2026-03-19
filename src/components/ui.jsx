@@ -796,100 +796,116 @@ export function PriceHistoryModal({ company, history, onClose }) {
   const pagedHistory = thisMonth.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const PaginationBar = () => totalPages <= 1 ? null : (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0 2px" }}>
-      <button
-        onClick={() => setPage(1)}
-        disabled={page === 1}
-        style={{
-          padding: "4px 9px",
-          borderRadius: 7,
-          border: `1.5px solid ${C.gray200}`,
-          background: C.white,
-          color: page === 1 ? C.gray400 : C.text,
-          cursor: page === 1 ? "not-allowed" : "pointer",
-          fontSize: 12,
-          fontFamily: "inherit",
-        }}
-      >
-        «
-      </button>
-      <button
-        onClick={() => setPage(p => Math.max(1, p - 1))}
-        disabled={page === 1}
-        style={{
-          padding: "4px 10px",
-          borderRadius: 7,
-          border: `1.5px solid ${C.gray200}`,
-          background: C.white,
-          color: page === 1 ? C.gray400 : C.text,
-          cursor: page === 1 ? "not-allowed" : "pointer",
-          fontSize: 12,
-          fontFamily: "inherit",
-        }}
-      >
-        ‹ Prev
-      </button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1)
-        .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-        .reduce((acc, p, i, arr) => {
-          if (i > 0 && arr[i-1] !== p - 1) acc.push("...");
-          acc.push(p);
-          return acc;
-        }, [])
-        .map((p, i) => p === "..." ? (
-          <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => setPage(p)}
-            style={{
-              padding: "4px 10px",
-              borderRadius: 7,
-              border: `1.5px solid ${p === page ? C.navy : C.gray200}`,
-              background: p === page ? C.navy : C.white,
-              color: p === page ? C.white : C.text,
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: p === page ? 700 : 500,
-              fontFamily: "inherit",
-              minWidth: 30,
-            }}
-          >
-            {p}
-          </button>
-        ))}
-      <button
-        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-        disabled={page === totalPages}
-        style={{
-          padding: "4px 10px",
-          borderRadius: 7,
-          border: `1.5px solid ${C.gray200}`,
-          background: C.white,
-          color: page === totalPages ? C.gray400 : C.text,
-          cursor: page === totalPages ? "not-allowed" : "pointer",
-          fontSize: 12,
-          fontFamily: "inherit",
-        }}
-      >
-        Next ›
-      </button>
-      <button
-        onClick={() => setPage(totalPages)}
-        disabled={page === totalPages}
-        style={{
-          padding: "4px 9px",
-          borderRadius: 7,
-          border: `1.5px solid ${C.gray200}`,
-          background: C.white,
-          color: page === totalPages ? C.gray400 : C.text,
-          cursor: page === totalPages ? "not-allowed" : "pointer",
-          fontSize: 12,
-          fontFamily: "inherit",
-        }}
-      >
-        »
-      </button>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: isMobile ? "center" : "space-between",
+        gap: 10,
+        padding: "10px 0 2px",
+      }}
+    >
+      {!isMobile && (
+        <div style={{ fontSize: 12, color: C.gray400, whiteSpace: "nowrap" }}>
+          Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, thisMonth.length)} of {thisMonth.length}
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flex: isMobile ? "0 0 auto" : 1 }}>
+        <button
+          onClick={() => setPage(1)}
+          disabled={page === 1}
+          style={{
+            padding: "4px 9px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === 1 ? C.gray400 : C.text,
+            cursor: page === 1 ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+          }}
+        >
+          «
+        </button>
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          style={{
+            padding: "4px 10px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === 1 ? C.gray400 : C.text,
+            cursor: page === 1 ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+          }}
+        >
+          ‹ Prev
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+          .reduce((acc, p, i, arr) => {
+            if (i > 0 && arr[i - 1] !== p - 1) acc.push("...");
+            acc.push(p);
+            return acc;
+          }, [])
+          .map((p, i) => p === "..." ? (
+            <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 7,
+                border: `1.5px solid ${p === page ? C.navy : C.gray200}`,
+                background: p === page ? C.navy : C.white,
+                color: p === page ? C.white : C.text,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: p === page ? 700 : 500,
+                fontFamily: "inherit",
+                minWidth: 30,
+              }}
+            >
+              {p}
+            </button>
+          ))}
+        <button
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          style={{
+            padding: "4px 10px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === totalPages ? C.gray400 : C.text,
+            cursor: page === totalPages ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+          }}
+        >
+          Next ›
+        </button>
+        <button
+          onClick={() => setPage(totalPages)}
+          disabled={page === totalPages}
+          style={{
+            padding: "4px 9px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === totalPages ? C.gray400 : C.text,
+            cursor: page === totalPages ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+          }}
+        >
+          »
+        </button>
+      </div>
     </div>
   );
 
@@ -932,13 +948,14 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       ) : (
         <>
-          {totalPages > 1 && (
+          {totalPages > 1 && isMobile && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
               <div style={{ fontSize: 12, color: C.gray400 }}>
                 Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, thisMonth.length)} of {thisMonth.length}
               </div>
             </div>
           )}
+
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: colWidths[0] }} />
@@ -979,6 +996,17 @@ export function PriceHistoryModal({ company, history, onClose }) {
                 const globalIdx    = (page - 1) * PAGE_SIZE + i;
                 const isFirstEntry = !h.old_price || Number(h.old_price) === 0;
                 const up = !isFirstEntry && h.change_amount >= 0;
+
+                const dateText = new Date(h.created_at).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
+                const timeText = new Date(h.created_at).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
                 return (
                   <tr
                     key={h.id}
@@ -987,14 +1015,24 @@ export function PriceHistoryModal({ company, history, onClose }) {
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
                     <td style={{ padding: "10px 12px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
+
                     <td style={{ padding: "10px 12px" }}>
-                      <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
-                        {new Date(h.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                      </div>
-                      <div style={{ fontSize: 11, color: C.gray400 }}>
-                        {new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                      </div>
+                      {isMobile ? (
+                        <>
+                          <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                            {dateText}
+                          </div>
+                          <div style={{ fontSize: 11, color: C.gray400 }}>
+                            {timeText}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                          {dateText} <span style={{ color: C.gray400 }}>|</span> {timeText}
+                        </div>
+                      )}
                     </td>
+
                     <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>
                       {isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}
                     </td>
