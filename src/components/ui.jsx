@@ -29,12 +29,14 @@ export const fmt = (n) => {
     ? v.toLocaleString("en-US")
     : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
-export const fmtInt   = (n) => Number(n || 0).toLocaleString("en-US");
+
+export const fmtInt = (n) => Number(n || 0).toLocaleString("en-US");
+
 export const fmtSmart = (n) => {
   const v = Number(n || 0);
   if (v >= 1_000_000_000) return (v / 1_000_000_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "B";
-  if (v >= 1_000_000)     return (v / 1_000_000).toLocaleString("en-US",     { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "M";
-  if (v >= 1_000)         return (v / 1_000).toLocaleString("en-US",         { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "K";
+  if (v >= 1_000_000)     return (v / 1_000_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "M";
+  if (v >= 1_000)         return (v / 1_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "K";
   return v.toLocaleString("en-US");
 };
 
@@ -57,7 +59,15 @@ export const calcFees = (tradeValue) => {
 // ─── Spinner ──────────────────────────────────────────────────────
 export function Spinner({ size = 18, color = "#fff" }) {
   return (
-    <div style={{ width: size, height: size, border: `2px solid rgba(255,255,255,0.3)`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+    <div style={{
+      width: size,
+      height: size,
+      border: `2px solid rgba(255,255,255,0.3)`,
+      borderTop: `2px solid ${color}`,
+      borderRadius: "50%",
+      animation: "spin 0.7s linear infinite",
+      flexShrink: 0,
+    }} />
   );
 }
 
@@ -65,7 +75,22 @@ export function Spinner({ size = 18, color = "#fff" }) {
 export function Toast({ msg, type }) {
   if (!msg) return null;
   return (
-    <div style={{ position: "fixed", bottom: 28, right: 28, background: type === "error" ? C.red : C.green, color: C.white, padding: "14px 22px", borderRadius: 10, fontSize: 14, fontWeight: 500, zIndex: 99999, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      position: "fixed",
+      bottom: 28,
+      right: 28,
+      background: type === "error" ? C.red : C.green,
+      color: C.white,
+      padding: "14px 22px",
+      borderRadius: 10,
+      fontSize: 14,
+      fontWeight: 500,
+      zIndex: 99999,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+    }}>
       <span>{type === "error" ? "✕" : "✓"}</span>{msg}
     </div>
   );
@@ -74,11 +99,46 @@ export function Toast({ msg, type }) {
 // ─── StatCard ─────────────────────────────────────────────────────
 export function StatCard({ label, value, sub, color = C.green, icon }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0 }}>
-      <div style={{ width: 36, height: 36, background: color + "18", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{icon}</div>
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.gray200}`,
+      borderRadius: 12,
+      padding: "10px 14px",
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+      minWidth: 0,
+    }}>
+      <div style={{
+        width: 36,
+        height: 36,
+        background: color + "18",
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 17,
+        flexShrink: 0,
+      }}>{icon}</div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
+        <div style={{
+          fontSize: 10,
+          color: C.gray400,
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: 2,
+        }}>{label}</div>
+        <div style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: C.text,
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}>{value}</div>
         {sub && <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>{sub}</div>}
       </div>
     </div>
@@ -88,14 +148,31 @@ export function StatCard({ label, value, sub, color = C.green, icon }) {
 // ─── SectionCard ──────────────────────────────────────────────────
 export function SectionCard({ title, subtitle, children }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.gray200}`,
+      borderRadius: 12,
+      overflow: "hidden",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      minHeight: 0,
+    }}>
       {title && (
-        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, flexShrink: 0 }}>
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: `1px solid ${C.gray100}`,
+          background: C.gray50,
+          flexShrink: 0,
+        }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{title}</div>
           {subtitle && <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{subtitle}</div>}
         </div>
       )}
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>{children}</div>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -104,7 +181,13 @@ export function SectionCard({ title, subtitle, children }) {
 function FormField({ label, required, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+      <label style={{
+        fontSize: 12,
+        fontWeight: 600,
+        color: C.gray600,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+      }}>
         {label}{required && <span style={{ color: C.red, marginLeft: 2 }}>*</span>}
       </label>
       {children}
@@ -113,18 +196,28 @@ function FormField({ label, required, children }) {
 }
 
 const inputStyle = (readOnly) => ({
-  border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px",
-  fontSize: 14, outline: "none", background: readOnly ? C.gray50 : C.white,
-  color: C.text, width: "100%", boxSizing: "border-box",
-  transition: "border-color 0.2s", fontFamily: "inherit",
+  border: `1.5px solid ${C.gray200}`,
+  borderRadius: 8,
+  padding: "10px 12px",
+  fontSize: 14,
+  outline: "none",
+  background: readOnly ? C.gray50 : C.white,
+  color: C.text,
+  width: "100%",
+  boxSizing: "border-box",
+  transition: "border-color 0.2s",
+  fontFamily: "inherit",
 });
 
 export function FInput({ label, required, ...props }) {
   return (
     <FormField label={label} required={required}>
-      <input {...props} style={{ ...inputStyle(props.readOnly), ...props.style }}
+      <input
+        {...props}
+        style={{ ...inputStyle(props.readOnly), ...props.style }}
         onFocus={e => !props.readOnly && (e.target.style.borderColor = C.green)}
-        onBlur={e => (e.target.style.borderColor = C.gray200)} />
+        onBlur={e => (e.target.style.borderColor = C.gray200)}
+      />
     </FormField>
   );
 }
@@ -132,9 +225,12 @@ export function FInput({ label, required, ...props }) {
 export function FSelect({ label, required, children, ...props }) {
   return (
     <FormField label={label} required={required}>
-      <select {...props} style={{ ...inputStyle(false), cursor: "pointer", ...props.style }}
+      <select
+        {...props}
+        style={{ ...inputStyle(false), cursor: "pointer", ...props.style }}
         onFocus={e => (e.target.style.borderColor = C.green)}
-        onBlur={e => (e.target.style.borderColor = C.gray200)}>
+        onBlur={e => (e.target.style.borderColor = C.gray200)}
+      >
         {children}
       </select>
     </FormField>
@@ -144,9 +240,12 @@ export function FSelect({ label, required, children, ...props }) {
 export function FTextarea({ label, required, ...props }) {
   return (
     <FormField label={label} required={required}>
-      <textarea {...props} style={{ ...inputStyle(false), resize: "vertical", minHeight: 72, ...props.style }}
+      <textarea
+        {...props}
+        style={{ ...inputStyle(false), resize: "vertical", minHeight: 72, ...props.style }}
         onFocus={e => (e.target.style.borderColor = C.green)}
-        onBlur={e => (e.target.style.borderColor = C.gray200)} />
+        onBlur={e => (e.target.style.borderColor = C.gray200)}
+      />
     </FormField>
   );
 }
@@ -160,10 +259,26 @@ export function Btn({ children, variant = "primary", loading, icon, ...props }) 
     navy:      { background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color: C.white, border: "none", boxShadow: "0 4px 12px rgba(11,31,58,0.3)" },
   };
   return (
-    <button {...props} disabled={loading || props.disabled}
-      style={{ padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: loading ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: 7, transition: "opacity 0.2s", fontFamily: "inherit", ...variants[variant], ...props.style }}
+    <button
+      {...props}
+      disabled={loading || props.disabled}
+      style={{
+        padding: "10px 18px",
+        borderRadius: 8,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: loading ? "wait" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        transition: "opacity 0.2s",
+        fontFamily: "inherit",
+        ...variants[variant],
+        ...props.style,
+      }}
       onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = "0.88"; }}
-      onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
+      onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+    >
       {loading ? <Spinner size={14} color={variant === "primary" || variant === "navy" ? C.white : C.green} /> : icon && <span>{icon}</span>}
       {children}
     </button>
@@ -182,7 +297,10 @@ export function ActionMenu({ actions }) {
     const handleScroll = () => setOpen(false);
     document.addEventListener("mousedown", handle);
     document.addEventListener("scroll", handleScroll, true);
-    return () => { document.removeEventListener("mousedown", handle); document.removeEventListener("scroll", handleScroll, true); };
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("scroll", handleScroll, true);
+    };
   }, [open]);
 
   const handleOpen = () => {
@@ -191,21 +309,70 @@ export function ActionMenu({ actions }) {
       const dropdownHeight = actions.length * 41;
       const spaceBelow = window.innerHeight - rect.bottom;
       const goUp = spaceBelow < dropdownHeight;
-      setPos({ top: goUp ? rect.top - dropdownHeight : rect.bottom + 4, left: rect.right - 160 });
+      setPos({
+        top: goUp ? rect.top - dropdownHeight : rect.bottom + 4,
+        left: rect.right - 160,
+      });
     }
     setOpen(o => !o);
   };
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={handleOpen} style={{ width: 40, height: 40, borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: open ? C.gray100 : C.white, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600 }}>⋯</button>
+      <button
+        onClick={handleOpen}
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          border: `1.5px solid ${C.gray200}`,
+          background: open ? C.gray100 : C.white,
+          cursor: "pointer",
+          fontSize: 18,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: C.gray600,
+        }}
+      >
+        ⋯
+      </button>
       {open && (
-        <div style={{ position: "fixed", top: pos.top, left: pos.left, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 9999, minWidth: 160, overflow: "hidden" }}>
+        <div style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          background: C.white,
+          border: `1px solid ${C.gray200}`,
+          borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+          zIndex: 9999,
+          minWidth: 160,
+          overflow: "hidden",
+        }}>
           {actions.map((a, i) => (
-            <button key={i} onClick={() => { setOpen(false); a.onClick(); }}
-              style={{ width: "100%", padding: "10px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: a.danger ? C.red : C.text, textAlign: "left", borderBottom: i < actions.length - 1 ? `1px solid ${C.gray100}` : "none", fontFamily: "inherit" }}
+            <button
+              key={i}
+              onClick={() => { setOpen(false); a.onClick(); }}
+              style={{
+                width: "100%",
+                padding: "10px 16px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                fontSize: 13,
+                fontWeight: 500,
+                color: a.danger ? C.red : C.text,
+                textAlign: "left",
+                borderBottom: i < actions.length - 1 ? `1px solid ${C.gray100}` : "none",
+                fontFamily: "inherit",
+              }}
               onMouseEnter={e => e.currentTarget.style.background = a.danger ? C.redBg : C.gray50}
-              onMouseLeave={e => e.currentTarget.style.background = "none"}>
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+            >
               <span>{a.icon}</span>{a.label}
             </button>
           ))}
@@ -216,34 +383,37 @@ export function ActionMenu({ actions }) {
 }
 
 // ─── Mobile breakpoint hook ───────────────────────────────────────
-// Defined before ModalShell so both ModalShell and TransactionFormModal can use it.
-// Passive resize listener — negligible overhead, never recreated.
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
     let t;
-    const handler = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80); };
+    const handler = () => {
+      clearTimeout(t);
+      t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
+    };
     window.addEventListener("resize", handler, { passive: true });
-    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
+    return () => {
+      window.removeEventListener("resize", handler);
+      clearTimeout(t);
+    };
   }, []);
   return isMobile;
 };
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── MODAL SHELL ──────────────────────────────────────────────────
-// Mobile: renders as a bottom sheet (slides from bottom, full width,
-//         rounded top corners). Desktop: centered card — UNCHANGED.
-// ═══════════════════════════════════════════════════════════════════
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const isMobile = useIsMobile();
 
   return (
     <div
       style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.45)", zIndex: 1000,
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        zIndex: 1000,
         display: "flex",
         alignItems: isMobile ? "flex-end" : "center",
         justifyContent: "center",
@@ -256,13 +426,21 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         borderRadius: isMobile ? "16px 16px 0 0" : 16,
         width: "100%",
         maxWidth: isMobile ? "100%" : maxWidth,
-        display: "flex", flexDirection: "column",
+        display: "flex",
+        flexDirection: "column",
         boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
         ...((!isMobile && maxHeight) ? { maxHeight } : {}),
       }}>
         {/* Header */}
-        <div style={{ padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{
+          padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
+          borderBottom: `1px solid ${C.gray200}`,
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
             {subtitle && <div style={{ fontSize: 13, color: C.gray400, marginTop: 3 }}>{subtitle}</div>}
@@ -270,12 +448,37 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
             {!lockBackdrop && (
-              <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600, flexShrink: 0 }}>✕</button>
+              <button
+                onClick={onClose}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  border: `1px solid ${C.gray200}`,
+                  background: C.gray50,
+                  cursor: "pointer",
+                  fontSize: 15,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: C.gray600,
+                  flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
             )}
           </div>
         </div>
         {/* Body */}
-        <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>
+        <div style={{
+          padding: isMobile ? "16px 18px" : "20px 28px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          overflowY: "auto",
+          flex: 1,
+        }}>
           {children}
         </div>
         {/* Footer */}
@@ -283,11 +486,13 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           <div style={{
             padding: isMobile ? "12px 18px" : "16px 28px",
             borderTop: `1px solid ${C.gray200}`,
-            display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center",
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            alignItems: "center",
             background: C.gray50,
             borderRadius: isMobile ? 0 : "0 0 16px 16px",
             flexShrink: 0,
-            // Stick above keyboard on mobile so buttons are never hidden
             position: isMobile ? "sticky" : "static",
             bottom: 0,
             zIndex: 2,
@@ -306,9 +511,38 @@ export function Modal({ type = "confirm", title, message, onConfirm, onClose }) 
   const isWarn = type === "warning";
   return (
     <ModalShell
-      title={<span style={{ display: "flex", alignItems: "center", gap: 10 }}><span style={{ width: 40, height: 40, borderRadius: 10, background: isWarn ? C.redBg : "#FFF7ED", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{isWarn ? "🚫" : "🗑️"}</span>{title}</span>}
-      onClose={onClose} maxWidth={420}
-      footer={isWarn ? (<Btn variant="secondary" onClick={onClose}>Close</Btn>) : (<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="danger" onClick={onConfirm} style={{ background: C.red, color: C.white, border: "none" }}>Yes, Delete</Btn></>)}
+      title={
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: isWarn ? C.redBg : "#FFF7ED",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            flexShrink: 0,
+          }}>
+            {isWarn ? "🚫" : "🗑️"}
+          </span>
+          {title}
+        </span>
+      }
+      onClose={onClose}
+      maxWidth={420}
+      footer={
+        isWarn ? (
+          <Btn variant="secondary" onClick={onClose}>Close</Btn>
+        ) : (
+          <>
+            <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+            <Btn variant="danger" onClick={onConfirm} style={{ background: C.red, color: C.white, border: "none" }}>
+              Yes, Delete
+            </Btn>
+          </>
+        )
+      }
     >
       <div style={{ fontSize: 14, color: C.gray600, lineHeight: 1.7 }}>{message}</div>
     </ModalShell>
@@ -326,7 +560,8 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
   const handle = () => {
     if (!name.trim()) { setError("Company name is required."); return; }
     if (!isEdit && (!price || Number(price) <= 0)) { setError("A valid opening price is required."); return; }
-    setError(""); onClose();
+    setError("");
+    onClose();
     onConfirm({ name: name.trim(), price: isEdit ? undefined : Number(price), remarks });
   };
 
@@ -334,13 +569,53 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
     <ModalShell
       title={isEdit ? "✏️ Edit Company" : "➕ Register New Company"}
       subtitle={isEdit ? "To change the price use the 💰 Price button" : undefined}
-      onClose={onClose} maxWidth={460}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handle} icon="💾">{isEdit ? "Save Changes" : "Register Company"}</Btn></>}
+      onClose={onClose}
+      maxWidth={460}
+      footer={
+        <>
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" onClick={handle} icon="💾">{isEdit ? "Save Changes" : "Register Company"}</Btn>
+        </>
+      }
     >
-      {error && <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>⚠️ {error}</div>}
-      <FInput label="Company Name" required value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="e.g. Tanzania Breweries" autoFocus />
-      {!isEdit && <FInput label="Opening Price (TZS)" required type="number" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
-      <FTextarea label="Remarks" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Optional notes..." style={{ minHeight: 72 }} />
+      {error && (
+        <div style={{
+          background: C.redBg,
+          border: `1px solid #FECACA`,
+          borderRadius: 8,
+          padding: "10px 14px",
+          fontSize: 13,
+          color: C.red,
+          fontWeight: 500,
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+      <FInput
+        label="Company Name"
+        required
+        value={name}
+        onChange={e => { setName(e.target.value); setError(""); }}
+        placeholder="e.g. Tanzania Breweries"
+        autoFocus
+      />
+      {!isEdit && (
+        <FInput
+          label="Opening Price (TZS)"
+          required
+          type="number"
+          value={price}
+          onChange={e => { setPrice(e.target.value); setError(""); }}
+          placeholder="0.00"
+        />
+      )}
+      <FTextarea
+        label="Remarks"
+        value={remarks}
+        onChange={e => setRemarks(e.target.value)}
+        placeholder="Optional notes..."
+        style={{ minHeight: 72 }}
+      />
     </ModalShell>
   );
 }
@@ -357,8 +632,14 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   if (!company) return null;
 
   const handleConfirm = () => {
-    if (!newPrice || isNaN(Number(newPrice)) || Number(newPrice) <= 0) { setError("Please enter a valid price greater than 0."); return; }
-    if (Number(company.price) !== 0 && Number(newPrice) === Number(company.price)) { setError("No change detected — the new price is the same as the current price."); return; }
+    if (!newPrice || isNaN(Number(newPrice)) || Number(newPrice) <= 0) {
+      setError("Please enter a valid price greater than 0.");
+      return;
+    }
+    if (Number(company.price) !== 0 && Number(newPrice) === Number(company.price)) {
+      setError("No change detected — the new price is the same as the current price.");
+      return;
+    }
     setError("");
     onConfirm({ newPrice: Number(newPrice), datetime, reason });
   };
@@ -377,37 +658,115 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
           <div style={{ fontSize: 17, fontWeight: 800, color: C.navy }}>TZS {fmt(company.price)}</div>
         </div>
       }
-      onClose={onClose} maxWidth={440}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleConfirm} icon="💾">Update Price</Btn></>}
+      onClose={onClose}
+      maxWidth={440}
+      footer={
+        <>
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" onClick={handleConfirm} icon="💾">Update Price</Btn>
+        </>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Price (TZS) <span style={{ color: C.red }}>*</span></label>
-        <input type="number" value={newPrice} onChange={e => { setNewPrice(e.target.value); setError(""); }} placeholder="Enter new price..." autoFocus
-          style={{ border: `1.5px solid ${error ? C.red : C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 700, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box" }}
+        <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          New Price (TZS) <span style={{ color: C.red }}>*</span>
+        </label>
+        <input
+          type="number"
+          value={newPrice}
+          onChange={e => { setNewPrice(e.target.value); setError(""); }}
+          placeholder="Enter new price..."
+          autoFocus
+          style={{
+            border: `1.5px solid ${error ? C.red : C.gray200}`,
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 15,
+            fontWeight: 700,
+            outline: "none",
+            fontFamily: "inherit",
+            color: C.text,
+            width: "100%",
+            boxSizing: "border-box",
+          }}
           onFocus={e => !error && (e.target.style.borderColor = C.green)}
-          onBlur={e => !error && (e.target.style.borderColor = C.gray200)} />
+          onBlur={e => !error && (e.target.style.borderColor = C.gray200)}
+        />
         {error && <div style={{ fontSize: 12, color: C.red }}>{error}</div>}
       </div>
+
       {changeAmt !== null && newPrice && (
-        <div style={{ background: up ? C.greenBg : C.redBg, border: `1px solid ${up ? "#BBF7D0" : "#FECACA"}`, borderRadius: 10, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{
+          background: up ? C.greenBg : C.redBg,
+          border: `1px solid ${up ? "#BBF7D0" : "#FECACA"}`,
+          borderRadius: 10,
+          padding: "10px 16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}>
           <div style={{ fontSize: 12, color: C.gray600, fontWeight: 600 }}>Price Movement</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: up ? C.green : C.red }}>{up ? "▲" : "▼"} TZS {fmt(Math.abs(changeAmt))}</span>
-            <span style={{ background: up ? C.green : C.red, color: C.white, padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{changePct?.toFixed(2)}%</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: up ? C.green : C.red }}>
+              {up ? "▲" : "▼"} TZS {fmt(Math.abs(changeAmt))}
+            </span>
+            <span style={{
+              background: up ? C.green : C.red,
+              color: C.white,
+              padding: "2px 10px",
+              borderRadius: 20,
+              fontSize: 12,
+              fontWeight: 700,
+            }}>
+              {up ? "+" : ""}{changePct?.toFixed(2)}%
+            </span>
           </div>
         </div>
       )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Date & Time</label>
-        <input type="datetime-local" value={datetime} onChange={e => setDatetime(e.target.value)}
-          style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box" }}
-          onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
+        <input
+          type="datetime-local"
+          value={datetime}
+          onChange={e => setDatetime(e.target.value)}
+          style={{
+            border: `1.5px solid ${C.gray200}`,
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 14,
+            outline: "none",
+            fontFamily: "inherit",
+            color: C.text,
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          onFocus={e => (e.target.style.borderColor = C.green)}
+          onBlur={e => (e.target.style.borderColor = C.gray200)}
+        />
       </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Reason</label>
-        <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for price change..."
-          style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box" }}
-          onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
+        <input
+          type="text"
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Reason for price change..."
+          style={{
+            border: `1.5px solid ${C.gray200}`,
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 14,
+            outline: "none",
+            fontFamily: "inherit",
+            color: C.text,
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          onFocus={e => (e.target.style.borderColor = C.green)}
+          onBlur={e => (e.target.style.borderColor = C.gray200)}
+        />
       </div>
     </ModalShell>
   );
@@ -437,18 +796,99 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
   const PaginationBar = () => totalPages <= 1 ? null : (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0 2px" }}>
-      <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>«</button>
-      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
+      <button
+        onClick={() => setPage(1)}
+        disabled={page === 1}
+        style={{
+          padding: "4px 9px",
+          borderRadius: 7,
+          border: `1.5px solid ${C.gray200}`,
+          background: C.white,
+          color: page === 1 ? C.gray400 : C.text,
+          cursor: page === 1 ? "not-allowed" : "pointer",
+          fontSize: 12,
+          fontFamily: "inherit",
+        }}
+      >
+        «
+      </button>
+      <button
+        onClick={() => setPage(p => Math.max(1, p - 1))}
+        disabled={page === 1}
+        style={{
+          padding: "4px 10px",
+          borderRadius: 7,
+          border: `1.5px solid ${C.gray200}`,
+          background: C.white,
+          color: page === 1 ? C.gray400 : C.text,
+          cursor: page === 1 ? "not-allowed" : "pointer",
+          fontSize: 12,
+          fontFamily: "inherit",
+        }}
+      >
+        ‹ Prev
+      </button>
       {Array.from({ length: totalPages }, (_, i) => i + 1)
         .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-        .reduce((acc, p, i, arr) => { if (i > 0 && arr[i-1] !== p - 1) acc.push("..."); acc.push(p); return acc; }, [])
+        .reduce((acc, p, i, arr) => {
+          if (i > 0 && arr[i-1] !== p - 1) acc.push("...");
+          acc.push(p);
+          return acc;
+        }, [])
         .map((p, i) => p === "..." ? (
-          <span key={`d${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
+          <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
         ) : (
-          <button key={p} onClick={() => setPage(p)} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${p === page ? C.navy : C.gray200}`, background: p === page ? C.navy : C.white, color: p === page ? C.white : C.text, cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500, fontFamily: "inherit", minWidth: 30 }}>{p}</button>
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 7,
+              border: `1.5px solid ${p === page ? C.navy : C.gray200}`,
+              background: p === page ? C.navy : C.white,
+              color: p === page ? C.white : C.text,
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: p === page ? 700 : 500,
+              fontFamily: "inherit",
+              minWidth: 30,
+            }}
+          >
+            {p}
+          </button>
         ))}
-      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
-      <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: "4px 9px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>»</button>
+      <button
+        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+        disabled={page === totalPages}
+        style={{
+          padding: "4px 10px",
+          borderRadius: 7,
+          border: `1.5px solid ${C.gray200}`,
+          background: C.white,
+          color: page === totalPages ? C.gray400 : C.text,
+          cursor: page === totalPages ? "not-allowed" : "pointer",
+          fontSize: 12,
+          fontFamily: "inherit",
+        }}
+      >
+        Next ›
+      </button>
+      <button
+        onClick={() => setPage(totalPages)}
+        disabled={page === totalPages}
+        style={{
+          padding: "4px 9px",
+          borderRadius: 7,
+          border: `1.5px solid ${C.gray200}`,
+          background: C.white,
+          color: page === totalPages ? C.gray400 : C.text,
+          cursor: page === totalPages ? "not-allowed" : "pointer",
+          fontSize: 12,
+          fontFamily: "inherit",
+        }}
+      >
+        »
+      </button>
     </div>
   );
 
@@ -456,13 +896,21 @@ export function PriceHistoryModal({ company, history, onClose }) {
     <ModalShell
       title={company.name}
       subtitle="📈 Price history"
-      headerRight={<div style={{ textAlign: "right", flexShrink: 0 }}><div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div><div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div></div>}
-      onClose={onClose} maxWidth={580}
+      headerRight={
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div>
+        </div>
+      }
+      onClose={onClose}
+      maxWidth={580}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <div style={{ fontSize: 12, color: C.gray400 }}>
             {thisMonth.length} update{thisMonth.length !== 1 ? "s" : ""} in {monthLabel}
-            {thisMonth.length !== meaningful.length && <span style={{ marginLeft: 6, color: C.gray400 }}>· {meaningful.length} total all-time</span>}
+            {thisMonth.length !== meaningful.length && (
+              <span style={{ marginLeft: 6, color: C.gray400 }}>· {meaningful.length} total all-time</span>
+            )}
           </div>
           <Btn variant="secondary" onClick={onClose}>Close</Btn>
         </div>
@@ -496,7 +944,24 @@ export function PriceHistoryModal({ company, history, onClose }) {
             <thead>
               <tr style={{ background: C.gray50 }}>
                 {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
-                  <th key={h} style={{ padding: "10px 12px", textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
+                  <th
+                    key={h}
+                    style={{
+                      padding: "10px 12px",
+                      textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left",
+                      color: C.gray400,
+                      fontWeight: 700,
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      borderBottom: `1px solid ${C.gray200}`,
+                      borderTop: `1px solid ${C.gray200}`,
+                      whiteSpace: "nowrap",
+                      background: C.gray50,
+                    }}
+                  >
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -506,9 +971,12 @@ export function PriceHistoryModal({ company, history, onClose }) {
                 const isFirstEntry = !h.old_price || Number(h.old_price) === 0;
                 const up = !isFirstEntry && h.change_amount >= 0;
                 return (
-                  <tr key={h.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                  <tr
+                    key={h.id}
+                    style={{ borderBottom: `1px solid ${C.gray100}` }}
                     onMouseEnter={e => e.currentTarget.style.background = C.gray50}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
                     <td style={{ padding: "10px 12px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
                     <td style={{ padding: "10px 12px" }}>
                       <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
@@ -518,14 +986,25 @@ export function PriceHistoryModal({ company, history, onClose }) {
                         {new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                       </div>
                     </td>
-                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>{isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}</td>
+                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>
+                      {isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}
+                    </td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
                     <td style={{ padding: "10px 12px", textAlign: "right" }}>
                       {isFirstEntry
                         ? <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span>
-                        : <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "3px 9px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                        : <span style={{
+                            background: up ? C.greenBg : C.redBg,
+                            color: up ? C.green : C.red,
+                            padding: "3px 9px",
+                            borderRadius: 20,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                          }}>
                             {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
-                          </span>}
+                          </span>
+                      }
                     </td>
                   </tr>
                 );
@@ -541,15 +1020,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ─── TRANSACTION FORM MODAL ───────────────────────────────────────
-// Mobile changes (desktop UNCHANGED):
-//   ✅ Subtitle shortened
-//   ✅ "Transaction Type" label → "Type"
-//   ✅ Row 1: Type + Date (2-col, no Ref No.)
-//   ✅ Row 2: Company (2fr) + Ref No. (1fr) side by side
-//   ✅ ModalShell bottom-sheet removes scroll on mobile
-// ═══════════════════════════════════════════════════════════════════
 export function TransactionFormModal({ transaction, companies, transactions = [], brokers = [], onConfirm, onClose }) {
-  // ── Mobile detection — layout only, no logic impact ───────────
   const isMobile = useIsMobile();
 
   const today  = new Date().toISOString().split("T")[0];
@@ -574,7 +1045,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [companySearch, setCompanySearch]       = useState("");
   const [companyOpen, setCompanyOpen]           = useState(false);
-  const companyRef                              = useRef(null);
+  const companyRef                               = useRef(null);
   const [brokerSearch, setBrokerSearch]         = useState("");
   const [brokerOpen, setBrokerOpen]             = useState(false);
   const brokerRef                               = useRef(null);
@@ -681,15 +1152,26 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     { label: "Fidelity", value: feeBreakdown.fidelity, note: "0.02%" },
   ];
 
-  // ── Ref No. input — rendered in Row 1 (desktop) or Row 2 (mobile) ──
-  // Same logic, same handler, just placed in different grid positions.
   const refNoInput = (placeholder = "e.g. REF-2024-001") => (
     <input
       type="text"
       value={form.controlNumber}
       onChange={e => setForm(f => ({ ...f, controlNumber: e.target.value.slice(0, 20) }))}
       placeholder={placeholder}
-      style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", letterSpacing: "0.04em", transition: "border-color 0.2s" }}
+      style={{
+        border: `1.5px solid ${C.gray200}`,
+        borderRadius: 8,
+        padding: "10px 12px",
+        fontSize: 14,
+        outline: "none",
+        background: C.white,
+        color: C.text,
+        width: "100%",
+        boxSizing: "border-box",
+        fontFamily: "inherit",
+        letterSpacing: "0.04em",
+        transition: "border-color 0.2s",
+      }}
       onFocus={e => (e.target.style.borderColor = C.green)}
       onBlur={e => (e.target.style.borderColor = C.gray200)}
     />
@@ -699,18 +1181,33 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     <ModalShell
       title={isEdit ? "✏️ Edit Transaction" : "📝 Record New Transaction"}
       subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
-      onClose={onClose} maxWidth={580}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
+      onClose={onClose}
+      maxWidth={580}
+      footer={
+        <>
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" onClick={handleSubmit} icon="💾">
+            {isEdit ? "Save Changes" : "Record Transaction"}
+          </Btn>
+        </>
+      }
     >
       {error && (
-        <div style={{ background: C.redBg, border: `1px solid #FECACA`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
+        <div style={{
+          background: C.redBg,
+          border: `1px solid #FECACA`,
+          borderRadius: 8,
+          padding: "9px 14px",
+          fontSize: 13,
+          color: C.red,
+          fontWeight: 500,
+        }}>
           ⚠️ {error}
         </div>
       )}
 
-      {/* ── Row 1: Type · Date (both screens) · Ref No. (desktop only) ── */}
+      {/* Row 1: Type · Date · Ref No. (desktop only) */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
-        {/* Type — label shortened to "Type" on all screens */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
             Type <span style={{ color: C.red }}>*</span>
@@ -718,7 +1215,21 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           <select
             value={form.type}
             onChange={e => handleTypeChange(e.target.value)}
-            style={{ border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, transition: "border-color 0.2s" }}
+            style={{
+              border: `1.5px solid ${C.gray200}`,
+              borderRadius: 8,
+              padding: "10px 12px",
+              fontSize: 14,
+              outline: "none",
+              background: C.white,
+              color: C.text,
+              width: "100%",
+              boxSizing: "border-box",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontWeight: 600,
+              transition: "border-color 0.2s",
+            }}
             onFocus={e => (e.target.style.borderColor = C.green)}
             onBlur={e => (e.target.style.borderColor = C.gray200)}
           >
@@ -727,14 +1238,14 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           </select>
         </div>
 
-        {/* Date */}
         <FInput
-          label="Date" required type="date"
+          label="Date"
+          required
+          type="date"
           value={form.date}
           onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
         />
 
-        {/* Reference No. — desktop only in Row 1; moved to Row 2 on mobile */}
         {!isMobile && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
@@ -745,14 +1256,13 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         )}
       </div>
 
-      {/* ── Row 2: Company (full-width desktop) / Company + Ref No. (mobile) ── */}
+      {/* Row 2: Company + Ref No. (mobile) */}
       <div style={{
         display: isMobile ? "grid" : "block",
         gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
         gap: isMobile ? 12 : undefined,
         alignItems: "end",
       }}>
-        {/* Company dropdown — unchanged logic, just in a grid cell on mobile */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
             Company <span style={{ color: C.red }}>*</span>
@@ -761,24 +1271,62 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             <button
               type="button"
               onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
-              style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: form.companyId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
+              style={{
+                width: "100%",
+                padding: "10px 36px 10px 12px",
+                borderRadius: 8,
+                textAlign: "left",
+                border: `1.5px solid ${companyOpen ? C.green : C.gray200}`,
+                background: C.white,
+                color: form.companyId ? C.text : C.gray400,
+                fontSize: 14,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                transition: "border-color 0.2s",
+                position: "relative",
+              }}
             >
-              {form.companyId
-                ? selectedCompanyName
-                : (isSellFiltered ? "Select holding..." : "Select company...")}
+              {form.companyId ? selectedCompanyName : (isSellFiltered ? "Select holding..." : "Select company...")}
               <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
                 {companyOpen ? "▲" : "▼"}
               </span>
             </button>
             {companyOpen && (
-              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+              <div style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                right: 0,
+                zIndex: 9999,
+                background: C.white,
+                border: `1.5px solid ${C.green}`,
+                borderRadius: 10,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                overflow: "hidden",
+              }}>
                 <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                   <div style={{ position: "relative" }}>
                     <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
-                    <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..."
-                      style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
+                    <input
+                      autoFocus
+                      type="text"
+                      value={companySearch}
+                      onChange={e => setCompanySearch(e.target.value)}
+                      placeholder="Search company..."
+                      style={{
+                        width: "100%",
+                        padding: "7px 10px 7px 28px",
+                        borderRadius: 7,
+                        border: `1.5px solid ${C.gray200}`,
+                        fontSize: 13,
+                        outline: "none",
+                        fontFamily: "inherit",
+                        boxSizing: "border-box",
+                        color: C.text,
+                      }}
                       onFocus={e => (e.target.style.borderColor = C.green)}
-                      onBlur={e => (e.target.style.borderColor = C.gray200)} />
+                      onBlur={e => (e.target.style.borderColor = C.gray200)}
+                    />
                   </div>
                 </div>
                 <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -788,9 +1336,22 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                     const netQty     = netMap[c.id] || 0;
                     const isSelected = form.companyId === c.id;
                     return (
-                      <button key={c.id} type="button"
+                      <button
+                        key={c.id}
+                        type="button"
                         onClick={() => { setForm(f => ({ ...f, companyId: c.id, qty: "" })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                        style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                        style={{
+                          width: "100%",
+                          padding: "9px 14px",
+                          border: "none",
+                          background: isSelected ? C.green + "15" : "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          borderBottom: `1px solid ${C.gray100}`,
+                        }}
                         onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
                       >
@@ -808,7 +1369,6 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           </div>
         </div>
 
-        {/* Reference No. — mobile only, in same row as Company */}
         {isMobile && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
@@ -819,12 +1379,22 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         )}
       </div>
 
-      {/* ── Row 3: Broker ── */}
+      {/* Row 3: Broker */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
           Broker <span style={{ color: C.red }}>*</span>
           {brokers.length === 0 && (
-            <span style={{ fontSize: 10, color: C.gold, fontWeight: 600, background: "#FEF9EC", border: `1px solid ${C.gold}44`, borderRadius: 20, padding: "1px 8px", textTransform: "none", letterSpacing: 0 }}>
+            <span style={{
+              fontSize: 10,
+              color: C.gold,
+              fontWeight: 600,
+              background: "#FEF9EC",
+              border: `1px solid ${C.gold}44`,
+              borderRadius: 20,
+              padding: "1px 8px",
+              textTransform: "none",
+              letterSpacing: 0,
+            }}>
               No brokers — ask SA to add
             </span>
           )}
@@ -833,30 +1403,69 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           <button
             type="button"
             onClick={() => { setBrokerOpen(o => !o); setBrokerSearch(""); }}
-            style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${form.brokerId ? C.gray200 : brokerOpen ? C.green : C.gray200}`, background: C.white, color: form.brokerId ? C.text : C.gray400, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" }}
+            style={{
+              width: "100%",
+              padding: "10px 36px 10px 12px",
+              borderRadius: 8,
+              textAlign: "left",
+              border: `1.5px solid ${form.brokerId ? C.gray200 : brokerOpen ? C.green : C.gray200}`,
+              background: C.white,
+              color: form.brokerId ? C.text : C.gray400,
+              fontSize: 14,
+              fontFamily: "inherit",
+              cursor: "pointer",
+              transition: "border-color 0.2s",
+              position: "relative",
+            }}
           >
-            {form.brokerId
-              ? <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{form.brokerName}</span>
-                  <span style={{ fontSize: 11, color: C.gray400, background: C.gray100, borderRadius: 5, padding: "1px 6px" }}>
-                    {brokers.find(b => b.id === form.brokerId)?.broker_code || ""}
-                  </span>
+            {form.brokerId ? (
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 600 }}>{form.brokerName}</span>
+                <span style={{ fontSize: 11, color: C.gray400, background: C.gray100, borderRadius: 5, padding: "1px 6px" }}>
+                  {brokers.find(b => b.id === form.brokerId)?.broker_code || ""}
                 </span>
-              : "Select broker..."}
+              </span>
+            ) : "Select broker..."}
             <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>
               {brokerOpen ? "▲" : "▼"}
             </span>
           </button>
           {brokerOpen && (
-            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+            <div style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              right: 0,
+              zIndex: 9999,
+              background: C.white,
+              border: `1.5px solid ${C.green}`,
+              borderRadius: 10,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              overflow: "hidden",
+            }}>
               <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
-                  <input autoFocus type="text" value={brokerSearch} onChange={e => setBrokerSearch(e.target.value)}
+                  <input
+                    autoFocus
+                    type="text"
+                    value={brokerSearch}
+                    onChange={e => setBrokerSearch(e.target.value)}
                     placeholder="Search broker name or code..."
-                    style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text }}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px 7px 28px",
+                      borderRadius: 7,
+                      border: `1.5px solid ${C.gray200}`,
+                      fontSize: 13,
+                      outline: "none",
+                      fontFamily: "inherit",
+                      boxSizing: "border-box",
+                      color: C.text,
+                    }}
                     onFocus={e => (e.target.style.borderColor = C.green)}
-                    onBlur={e => (e.target.style.borderColor = C.gray200)} />
+                    onBlur={e => (e.target.style.borderColor = C.gray200)}
+                  />
                 </div>
               </div>
               <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -865,9 +1474,22 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                 ) : filteredBrokers.map(b => {
                   const isSelected = form.brokerId === b.id;
                   return (
-                    <button key={b.id} type="button"
+                    <button
+                      key={b.id}
+                      type="button"
                       onClick={() => { setForm(f => ({ ...f, brokerId: b.id, brokerName: b.broker_name })); setBrokerOpen(false); setBrokerSearch(""); setError(""); }}
-                      style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                      style={{
+                        width: "100%",
+                        padding: "9px 14px",
+                        border: "none",
+                        background: isSelected ? C.green + "15" : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        borderBottom: `1px solid ${C.gray100}`,
+                      }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
                     >
@@ -885,12 +1507,14 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       </div>
 
-      {/* ── Row 4: Qty · Price ── */}
+      {/* Row 4: Qty · Price */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
           <FInput
             label={!isBuy && maxSellQty > 0 ? `Quantity (max ${fmtInt(maxSellQty)})` : "Quantity (Shares)"}
-            required type="number" min="1"
+            required
+            type="number"
+            min="1"
             max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
             value={form.qty}
             onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
@@ -902,65 +1526,86 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           )}
         </div>
         <FInput
-          label="Price per Share (TZS)" required type="number" min="0.01"
+          label="Price per Share (TZS)"
+          required
+          type="number"
+          min="0.01"
           value={form.price}
           onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }}
           placeholder="0.00"
         />
       </div>
 
-      {/* ── Fee summary ── */}
+      {/* Fee summary */}
       {tradeValue > 0 && (() => {
-        // Smart formatter: show 120M / 9B above 99M, else normal fmt — no TZS prefix
         const fmtFee = n => n > 99_000_000 ? fmtSmart(n) : fmt(n);
         return (
-        <div style={{ background: isBuy ? C.greenBg : C.redBg, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, borderRadius: 10, padding: "10px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {/* Trade Value — wider flex */}
-            <div style={{ flex: 1.3, minWidth: 0 }}>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(tradeValue)}</div>
-            </div>
-            <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>{isBuy ? "+" : "−"}</div>
-            {/* Fees — narrower flex */}
-            <div style={{ flex: 0.9, minWidth: 0 }}>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
-                Fees
-                <button type="button" onClick={() => setShowFeeBreakdown(v => !v)}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: showFeeBreakdown ? C.navy : C.gray400, padding: 0, lineHeight: 1 }}
-                  title={showFeeBreakdown ? "Hide breakdown" : "Show breakdown"}>
-                  {showFeeBreakdown ? "▲" : "ⓘ"}
-                </button>
+          <div style={{
+            background: isBuy ? C.greenBg : C.redBg,
+            border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`,
+            borderRadius: 10,
+            padding: "10px 14px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ flex: 1.3, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(tradeValue)}</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(feeBreakdown.total)}</div>
-            </div>
-            <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>=</div>
-            {/* Net Proceeds / Total Paid — wider flex */}
-            <div style={{ flex: 1.4, minWidth: 0 }}>
-              <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {isBuy ? "Total Paid" : "Net Proceeds"}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: isBuy ? C.green : C.red, marginTop: 2 }}>
-                {fmtFee(grandTotal)}
-              </div>
-            </div>
-          </div>
-          {showFeeBreakdown && (
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`, display: "flex", gap: 4 }}>
-              {feeItems.map(({ label, value, note }) => (
-                <div key={label} style={{ flex: 1, background: "rgba(255,255,255,0.6)", borderRadius: 6, padding: "5px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase" }}>{label}</div>
-                  <div style={{ fontSize: 9, color: C.gray400 }}>{note}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmt(value)}</div>
+              <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>{isBuy ? "+" : "−"}</div>
+              <div style={{ flex: 0.9, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
+                  Fees
+                  <button
+                    type="button"
+                    onClick={() => setShowFeeBreakdown(v => !v)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      color: showFeeBreakdown ? C.navy : C.gray400,
+                      padding: 0,
+                      lineHeight: 1,
+                    }}
+                    title={showFeeBreakdown ? "Hide breakdown" : "Show breakdown"}
+                  >
+                    {showFeeBreakdown ? "▲" : "ⓘ"}
+                  </button>
                 </div>
-              ))}
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(feeBreakdown.total)}</div>
+              </div>
+              <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>=</div>
+              <div style={{ flex: 1.4, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {isBuy ? "Total Paid" : "Net Proceeds"}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: isBuy ? C.green : C.red, marginTop: 2 }}>
+                  {fmtFee(grandTotal)}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+            {showFeeBreakdown && (
+              <div style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}`,
+                display: "flex",
+                gap: 4,
+              }}>
+                {feeItems.map(({ label, value, note }) => (
+                  <div key={label} style={{ flex: 1, background: "rgba(255,255,255,0.6)", borderRadius: 6, padding: "5px 4px", textAlign: "center" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase" }}>{label}</div>
+                    <div style={{ fontSize: 9, color: C.gray400 }}>{note}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmt(value)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })()}
 
-      {/* ── Remarks ── */}
+      {/* Remarks */}
       <FTextarea
         label="Remarks"
         value={form.remarks}
@@ -972,12 +1617,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   );
 }
 
-
 // ═══════════════════════════════════════════════════════════════════
 // ─── IMPORT TRANSACTIONS MODAL ────────────────────────────────────
-// UNCHANGED from original — this modal is desktop-only (import feature
-// is intentionally hidden on mobile in TransactionsPage.jsx).
-// ═══════════════════════════════════════════════════════════════════
 export function ImportTransactionsModal({ companies, brokers = [], onImport, onClose }) {
   const [step, setStep]           = useState("upload");
   const [rows, setRows]           = useState([]);
@@ -987,7 +1628,13 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
   const [progress, setProgress]   = useState(0);
   const [parsing, setParsing]     = useState(false);
   const fileRef = useRef(null);
+  const mountedRef = useRef(true);
   const MAX_ROWS = 500;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const downloadTemplate = () => {
     const link = document.createElement("a");
@@ -1118,33 +1765,45 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
         }
       });
 
-      setRows(parsed); setErrors(errs); setStep("preview");
+      if (mountedRef.current) {
+        setRows(parsed);
+        setErrors(errs);
+        setStep("preview");
+      }
     } catch (err) {
-      alert("Failed to read file: " + err.message);
-      if (fileRef.current) fileRef.current.value = "";
+      if (mountedRef.current) alert("Failed to read file: " + err.message);
     } finally {
-      setParsing(false);
+      if (mountedRef.current) setParsing(false);
     }
   };
 
   const handleImport = async () => {
     if (!rows.length) return;
-    setImporting(true); setProgress(0);
+    setImporting(true);
+    setProgress(0);
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 6 + 2;
       if (current >= 85) { current = 85; clearInterval(interval); }
-      setProgress(Math.round(current));
+      if (mountedRef.current) setProgress(Math.round(current));
     }, 180);
     try {
       await onImport(rows);
-      clearInterval(interval); setProgress(100);
-      await new Promise(r => setTimeout(r, 500));
-      onClose();
+      if (mountedRef.current) {
+        clearInterval(interval);
+        setProgress(100);
+        await new Promise(r => setTimeout(r, 500));
+        onClose();
+      }
     } catch (e) {
-      clearInterval(interval); setProgress(0);
-      alert("Import failed: " + e.message);
-    } finally { setImporting(false); }
+      if (mountedRef.current) {
+        clearInterval(interval);
+        setProgress(0);
+        alert("Import failed: " + e.message);
+      }
+    } finally {
+      if (mountedRef.current) setImporting(false);
+    }
   };
 
   const UploadStep = () => (
@@ -1155,7 +1814,26 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Step 1 — Download Sample Template</div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 3, lineHeight: 1.5 }}>Download the Excel template, fill in your transactions, and save the file.</div>
-            <button onClick={downloadTemplate} style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, background: C.green, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+            <button
+              onClick={downloadTemplate}
+              style={{
+                marginTop: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: C.green,
+                color: C.white,
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.9"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
               <span>⬇️</span> Download Import_Transactions_Template.xlsx
             </button>
           </div>
@@ -1171,7 +1849,26 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
             <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Step 2 — Select File to Import</div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 3, lineHeight: 1.5 }}>Select your filled Excel file (.xlsx). Maximum {MAX_ROWS} rows per import.</div>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: "none" }} />
-            <button onClick={() => !parsing && fileRef.current?.click()} disabled={parsing} style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, background: C.navy, color: C.white, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: parsing ? "wait" : "pointer", opacity: parsing ? 0.7 : 1, fontFamily: "inherit" }}>
+            <button
+              onClick={() => !parsing && fileRef.current?.click()}
+              disabled={parsing}
+              style={{
+                marginTop: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: C.navy,
+                color: C.white,
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: parsing ? "wait" : "pointer",
+                opacity: parsing ? 0.7 : 1,
+                fontFamily: "inherit",
+              }}
+            >
               <span>📁</span> {parsing ? "Reading file..." : fileName || "Choose Excel File..."}
             </button>
           </div>
@@ -1215,9 +1912,18 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
   const PreviewStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-        <div style={{ background: C.greenBg, border: `1px solid ${C.green}33`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.green }}>{rows.length}</div><div style={{ fontSize: 11, color: C.green, fontWeight: 600, marginTop: 2 }}>Valid Rows</div></div>
-        <div style={{ background: errors.length ? C.redBg : C.gray50, border: `1px solid ${errors.length ? C.red : C.gray200}33`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: errors.length ? C.red : C.gray400 }}>{errors.length}</div><div style={{ fontSize: 11, color: errors.length ? C.red : C.gray400, fontWeight: 600, marginTop: 2 }}>Rows with Errors</div></div>
-        <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.navy }}>{rows.length + errors.length}</div><div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, marginTop: 2 }}>Total Rows Found</div></div>
+        <div style={{ background: C.greenBg, border: `1px solid ${C.green}33`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.green }}>{rows.length}</div>
+          <div style={{ fontSize: 11, color: C.green, fontWeight: 600, marginTop: 2 }}>Valid Rows</div>
+        </div>
+        <div style={{ background: errors.length ? C.redBg : C.gray50, border: `1px solid ${errors.length ? C.red : C.gray200}33`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: errors.length ? C.red : C.gray400 }}>{errors.length}</div>
+          <div style={{ fontSize: 11, color: errors.length ? C.red : C.gray400, fontWeight: 600, marginTop: 2 }}>Rows with Errors</div>
+        </div>
+        <div style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "12px 16px", textAlign: "center" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.navy }}>{rows.length + errors.length}</div>
+          <div style={{ fontSize: 11, color: C.gray400, fontWeight: 600, marginTop: 2 }}>Total Rows Found</div>
+        </div>
       </div>
 
       {errors.length > 0 && (
@@ -1299,7 +2005,9 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
       subtitle={importing
         ? `Importing ${rows.length} transaction${rows.length !== 1 ? "s" : ""}… please wait`
         : step === "upload" ? "Upload your filled Excel template" : `Reviewing ${rows.length + errors.length} rows from "${fileName}"`}
-      onClose={onClose} maxWidth={760} lockBackdrop={importing}
+      onClose={onClose}
+      maxWidth={760}
+      lockBackdrop={importing}
       footer={
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
           {importing && (
