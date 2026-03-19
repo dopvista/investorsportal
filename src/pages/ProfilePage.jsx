@@ -175,7 +175,7 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Modal Shell (copied from ui.jsx to ensure consistent style) ──
+// ── Modal Shell (used by ChangePasswordModal) ───────────────────
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const isMobile = useIsMobile();
 
@@ -195,7 +195,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
     >
       <div style={{
         background: C.white,
-        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        borderRadius: isMobile ? "18px 18px 0 0" : 18,
         width: "100%",
         maxWidth: isMobile ? "100%" : maxWidth,
         display: "flex",
@@ -204,7 +204,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
         ...((!isMobile && maxHeight) ? { maxHeight } : {}),
       }}>
-        {/* Header with navy gradient (like UserManagement modals) */}
+        {/* Header with navy gradient */}
         <div style={{
           background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
           padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
@@ -213,6 +213,8 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           alignItems: "flex-start",
           justifyContent: "space-between",
           flexShrink: 0,
+          borderTopLeftRadius: isMobile ? "18px" : 18,
+          borderTopRightRadius: isMobile ? "18px" : 18,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{title}</div>
@@ -278,7 +280,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
   );
 }
 
-// ── Change Password Modal — now uses ModalShell with navy header ──
+// ── Change Password Modal ────────────────────────────────────────
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
