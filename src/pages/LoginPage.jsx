@@ -42,16 +42,29 @@ export default function LoginPage({ onLogin, loginSettings }) {
     return () => clearInterval(t);
   }, [isHovering, isMobile, INTERVAL, ADVERTS.length]);
 
-  const inpStyle = useMemo(() => ({
+  // Desktop input style (original small)
+  const desktopInp = {
+    width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 14,
+    border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "'Inter', sans-serif",
+    background: C.gray50, color: C.text, transition: "border 0.2s", boxSizing: "border-box",
+  };
+  // Mobile input style (larger)
+  const mobileInp = {
     width: "100%", padding: "14px 16px", borderRadius: 12, fontSize: 16,
     border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "'Inter', sans-serif",
-    background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50,
-    color: isMobile ? C.white : C.text,
+    background: "rgba(255,255,255,0.08)", color: C.white,
     transition: "border 0.2s", boxSizing: "border-box",
-  }), [isMobile]);
+  };
+  const inpStyle = isMobile ? mobileInp : desktopInp;
 
   const Label = useCallback(({ text }) => (
-    <label style={{ fontSize: 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 6 }}>{text}</label>
+    <label style={{
+      fontSize: isMobile ? 14 : 13,
+      fontWeight: 600,
+      color: isMobile ? "rgba(255,255,255,0.9)" : C.text,
+      display: "block",
+      marginBottom: 6
+    }}>{text}</label>
   ), [isMobile]);
 
   const handleLogin = useCallback(async (e) => {
@@ -76,17 +89,27 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   const SubmitBtn = useCallback(({ label, loadingLabel }) => (
     <button type="submit" disabled={loading} style={{
-      width: "100%", padding: "15px", borderRadius: 12, border: "none",
-      background: loading ? C.gray200 : C.green, color: C.white,
-      fontWeight: 700, fontSize: 16, cursor: loading ? "not-allowed" : "pointer",
-      fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      width: "100%",
+      padding: isMobile ? "15px" : "13px",
+      borderRadius: isMobile ? 12 : 10,
+      border: "none",
+      background: loading ? C.gray200 : C.green,
+      color: C.white,
+      fontWeight: 700,
+      fontSize: isMobile ? 16 : 15,
+      cursor: loading ? "not-allowed" : "pointer",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
       boxShadow: loading ? "none" : `0 4px 16px ${C.green}55`,
     }}>
       {loading
         ? <><div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />{loadingLabel}</>
         : label}
     </button>
-  ), [loading]);
+  ), [loading, isMobile]);
 
   // ── Form content — shared between mobile and desktop ─────────────
   const renderForm = useCallback(() => (
@@ -95,11 +118,21 @@ export default function LoginPage({ onLogin, loginSettings }) {
       <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 20 }}>
         <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 64 : 48, height: isMobile ? 64 : 48, borderRadius: 14, objectFit: "cover", marginBottom: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }} />
         <div style={{ fontWeight: 800, fontSize: isMobile ? 24 : 16, color: isMobile ? C.white : C.text }}>Investors Portal</div>
-        <div style={{ fontSize: 14, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 4 }}>
+        <div style={{ fontSize: isMobile ? 14 : 13, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 4 }}>
           {view === "login" ? "Sign in to your account" : "Reset your password"}
         </div>
-        {view === "reset" && (
-          <div style={{ marginTop: 14, background: isMobile ? "rgba(245,158,11,0.15)" : `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 9, padding: "10px 14px", fontSize: 13, color: C.gold, fontWeight: 600 }}>
+        {/* Info box – only shown when no success (i.e., after sending we hide it) */}
+        {view === "reset" && !success && (
+          <div style={{
+            marginTop: 14,
+            background: isMobile ? "rgba(245,158,11,0.15)" : `${C.gold}18`,
+            border: `1px solid ${C.gold}55`,
+            borderRadius: 9,
+            padding: "10px 14px",
+            fontSize: isMobile ? 13 : 12,
+            color: C.gold,
+            fontWeight: 600
+          }}>
             Enter your email to receive a password reset link
           </div>
         )}
@@ -107,12 +140,34 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Messages */}
       {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          color: "#dc2626",
+          borderRadius: 10,
+          padding: isMobile ? "12px 16px" : "10px 14px",
+          fontSize: isMobile ? 14 : 13,
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}>
           <span>⚠️</span> {error}
         </div>
       )}
       {success && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          color: "#16a34a",
+          borderRadius: 10,
+          padding: isMobile ? "12px 16px" : "10px 14px",
+          fontSize: isMobile ? 14 : 13,
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}>
           <span>✅</span> {success}
         </div>
       )}
@@ -132,10 +187,10 @@ export default function LoginPage({ onLogin, loginSettings }) {
           </div>
           <div style={{ marginBottom: 22 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
+              <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
               <button type="button"
                 onClick={() => { setView("reset"); setError(""); setSuccess(""); }}
-                style={{ fontSize: 13, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
+                style={{ fontSize: isMobile ? 13 : 12, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
                 Forgot password?
               </button>
             </div>
@@ -175,7 +230,18 @@ export default function LoginPage({ onLogin, loginSettings }) {
           </div>
           <button type="button"
             onClick={() => { setView("login"); setError(""); setSuccess(""); }}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}
+            style={{
+              width: "100%",
+              padding: isMobile ? "14px" : "12px",
+              borderRadius: isMobile ? 12 : 10,
+              border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`,
+              background: "transparent",
+              color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400,
+              fontWeight: 600,
+              fontSize: isMobile ? 15 : 14,
+              cursor: "pointer",
+              fontFamily: "inherit"
+            }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = isMobile ? C.white : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.2)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.7)" : C.gray400; }}>
             ← Back to Sign In
@@ -183,7 +249,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         </form>
       )}
 
-      {/* Footer (simplified on mobile, no dot) */}
+      {/* Footer – only on desktop, no dot */}
       {!isMobile && (
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
@@ -210,7 +276,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         @keyframes spin    { to { transform:rotate(360deg); } }
         ${ANIMATED && !isMobile ? ".ad-bg { animation: kenBurns 12s ease-in-out infinite alternate; }" : ""}
         input:focus { border-color: ${C.green} !important; }
-        input::placeholder { color: rgba(255,255,255,0.3) !important; }
+        input::placeholder { color: ${isMobile ? "rgba(255,255,255,0.3)" : "#9ca3af"} !important; }
       `}</style>
 
       {/* Dot grid */}
@@ -230,7 +296,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — image slider + form card. UNCHANGED.
+          DESKTOP LAYOUT — image slider + form card. UNCHANGED (original fonts/sizes).
           ══════════════════════════════════════════════════════════ */}
       {!isMobile && (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
