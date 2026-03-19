@@ -204,8 +204,9 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
         ...((!isMobile && maxHeight) ? { maxHeight } : {}),
       }}>
-        {/* Header */}
+        {/* Header with navy gradient (like UserManagement modals) */}
         <div style={{
+          background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
           padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
           borderBottom: `1px solid ${C.gray200}`,
           display: "flex",
@@ -214,8 +215,8 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           flexShrink: 0,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: C.gray400, marginTop: 3 }}>{subtitle}</div>}
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>{subtitle}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
@@ -226,14 +227,14 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
                   width: 40,
                   height: 40,
                   borderRadius: 8,
-                  border: `1px solid ${C.gray200}`,
-                  background: C.gray50,
+                  border: "none",
+                  background: "rgba(255,255,255,0.1)",
                   cursor: "pointer",
                   fontSize: 15,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: C.gray600,
+                  color: C.white,
                   flexShrink: 0,
                 }}
               >
@@ -277,7 +278,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
   );
 }
 
-// ── Change Password Modal — now uses ModalShell for consistent style ──
+// ── Change Password Modal — now uses ModalShell with navy header ──
 function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const [step, setStep] = useState("send");
   const [otp, setOtp] = useState("");
@@ -741,7 +742,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {renderSwitchModal()}
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — matches screenshot, with Gender moved to Personal tab
+          MOBILE LAYOUT — with reordered fields as requested
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div>
@@ -841,16 +842,16 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             ))}
           </div>
 
-          {/* ── Personal tab ── (now includes Gender) */}
+          {/* ── Personal tab ── (Full Name, Gender, Date of Birth) */}
           {mobileTab === "personal" && (
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Account Information</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Information</div>
               {/* Full Name */}
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
                 <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
               </div>
-              {/* Gender (moved from More Info) */}
+              {/* Gender */}
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
                 <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
@@ -858,26 +859,25 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
-              {/* Phone Number */}
+              {/* Date of Birth (moved from More Info) */}
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
-                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
+                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
               </div>
               {renderSaveBtn()}
               {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
             </div>
           )}
 
-          {/* ── More Info tab ── (remaining fields) */}
+          {/* ── More Info tab ── (Phone Number, National ID, Nationality, Postal Address) */}
           {mobileTab === "more" && (
             <div>
-              {/* Identity & Contact section */}
               <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity &amp; Contact</div>
-                {/* Date of Birth */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity & Contact</div>
+                {/* Phone Number (moved from Personal) */}
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
-                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                 </div>
                 {/* National ID */}
                 <div style={{ marginBottom: 12 }}>
