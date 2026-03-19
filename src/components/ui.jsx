@@ -950,7 +950,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
-                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Changed By"]
+                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Updated By"]
                   .filter(Boolean)
                   .map(h => (
                     <th
