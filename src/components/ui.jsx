@@ -791,6 +791,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
     const d = new Date(h.created_at);
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   });
+
   const monthLabel   = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const totalPages   = Math.ceil(thisMonth.length / PAGE_SIZE);
   const pagedHistory = thisMonth.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -801,8 +802,10 @@ export function PriceHistoryModal({ company, history, onClose }) {
         display: "flex",
         alignItems: "center",
         justifyContent: isMobile ? "center" : "space-between",
-        gap: 10,
-        padding: "10px 0 2px",
+        gap: isMobile ? 8 : 10,
+        padding: isMobile ? "8px 0 0" : "8px 0 0",
+        marginTop: 2,
+        flexWrap: isMobile ? "wrap" : "nowrap",
       }}
     >
       {!isMobile && (
@@ -811,9 +814,36 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flex: isMobile ? "0 0 auto" : 1 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 5,
+          flex: isMobile ? "0 0 auto" : 1,
+          flexWrap: isMobile ? "wrap" : "nowrap",
+        }}
+      >
         <button
           onClick={() => setPage(1)}
+          disabled={page === 1}
+          style={{
+            padding: "4px 8px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === 1 ? C.gray400 : C.text,
+            cursor: page === 1 ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+            minWidth: 28,
+          }}
+        >
+          «
+        </button>
+
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
           style={{
             padding: "4px 9px",
@@ -826,24 +856,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
             fontFamily: "inherit",
           }}
         >
-          «
-        </button>
-        <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page === 1}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 7,
-            border: `1.5px solid ${C.gray200}`,
-            background: C.white,
-            color: page === 1 ? C.gray400 : C.text,
-            cursor: page === 1 ? "not-allowed" : "pointer",
-            fontSize: 12,
-            fontFamily: "inherit",
-          }}
-        >
           ‹ Prev
         </button>
+
         {Array.from({ length: totalPages }, (_, i) => i + 1)
           .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
           .reduce((acc, p, i, arr) => {
@@ -852,13 +867,13 @@ export function PriceHistoryModal({ company, history, onClose }) {
             return acc;
           }, [])
           .map((p, i) => p === "..." ? (
-            <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400 }}>…</span>
+            <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400, padding: "0 1px" }}>…</span>
           ) : (
             <button
               key={p}
               onClick={() => setPage(p)}
               style={{
-                padding: "4px 10px",
+                padding: "4px 9px",
                 borderRadius: 7,
                 border: `1.5px solid ${p === page ? C.navy : C.gray200}`,
                 background: p === page ? C.navy : C.white,
@@ -873,24 +888,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
               {p}
             </button>
           ))}
+
         <button
           onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          disabled={page === totalPages}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 7,
-            border: `1.5px solid ${C.gray200}`,
-            background: C.white,
-            color: page === totalPages ? C.gray400 : C.text,
-            cursor: page === totalPages ? "not-allowed" : "pointer",
-            fontSize: 12,
-            fontFamily: "inherit",
-          }}
-        >
-          Next ›
-        </button>
-        <button
-          onClick={() => setPage(totalPages)}
           disabled={page === totalPages}
           style={{
             padding: "4px 9px",
@@ -903,16 +903,33 @@ export function PriceHistoryModal({ company, history, onClose }) {
             fontFamily: "inherit",
           }}
         >
+          Next ›
+        </button>
+
+        <button
+          onClick={() => setPage(totalPages)}
+          disabled={page === totalPages}
+          style={{
+            padding: "4px 8px",
+            borderRadius: 7,
+            border: `1.5px solid ${C.gray200}`,
+            background: C.white,
+            color: page === totalPages ? C.gray400 : C.text,
+            cursor: page === totalPages ? "not-allowed" : "pointer",
+            fontSize: 12,
+            fontFamily: "inherit",
+            minWidth: 28,
+          }}
+        >
           »
         </button>
       </div>
     </div>
   );
 
-  // Column widths based on screen size
   const colWidths = isMobile
-    ? ["5%", "33%", "20%", "20%", "22%"]
-    : ["5%", "28%", "15%", "15%", "20%", "17%"];
+    ? ["7%", "37%", "18%", "18%", "20%"]
+    : ["5%", "27%", "15%", "15%", "20%", "18%"];
 
   return (
     <ModalShell
@@ -920,15 +937,33 @@ export function PriceHistoryModal({ company, history, onClose }) {
       subtitle="📈 Price history"
       headerRight={
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div>
+          <div
+            style={{
+              fontSize: 10,
+              color: C.gray400,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Current
+          </div>
+          <div style={{ fontSize: isMobile ? 16 : 17, fontWeight: 800, color: C.green }}>
+            TZS {fmt(company.price)}
+          </div>
         </div>
       }
       onClose={onClose}
-      maxWidth={isMobile ? 580 : 720}
+      maxWidth={isMobile ? 560 : 680}
       footer={
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <div style={{ fontSize: 12, color: C.gray400 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 10 }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: C.gray400,
+              lineHeight: 1.4,
+            }}
+          >
             {thisMonth.length} update{thisMonth.length !== 1 ? "s" : ""} in {monthLabel}
             {thisMonth.length !== meaningful.length && (
               <span style={{ marginLeft: 6, color: C.gray400 }}>· {meaningful.length} total all-time</span>
@@ -939,11 +974,13 @@ export function PriceHistoryModal({ company, history, onClose }) {
       }
     >
       {thisMonth.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "30px 20px", color: C.gray400 }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+        <div style={{ textAlign: "center", padding: isMobile ? "20px 12px" : "24px 16px", color: C.gray400 }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
           <div style={{ fontWeight: 600 }}>No price changes in {monthLabel}</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>
-            {meaningful.length > 0 ? `${meaningful.length} update${meaningful.length !== 1 ? "s" : ""} exist in previous months` : "No price history recorded yet"}
+          <div style={{ fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+            {meaningful.length > 0
+              ? `${meaningful.length} update${meaningful.length !== 1 ? "s" : ""} exist in previous months`
+              : "No price history recorded yet"}
           </div>
         </div>
       ) : (
@@ -956,7 +993,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
             </div>
           )}
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: isMobile ? 12 : 13, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: colWidths[0] }} />
               <col style={{ width: colWidths[1] }} />
@@ -965,6 +1002,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
               <col style={{ width: colWidths[4] }} />
               {!isMobile && <col style={{ width: colWidths[5] }} />}
             </colgroup>
+
             <thead>
               <tr style={{ background: C.gray50 }}>
                 {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Updated By"]
@@ -973,13 +1011,13 @@ export function PriceHistoryModal({ company, history, onClose }) {
                     <th
                       key={h}
                       style={{
-                        padding: "10px 12px",
+                        padding: isMobile ? "8px 8px" : "9px 10px",
                         textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left",
                         color: C.gray400,
                         fontWeight: 700,
-                        fontSize: 11,
+                        fontSize: isMobile ? 10 : 11,
                         textTransform: "uppercase",
-                        letterSpacing: "0.06em",
+                        letterSpacing: "0.05em",
                         borderBottom: `1px solid ${C.gray200}`,
                         borderTop: `1px solid ${C.gray200}`,
                         whiteSpace: "nowrap",
@@ -991,6 +1029,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
                   ))}
               </tr>
             </thead>
+
             <tbody>
               {pagedHistory.map((h, i) => {
                 const globalIdx    = (page - 1) * PAGE_SIZE + i;
@@ -1002,6 +1041,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
                   month: "short",
                   year: "numeric",
                 });
+
                 const timeText = new Date(h.created_at).toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -1014,49 +1054,68 @@ export function PriceHistoryModal({ company, history, onClose }) {
                     onMouseEnter={e => e.currentTarget.style.background = C.gray50}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <td style={{ padding: "10px 12px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", color: C.gray400, fontWeight: 600 }}>
+                      {globalIdx + 1}
+                    </td>
 
-                    <td style={{ padding: "10px 12px" }}>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
                       {isMobile ? (
-                        <>
-                          <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                        <div style={{ lineHeight: 1.25 }}>
+                          <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", fontSize: 12 }}>
                             {dateText}
                           </div>
-                          <div style={{ fontSize: 11, color: C.gray400 }}>
+                          <div style={{ fontSize: 10.5, color: C.gray400, marginTop: 1 }}>
                             {timeText}
                           </div>
-                        </>
+                        </div>
                       ) : (
-                        <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                        <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", lineHeight: 1.2 }}>
                           {dateText} <span style={{ color: C.gray400 }}>|</span> {timeText}
                         </div>
                       )}
                     </td>
 
-                    <td style={{ padding: "10px 12px", textAlign: "right", color: C.gray600 }}>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.gray600 }}>
                       {isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}
                     </td>
-                    <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
-                    <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                      {isFirstEntry
-                        ? <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span>
-                        : <span style={{
+
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", fontWeight: 700, color: C.text }}>
+                      {fmt(h.new_price)}
+                    </td>
+
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right" }}>
+                      {isFirstEntry ? (
+                        <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span>
+                      ) : (
+                        <span
+                          style={{
                             background: up ? C.greenBg : C.redBg,
                             color: up ? C.green : C.red,
-                            padding: "3px 9px",
+                            padding: isMobile ? "2px 7px" : "3px 8px",
                             borderRadius: 20,
-                            fontSize: 12,
+                            fontSize: isMobile ? 11 : 12,
                             fontWeight: 700,
                             whiteSpace: "nowrap",
-                          }}>
-                            {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
-                          </span>
-                      }
+                          }}
+                        >
+                          {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
+                        </span>
+                      )}
                     </td>
+
                     {!isMobile && (
-                      <td style={{ padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "9px 10px", textAlign: "left", whiteSpace: "nowrap" }}>
                         {h.updated_by ? (
-                          <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: C.gray600,
+                              background: C.gray50,
+                              border: `1px solid ${C.gray200}`,
+                              borderRadius: 6,
+                              padding: "2px 7px",
+                            }}
+                          >
                             {h.updated_by}
                           </span>
                         ) : (
@@ -1069,6 +1128,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
               })}
             </tbody>
           </table>
+
           <PaginationBar />
         </>
       )}
