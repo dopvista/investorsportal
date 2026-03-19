@@ -1,5 +1,4 @@
-// ── src/pages/ResetPasswordPage.jsx ──────────────────────────────
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
@@ -14,15 +13,17 @@ export default function ResetPasswordPage({ onDone }) {
   const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
   const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  const inp = {
-    width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 14,
+  const isMobile = window.innerWidth < 768;
+
+  const inp = useMemo(() => ({
+    width: "100%", padding: isMobile ? "16px" : "11px 14px", borderRadius: isMobile ? 14 : 10, fontSize: isMobile ? 16 : 14,
     border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
     background: C.gray50, color: C.text, transition: "border 0.2s",
     boxSizing: "border-box",
-  };
+  }), [isMobile]);
 
   // Password strength indicator
-  const strength = (p) => {
+  const strength = useCallback((p) => {
     if (!p) return { score: 0, label: "", color: C.gray200 };
     let score = 0;
     if (p.length >= 8)               score++;
@@ -37,11 +38,11 @@ export default function ResetPasswordPage({ onDone }) {
       { score: 4, label: "Strong",    color: C.green    },
     ];
     return map[score];
-  };
+  }, []);
 
   const pw = strength(password);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError("");
     if (password.length < 6)       return setError("Password must be at least 6 characters");
@@ -65,7 +66,6 @@ export default function ResetPasswordPage({ onDone }) {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        // Surface the real Supabase error
         const msg = data.error_description || data.message || data.msg || data.error || null;
         if (msg?.toLowerCase().includes("expired") || msg?.toLowerCase().includes("invalid")) {
           throw new Error("Reset link has expired. Please go back and request a new one.");
@@ -84,7 +84,7 @@ export default function ResetPasswordPage({ onDone }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [password, confirm, BASE, KEY, onDone]);
 
   return (
     <div style={{
@@ -92,7 +92,7 @@ export default function ResetPasswordPage({ onDone }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)",
       fontFamily: "'Inter', system-ui, sans-serif",
-      padding: 20, boxSizing: "border-box", position: "relative", overflow: "hidden",
+      padding: isMobile ? 16 : 20, boxSizing: "border-box", position: "relative", overflow: "hidden",
     }}>
       {/* dot grid */}
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
@@ -109,18 +109,18 @@ export default function ResetPasswordPage({ onDone }) {
 
       <div style={{
         position: "relative", zIndex: 1,
-        background: C.white, borderRadius: 20, padding: "40px 36px",
-        width: "100%", maxWidth: 420,
+        background: C.white, borderRadius: isMobile ? 24 : 20, padding: isMobile ? "32px 20px" : "40px 36px",
+        width: "100%", maxWidth: isMobile ? "100%" : 420,
         boxShadow: "0 24px 64px rgba(0,0,0,0.35)",
         animation: "fadeIn 0.35s ease",
       }}>
 
         {/* ── Header ── */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <img src={logo} alt="Investors Portal" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-          <div style={{ fontWeight: 700, fontSize: 13, color: C.gray400, marginBottom: 6 }}>Investors Portal</div>
-          <div style={{ fontWeight: 800, fontSize: 20, color: C.text }}>Set New Password</div>
-          <div style={{ fontSize: 13, color: C.gray400, marginTop: 4 }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 28 }}>
+          <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 64 : 56, height: isMobile ? 64 : 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.gray400, marginBottom: 6 }}>Investors Portal</div>
+          <div style={{ fontWeight: 800, fontSize: isMobile ? 24 : 20, color: C.text }}>Set New Password</div>
+          <div style={{ fontSize: 14, color: C.gray400, marginTop: 4 }}>
             Choose a strong password for your account
           </div>
         </div>
@@ -139,12 +139,12 @@ export default function ResetPasswordPage({ onDone }) {
             <div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 8 }}>
               Password Updated!
             </div>
-            <div style={{ fontSize: 13, color: C.gray400, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 14, color: C.gray400, lineHeight: 1.6 }}>
               Your password has been changed successfully.<br />
               Redirecting you to sign in...
             </div>
             <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
-              <div style={{ width: 14, height: 14, border: `2px solid ${C.green}33`, borderTop: `2px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              <div style={{ width: 16, height: 16, border: `2px solid ${C.green}33`, borderTop: `2px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
             </div>
           </div>
         ) : (
@@ -153,19 +153,19 @@ export default function ResetPasswordPage({ onDone }) {
 
             {/* Error banner */}
             {error && (
-              <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, color: "#dc2626", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 18 }}>
+              <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 20 }}>
                 {error}
               </div>
             )}
 
             {/* New password */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>
                 New Password
               </label>
               <div style={{ position: "relative" }}>
                 <input
-                  style={{ ...inp, paddingRight: 44 }}
+                  style={{ ...inp, paddingRight: 48 }}
                   type={show.pw ? "text" : "password"}
                   placeholder="Min. 6 characters"
                   value={password}
@@ -176,7 +176,7 @@ export default function ResetPasswordPage({ onDone }) {
                 <button
                   type="button"
                   onClick={() => setShow(s => ({ ...s, pw: !s.pw }))}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400, padding: 0 }}
+                  style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.gray400, padding: 0 }}
                 >
                   {show.pw ? "🙈" : "👁️"}
                 </button>
@@ -195,7 +195,7 @@ export default function ResetPasswordPage({ onDone }) {
                     ))}
                   </div>
                   {pw.label && (
-                    <div style={{ fontSize: 11, color: pw.color, fontWeight: 600 }}>{pw.label} password</div>
+                    <div style={{ fontSize: 12, color: pw.color, fontWeight: 600 }}>{pw.label} password</div>
                   )}
                 </div>
               )}
@@ -203,13 +203,13 @@ export default function ResetPasswordPage({ onDone }) {
 
             {/* Confirm password */}
             <div style={{ marginBottom: 28 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>
                 Confirm Password
               </label>
               <div style={{ position: "relative" }}>
                 <input
                   style={{
-                    ...inp, paddingRight: 44,
+                    ...inp, paddingRight: 48,
                     borderColor: confirm && password !== confirm ? "#fca5a5" : undefined,
                   }}
                   type={show.cf ? "text" : "password"}
@@ -222,14 +222,14 @@ export default function ResetPasswordPage({ onDone }) {
                 <button
                   type="button"
                   onClick={() => setShow(s => ({ ...s, cf: !s.cf }))}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400, padding: 0 }}
+                  style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.gray400, padding: 0 }}
                 >
                   {show.cf ? "🙈" : "👁️"}
                 </button>
               </div>
               {/* Match indicator */}
               {confirm && (
-                <div style={{ fontSize: 11, marginTop: 5, fontWeight: 600, color: password === confirm ? C.green : "#ef4444" }}>
+                <div style={{ fontSize: 12, marginTop: 5, fontWeight: 600, color: password === confirm ? C.green : "#ef4444" }}>
                   {password === confirm ? "✓ Passwords match" : "✗ Passwords do not match"}
                 </div>
               )}
@@ -237,15 +237,15 @@ export default function ResetPasswordPage({ onDone }) {
 
             {/* Submit */}
             <button type="submit" disabled={loading} style={{
-              width: "100%", padding: "13px", borderRadius: 10, border: "none",
+              width: "100%", padding: isMobile ? "16px" : "13px", borderRadius: isMobile ? 14 : 10, border: "none",
               background: loading ? C.gray200 : C.green, color: C.white,
-              fontWeight: 700, fontSize: 15, cursor: loading ? "not-allowed" : "pointer",
+              fontWeight: 700, fontSize: isMobile ? 17 : 15, cursor: loading ? "not-allowed" : "pointer",
               fontFamily: "inherit", transition: "background 0.2s",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
               {loading ? (
                 <>
-                  <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   Updating...
                 </>
               ) : "Update Password →"}
@@ -256,9 +256,9 @@ export default function ResetPasswordPage({ onDone }) {
               type="button"
               onClick={onDone}
               style={{
-                width: "100%", padding: "11px", borderRadius: 10, marginTop: 10,
+                width: "100%", padding: isMobile ? "16px" : "11px", borderRadius: isMobile ? 14 : 10, marginTop: 12,
                 border: `1.5px solid ${C.gray200}`, background: C.white,
-                color: C.gray400, fontWeight: 600, fontSize: 14,
+                color: C.gray400, fontWeight: 600, fontSize: isMobile ? 16 : 14,
                 cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
@@ -269,16 +269,19 @@ export default function ResetPasswordPage({ onDone }) {
           </form>
         )}
 
-        {/* ── Footer ── */}
-        <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-          <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
-        </div>
-        <div style={{ marginTop: 8, textAlign: "center" }}>
-          <span style={{ fontSize: 11, color: C.gray400 }}>© 2026 </span>
-          <span style={{ fontSize: 11, color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>
-          <span style={{ fontSize: 11, color: C.gray400 }}>. All rights reserved.</span>
-        </div>
+        {/* Footer – removed on mobile, kept on desktop without dot */}
+        {!isMobile && !success && (
+          <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
+          </div>
+        )}
+        {!isMobile && !success && (
+          <div style={{ marginTop: 8, textAlign: "center" }}>
+            <span style={{ fontSize: 11, color: C.gray400 }}>© 2026 </span>
+            <span style={{ fontSize: 11, color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>
+            <span style={{ fontSize: 11, color: C.gray400 }}>. All rights reserved.</span>
+          </div>
+        )}
       </div>
     </div>
   );
