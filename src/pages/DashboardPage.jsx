@@ -512,6 +512,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const isSAAD = ["SA", "AD"].includes(role);
   const snapRef = useRef(null);
   const hasExpandedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const cds = profile?.cds_number || null;
   const myTxns = useMemo(
@@ -519,9 +520,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     [transactions, cds]
   );
 
-  // ── Data load (COMPLETELY UNCHANGED) ─────────────────────────────
+  // ── Data load with cancellation ───────────────────────────────
   useEffect(() => {
-    let cancelled = false;
+    mountedRef.current = true;
+    const reqId = {};
     const load = async () => {
       setLoading(true);
       try {
@@ -530,9 +532,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           sbGetPortfolio(profile?.cds_number).catch(() => []),
           sbGetTransactions().catch(() => []),
           activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
-          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
+          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []),
         ]);
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         setPortfolio(port || []);
         setTransactions(txns || []);
         if (users?.length) {
@@ -553,18 +555,18 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             : []
         );
       } catch {
-        if (!cancelled) showToast?.("Dashboard load error", "error");
+        if (mountedRef.current) showToast?.("Dashboard load error", "error");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     };
     load();
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
     };
-  }, [profile?.cds_number, activeCds?.cds_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.cds_number, activeCds?.cds_id, showToast]);
 
-  // ── Pre-group verified transactions (COMPLETELY UNCHANGED) ────────
+  // ── Pre-group verified transactions ────────────────────────────
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
     let grossBuyCapital = 0;
@@ -587,7 +589,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     return { map, grossBuyCapital, pending };
   }, [myTxns]);
 
-  // ── Core metrics (COMPLETELY UNCHANGED) ──────────────────────────
+  // ── Core metrics (heavily memoized) ────────────────────────────
   const metrics = useMemo(() => {
     const total = myTxns.length;
     const pending = groupedVerifiedByCompany.pending;
@@ -760,7 +762,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     };
   }, [portfolio, myTxns, groupedVerifiedByCompany]);
 
-  // ── cdsUsers (UNCHANGED) ─────────────────────────────────────────
+  // ── cdsUsers ───────────────────────────────────────────────────
   const cdsUsers = useMemo(() => cdsMembers.map((u) => {
     const name = u.full_name || u.email || "?";
     const code = u.role_code || "";
@@ -773,7 +775,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     };
   }), [cdsMembers]);
 
-  // ── Stable callbacks (COMPLETELY UNCHANGED) ───────────────────────
+  // ── Stable callbacks ───────────────────────────────────────────
   const toggleExpand = useCallback((key) => setExpanded((prev) => (prev === key ? null : key)), []);
   const onToggleRealized = useCallback(() => toggleExpand("realized"), [toggleExpand]);
   const onToggleCompanies = useCallback(() => toggleExpand("companies"), [toggleExpand]);
@@ -782,7 +784,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onNavUserMgmt = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand = useCallback(() => setExpanded(null), []);
 
-  // ── Scroll to top on panel close (UNCHANGED) ──────────────────────
+  // ── Scroll to top on panel close ───────────────────────────────
   useEffect(() => {
     if (expanded !== null) {
       hasExpandedRef.current = true;
@@ -800,13 +802,13 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [expanded]);
 
-  // ── Today string for hero card ─────────────────────────────────────
+  // ── Today string ───────────────────────────────────────────────
   const todayStr = useMemo(
     () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
     []
   );
 
-  // ── Mobile level 2 expand panel: Realized GL (simplified table) ───
+  // ── Mobile level 2: Realized GL panel ──────────────────────────
   const renderMobileRealizedPanel = useCallback(() => (
     <div
       style={{
@@ -919,8 +921,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     </div>
   ), [metrics, loading, onCloseExpand]);
 
-  // ── Mobile level 2: Companies panel ──────────────────────────────
-  // MODIFIED: Now fits without horizontal scroll
+  // ── Mobile level 2: Companies panel (Top 5 Holdings) ───────────
   const renderMobileCompaniesPanel = useCallback(() => (
     <div
       style={{
@@ -972,8 +973,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: "40%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "25%" }} />
                   <col style={{ width: "20%" }} />
                 </colgroup>
                 <thead>
@@ -993,9 +994,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                           {c.name}
                         </div>
                       </Td>
-                      <Td right style={{ whiteSpace: "nowrap" }}>{fmt(c.netShares)}</Td>
-                      <Td right bold style={{ whiteSpace: "nowrap" }}>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                      <Td right style={{ whiteSpace: "nowrap" }}>
+                      <Td right small style={{ whiteSpace: "nowrap" }}>{fmt(c.netShares)}</Td>
+                      <Td right bold small style={{ whiteSpace: "nowrap" }}>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                      <Td right small style={{ whiteSpace: "nowrap" }}>
                         {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
                           <Badge
                             value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
@@ -1035,7 +1036,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     </div>
   ), [metrics, loading, onCloseExpand]);
 
-  // ── Mobile level 2: Users panel ───────────────────────────────────
+  // ── Mobile level 2: Users panel ─────────────────────────────────
   const renderMobileUsersPanel = useCallback(() => (
     <div
       style={{
@@ -1195,12 +1196,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
-      {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — Level 1: no scroll. Level 2: scrollable.
-          ══════════════════════════════════════════════════════════ */}
+      {/* MOBILE LAYOUT */}
       {isMobile && (
         <div>
-          {/* ── Hero card (navy gradient) — screenshot-friendly ── */}
+          {/* Hero card */}
           <div
             style={{
               background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
@@ -1211,7 +1210,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               overflow: "hidden",
             }}
           >
-            {/* Dot grid */}
             <div
               style={{
                 position: "absolute",
@@ -1221,7 +1219,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 pointerEvents: "none",
               }}
             />
-            {/* Green glow */}
             <div
               style={{
                 position: "absolute",
@@ -1235,7 +1232,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               }}
             />
 
-            {/* Header: "Shares Held" + total shares (replaces Portfolio and name) */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
               <div>
                 <div
@@ -1278,7 +1274,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* Portfolio Value — big hero number with dynamic font sizing */}
             <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
               <div
                 style={{
@@ -1329,7 +1324,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               })()}
             </div>
 
-            {/* Bottom row: Invested | Return | Holdings */}
             <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
               {[
                 {
@@ -1381,7 +1375,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             </div>
           </div>
 
-          {/* ── GL row: Unrealized + Realized (tap Realized to expand) ── */}
+          {/* GL row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
             <MobileMetricCard
               label="Unrealized GL"
@@ -1399,10 +1393,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             />
           </div>
 
-          {/* ── Level 2: Realized GL panel ── */}
           {expanded === "realized" && renderMobileRealizedPanel()}
 
-          {/* ── Stat row: Companies | Users | Pending ── */}
+          {/* Stat row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
             <MobileStatPill
               icon="🏢"
@@ -1430,18 +1423,15 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             />
           </div>
 
-          {/* ── Level 2: Companies or Users panel ── */}
           {expanded === "companies" && renderMobileCompaniesPanel()}
           {expanded === "users" && renderMobileUsersPanel()}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — COMPLETELY UNCHANGED FROM ORIGINAL
-          ══════════════════════════════════════════════════════════ */}
+      {/* DESKTOP LAYOUT */}
       {!isMobile && (
         <>
-          {/* ── Snapshot strip ── */}
+          {/* Snapshot strip */}
           <div
             ref={snapRef}
             style={{
@@ -1507,7 +1497,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             />
           </div>
 
-          {/* ── Realized GL expand panel ── */}
+          {/* Realized GL expand panel */}
           {expanded === "realized" && (
             <ExpandPanel
               title="📤 Realized Gain / Loss — Closed Positions"
@@ -1591,7 +1581,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             </ExpandPanel>
           )}
 
-          {/* ── Stat cards row ── */}
+          {/* Stat cards row */}
           <div
             style={{
               display: "grid",
@@ -1635,12 +1625,21 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             />
           </div>
 
-          {/* ── Companies expand panel ── */}
+          {/* Companies expand panel */}
           {expanded === "companies" && (
             <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
               {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <colgroup>
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "13%" }} />
+                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "13%" }} />
+                      <col style={{ width: "14%" }} />
+                      <col style={{ width: "8%" }} />
+                    </colgroup>
                     <thead>
                       <tr>
                         <Th>Company</Th>
@@ -1732,7 +1731,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             </ExpandPanel>
           )}
 
-          {/* ── Users expand panel ── */}
+          {/* Users expand panel */}
           {expanded === "users" && (
             <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
               {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
@@ -1879,7 +1878,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             </ExpandPanel>
           )}
 
-          {/* ── Top 5 Holdings table ── */}
+          {/* Top 5 Holdings table */}
           <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
             <div
               style={{
@@ -1903,6 +1902,17 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <colgroup>
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "9%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <Th>Company</Th>
