@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { sbSignIn, sbResetPassword } from "../lib/supabase";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
@@ -21,7 +21,7 @@ const DEFAULT_SLIDES = [
 ];
 
 export default function LoginPage({ onLogin, loginSettings }) {
-  const ADVERTS  = (loginSettings?.slides || DEFAULT_SLIDES).map((s, i) => ({ ...s, id: i + 1 }));
+  const ADVERTS  = useMemo(() => (loginSettings?.slides || DEFAULT_SLIDES).map((s, i) => ({ ...s, id: i + 1 })), [loginSettings]);
   const INTERVAL = loginSettings?.interval || 5000;
   const ANIMATED = loginSettings?.animated ?? true;
   const isMobile = useIsMobile();
@@ -42,17 +42,19 @@ export default function LoginPage({ onLogin, loginSettings }) {
     return () => clearInterval(t);
   }, [isHovering, isMobile, INTERVAL, ADVERTS.length]);
 
-  const inpStyle = {
-    width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 14,
+  const inpStyle = useMemo(() => ({
+    width: "100%", padding: "14px 16px", borderRadius: 12, fontSize: 16,
     border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "'Inter', sans-serif",
-    background: C.gray50, color: C.text, transition: "border 0.2s", boxSizing: "border-box",
-  };
+    background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50,
+    color: isMobile ? C.white : C.text,
+    transition: "border 0.2s", boxSizing: "border-box",
+  }), [isMobile]);
 
-  const Label = ({ text }) => (
-    <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>{text}</label>
-  );
+  const Label = useCallback(({ text }) => (
+    <label style={{ fontSize: 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 6 }}>{text}</label>
+  ), [isMobile]);
 
-  const handleLogin = async (e) => {
+  const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
     if (!email.trim() || !password.trim()) return setError("Email and password are required");
@@ -60,9 +62,9 @@ export default function LoginPage({ onLogin, loginSettings }) {
     try { const data = await sbSignIn(email.trim(), password); onLogin(data); }
     catch (err) { setError(err.message || "Invalid email or password"); }
     finally { setLoading(false); }
-  };
+  }, [email, password, onLogin]);
 
-  const handleReset = async (e) => {
+  const handleReset = useCallback(async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
     if (!email.trim()) return setError("Enter your email address");
@@ -70,34 +72,34 @@ export default function LoginPage({ onLogin, loginSettings }) {
     try { await sbResetPassword(email.trim()); setSuccess("Password reset email sent. Check your inbox."); }
     catch (err) { setError(err.message || "Password reset failed"); }
     finally { setLoading(false); }
-  };
+  }, [email]);
 
-  const SubmitBtn = ({ label, loadingLabel }) => (
+  const SubmitBtn = useCallback(({ label, loadingLabel }) => (
     <button type="submit" disabled={loading} style={{
-      width: "100%", padding: "13px", borderRadius: 10, border: "none",
+      width: "100%", padding: "15px", borderRadius: 12, border: "none",
       background: loading ? C.gray200 : C.green, color: C.white,
-      fontWeight: 700, fontSize: 15, cursor: loading ? "not-allowed" : "pointer",
+      fontWeight: 700, fontSize: 16, cursor: loading ? "not-allowed" : "pointer",
       fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
       boxShadow: loading ? "none" : `0 4px 16px ${C.green}55`,
     }}>
       {loading
-        ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />{loadingLabel}</>
+        ? <><div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />{loadingLabel}</>
         : label}
     </button>
-  );
+  ), [loading]);
 
   // ── Form content — shared between mobile and desktop ─────────────
-  const renderForm = () => (
+  const renderForm = useCallback(() => (
     <div style={{ width: "100%", maxWidth: isMobile ? "none" : 312, margin: "0 auto" }}>
       {/* Logo + title */}
-      <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 20 }}>
-        <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 56 : 48, height: isMobile ? 56 : 48, borderRadius: 14, objectFit: "cover", marginBottom: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }} />
-        <div style={{ fontWeight: 800, fontSize: isMobile ? 20 : 16, color: isMobile ? C.white : C.text }}>Investors Portal</div>
-        <div style={{ fontSize: 13, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 3 }}>
+      <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 20 }}>
+        <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 64 : 48, height: isMobile ? 64 : 48, borderRadius: 14, objectFit: "cover", marginBottom: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }} />
+        <div style={{ fontWeight: 800, fontSize: isMobile ? 24 : 16, color: isMobile ? C.white : C.text }}>Investors Portal</div>
+        <div style={{ fontSize: 14, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 4 }}>
           {view === "login" ? "Sign in to your account" : "Reset your password"}
         </div>
         {view === "reset" && (
-          <div style={{ marginTop: 10, background: isMobile ? "rgba(245,158,11,0.15)" : `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 9, padding: "9px 12px", fontSize: 12, color: C.gold, fontWeight: 600 }}>
+          <div style={{ marginTop: 14, background: isMobile ? "rgba(245,158,11,0.15)" : `${C.gold}18`, border: `1px solid ${C.gold}55`, borderRadius: 9, padding: "10px 14px", fontSize: 13, color: C.gold, fontWeight: 600 }}>
             Enter your email to receive a password reset link
           </div>
         )}
@@ -105,12 +107,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Messages */}
       {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
           <span>⚠️</span> {error}
         </div>
       )}
       {success && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
           <span>✅</span> {success}
         </div>
       )}
@@ -118,35 +120,35 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {/* Login form */}
       {view === "login" && (
         <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 18 }}>
             <Label text="Email Address" />
             <input
-              style={{ ...inpStyle, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+              style={inpStyle}
               type="email" placeholder="you@example.com" value={email}
               onChange={e => setEmail(e.target.value)} autoComplete="email"
               onFocus={e => { e.target.style.borderColor = C.green; }}
               onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
             />
           </div>
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 22 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
+              <label style={{ fontSize: 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
               <button type="button"
                 onClick={() => { setView("reset"); setError(""); setSuccess(""); }}
-                style={{ fontSize: 12, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
+                style={{ fontSize: 13, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
                 Forgot password?
               </button>
             </div>
             <div style={{ position: "relative" }}>
               <input
-                style={{ ...inpStyle, paddingRight: 46, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+                style={{ ...inpStyle, paddingRight: 48 }}
                 type={showPw ? "text" : "password"} placeholder="••••••••" value={password}
                 onChange={e => setPassword(e.target.value)} autoComplete="current-password"
                 onFocus={e => { e.target.style.borderColor = C.green; }}
                 onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
               />
               <button type="button" onClick={() => setShowPw(v => !v)}
-                style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 17, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, lineHeight: 1 }}>
+                style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, lineHeight: 1 }}>
                 {showPw ? "🙈" : "👁"}
               </button>
             </div>
@@ -158,22 +160,22 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {/* Reset form */}
       {view === "reset" && (
         <form onSubmit={handleReset}>
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 22 }}>
             <Label text="Email Address" />
             <input
-              style={{ ...inpStyle, background: isMobile ? "rgba(255,255,255,0.08)" : C.gray50, color: isMobile ? C.white : C.text, border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}` }}
+              style={inpStyle}
               type="email" placeholder="you@example.com" value={email}
               onChange={e => setEmail(e.target.value)} autoComplete="email"
               onFocus={e => { e.target.style.borderColor = C.green; }}
               onBlur={e => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
             />
           </div>
-          <div style={{ marginBottom: 10 }}>
+          <div style={{ marginBottom: 14 }}>
             <SubmitBtn label="Send Reset Email" loadingLabel="Sending..." />
           </div>
           <button type="button"
             onClick={() => { setView("login"); setError(""); setSuccess(""); }}
-            style={{ width: "100%", padding: "12px", borderRadius: 10, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
+            style={{ width: "100%", padding: "14px", borderRadius: 12, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = isMobile ? C.white : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.2)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.7)" : C.gray400; }}>
             ← Back to Sign In
@@ -181,18 +183,19 @@ export default function LoginPage({ onLogin, loginSettings }) {
         </form>
       )}
 
-      {/* Footer */}
-      <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${isMobile ? "rgba(255,255,255,0.1)" : C.gray200}` }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
-          <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-          <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
+      {/* Footer (simplified on mobile, no dot) */}
+      {!isMobile && (
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
+          </div>
+          <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
+            © 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
+          </div>
         </div>
-        <div style={{ textAlign: "center", fontSize: 10, color: isMobile ? "rgba(255,255,255,0.3)" : C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
-          © 2026 <span style={{ color: isMobile ? "rgba(255,255,255,0.55)" : C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
-        </div>
-      </div>
+      )}
     </div>
-  );
+  ), [isMobile, view, email, password, showPw, error, success, loading, handleLogin, handleReset, Label, SubmitBtn, inpStyle]);
 
   return (
     <div style={{
@@ -218,15 +221,10 @@ export default function LoginPage({ onLogin, loginSettings }) {
       <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — full-screen form, no image slider
+          MOBILE LAYOUT — full-screen form, no image slider, no dot
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
-          {/* Brand mark at top */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 36 }}>
-            <div style={{ width: 8, height: 8, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>Investors Portal</span>
-          </div>
           {renderForm()}
         </div>
       )}
