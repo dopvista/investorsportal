@@ -19,7 +19,6 @@ const useIsMobile = () => {
 
 // ── Mobile Action Sheet ───────────────────────────────────────────
 // Bottom sheet that slides up when a portfolio card is tapped.
-// Two actions: Set/Update Price and Price History. Cancel to dismiss.
 function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
   const hasCdsPrice = company.cds_price != null;
   return (
@@ -61,8 +60,6 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
 }
 
 // ── Mobile Portfolio Card ─────────────────────────────────────────
-// Tapping the card opens the ActionSheet — no inline action menu.
-// Left border color: green=priced+up, red=priced+down, amber=unpriced.
 function PortfolioMobileCard({ company: c, onTap }) {
   const hasCdsPrice = c.cds_price != null;
   const priceUp     = hasCdsPrice && c.cds_previous_price != null
@@ -162,13 +159,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
   const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
+  // ---- Modal close handlers ----
   const closeDeleteModal    = useCallback(() => setDeleteModal(null), []);
   const closeHistoryModal   = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
   const closeUpdateModal    = useCallback(() => setUpdateModal({ open: false, company: null }), []);
   const closeFormModal      = useCallback(() => setFormModal({ open: false, company: null }), []);
+  const closeActionSheet    = useCallback(() => setActionSheetCompany(null), []);
+
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
-  // ── Data loaders (COMPLETELY UNCHANGED) ──────────────────────
+  // ── Data loaders ──────────────────────────────────────────────
   const loadPortfolio = useCallback(async () => {
     const reqId = ++portfolioReqRef.current;
     if (!cdsNumber) {
@@ -206,7 +206,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
   useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
 
-  // ── Stats (UNCHANGED) ─────────────────────────────────────────
+  // ── Stats ─────────────────────────────────────────────────────
   const portfolioStats = useMemo(() => {
     const priced   = portfolio.filter(c => c.cds_price != null);
     const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
@@ -224,7 +224,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
   }), [masterList, todayIso]);
 
-  // ── Handlers (COMPLETELY UNCHANGED) ──────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────
   const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
     const company = updateModal.company;
     if (!company) return;
@@ -299,16 +299,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     }
   }, [deleteModal, showToast]);
 
+  // Small spinner element (animation style defined in App.css)
   const spinnerEl = (color = C.green) => (
-    <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ width: 40, height: 40, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${color}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-    </>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 40, height: 40, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${color}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    </div>
   );
 
   return (
     <div>
-      {/* ── Modals (UNCHANGED) ── */}
+      {/* ── Modals ── */}
       {deleteModal  && <Modal type="confirm" title="Delete Company" message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`} onConfirm={confirmDelete} onClose={closeDeleteModal} />}
       {historyModal.open && <PriceHistoryModal company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null} history={historyModal.history} onClose={closeHistoryModal} />}
       {updateModal.open  && <UpdatePriceModal key={updateModal.company?.id} company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null} onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />}
@@ -329,8 +329,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           ══════════════════════════════════════════════════════════ */}
       {activeTab === "portfolio" && (
         <>
-          {/* Mobile: Holdings + Not Priced only (2 cards)
-              Desktop: all 4 stat cards — UNCHANGED */}
+          {/* Mobile: Holdings + Not Priced only (2 cards) / Desktop: all 4 stat cards */}
           {isMobile ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
               <StatCard label="Holdings"   value={portfolioStats.total}    sub="In your portfolio"    icon="🏢" color={C.navy} />
@@ -392,7 +391,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 ))}
               </div>
             ) : (
-              // Desktop: table — COMPLETELY UNCHANGED
+              // Desktop: table
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
