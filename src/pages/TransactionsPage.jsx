@@ -338,9 +338,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     setCdsAccountName(null);
     let cancelled = false;
     sbGetCdsAccount(cdsNum)
-      //.then(acc => { if (cancelled) return; setCdsAccountName(acc?.cds_name || ""); })
-      //.catch(() => { if (!cancelled) setCdsAccountName(""); });
-    //return () => { cancelled = true; };
+      .then(acc => { if (cancelled) return; setCdsAccountName(acc?.cds_name || ""); })
+      .catch(() => { if (!cancelled) setCdsAccountName(""); });
+    return () => { cancelled = true; };
   }, [transaction?.cds_number]);
 
   if (!transaction) return null;
