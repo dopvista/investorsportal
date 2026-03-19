@@ -72,9 +72,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
     setError(""); setSuccess("");
     if (!email.trim() || !password.trim()) return setError("Email and password are required");
     setLoading(true);
-    try { const data = await sbSignIn(email.trim(), password); onLogin(data); }
-    catch (err) { setError(err.message || "Invalid email or password"); }
-    finally { setLoading(false); }
+    try {
+      const session = await sbSignIn(email.trim(), password);
+      // session should contain { user, access_token, ... } – pass it directly
+      onLogin(session);
+    } catch (err) {
+      setError(err.message || "Invalid email or password");
+      setLoading(false);
+    }
   }, [email, password, onLogin]);
 
   const handleReset = useCallback(async (e) => {
@@ -82,9 +87,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
     setError(""); setSuccess("");
     if (!email.trim()) return setError("Enter your email address");
     setLoading(true);
-    try { await sbResetPassword(email.trim()); setSuccess("Reset link sent to your email."); }
-    catch (err) { setError(err.message || "Password reset failed"); }
-    finally { setLoading(false); }
+    try {
+      await sbResetPassword(email.trim());
+      setSuccess("Reset link sent to your email.");
+    } catch (err) {
+      setError(err.message || "Password reset failed");
+    } finally {
+      setLoading(false);
+    }
   }, [email]);
 
   const SubmitBtn = useCallback(({ label, loadingLabel }) => (
@@ -121,7 +131,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         <div style={{ fontSize: isMobile ? 14 : 13, color: isMobile ? "rgba(255,255,255,0.55)" : C.gray400, marginTop: 4 }}>
           {view === "login" ? "Sign in to your account" : "Reset your password"}
         </div>
-        {/* Info box – only shown when no success (i.e., after sending we hide it) */}
+        {/* Info box – only shown when no success */}
         {view === "reset" && !success && (
           <div style={{
             marginTop: 14,
@@ -286,18 +296,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {/* Gold glow */}
       <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-      {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — full-screen form, no image slider, no dot
-          ══════════════════════════════════════════════════════════ */}
+      {/* MOBILE LAYOUT */}
       {isMobile && (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
           {renderForm()}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — image slider + form card. UNCHANGED (original fonts/sizes).
-          ══════════════════════════════════════════════════════════ */}
+      {/* DESKTOP LAYOUT */}
       {!isMobile && (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
           <div style={{
@@ -315,9 +321,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
                   style={{ position: "absolute", inset: 0, opacity: i === activeAd ? 1 : 0, backgroundImage: `url(${ad.image})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", transition: "opacity 1.2s ease" }}
                 />
               ))}
-              {/* Color overlay */}
               <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${ADVERTS[activeAd]?.color || "#064e3b"}${Math.round(((ADVERTS[activeAd]?.overlay ?? 0.35)) * 255).toString(16).padStart(2,"0")} 0%, transparent 100%)`, pointerEvents: "none" }} />
-              {/* Title + subtitle */}
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px", zIndex: 2 }}>
                 {ADVERTS.map((ad, i) => (
                   <div key={ad.id} style={{ display: i === activeAd ? "block" : "none", animation: "fadeIn 0.8s ease-out" }}>
@@ -326,7 +330,6 @@ export default function LoginPage({ onLogin, loginSettings }) {
                   </div>
                 ))}
               </div>
-              {/* Dots */}
               <div style={{ position: "absolute", bottom: 20, left: 28, zIndex: 2, display: "flex", gap: 8 }}>
                 {ADVERTS.map((_, i) => (
                   <button key={i} onClick={() => setActiveAd(i)} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
