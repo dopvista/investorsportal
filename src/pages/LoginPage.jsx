@@ -133,7 +133,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
             color: C.gold,
             fontWeight: 600
           }}>
-            Enter your email to receive a password reset link
+            Enter your email to receive a reset link
           </div>
         )}
       </div>
