@@ -985,14 +985,6 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       ) : (
         <>
-          {totalPages > 1 && isMobile && (
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-              <div style={{ fontSize: 12, color: C.gray400 }}>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, thisMonth.length)} of {thisMonth.length}
-              </div>
-            </div>
-          )}
-
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: isMobile ? 12 : 13, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: colWidths[0] }} />
@@ -1060,13 +1052,8 @@ export function PriceHistoryModal({ company, history, onClose }) {
 
                     <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
                       {isMobile ? (
-                        <div style={{ lineHeight: 1.25 }}>
-                          <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", fontSize: 12 }}>
-                            {dateText}
-                          </div>
-                          <div style={{ fontSize: 10.5, color: C.gray400, marginTop: 1 }}>
-                            {timeText}
-                          </div>
+                        <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", lineHeight: 1.2 }}>
+                          {dateText} <span style={{ color: C.gray400 }}>|</span> {timeText}
                         </div>
                       ) : (
                         <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", lineHeight: 1.2 }}>
