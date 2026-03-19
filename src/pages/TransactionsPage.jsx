@@ -36,7 +36,6 @@ const TOOLBAR_INPUT  = { ...TOOLBAR_BASE, width: "100%", border: `1.5px solid ${
 const TOOLBAR_SELECT = { ...TOOLBAR_BASE, padding: "0 10px", background: C.white, cursor: "pointer", outline: "none", flexShrink: 0 };
 
 // ── Module-level mobile breakpoint hook ──────────────────────────
-// Passive resize listener — zero overhead on desktop where isMobile is always false.
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -224,7 +223,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   );
 });
 
-// ── Desktop Pagination (UNCHANGED) ───────────────────────────────
+// ── Desktop Pagination ───────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   return (
     <button onClick={onClick} disabled={disabled}
@@ -279,7 +278,6 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
 });
 
 // ── Mobile Pagination ─────────────────────────────────────────────
-// Simple Prev / Page X of Y / Next — thumb-friendly tap targets.
 const MobilePagination = memo(function MobilePagination({ page, totalPages, setPage, filtered, pageSize }) {
   const from = filtered === 0 ? 0 : (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, filtered);
@@ -312,7 +310,7 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
   );
 });
 
-// ── Row permissions helper (UNCHANGED) ───────────────────────────
+// ── Row permissions helper ───────────────────────────────────────────
 const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   const isPending   = transaction.status === "pending";
   const isConfirmed = transaction.status === "confirmed";
@@ -330,13 +328,9 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 };
 
 // ── Transaction Detail Modal ──────────────────────────────────────
-// Mobile: summary bar stacks to single column, body panels stack vertically.
-// All business logic, hooks, and data unchanged.
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
-  // ── isMobile — layout only, no logic impact ───────────────────
   const isMobile = useIsMobile();
 
-  // ── Hooks MUST be before any early return (Rules of Hooks) ───────
   const [cdsAccountName, setCdsAccountName] = useState(null);
   useEffect(() => {
     const cdsNum = transaction?.cds_number;
@@ -433,14 +427,12 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name,
       transaction.status]);
 
-  // ── Summary bar items (shared between mobile/desktop) ──────────
   const summaryItems = [
     { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
     { label: "Total Fees",                           value: `TZS ${fmt(totalFees)}`, sub: `${feePct}% of trade value`,                                     valueColor: C.gold     },
     { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`,         sub: isBuy ? "trade + fees" : "trade − fees",                        valueColor: accentColor },
   ];
 
-  // ── Left panel rows ─────────────────────────────────────────────
   const transactionRows = [
     ["Date",        fmtDate(transaction.date)],
     ["Quantity",    `${fmtInt(transaction.qty)} shares`],
@@ -460,7 +452,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     ["Fidelity (0.02%)", bd.fidelity ],
   ];
 
-  // ── Reusable sub-section renderer ──────────────────────────────
   const renderKVRows = (rows) => rows.map(([label, value], i, arr) => (
     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
       <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
@@ -472,7 +463,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
   );
 
-  // ── GL card renderer (shared Buy/Sell) ──────────────────────────
   const renderGLCard = (gl, type) => {
     if (!gl) return null;
     const isGain = gl.gain >= 0;
@@ -505,7 +495,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     );
   };
 
-  // ── Right panel: Reference & Broker + Audit Trail ───────────────
   const renderRightPanel = () => (
     <>
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
@@ -552,7 +541,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     </>
   );
 
-  // ── Left panel content ──────────────────────────────────────────
   const renderLeftPanel = () => (
     <>
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
@@ -585,7 +573,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         borderRadius: isMobile ? "16px 16px 0 0" : 16,
         width: "100%",
         maxWidth: isMobile ? "100%" : 720,
-        // On mobile: sheet slides up from bottom, max 92vh so user can dismiss by tapping above
         maxHeight: isMobile ? "92vh" : "95vh",
         boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
         overflow: "hidden",
@@ -594,7 +581,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         flexDirection: "column",
       }}>
 
-        {/* ── Header ── */}
         <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -614,8 +600,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
-        {/* ── Summary bar ──
-            Desktop: 3-column grid  |  Mobile: 3 stacked rows */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
@@ -642,14 +626,10 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
-        {/* ── Body (scrollable) ──
-            Desktop: 2-column side-by-side  |  Mobile: 1 column stacked */}
         <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
-          // Mobile: right panel only — Transaction + Commission Breakdown sections removed
-          renderRightPanel()
-        ) : (
-            // Desktop: side-by-side grid (UNCHANGED layout)
+            renderRightPanel()
+          ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
               <div style={{ borderRight: `1px solid ${C.gray200}` }}>
                 {renderLeftPanel()}
@@ -661,7 +641,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           )}
         </div>
 
-        {/* ── Footer ── */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
@@ -673,8 +652,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 });
 
 // ── Transaction Mobile Card ───────────────────────────────────────
-// Replaces the table row on mobile. Same handlers, same actions.
-// No checkboxes — bulk actions are intentionally hidden on mobile.
 const TransactionMobileCard = memo(function TransactionMobileCard({
   transaction,
   onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
@@ -732,7 +709,6 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
-      {/* Row 1: Company name + action menu */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 5 }}>
@@ -752,7 +728,6 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
         )}
       </div>
 
-      {/* Row 2: Date + Broker */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(transaction.date)}</span>
         {transaction.broker_name && (
@@ -760,7 +735,6 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
         )}
       </div>
 
-      {/* Row 3: Qty × Price → Grand Total */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
         <div>
           <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>Qty × Price</div>
@@ -773,14 +747,12 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
         </div>
       </div>
 
-      {/* Rejection comment */}
       {perms.isRejected && transaction.rejection_comment && (
         <div style={{ marginTop: 8, padding: "6px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA`, fontSize: 11, color: "#7F1D1D", lineHeight: 1.5 }}>
           💬 {transaction.rejection_comment}
         </div>
       )}
 
-      {/* Busy indicator */}
       {isRowBusy && (
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.gray400 }}>
           <Spinner size={11} color={C.gray400} /> Processing...
@@ -790,7 +762,7 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
   );
 });
 
-// ── Transaction Row (UNCHANGED — desktop only) ────────────────────
+// ── Transaction Row ────────────────────────────────────────────────
 const TransactionRow = memo(function TransactionRow({
   transaction, globalIdx, selected, onToggleOne,
   onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
@@ -894,7 +866,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const isRO   = role === "RO";
   const isSAAD = role === "SA" || role === "AD";
 
-  // ── Mobile detection ──────────────────────────────────────────
   const isMobile = useIsMobile();
 
   const isMountedRef   = useRef(true);
@@ -931,7 +902,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [rejectModal,       setRejectModal]       = useState(null);
   const [detailModal,       setDetailModal]       = useState(null);
 
-  // Mobile filter panel toggle
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -941,7 +911,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [companies, localCompanies]
   );
 
-  // ── Data loaders (COMPLETELY UNCHANGED) ──────────────────────
   const loadTransactions = useCallback(async () => {
     const requestId = ++txLoadRef.current;
     if (isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
@@ -994,7 +963,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
-  // ── All handlers COMPLETELY UNCHANGED ────────────────────────
   const isAnyConfirming  = confirmingIds.size  > 0;
   const isAnyVerifying   = verifyingIds.size   > 0;
   const isAnyRejecting   = rejectingIds.size   > 0;
@@ -1062,7 +1030,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage   = Math.min(page, totalPages);
+  const safePage   = useMemo(() => Math.min(page, totalPages), [page, totalPages]);
   const paginated  = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
 
   const resetPage    = useCallback(() => setPage(1), []);
@@ -1345,15 +1313,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     ];
   }, [stats, selected.size, isVR, isDE, isRO]);
 
-  // ── Mobile stat cards: only Total Bought + Total Sold ─────────────
-  // For VR who has neither, fall back to first 2 most relevant cards.
   const mobileStatCards = useMemo(() => {
     if (!isMobile) return statCards;
     const preferred = statCards.filter(s => s.label === "Total Bought" || s.label === "Total Sold");
     return preferred.length >= 2 ? preferred : statCards.slice(0, 2);
   }, [isMobile, statCards]);
 
-  // ── showCheckbox: false on mobile → disables all bulk action flows ──
   const showCheckbox = !isMobile;
   const showActions  = !isRO;
   const tableHeaders = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
@@ -1375,19 +1340,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const closeReject       = useCallback(() => setRejectModal(null),                            []);
   const closeDetail       = useCallback(() => setDetailModal(null),                            []);
 
-  // ── Active filter indicator for mobile ───────────────────────
   const hasActiveFilters = search || typeFilter !== "All" || statusFilter !== defaultStatus;
 
-  // ── Page height ───────────────────────────────────────────────
-  // Desktop: calc(100vh - 118px) [unchanged]
-  // Mobile:  calc(100vh - 148px) [56px header + 16px top pad + 76px bottom pad]
   const pageHeight = isMobile ? "calc(100vh - 148px)" : "calc(100vh - 118px)";
 
   return (
     <div style={{ height: pageHeight, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Modals (all UNCHANGED) ── */}
+      {/* ── Modals ── */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1416,7 +1377,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           onClose={closeForm}
         />
       )}
-      {/* Import modal: available on desktop only. Hidden on mobile via button suppression. */}
       {importModal && (
         <ImportTransactionsModal
           companies={effectiveCompanies}
@@ -1441,22 +1401,17 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
-      {/* ── Stat cards ──
-          Desktop: 4-column row (unchanged)
-          Mobile:  2×2 grid */}
+      {/* ── Stat cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
         {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE TOOLBAR
-          Row 1: Search (full width)
-          Row 2: Type pills + Status dropdown
-          Row 3: Record button (Import hidden on mobile)
+          MOBILE TOOLBAR — updated per request
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div style={{ marginBottom: 10, flexShrink: 0 }}>
-          {/* Row 1: Search — full width */}
+          {/* Row 1: Search — full width (always present) */}
           <div style={{ position: "relative", marginBottom: 7 }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
             <input
@@ -1468,27 +1423,24 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               onBlur={e => { e.target.style.borderColor = C.gray200; }}
             />
           </div>
-          {/* Row 2: All Statuses + Record button — equal width grid matches stat cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-              style={{ width: "100%", height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer", boxSizing: "border-box" }}>
-              {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            {(isDE || isSAAD) ? (
+          {/* Row 2: Only for roles that can record/edit (DE, AD, SA) */}
+          {(isDE || isSAAD) && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+                style={{ width: "100%", height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer", boxSizing: "border-box" }}>
+                {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
               <button onClick={() => openFormModal(null)} disabled={loadingCompanies}
                 style={{ width: "100%", height: 40, borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", boxSizing: "border-box" }}>
                 + Record
               </button>
-            ) : (
-              // spacer keeps grid balanced when Record is hidden
-              <div />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          DESKTOP TOOLBAR — COMPLETELY UNCHANGED
+          DESKTOP TOOLBAR — UNCHANGED
           ══════════════════════════════════════════════════════════ */}
       {!isMobile && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
@@ -1530,7 +1482,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
                 {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
                 {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
-                {/* Import — desktop only, hidden on mobile */}
                 {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
               </>
             )}
@@ -1567,9 +1518,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
             </div>
           ) : isMobile ? (
-            /* ══════════════════════════════════════════════════════
-               MOBILE: transaction cards
-               ══════════════════════════════════════════════════════ */
+            /* Mobile cards */
             <>
               <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
                 {paginated.map(transaction => (
@@ -1600,9 +1549,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               />
             </>
           ) : (
-            /* ══════════════════════════════════════════════════════
-               DESKTOP: table — COMPLETELY UNCHANGED
-               ══════════════════════════════════════════════════════ */
+            /* Desktop table */
             <>
               <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
