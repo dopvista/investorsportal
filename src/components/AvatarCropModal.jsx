@@ -474,7 +474,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
   return (
     <ModalShell
       title="Edit Profile Picture"
-      subtitle="Drag to reposition, Green handle to resize, Pinch to zoom"
+      subtitle="Reposition, Resize and Zoom"
       onClose={onCancel}
       footer={
         <div style={{ display: "flex", gap: 10, width: "100%" }}>
