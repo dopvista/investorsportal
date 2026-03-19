@@ -2,13 +2,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { C } from "./ui";
 
-// Canvas size — responsive: fixed 420px on desktop, 90vw on mobile, clamped
 const DESKTOP_SIZE = 420;
-const MOBILE_SIZE  = "90vw";
-const CROP_SIZE    = 200;      // output square side
-const MIN_CROP     = 80;       // minimum crop diameter
+const CROP_SIZE    = 200;
+const MIN_CROP     = 80;
 
-// ── Mobile breakpoint hook (copied for self‑containment) ─────────
+// ── Mobile breakpoint hook ───────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -21,8 +19,8 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── Modal Shell (copied from ProfilePage for consistency) ────────
-function ModalShell({ title, subtitle, onClose, children, footer, maxWidth = 460, lockBackdrop = false }) {
+// ── Modal Shell (mobile only) ───────────────────────────────────
+function ModalShell({ title, subtitle, onClose, children, footer }) {
   const isMobile = useIsMobile();
 
   return (
@@ -33,26 +31,25 @@ function ModalShell({ title, subtitle, onClose, children, footer, maxWidth = 460
         background: "rgba(0,0,0,0.45)",
         zIndex: 1000,
         display: "flex",
-        alignItems: isMobile ? "flex-end" : "center",
+        alignItems: "flex-end",
         justifyContent: "center",
-        padding: isMobile ? 0 : 24,
       }}
-      onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
+      onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div style={{
         background: C.white,
-        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        borderRadius: "16px 16px 0 0",
         width: "100%",
-        maxWidth: isMobile ? "100%" : maxWidth,
+        maxWidth: "100%",
         display: "flex",
         flexDirection: "column",
         boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-        maxHeight: isMobile ? "92vh" : undefined,
+        maxHeight: "92vh",
       }}>
-        {/* Header with navy gradient */}
+        {/* Header */}
         <div style={{
           background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
-          padding: isMobile ? "18px 20px 14px" : "22px 28px 16px",
+          padding: "18px 20px 14px",
           borderBottom: `1px solid ${C.gray200}`,
           display: "flex",
           alignItems: "flex-start",
@@ -63,31 +60,29 @@ function ModalShell({ title, subtitle, onClose, children, footer, maxWidth = 460
             <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{title}</div>
             {subtitle && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>{subtitle}</div>}
           </div>
-          {!lockBackdrop && (
-            <button
-              onClick={onClose}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                border: "none",
-                background: "rgba(255,255,255,0.1)",
-                cursor: "pointer",
-                fontSize: 15,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: C.white,
-                flexShrink: 0,
-              }}
-            >
-              ✕
-            </button>
-          )}
+          <button
+            onClick={onClose}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              border: "none",
+              background: "rgba(255,255,255,0.1)",
+              cursor: "pointer",
+              fontSize: 15,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: C.white,
+              flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
         </div>
         {/* Body */}
         <div style={{
-          padding: isMobile ? "16px 18px" : "20px 28px",
+          padding: "16px 18px",
           display: "flex",
           flexDirection: "column",
           gap: 14,
@@ -99,16 +94,15 @@ function ModalShell({ title, subtitle, onClose, children, footer, maxWidth = 460
         {/* Footer */}
         {footer && (
           <div style={{
-            padding: isMobile ? "12px 18px" : "16px 28px",
+            padding: "12px 18px",
             borderTop: `1px solid ${C.gray200}`,
             display: "flex",
             gap: 10,
             justifyContent: "flex-end",
             alignItems: "center",
             background: C.gray50,
-            borderRadius: isMobile ? 0 : "0 0 16px 16px",
             flexShrink: 0,
-            position: isMobile ? "sticky" : "static",
+            position: "sticky",
             bottom: 0,
             zIndex: 2,
           }}>
@@ -137,15 +131,14 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
   const [layout, setLayout] = useState({ drawX: 0, drawY: 0, drawW: 0, drawH: 0, baseScale: 1 });
   const [processing, setProcessing] = useState(false);
 
-  // Canvas size (responsive)
+  // Canvas size: fixed 420 on desktop, responsive on mobile (90vw capped)
   const canvasSize = useMemo(() => {
     if (!isMobile) return DESKTOP_SIZE;
-    // On mobile, use 90vw but ensure it's not too small
     const vw = Math.min(window.innerWidth * 0.9, 420);
     return Math.max(300, vw);
   }, [isMobile]);
 
-  // Load image and compute initial layout
+  // Load image
   useEffect(() => {
     const img = imgRef.current;
     img.onload = () => {
@@ -160,7 +153,6 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
         drawH,
         baseScale,
       });
-      // initial crop circle: centered, 40% of min dimension
       const r = Math.round(Math.min(drawW, drawH) * 0.4);
       setCropCircle({ x: canvasSize / 2, y: canvasSize / 2, r });
       setImgLoaded(true);
@@ -175,7 +167,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
   const currentX = useMemo(() => (canvasSize - currentW) / 2, [canvasSize, currentW]);
   const currentY = useMemo(() => (canvasSize - currentH) / 2, [canvasSize, currentH]);
 
-  // Clamp circle within image bounds (respecting current image position)
+  // Clamp circle within image bounds
   const clampCircle = useCallback((nx, ny, nr) => {
     const maxR = Math.min(currentW, currentH) / 2;
     const safeR = Math.min(Math.max(nr, MIN_CROP / 2), maxR);
@@ -186,7 +178,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
     };
   }, [currentW, currentH, currentX, currentY]);
 
-  // Update circle when zoom changes to keep it inside
+  // Update circle when zoom changes
   useEffect(() => {
     setCropCircle(prev => clampCircle(prev.x, prev.y, prev.r));
   }, [clampCircle, zoom, currentX, currentY, currentW, currentH]);
@@ -204,7 +196,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
     return () => canvas.removeEventListener("wheel", handleWheel);
   }, []);
 
-  // Draw function (uses requestAnimationFrame for smoothness)
+  // Draw function
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imgLoaded) return;
@@ -364,22 +356,183 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
     out.toBlob(blob => onConfirm(blob), "image/jpeg", 0.9);
   }, [cropCircle, currentX, currentY, currentScale, onConfirm]);
 
+  // ── DESKTOP layout (original centered card) ──────────────────
+  if (!isMobile) {
+    return (
+      <div style={{
+        position: "fixed", inset: 0, background: "rgba(10,37,64,0.75)",
+        zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center",
+        backdropFilter: "blur(3px)",
+      }}>
+        <style>{`
+          @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes spin   { to { transform: rotate(360deg); } }
+          .zoom-slider { -webkit-appearance: none; width: 100%; height: 5px; background: ${C.gray200}; border-radius: 5px; outline: none; }
+          .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: ${C.green}; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+        `}</style>
+
+        <div style={{
+          background: C.white, borderRadius: 18, overflow: "hidden",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.45)", animation: "fadeIn 0.22s ease",
+          width: canvasSize,
+        }}>
+          {/* Header */}
+          <div style={{ background: C.navy, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>Edit Profile Picture</div>
+              <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 500 }}>
+                Drag to reposition · Green handle to resize · Scroll to zoom
+              </div>
+            </div>
+            <button onClick={onCancel} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+
+          {/* Canvas */}
+          <div style={{ background: "#111827", lineHeight: 0 }}>
+            {imgLoaded ? (
+              <canvas
+                ref={canvasRef}
+                width={canvasSize} height={canvasSize}
+                onMouseDown={handleInteractionStart}
+                onMouseMove={handleInteractionMove}
+                onMouseUp={handleInteractionEnd}
+                onMouseLeave={handleInteractionEnd}
+                onTouchStart={handleInteractionStart}
+                onTouchMove={handleInteractionMove}
+                onTouchEnd={handleInteractionEnd}
+                style={{ display: "block", cursor: "move", touchAction: "none", width: "100%", height: "auto" }}
+              />
+            ) : (
+              <div style={{ width: canvasSize, height: canvasSize, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ color: "#9ca3af", fontSize: 13 }}>Loading...</div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "14px 22px", borderTop: `1px solid ${C.gray100}` }}>
+            {/* Zoom slider */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                🔍 Zoom
+              </span>
+              <input
+                type="range" min="0.5" max="3" step="0.01"
+                value={zoom} className="zoom-slider"
+                onChange={e => {
+                  setZoom(parseFloat(e.target.value));
+                }}
+              />
+              <button onClick={handleReset} style={{
+                background: "none", border: "none", color: C.green,
+                fontSize: 11, fontWeight: 700, cursor: "pointer",
+                textDecoration: "underline", padding: 0, whiteSpace: "nowrap",
+                fontFamily: "inherit",
+              }}>Reset</button>
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: C.gray400 }}>Output: 200×200px JPEG</span>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={onCancel} style={{
+                  padding: "9px 18px", borderRadius: 9, border: `1.5px solid ${C.gray200}`,
+                  background: C.white, color: C.gray400, fontWeight: 600, fontSize: 13,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.red; e.currentTarget.style.color = C.red; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray400; }}>
+                  Cancel
+                </button>
+                <button onClick={handleConfirm} disabled={!imgLoaded || processing} style={{
+                  padding: "9px 22px", borderRadius: 9, border: "none",
+                  background: !imgLoaded || processing ? C.gray200 : C.green,
+                  color: C.white, fontWeight: 700, fontSize: 13,
+                  cursor: !imgLoaded || processing ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8,
+                  boxShadow: !imgLoaded || processing ? "none" : `0 4px 12px ${C.green}44`,
+                  whiteSpace: "nowrap",
+                }}>
+                  {processing ? (
+                    <>
+                      <div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      Saving...
+                    </>
+                  ) : "✓ Save Photo"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── MOBILE layout (bottom sheet using ModalShell) ────────────
   return (
     <ModalShell
       title="Edit Profile Picture"
-      subtitle="Drag to reposition · Green handle to resize · Pinch/scroll to zoom"
+      subtitle="Drag to reposition · Green handle to resize · Pinch to zoom"
       onClose={onCancel}
-      maxWidth={canvasSize + 80} // allow some padding
-      lockBackdrop={processing}
+      footer={
+        <div style={{ display: "flex", gap: 10, width: "100%" }}>
+          <button
+            onClick={onCancel}
+            disabled={processing}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: 9,
+              border: `1.5px solid ${C.gray200}`,
+              background: C.white,
+              color: C.gray400,
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: processing ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!imgLoaded || processing}
+            style={{
+              flex: 2,
+              padding: "12px",
+              borderRadius: 9,
+              border: "none",
+              background: !imgLoaded || processing ? C.gray200 : C.green,
+              color: C.white,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: !imgLoaded || processing ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {processing ? (
+              <>
+                <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                Saving...
+              </>
+            ) : (
+              "✓ Save Photo"
+            )}
+          </button>
+        </div>
+      }
     >
       <style>{`
-        .zoom-slider { -webkit-appearance: none; width: 100%; height: 5px; background: ${C.gray200}; border-radius: 5px; outline: none; }
-        .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: ${C.green}; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
-        .zoom-slider::-moz-range-thumb { width: 18px; height: 18px; background: ${C.green}; border-radius: 50%; cursor: pointer; border: 2px solid white; }
+        .zoom-slider-mobile { -webkit-appearance: none; width: 100%; height: 5px; background: ${C.gray200}; border-radius: 5px; outline: none; }
+        .zoom-slider-mobile::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: ${C.green}; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
         canvas { display: block; cursor: move; touch-action: none; width: 100%; height: auto; border-radius: 8px; }
       `}</style>
 
-      {/* Canvas container – responsive */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
         {imgLoaded ? (
           <canvas
@@ -413,7 +566,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
         )}
       </div>
 
-      {/* Zoom slider and reset */}
+      {/* Zoom slider */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
           🔍 Zoom
@@ -424,7 +577,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
           max="3"
           step="0.01"
           value={zoom}
-          className="zoom-slider"
+          className="zoom-slider-mobile"
           onChange={e => setZoom(parseFloat(e.target.value))}
         />
         <button
@@ -446,74 +599,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
         </button>
       </div>
 
-      {/* Footer buttons (custom, not using ModalShell footer to keep layout inside body) */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 4,
-      }}>
-        <span style={{ fontSize: 11, color: C.gray400 }}>Output: 200×200px JPEG</span>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={onCancel}
-            disabled={processing}
-            style={{
-              padding: "9px 18px",
-              borderRadius: 9,
-              border: `1.5px solid ${C.gray200}`,
-              background: C.white,
-              color: C.gray400,
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: processing ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={e => {
-              if (!processing) {
-                e.currentTarget.style.borderColor = C.red;
-                e.currentTarget.style.color = C.red;
-              }
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = C.gray200;
-              e.currentTarget.style.color = C.gray400;
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!imgLoaded || processing}
-            style={{
-              padding: "9px 22px",
-              borderRadius: 9,
-              border: "none",
-              background: !imgLoaded || processing ? C.gray200 : C.green,
-              color: C.white,
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: !imgLoaded || processing ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              boxShadow: !imgLoaded || processing ? "none" : `0 4px 12px ${C.green}44`,
-              transition: "all 0.15s",
-            }}
-          >
-            {processing ? (
-              <>
-                <div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                Saving...
-              </>
-            ) : (
-              "✓ Save Photo"
-            )}
-          </button>
-        </div>
-      </div>
+      <span style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>Output: 200×200px JPEG</span>
     </ModalShell>
   );
 }
