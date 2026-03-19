@@ -1407,33 +1407,44 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE TOOLBAR — updated per request
+          MOBILE TOOLBAR — updated as requested
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div style={{ marginBottom: 10, flexShrink: 0 }}>
-          {/* Row 1: Search — full width (always present) */}
-          <div style={{ position: "relative", marginBottom: 7 }}>
-            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
-            <input
-              value={search}
-              onChange={e => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Search company, date, status..."
-              style={{ ...TOOLBAR_INPUT, height: 40, borderRadius: 10, paddingLeft: 34, fontSize: 13 }}
-              onFocus={e => { e.target.style.borderColor = C.navy; }}
-              onBlur={e => { e.target.style.borderColor = C.gray200; }}
-            />
-          </div>
-          {/* Row 2: Only for roles that can record/edit (DE, AD, SA) */}
-          {(isDE || isSAAD) && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-                style={{ width: "100%", height: 40, borderRadius: 9, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, background: C.white, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400, fontSize: 13, fontFamily: "inherit", outline: "none", padding: "0 10px", cursor: "pointer", boxSizing: "border-box" }}>
-                {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-              <button onClick={() => openFormModal(null)} disabled={loadingCompanies}
-                style={{ width: "100%", height: 40, borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", boxSizing: "border-box" }}>
+          {(isDE || isSAAD) ? (
+            // DE/AD/SA: search + record in one row
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                <input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); resetPage(); }}
+                  placeholder="Search company, date, status..."
+                  style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
+                  onFocus={e => { e.target.style.borderColor = C.navy; }}
+                  onBlur={e => { e.target.style.borderColor = C.gray200; }}
+                />
+              </div>
+              <button
+                onClick={() => openFormModal(null)}
+                disabled={loadingCompanies}
+                style={{ height: 40, padding: "0 16px", borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              >
                 + Record
               </button>
+            </div>
+          ) : (
+            // VR/RO: full‑width search only
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); resetPage(); }}
+                placeholder="Search company, date, status..."
+                style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
+                onFocus={e => { e.target.style.borderColor = C.navy; }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; }}
+              />
             </div>
           )}
         </div>
