@@ -934,7 +934,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {renderSwitchModal()}
 
       {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — with reordered fields as requested
+          MOBILE LAYOUT — unchanged
           ══════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div>
@@ -1095,7 +1095,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — COMPLETELY UNCHANGED from original
+          DESKTOP LAYOUT — Contact Details now full‑width (single column)
           ══════════════════════════════════════════════════════════ */}
       {!isMobile && (
         <>
@@ -1215,7 +1215,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </Section>
             </div>
 
-            {/* ── Right column — IDENTICAL to document 3 ── */}
+            {/* ── Right column — Contact Details now full‑width (single column) ── */}
             <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
               <Section title="Account Information" icon="👤">
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1242,16 +1242,15 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </div>
               </Section>
 
+              {/* ── Contact Details section — now single column (both fields full width) ── */}
               <Section title="Contact Details" icon="📍">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
                   <Field label="Nationality">
                     <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
                   </Field>
-                  <div style={{ alignSelf: "start" }}>
-                    <Field label="Postal Address">
-                      <input style={inp({ padding: "5px 10px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                    </Field>
-                  </div>
+                  <Field label="Postal Address">
+                    <input style={inp()} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </Field>
                 </div>
               </Section>
 
