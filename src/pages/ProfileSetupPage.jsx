@@ -68,9 +68,9 @@ export default function ResetPasswordPage({ onDone }) {
   const mobileInp = useMemo(
     () => ({
       width: "100%",
-      padding: "14px 16px",
+      padding: "13px 15px",
       borderRadius: 12,
-      fontSize: 16,
+      fontSize: 15,
       border: "1.5px solid rgba(255,255,255,0.15)",
       outline: "none",
       fontFamily: "inherit",
@@ -176,6 +176,340 @@ export default function ResetPasswordPage({ onDone }) {
     [password, confirm, BASE, KEY, onDone]
   );
 
+  const renderSuccess = () => (
+    <div style={{ textAlign: "center", padding: isMobile ? "12px 0" : "20px 0" }}>
+      <div
+        style={{
+          width: isMobile ? 60 : 64,
+          height: isMobile ? 60 : 64,
+          background: isMobile ? "rgba(0,132,61,0.15)" : `${C.green}15`,
+          border: `2px solid ${C.green}`,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: `0 auto ${isMobile ? 18 : 20}px`,
+          animation: "checkPop 0.4s ease",
+        }}
+      >
+        <span style={{ fontSize: isMobile ? 26 : 28, color: isMobile ? C.white : C.text }}>
+          ✓
+        </span>
+      </div>
+
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: isMobile ? 17 : 16,
+          color: isMobile ? C.white : C.text,
+          marginBottom: 8,
+        }}
+      >
+        Password Updated!
+      </div>
+
+      <div
+        style={{
+          fontSize: isMobile ? 13 : 14,
+          color: isMobile ? "rgba(255,255,255,0.65)" : C.gray400,
+          lineHeight: 1.6,
+        }}
+      >
+        Your password has been changed successfully.
+        <br />
+        Redirecting you to sign in...
+      </div>
+
+      <div style={{ marginTop: isMobile ? 18 : 20, display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            width: 16,
+            height: 16,
+            border: isMobile
+              ? "2px solid rgba(255,255,255,0.2)"
+              : `2px solid ${C.green}33`,
+            borderTop: isMobile ? `2px solid ${C.white}` : `2px solid ${C.green}`,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  const renderForm = () => (
+    <form onSubmit={handleSubmit}>
+      {error && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#dc2626",
+            borderRadius: 10,
+            padding: isMobile ? "11px 14px" : "12px 16px",
+            fontSize: isMobile ? 13 : 14,
+            marginBottom: isMobile ? 16 : 20,
+            display: isMobile ? "flex" : "block",
+            alignItems: isMobile ? "center" : undefined,
+            gap: isMobile ? 8 : undefined,
+          }}
+        >
+          {isMobile && <span>⚠️</span>}
+          {error}
+        </div>
+      )}
+
+      <div style={{ marginBottom: isMobile ? 16 : 18 }}>
+        <label
+          style={{
+            fontSize: isMobile ? 13 : 14,
+            fontWeight: 600,
+            color: isMobile ? "rgba(255,255,255,0.9)" : C.text,
+            display: "block",
+            marginBottom: 6,
+          }}
+        >
+          New Password
+        </label>
+
+        <div style={{ position: "relative" }}>
+          <input
+            style={{
+              ...inp,
+              paddingRight: 48,
+              borderColor: passwordTooShort
+                ? "#fca5a5"
+                : isMobile
+                  ? "rgba(255,255,255,0.15)"
+                  : C.gray200,
+            }}
+            type={show.pw ? "text" : "password"}
+            placeholder="Min. 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            onFocus={(e) => {
+              e.target.style.borderColor = passwordTooShort ? "#fca5a5" : C.green;
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = passwordTooShort
+                ? "#fca5a5"
+                : isMobile
+                  ? "rgba(255,255,255,0.15)"
+                  : C.gray200;
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))}
+            style={{
+              position: "absolute",
+              right: 14,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: isMobile ? 17 : 18,
+              color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400,
+              padding: 0,
+            }}
+          >
+            {show.pw ? "🙈" : "👁️"}
+          </button>
+        </div>
+
+        {password && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 4,
+                    borderRadius: 4,
+                    background:
+                      i <= pw.score
+                        ? pw.color
+                        : isMobile
+                          ? "rgba(255,255,255,0.14)"
+                          : C.gray200,
+                    transition: "background 0.3s",
+                  }}
+                />
+              ))}
+            </div>
+            {pw.label && (
+              <div
+                style={{
+                  fontSize: isMobile ? 11 : 12,
+                  color: pw.color,
+                  fontWeight: 600,
+                }}
+              >
+                {pw.label} password
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: isMobile ? 20 : 28 }}>
+        <label
+          style={{
+            fontSize: isMobile ? 13 : 14,
+            fontWeight: 600,
+            color: isMobile ? "rgba(255,255,255,0.9)" : C.text,
+            display: "block",
+            marginBottom: 6,
+          }}
+        >
+          Confirm Password
+        </label>
+
+        <div style={{ position: "relative" }}>
+          <input
+            style={{
+              ...inp,
+              paddingRight: 48,
+              borderColor:
+                confirm && !passwordsMatch
+                  ? "#fca5a5"
+                  : isMobile
+                    ? "rgba(255,255,255,0.15)"
+                    : C.gray200,
+            }}
+            type={show.cf ? "text" : "password"}
+            placeholder="Repeat your password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            onFocus={(e) => {
+              e.target.style.borderColor =
+                confirm && !passwordsMatch ? "#fca5a5" : C.green;
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor =
+                confirm && !passwordsMatch
+                  ? "#fca5a5"
+                  : isMobile
+                    ? "rgba(255,255,255,0.15)"
+                    : C.gray200;
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))}
+            style={{
+              position: "absolute",
+              right: 14,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: isMobile ? 17 : 18,
+              color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400,
+              padding: 0,
+            }}
+          >
+            {show.cf ? "🙈" : "👁️"}
+          </button>
+        </div>
+
+        {confirm && (
+          <div
+            style={{
+              fontSize: isMobile ? 11 : 12,
+              marginTop: 5,
+              fontWeight: 600,
+              color: passwordsMatch ? C.green : "#ef4444",
+            }}
+          >
+            {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        style={{
+          width: "100%",
+          padding: isMobile ? "14px" : "13px",
+          borderRadius: isMobile ? 12 : 10,
+          border: "none",
+          background: loading ? C.gray200 : C.green,
+          color: C.white,
+          fontWeight: 700,
+          fontSize: isMobile ? 15 : 15,
+          cursor: loading ? "not-allowed" : "pointer",
+          fontFamily: "inherit",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          boxShadow: isMobile ? (loading ? "none" : `0 4px 16px ${C.green}55`) : "none",
+          transition: "background 0.2s",
+        }}
+      >
+        {loading ? (
+          <>
+            <div
+              style={{
+                width: isMobile ? 15 : 16,
+                height: isMobile ? 15 : 16,
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTop: "2px solid #fff",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            Updating...
+          </>
+        ) : (
+          "Update Password →"
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={handleBack}
+        style={{
+          width: "100%",
+          padding: isMobile ? "13px" : "11px",
+          borderRadius: isMobile ? 12 : 10,
+          marginTop: 12,
+          border: isMobile
+            ? "1.5px solid rgba(255,255,255,0.2)"
+            : `1.5px solid ${C.gray200}`,
+          background: isMobile ? "transparent" : C.white,
+          color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400,
+          fontWeight: 600,
+          fontSize: isMobile ? 14 : 14,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = isMobile ? C.white : C.navy;
+          e.currentTarget.style.color = isMobile ? C.white : C.navy;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = isMobile
+            ? "rgba(255,255,255,0.2)"
+            : C.gray200;
+          e.currentTarget.style.color = isMobile
+            ? "rgba(255,255,255,0.7)"
+            : C.gray400;
+        }}
+      >
+        ← Back to Sign In
+      </button>
+    </form>
+  );
+
   return (
     <div
       style={{
@@ -193,7 +527,6 @@ export default function ResetPasswordPage({ onDone }) {
         overflow: "hidden",
       }}
     >
-      {/* dot grid */}
       <div
         style={{
           position: "absolute",
@@ -204,7 +537,6 @@ export default function ResetPasswordPage({ onDone }) {
           pointerEvents: "none",
         }}
       />
-      {/* green orb */}
       <div
         style={{
           position: "absolute",
@@ -217,7 +549,6 @@ export default function ResetPasswordPage({ onDone }) {
           pointerEvents: "none",
         }}
       />
-      {/* gold orb */}
       <div
         style={{
           position: "absolute",
@@ -253,25 +584,25 @@ export default function ResetPasswordPage({ onDone }) {
           }}
         >
           <div style={{ width: "100%", maxWidth: "none", margin: "0 auto" }}>
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ textAlign: "center", marginBottom: 30 }}>
               <img
                 src={logo}
                 alt="Investors Portal"
                 style={{
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   borderRadius: 14,
                   objectFit: "cover",
                   marginBottom: 12,
                   boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
                 }}
               />
-              <div style={{ fontWeight: 800, fontSize: 24, color: C.white }}>
+              <div style={{ fontWeight: 800, fontSize: 22, color: C.white }}>
                 Set New Password
               </div>
               <div
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   color: "rgba(255,255,255,0.55)",
                   marginTop: 4,
                 }}
@@ -280,302 +611,37 @@ export default function ResetPasswordPage({ onDone }) {
               </div>
             </div>
 
-            {success ? (
-              <div style={{ textAlign: "center", padding: "12px 0" }}>
-                <div
-                  style={{
-                    width: 64,
-                    height: 64,
-                    background: "rgba(0,132,61,0.15)",
-                    border: `2px solid ${C.green}`,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "0 auto 20px",
-                    animation: "checkPop 0.4s ease",
-                  }}
-                >
-                  <span style={{ fontSize: 28, color: C.white }}>✓</span>
-                </div>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 18,
-                    color: C.white,
-                    marginBottom: 8,
-                  }}
-                >
-                  Password Updated!
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: "rgba(255,255,255,0.65)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Your password has been changed successfully.
-                  <br />
-                  Redirecting you to sign in...
-                </div>
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
-                  <div
-                    style={{
-                      width: 16,
-                      height: 16,
-                      border: "2px solid rgba(255,255,255,0.2)",
-                      borderTop: `2px solid ${C.white}`,
-                      borderRadius: "50%",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit}>
-                {error && (
-                  <div
-                    style={{
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      color: "#dc2626",
-                      borderRadius: 10,
-                      padding: "12px 16px",
-                      fontSize: 14,
-                      marginBottom: 16,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span>⚠️</span> {error}
-                  </div>
-                )}
+            {success ? renderSuccess() : renderForm()}
+          </div>
 
-                <div style={{ marginBottom: 18 }}>
-                  <label
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.9)",
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    New Password
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      style={{
-                        ...inp,
-                        paddingRight: 48,
-                        borderColor: passwordTooShort
-                          ? "#fca5a5"
-                          : "rgba(255,255,255,0.15)",
-                      }}
-                      type={show.pw ? "text" : "password"}
-                      placeholder="Min. 8 characters"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="new-password"
-                      onFocus={(e) => {
-                        e.target.style.borderColor = passwordTooShort ? "#fca5a5" : C.green;
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = passwordTooShort
-                          ? "#fca5a5"
-                          : "rgba(255,255,255,0.15)";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))}
-                      style={{
-                        position: "absolute",
-                        right: 14,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        color: "rgba(255,255,255,0.5)",
-                        padding: 0,
-                      }}
-                    >
-                      {show.pw ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-
-                  {password && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                        {[1, 2, 3, 4].map((i) => (
-                          <div
-                            key={i}
-                            style={{
-                              flex: 1,
-                              height: 4,
-                              borderRadius: 4,
-                              background: i <= pw.score ? pw.color : "rgba(255,255,255,0.14)",
-                              transition: "background 0.3s",
-                            }}
-                          />
-                        ))}
-                      </div>
-                      {pw.label && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: pw.color,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {pw.label} password
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginBottom: 22 }}>
-                  <label
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.9)",
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Confirm Password
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      style={{
-                        ...inp,
-                        paddingRight: 48,
-                        borderColor:
-                          confirm && !passwordsMatch ? "#fca5a5" : "rgba(255,255,255,0.15)",
-                      }}
-                      type={show.cf ? "text" : "password"}
-                      placeholder="Repeat your password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      autoComplete="new-password"
-                      onFocus={(e) => {
-                        e.target.style.borderColor =
-                          confirm && !passwordsMatch ? "#fca5a5" : C.green;
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor =
-                          confirm && !passwordsMatch ? "#fca5a5" : "rgba(255,255,255,0.15)";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))}
-                      style={{
-                        position: "absolute",
-                        right: 14,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        color: "rgba(255,255,255,0.5)",
-                        padding: 0,
-                      }}
-                    >
-                      {show.cf ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-
-                  {confirm && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        marginTop: 5,
-                        fontWeight: 600,
-                        color: passwordsMatch ? C.green : "#ef4444",
-                      }}
-                    >
-                      {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    width: "100%",
-                    padding: "15px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: loading ? C.gray200 : C.green,
-                    color: C.white,
-                    fontWeight: 700,
-                    fontSize: 16,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    boxShadow: loading ? "none" : `0 4px 16px ${C.green}55`,
-                  }}
-                >
-                  {loading ? (
-                    <>
-                      <div
-                        style={{
-                          width: 16,
-                          height: 16,
-                          border: "2px solid rgba(255,255,255,0.3)",
-                          borderTop: "2px solid #fff",
-                          borderRadius: "50%",
-                          animation: "spin 0.8s linear infinite",
-                        }}
-                      />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Password →"
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  style={{
-                    width: "100%",
-                    padding: "14px",
-                    borderRadius: 12,
-                    marginTop: 12,
-                    border: "1.5px solid rgba(255,255,255,0.2)",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.7)",
-                    fontWeight: 600,
-                    fontSize: 15,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = C.white;
-                    e.currentTarget.style.color = C.white;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-                  }}
-                >
-                  ← Back to Sign In
-                </button>
-              </form>
-            )}
+          <div
+            style={{
+              marginTop: 22,
+              textAlign: "center",
+              opacity: 0.72,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.42)",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              Manage Your Investments Digitally
+            </div>
+            <div
+              style={{
+                marginTop: 5,
+                fontSize: 10,
+                color: "rgba(255,255,255,0.34)",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              © 2026 Dopvista Creative Hub. All rights reserved.
+            </div>
           </div>
         </div>
       ) : (
@@ -616,264 +682,7 @@ export default function ResetPasswordPage({ onDone }) {
             </div>
           </div>
 
-          {success ? (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  background: `${C.green}15`,
-                  border: `2px solid ${C.green}`,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 20px",
-                  animation: "checkPop 0.4s ease",
-                }}
-              >
-                <span style={{ fontSize: 28 }}>✓</span>
-              </div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 8 }}>
-                Password Updated!
-              </div>
-              <div style={{ fontSize: 14, color: C.gray400, lineHeight: 1.6 }}>
-                Your password has been changed successfully.
-                <br />
-                Redirecting you to sign in...
-              </div>
-              <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
-                <div
-                  style={{
-                    width: 16,
-                    height: 16,
-                    border: `2px solid ${C.green}33`,
-                    borderTop: `2px solid ${C.green}`,
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              {error && (
-                <div
-                  style={{
-                    background: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    color: "#dc2626",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 14,
-                    marginBottom: 20,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <div style={{ marginBottom: 18 }}>
-                <label
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: C.text,
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                >
-                  New Password
-                </label>
-
-                <div style={{ position: "relative" }}>
-                  <input
-                    style={{
-                      ...inp,
-                      paddingRight: 48,
-                      borderColor: passwordTooShort ? "#fca5a5" : C.gray200,
-                    }}
-                    type={show.pw ? "text" : "password"}
-                    placeholder="Min. 8 characters"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))}
-                    style={{
-                      position: "absolute",
-                      right: 14,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 18,
-                      color: C.gray400,
-                      padding: 0,
-                    }}
-                  >
-                    {show.pw ? "🙈" : "👁️"}
-                  </button>
-                </div>
-
-                {password && (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          style={{
-                            flex: 1,
-                            height: 4,
-                            borderRadius: 4,
-                            background: i <= pw.score ? pw.color : C.gray200,
-                            transition: "background 0.3s",
-                          }}
-                        />
-                      ))}
-                    </div>
-                    {pw.label && (
-                      <div style={{ fontSize: 12, color: pw.color, fontWeight: 600 }}>
-                        {pw.label} password
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginBottom: 28 }}>
-                <label
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: C.text,
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                >
-                  Confirm Password
-                </label>
-
-                <div style={{ position: "relative" }}>
-                  <input
-                    style={{
-                      ...inp,
-                      paddingRight: 48,
-                      borderColor: confirm && !passwordsMatch ? "#fca5a5" : C.gray200,
-                    }}
-                    type={show.cf ? "text" : "password"}
-                    placeholder="Repeat your password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))}
-                    style={{
-                      position: "absolute",
-                      right: 14,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 18,
-                      color: C.gray400,
-                      padding: 0,
-                    }}
-                  >
-                    {show.cf ? "🙈" : "👁️"}
-                  </button>
-                </div>
-
-                {confirm && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      marginTop: 5,
-                      fontWeight: 600,
-                      color: passwordsMatch ? C.green : "#ef4444",
-                    }}
-                  >
-                    {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: loading ? C.gray200 : C.green,
-                  color: C.white,
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontFamily: "inherit",
-                  transition: "background 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-              >
-                {loading ? (
-                  <>
-                    <div
-                      style={{
-                        width: 16,
-                        height: 16,
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTop: "2px solid #fff",
-                        borderRadius: "50%",
-                        animation: "spin 0.8s linear infinite",
-                      }}
-                    />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Password →"
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleBack}
-                style={{
-                  width: "100%",
-                  padding: "11px",
-                  borderRadius: 10,
-                  marginTop: 12,
-                  border: `1.5px solid ${C.gray200}`,
-                  background: C.white,
-                  color: C.gray400,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = C.navy;
-                  e.currentTarget.style.color = C.navy;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = C.gray200;
-                  e.currentTarget.style.color = C.gray400;
-                }}
-              >
-                ← Back to Sign In
-              </button>
-            </form>
-          )}
+          {success ? renderSuccess() : renderForm()}
 
           {!success && (
             <>
