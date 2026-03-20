@@ -84,16 +84,6 @@ export default function App() {
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Safety timeout to force loading false after 10 seconds
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => {
-      console.warn("Loading timeout – forcing loading false");
-      setLoading(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [loading]);
-
   // Close drawer on tab change or on resize back to desktop
   useEffect(() => {
     setDrawerOpen(false);
@@ -284,6 +274,14 @@ export default function App() {
         setDbError(null);
       }
 
+      // Safety timeout to force loading false after 8 seconds
+      const safetyTimeout = setTimeout(() => {
+        if (!cancelled && loading) {
+          console.warn("Profile load timed out – forcing loading false");
+          setLoading(false);
+        }
+      }, 8000);
+
       try {
         const freshToken = session?.access_token;
         const uid = session?.user?.id;
@@ -323,10 +321,11 @@ export default function App() {
         setTransactions([]);
       } catch (e) {
         if (!cancelled) {
-          console.error("loadAppCore error:", e);
+          console.error("Profile load error:", e);
           setDbError(e?.message || "Failed to load application data.");
         }
       } finally {
+        clearTimeout(safetyTimeout);
         if (!cancelled) setLoading(false);
       }
     };
@@ -362,7 +361,7 @@ export default function App() {
 
         const [freshActive, freshList] = await Promise.all([
           sbSwitchActiveCDS(uid, target.cds_id),
-          sbGetUserCDS(uid).catch(() => cdsList), // fallback to existing list on error
+          sbGetUserCDS(uid).catch(() => cdsList),
         ]);
 
         if (reqId !== cdsSwitchReqRef.current) return;
