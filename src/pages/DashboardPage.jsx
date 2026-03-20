@@ -67,7 +67,6 @@ const ROLE_NAMES = {
 // ── Status helpers ─────────────────────────────────────────────────
 const statusOf = (t) => String(t?.status || "").toLowerCase().trim();
 const isVerified = (t) => statusOf(t) === "verified";
-const isPendingStatus = (t) => statusOf(t) === "pending";
 const txTime = (t) => new Date(t?.date || t?.created_at || 0).getTime() || 0;
 
 // ── Shared table primitives ────────────────────────────────────────
@@ -1302,6 +1301,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         margin: isMobile ? 0 : "0 auto",
         position: "relative",
         overflow: "visible",
+        paddingBottom: isMobile ? 36 : 0,
       }}
     >
       <style>{`
