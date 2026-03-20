@@ -508,11 +508,19 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
 
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
   const isMobile = useIsMobile();
   const isSAAD = ["SA", "AD"].includes(role);
   const snapRef = useRef(null);
   const hasExpandedRef = useRef(false);
   const mountedRef = useRef(true);
+
+  const rootRef = useRef(null);
+  const touchStartYRef = useRef(null);
+  const pullingRef = useRef(false);
+  const scrollHostRef = useRef(null);
 
   const cds = profile?.cds_number || null;
   const myTxns = useMemo(
@@ -520,50 +528,80 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     [transactions, cds]
   );
 
+  const getScrollParent = useCallback((el) => {
+    let node = el?.parentElement;
+    while (node) {
+      const style = window.getComputedStyle(node);
+      const canScroll =
+        (style.overflowY === "auto" || style.overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight;
+      if (canScroll) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }, []);
+
+  const loadDashboard = useCallback(async ({ fromPull = false } = {}) => {
+    if (!mountedRef.current) return;
+    if (fromPull) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const activeCdsId = activeCds?.cds_id;
+      const [port, txns, users, members] = await Promise.all([
+        sbGetPortfolio(profile?.cds_number).catch(() => []),
+        sbGetTransactions().catch(() => []),
+        activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
+        activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
+      ]);
+
+      if (!mountedRef.current) return;
+
+      setPortfolio(port || []);
+      setTransactions(txns || []);
+      if (users?.length) {
+        setUserCount(users.length);
+        setAllUsers(users);
+      } else if (!activeCdsId) {
+        setUserCount(0);
+        setAllUsers([]);
+      }
+
+      setCdsMembers(
+        members?.length
+          ? members.map((m) => ({
+              id: m.user_id,
+              full_name: m.full_name,
+              role_code: m.role_code,
+              is_active: m.is_active,
+              phone: m.phone || null,
+              email: m.email || null,
+              avatar_url: m.avatar_url || null,
+            }))
+          : []
+      );
+
+      if (fromPull) showToast?.("Dashboard refreshed", "success");
+    } catch {
+      if (mountedRef.current) {
+        showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
+      }
+    } finally {
+      if (!mountedRef.current) return;
+      setLoading(false);
+      setRefreshing(false);
+      setPullDistance(0);
+    }
+  }, [activeCds?.cds_id, profile?.cds_number, showToast]);
+
   // ── Data load with cancellation ───────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const activeCdsId = activeCds?.cds_id;
-        const [port, txns, users, members] = await Promise.all([
-          sbGetPortfolio(profile?.cds_number).catch(() => []),
-          sbGetTransactions().catch(() => []),
-          activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
-          activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
-        ]);
-        if (!mountedRef.current) return;
-        setPortfolio(port || []);
-        setTransactions(txns || []);
-        if (users?.length) {
-          setUserCount(users.length);
-          setAllUsers(users);
-        }
-        setCdsMembers(
-          members?.length
-            ? members.map((m) => ({
-                id: m.user_id,
-                full_name: m.full_name,
-                role_code: m.role_code,
-                is_active: m.is_active,
-                phone: m.phone || null,
-                email: m.email || null,
-                avatar_url: m.avatar_url || null,
-              }))
-            : []
-        );
-      } catch {
-        if (mountedRef.current) showToast?.("Dashboard load error", "error");
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    };
-    load();
+    loadDashboard();
     return () => {
       mountedRef.current = false;
     };
-  }, [profile?.cds_number, activeCds?.cds_id, showToast]);
+  }, [loadDashboard]);
 
   // ── Pre-group verified transactions ────────────────────────────
   const groupedVerifiedByCompany = useMemo(() => {
@@ -782,6 +820,68 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onNavTransactions = useCallback(() => onNavigate("transactions"), [onNavigate]);
   const onNavUserMgmt = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand = useCallback(() => setExpanded(null), []);
+
+  // ── Pull to refresh (mobile only) ───────────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    if (!isMobile || refreshing || loading) return;
+
+    const host = getScrollParent(rootRef.current);
+    scrollHostRef.current = host;
+
+    if ((host?.scrollTop || 0) > 0) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      return;
+    }
+
+    touchStartYRef.current = e.touches[0].clientY;
+    pullingRef.current = false;
+  }, [getScrollParent, isMobile, loading, refreshing]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isMobile || refreshing || loading) return;
+    if (touchStartYRef.current == null) return;
+
+    const host = scrollHostRef.current || getScrollParent(rootRef.current);
+    if ((host?.scrollTop || 0) > 0) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+    if (deltaY <= 0) {
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    pullingRef.current = true;
+    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
+    setPullDistance(resisted);
+  }, [getScrollParent, isMobile, loading, refreshing]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile || refreshing || loading) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const shouldRefresh = pullingRef.current && pullDistance >= 64;
+
+    touchStartYRef.current = null;
+    pullingRef.current = false;
+
+    if (shouldRefresh) {
+      setPullDistance(56);
+      loadDashboard({ fromPull: true });
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, loading, pullDistance, refreshing, loadDashboard]);
 
   // ── Scroll to top on panel close ───────────────────────────────
   useEffect(() => {
@@ -1185,469 +1285,822 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     </div>
   ), [cdsUsers, loading, isSAAD, onCloseExpand, onNavUserMgmt]);
 
+  const pullReady = pullDistance >= 64;
+
   // ──────────────────────────────────────────────────────────────────
   // ── RENDER
   // ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: isMobile ? "none" : 1200, margin: isMobile ? 0 : "0 auto" }}>
+    <div
+      ref={rootRef}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchCancel={isMobile ? handleTouchEnd : undefined}
+      style={{
+        maxWidth: isMobile ? "none" : 1200,
+        margin: isMobile ? 0 : "0 auto",
+        position: "relative",
+        overflow: "visible",
+      }}
+    >
       <style>{`
         @keyframes spin         { to { transform: rotate(360deg); } }
         @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
-      {/* MOBILE LAYOUT */}
       {isMobile && (
-        <div>
-          {/* Hero card */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 0,
+            pointerEvents: "none",
+            zIndex: 3,
+          }}
+        >
           <div
             style={{
-              background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
-              borderRadius: 16,
-              padding: "18px 18px 20px",
-              marginBottom: 10,
-              position: "relative",
-              overflow: "hidden",
+              position: "absolute",
+              left: "50%",
+              top: 0,
+              transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
+              opacity: refreshing || pullDistance > 6 ? 1 : 0,
+              transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
+              background: C.white,
+              border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
+              borderRadius: 999,
+              padding: "7px 12px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
             <div
               style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)",
-                backgroundSize: "20px 20px",
-                pointerEvents: "none",
+                width: 14,
+                height: 14,
+                borderRadius: "50%",
+                border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
+                borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
+                animation: refreshing ? "spin 0.8s linear infinite" : "none",
+                transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
+                transition: "transform 0.12s ease, border-color 0.12s ease",
+                flexShrink: 0,
               }}
             />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: refreshing ? C.green : (pullReady ? C.text : C.gray500),
+                whiteSpace: "nowrap",
+              }}
+            >
+              {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          transform: isMobile ? `translateY(${pullDistance}px)` : "none",
+          transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
+          willChange: isMobile ? "transform" : "auto",
+        }}
+      >
+        {/* MOBILE LAYOUT */}
+        {isMobile && (
+          <div>
+            {/* Hero card */}
             <div
               style={{
-                position: "absolute",
-                bottom: -40,
-                right: -40,
-                width: 160,
-                height: 160,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)",
-                pointerEvents: "none",
+                background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
+                borderRadius: 16,
+                padding: "18px 18px 20px",
+                marginBottom: 10,
+                position: "relative",
+                overflow: "hidden",
               }}
-            />
-
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
-              <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.4)",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: 2,
-                  }}
-                >
-                  Shares Held
-                </div>
-                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>
-                  {loading ? "—" : fmt(metrics.totalNetShares)}
-                </div>
-              </div>
+            >
               <div
                 style={{
-                  background: "rgba(255,255,255,0.1)",
-                  borderRadius: 9,
-                  padding: "5px 10px",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  textAlign: "right",
+                  position: "absolute",
+                  inset: 0,
+                  backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)",
+                  backgroundSize: "20px 20px",
+                  pointerEvents: "none",
                 }}
-              >
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: "rgba(255,255,255,0.45)",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  Today
-                </div>
-                <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
-              </div>
-            </div>
-
-            <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
+              />
               <div
                 style={{
-                  fontSize: 9,
-                  color: "rgba(255,255,255,0.4)",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                  marginBottom: 4,
+                  position: "absolute",
+                  bottom: -40,
+                  right: -40,
+                  width: 160,
+                  height: 160,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)",
+                  pointerEvents: "none",
                 }}
-              >
-                Portfolio Value
-              </div>
-              {(() => {
-                let displayValue = "—";
-                if (!loading) {
-                  if (metrics.hasFinancials) {
-                    displayValue = `TZS ${fmt(metrics.totalMarketValue)}`;
-                  } else if (metrics.hasCostData) {
-                    displayValue = `TZS ${fmt(metrics.investedCapital)}`;
-                  }
-                }
-                const charCount = displayValue.length;
-                let fontSize = "44px";
-                if (charCount > 20) fontSize = "26px";
-                else if (charCount > 16) fontSize = "30px";
-                else if (charCount > 12) fontSize = "36px";
-                
-                return (
-                  <div 
-                    style={{ 
-                      fontSize: fontSize,
-                      fontWeight: 800, 
-                      color: "#FFD966", 
-                      lineHeight: 1.2, 
-                      letterSpacing: "-0.01em",
-                      textAlign: "center",
-                      width: "100%",
-                      whiteSpace: "nowrap",
-                      overflow: "visible",
+              />
+
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "rgba(255,255,255,0.4)",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 2,
                     }}
                   >
-                    {loading ? (
-                      <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
-                    ) : displayValue}
+                    Shares Held
                   </div>
-                );
-              })()}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
-              {[
-                {
-                  label: "Invested",
-                  value: metrics.hasCostData ? `TZS ${fmtShort(metrics.investedCapital)}` : "—",
-                  color: "rgba(255,255,255,0.85)",
-                },
-                {
-                  label: "Return",
-                  value: metrics.hasFinancials
-                    ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`
-                    : "—",
-                  color: metrics.hasFinancials
-                    ? (metrics.unrealizedRetPct >= 0 ? "#4ade80" : "#f87171")
-                    : "rgba(255,255,255,0.85)",
-                },
-                {
-                  label: "Holdings",
-                  value: loading ? "—" : String(metrics.totalCompanies),
-                  color: "rgba(255,255,255,0.85)",
-                },
-              ].map((item, i) => (
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>
+                    {loading ? "—" : fmt(metrics.totalNetShares)}
+                  </div>
+                </div>
                 <div
-                  key={item.label}
                   style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
-                    padding: "0 0",
+                    background: "rgba(255,255,255,0.1)",
+                    borderRadius: 9,
+                    padding: "5px 10px",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    textAlign: "right",
                   }}
                 >
                   <div
                     style={{
-                      fontSize: 9,
-                      color: "rgba(255,255,255,0.4)",
+                      fontSize: 8,
+                      color: "rgba(255,255,255,0.45)",
                       fontWeight: 700,
                       textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 3,
+                      letterSpacing: "0.08em",
                     }}
                   >
-                    {item.label}
+                    Today
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</div>
+                  <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
                 </div>
-              ))}
+              </div>
+
+              <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.4)",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    marginBottom: 4,
+                  }}
+                >
+                  Portfolio Value
+                </div>
+                {(() => {
+                  let displayValue = "—";
+                  if (!loading) {
+                    if (metrics.hasFinancials) {
+                      displayValue = `TZS ${fmt(metrics.totalMarketValue)}`;
+                    } else if (metrics.hasCostData) {
+                      displayValue = `TZS ${fmt(metrics.investedCapital)}`;
+                    }
+                  }
+                  const charCount = displayValue.length;
+                  let fontSize = "44px";
+                  if (charCount > 20) fontSize = "26px";
+                  else if (charCount > 16) fontSize = "30px";
+                  else if (charCount > 12) fontSize = "36px";
+
+                  return (
+                    <div
+                      style={{
+                        fontSize: fontSize,
+                        fontWeight: 800,
+                        color: "#FFD966",
+                        lineHeight: 1.2,
+                        letterSpacing: "-0.01em",
+                        textAlign: "center",
+                        width: "100%",
+                        whiteSpace: "nowrap",
+                        overflow: "visible",
+                      }}
+                    >
+                      {loading ? (
+                        <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span>
+                      ) : displayValue}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
+                {[
+                  {
+                    label: "Invested",
+                    value: metrics.hasCostData ? `TZS ${fmtShort(metrics.investedCapital)}` : "—",
+                    color: "rgba(255,255,255,0.85)",
+                  },
+                  {
+                    label: "Return",
+                    value: metrics.hasFinancials
+                      ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`
+                      : "—",
+                    color: metrics.hasFinancials
+                      ? (metrics.unrealizedRetPct >= 0 ? "#4ade80" : "#f87171")
+                      : "rgba(255,255,255,0.85)",
+                  },
+                  {
+                    label: "Holdings",
+                    value: loading ? "—" : String(metrics.totalCompanies),
+                    color: "rgba(255,255,255,0.85)",
+                  },
+                ].map((item, i) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                      padding: "0 0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "rgba(255,255,255,0.4)",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        marginBottom: 3,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* GL row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <MobileMetricCard
+                label="Unrealized GL"
+                value={loading ? "—" : metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
+                sub={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}% return` : "Set portfolio prices"}
+                accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
+              />
+              <MobileMetricCard
+                label="Realized GL"
+                value={loading ? "—" : metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
+                sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions"}
+                accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
+                onClick={metrics.hasRealized ? onToggleRealized : undefined}
+                chevron={metrics.hasRealized ? (expanded === "realized" ? "open" : "closed") : undefined}
+              />
+            </div>
+
+            {expanded === "realized" && renderMobileRealizedPanel()}
+
+            {/* Stat row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <MobileStatPill
+                icon="🏢"
+                label="Holdings"
+                value={loading ? "—" : metrics.totalCompanies}
+                onClick={onToggleCompanies}
+                active={expanded === "companies"}
+                accent={C.navy}
+              />
+              <MobileStatPill
+                icon="👥"
+                label="Users"
+                value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
+                onClick={onToggleUsers}
+                active={expanded === "users"}
+                accent="#2563eb"
+              />
+              <MobileStatPill
+                icon="🔔"
+                label="Pending"
+                value={loading ? "—" : metrics.pending}
+                onClick={onNavTransactions}
+                accent="#f59e0b"
+                navigates
+              />
+            </div>
+
+            {expanded === "companies" && renderMobileCompaniesPanel()}
+            {expanded === "users" && renderMobileUsersPanel()}
           </div>
+        )}
 
-          {/* GL row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <MobileMetricCard
-              label="Unrealized GL"
-              value={loading ? "—" : metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
-              sub={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}% return` : "Set portfolio prices"}
-              accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
-            />
-            <MobileMetricCard
-              label="Realized GL"
-              value={loading ? "—" : metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
-              sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions"}
-              accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
-              onClick={metrics.hasRealized ? onToggleRealized : undefined}
-              chevron={metrics.hasRealized ? (expanded === "realized" ? "open" : "closed") : undefined}
-            />
-          </div>
-
-          {expanded === "realized" && renderMobileRealizedPanel()}
-
-          {/* Stat row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <MobileStatPill
-              icon="🏢"
-              label="Holdings"
-              value={loading ? "—" : metrics.totalCompanies}
-              onClick={onToggleCompanies}
-              active={expanded === "companies"}
-              accent={C.navy}
-            />
-            <MobileStatPill
-              icon="👥"
-              label="Users"
-              value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
-              onClick={onToggleUsers}
-              active={expanded === "users"}
-              accent="#2563eb"
-            />
-            <MobileStatPill
-              icon="🔔"
-              label="Pending"
-              value={loading ? "—" : metrics.pending}
-              onClick={onNavTransactions}
-              accent="#f59e0b"
-              navigates
-            />
-          </div>
-
-          {expanded === "companies" && renderMobileCompaniesPanel()}
-          {expanded === "users" && renderMobileUsersPanel()}
-        </div>
-      )}
-
-      {/* DESKTOP LAYOUT */}
-      {!isMobile && (
-        <>
-          {/* Snapshot strip */}
-          <div
-            ref={snapRef}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
-              gap: 14,
-              marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users") ? 14 : 20,
-            }}
-          >
-            <SnapCard
-              label="Market Value"
-              loading={loading}
-              value={
-                metrics.hasFinancials
-                  ? fmtShort(metrics.totalMarketValue)
-                  : metrics.hasCostData
-                    ? fmtShort(metrics.investedCapital)
-                    : metrics.total > 0
-                      ? `${metrics.total} txns`
-                      : "—"
-              }
-              sub={
-                metrics.hasFinancials
-                  ? "Current market value (TZS)"
-                  : metrics.hasCostData
-                    ? "Cost basis — set prices for market value"
-                    : "No verified transactions yet"
-              }
-            />
-            <SnapCard
-              label="Invested Capital"
-              loading={loading}
-              value={metrics.hasCostData ? fmtShort(metrics.investedCapital) : "—"}
-              sub={metrics.hasCostData ? `${fmt(metrics.totalNetShares)} shares held` : "No verified buy transactions"}
-            />
-            <SnapCard
-              label="Unrealized Gain / Loss"
-              loading={loading}
-              value={metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
-              sub={metrics.hasFinancials ? (metrics.avgFirstBuyDays ? `avg ${metrics.avgFirstBuyDays}d` : "open positions") : "Set prices in Portfolio to compute"}
-              accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : C.gray200}
-              accentBg={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
-            />
-            <SnapCard
-              label="Unrealized Return %"
-              loading={loading}
-              value={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%` : "—"}
-              sub={metrics.hasFinancials ? "Return on open positions" : "Set prices in Portfolio"}
-              accent={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : C.gray200}
-              accentBg={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : undefined}
-            />
-            <SnapCard
-              label="Realized Gain / Loss"
-              loading={loading}
-              value={metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
-              sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
-              accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : C.gray200}
-              accentBg={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
-              expandable={metrics.hasRealized}
-              expanded={expanded === "realized"}
-              onToggle={onToggleRealized}
-              hoverable
-            />
-          </div>
-
-          {/* Realized GL expand panel */}
-          {expanded === "realized" && (
-            <ExpandPanel
-              title="📤 Realized Gain / Loss — Closed Positions"
-              accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red}
-              onClose={onCloseExpand}
+        {/* DESKTOP LAYOUT */}
+        {!isMobile && (
+          <>
+            {/* Snapshot strip */}
+            <div
+              ref={snapRef}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
+                gap: 14,
+                marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users") ? 14 : 20,
+              }}
             >
-              {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades found." /> : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <Th>Company</Th>
-                        <Th right>Shares Sold</Th>
-                        <Th right>Cost of Shares Sold</Th>
-                        <Th right>Net Proceeds</Th>
-                        <Th right>Realized Gain / Loss</Th>
-                        <Th right>Realized Return %</Th>
-                        <Th right>Days Held</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {metrics.realizedCompanies.map((c, i) => (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                          <Td bold>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                              <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                              {c.name}
-                            </div>
-                          </Td>
-                          <Td right>{fmt(c.totalSharesSold)}</Td>
-                          <Td right>{fmt(c.totalCostBasis)}</Td>
-                          <Td right>{fmt(c.totalSaleProceeds)}</Td>
-                          <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
-                            {(c.realizedGL >= 0 ? "+" : "") + fmt(c.realizedGL)}
-                          </Td>
-                          <Td right>
-                            <Badge
-                              value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                              positive={c.realizedGL >= 0}
-                            />
-                          </Td>
-                          <Td right color={C.gray500} small>
-                            {c.realizedTrades.every((r) => r.daysHeld !== null)
-                              ? `${Math.round(c.realizedTrades.reduce((s, r) => s + (r.daysHeld || 0), 0) / c.realizedTrades.length)}d avg`
-                              : "—"}
-                          </Td>
+              <SnapCard
+                label="Market Value"
+                loading={loading}
+                value={
+                  metrics.hasFinancials
+                    ? fmtShort(metrics.totalMarketValue)
+                    : metrics.hasCostData
+                      ? fmtShort(metrics.investedCapital)
+                      : metrics.total > 0
+                        ? `${metrics.total} txns`
+                        : "—"
+                }
+                sub={
+                  metrics.hasFinancials
+                    ? "Current market value (TZS)"
+                    : metrics.hasCostData
+                      ? "Cost basis — set prices for market value"
+                      : "No verified transactions yet"
+                }
+              />
+              <SnapCard
+                label="Invested Capital"
+                loading={loading}
+                value={metrics.hasCostData ? fmtShort(metrics.investedCapital) : "—"}
+                sub={metrics.hasCostData ? `${fmt(metrics.totalNetShares)} shares held` : "No verified buy transactions"}
+              />
+              <SnapCard
+                label="Unrealized Gain / Loss"
+                loading={loading}
+                value={metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
+                sub={metrics.hasFinancials ? (metrics.avgFirstBuyDays ? `avg ${metrics.avgFirstBuyDays}d` : "open positions") : "Set prices in Portfolio to compute"}
+                accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : C.gray200}
+                accentBg={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
+              />
+              <SnapCard
+                label="Unrealized Return %"
+                loading={loading}
+                value={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%` : "—"}
+                sub={metrics.hasFinancials ? "Return on open positions" : "Set prices in Portfolio"}
+                accent={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : C.gray200}
+                accentBg={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : undefined}
+              />
+              <SnapCard
+                label="Realized Gain / Loss"
+                loading={loading}
+                value={metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
+                sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
+                accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : C.gray200}
+                accentBg={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
+                expandable={metrics.hasRealized}
+                expanded={expanded === "realized"}
+                onToggle={onToggleRealized}
+                hoverable
+              />
+            </div>
+
+            {/* Realized GL expand panel */}
+            {expanded === "realized" && (
+              <ExpandPanel
+                title="📤 Realized Gain / Loss — Closed Positions"
+                accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red}
+                onClose={onCloseExpand}
+              >
+                {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades found." /> : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <Th>Company</Th>
+                          <Th right>Shares Sold</Th>
+                          <Th right>Cost of Shares Sold</Th>
+                          <Th right>Net Proceeds</Th>
+                          <Th right>Realized Gain / Loss</Th>
+                          <Th right>Realized Return %</Th>
+                          <Th right>Days Held</Th>
                         </tr>
-                      ))}
-                    </tbody>
-                    {metrics.realizedCompanies.length > 1 && (
-                      <tfoot>
-                        <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSharesSold)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalCostBasis)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSaleProceeds)}</td>
-                          <td
-                            style={{
-                              padding: "9px 12px",
-                              fontWeight: 800,
-                              fontSize: 13,
-                              color: metrics.totalRealizedGL >= 0 ? C.green : C.red,
-                              textAlign: "right",
-                            }}
-                          >
-                            {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
-                          </td>
-                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <Badge
-                              value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                              positive={metrics.totalRealizedGL >= 0}
-                            />
-                          </td>
-                          <td style={{ padding: "9px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>—</td>
+                      </thead>
+                      <tbody>
+                        {metrics.realizedCompanies.map((c, i) => (
+                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                            <Td bold>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                                {c.name}
+                              </div>
+                            </Td>
+                            <Td right>{fmt(c.totalSharesSold)}</Td>
+                            <Td right>{fmt(c.totalCostBasis)}</Td>
+                            <Td right>{fmt(c.totalSaleProceeds)}</Td>
+                            <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
+                              {(c.realizedGL >= 0 ? "+" : "") + fmt(c.realizedGL)}
+                            </Td>
+                            <Td right>
+                              <Badge
+                                value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
+                                positive={c.realizedGL >= 0}
+                              />
+                            </Td>
+                            <Td right color={C.gray500} small>
+                              {c.realizedTrades.every((r) => r.daysHeld !== null)
+                                ? `${Math.round(c.realizedTrades.reduce((s, r) => s + (r.daysHeld || 0), 0) / c.realizedTrades.length)}d avg`
+                                : "—"}
+                            </Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {metrics.realizedCompanies.length > 1 && (
+                        <tfoot>
+                          <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSharesSold)}</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalCostBasis)}</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSaleProceeds)}</td>
+                            <td
+                              style={{
+                                padding: "9px 12px",
+                                fontWeight: 800,
+                                fontSize: 13,
+                                color: metrics.totalRealizedGL >= 0 ? C.green : C.red,
+                                textAlign: "right",
+                              }}
+                            >
+                              {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
+                            </td>
+                            <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                              <Badge
+                                value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
+                                positive={metrics.totalRealizedGL >= 0}
+                              />
+                            </td>
+                            <td style={{ padding: "9px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>—</td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                )}
+              </ExpandPanel>
+            )}
+
+            {/* Stat cards row */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 14,
+                marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
+              }}
+            >
+              <StatCard
+                icon="🏢"
+                label="Companies"
+                value={loading ? "—" : metrics.totalCompanies}
+                subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
+                accent={C.navy}
+                accentBg="#0B1F3A"
+                onClick={onToggleCompanies}
+                active={expanded === "companies"}
+                loading={loading}
+              />
+              <StatCard
+                icon="👥"
+                label="Total Users"
+                value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
+                subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
+                accent="#2563eb"
+                accentBg="#2563eb"
+                onClick={onToggleUsers}
+                active={expanded === "users"}
+                loading={loading}
+              />
+              <StatCard
+                icon="🔔"
+                label="Awaiting Action"
+                value={loading ? "—" : metrics.pending}
+                subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
+                accent="#f59e0b"
+                accentBg="#f59e0b"
+                onClick={onNavTransactions}
+                navigates
+                loading={loading}
+              />
+            </div>
+
+            {/* Companies expand panel */}
+            {expanded === "companies" && (
+              <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
+                {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <colgroup>
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "10%" }} />
+                        <col style={{ width: "13%" }} />
+                        <col style={{ width: "12%" }} />
+                        <col style={{ width: "13%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "8%" }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <Th>Company</Th>
+                          <Th right>Shares Held</Th>
+                          <Th right>Current Invested Capital</Th>
+                          <Th right>Cost Allocation %</Th>
+                          <Th right>Market Value</Th>
+                          <Th right>Unrealized Gain / Loss</Th>
+                          <Th right>Status</Th>
                         </tr>
-                      </tfoot>
+                      </thead>
+                      <tbody>
+                        {metrics.companyMetrics.slice(0, 5).map((c, i) => (
+                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                            <Td bold>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                                {c.name}
+                              </div>
+                            </Td>
+                            <Td right>{fmt(c.netShares)}</Td>
+                            <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
+                            <Td right>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                                <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
+                                  <div
+                                    style={{
+                                      width: `${Math.min(c.costWeight || 0, 100)}%`,
+                                      height: "100%",
+                                      background: c.color,
+                                      borderRadius: 4,
+                                      transition: "width 0.5s ease",
+                                    }}
+                                  />
+                                </div>
+                                <span style={{ fontSize: 11, color: C.gray500 }}>{(c.costWeight || 0).toFixed(1)}%</span>
+                              </div>
+                            </Td>
+                            <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
+                            <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
+                              {c.currentPrice > 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
+                            </Td>
+                            <Td right>
+                              <span
+                                style={{
+                                  background: "#f0fdf4",
+                                  color: C.green,
+                                  border: `1px solid ${C.green}25`,
+                                  borderRadius: 20,
+                                  padding: "2px 10px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Active
+                              </span>
+                            </Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {metrics.companyMetrics.length > 1 && (
+                        <tfoot>
+                          <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
+                              {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
+                            </td>
+                            <td
+                              style={{
+                                padding: "9px 12px",
+                                fontWeight: 800,
+                                fontSize: 13,
+                                color: metrics.unrealizedGL >= 0 ? C.green : C.red,
+                                textAlign: "right",
+                              }}
+                            >
+                              {metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmt(metrics.unrealizedGL)}` : "—"}
+                            </td>
+                            <td />
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                )}
+              </ExpandPanel>
+            )}
+
+            {/* Users expand panel */}
+            {expanded === "users" && (
+              <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
+                {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
+                  <>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr>
+                            <Th>User Name</Th>
+                            <Th>Role</Th>
+                            <Th>Phone Number</Th>
+                            <Th>Email</Th>
+                            <Th>Status</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cdsUsers.map((u, i) => (
+                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                              <Td bold>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+                                  <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
+                                    {u.avatar_url && (
+                                      <img
+                                        src={u.avatar_url}
+                                        alt={u.full_name || "User"}
+                                        style={{
+                                          width: 30,
+                                          height: 30,
+                                          borderRadius: 8,
+                                          objectFit: "cover",
+                                          display: "block",
+                                          border: `1.5px solid ${C.gray200}`,
+                                        }}
+                                        onError={(e) => {
+                                          e.target.style.display = "none";
+                                          if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                                        }}
+                                      />
+                                    )}
+                                    <div
+                                      style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: 8,
+                                        background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
+                                        display: u.avatar_url ? "none" : "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        color: C.white,
+                                      }}
+                                    >
+                                      {u._initials}
+                                    </div>
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        bottom: -1,
+                                        right: -1,
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: "50%",
+                                        border: `2px solid ${C.white}`,
+                                        background: u._isActive ? "#16a34a" : "#d1d5db",
+                                      }}
+                                    />
+                                  </div>
+                                  {u.full_name || "—"}
+                                </div>
+                              </Td>
+                              <Td>
+                                <span
+                                  style={{
+                                    background: `${C.navy}12`,
+                                    color: C.navy,
+                                    borderRadius: 20,
+                                    padding: "2px 10px",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {u._roleName}
+                                </span>
+                              </Td>
+                              <Td color={C.gray500}>{u.phone || "—"}</Td>
+                              <Td color={C.gray500}>{u.email || "—"}</Td>
+                              <Td>
+                                <span
+                                  style={{
+                                    background: u._isActive ? "#f0fdf4" : "#fef2f2",
+                                    color: u._isActive ? C.green : C.red,
+                                    border: `1px solid ${u._isActive ? C.green : C.red}25`,
+                                    borderRadius: 20,
+                                    padding: "2px 10px",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {u._isActive ? "Active" : "Inactive"}
+                                </span>
+                              </Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {isSAAD && (
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          onClick={onNavUserMgmt}
+                          style={{
+                            background: "none",
+                            border: `1.5px solid ${C.navy}`,
+                            color: C.navy,
+                            borderRadius: 9,
+                            padding: "7px 18px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = C.navy;
+                            e.currentTarget.style.color = C.white;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "none";
+                            e.currentTarget.style.color = C.navy;
+                          }}
+                        >
+                          Go to User Management →
+                        </button>
+                      </div>
                     )}
-                  </table>
+                  </>
+                )}
+              </ExpandPanel>
+            )}
+
+            {/* Top 5 Holdings table */}
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "14px 20px",
+                  borderBottom: `1px solid ${C.gray100}`,
+                  background: C.gray50,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
+                <div style={{ fontSize: 11, color: C.gray400 }}>
+                  {metrics.hasFinancials
+                    ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`
+                    : "Set prices in Portfolio to compute market values"}
                 </div>
-              )}
-            </ExpandPanel>
-          )}
-
-          {/* Stat cards row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 14,
-              marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
-            }}
-          >
-            <StatCard
-              icon="🏢"
-              label="Companies"
-              value={loading ? "—" : metrics.totalCompanies}
-              subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
-              accent={C.navy}
-              accentBg="#0B1F3A"
-              onClick={onToggleCompanies}
-              active={expanded === "companies"}
-              loading={loading}
-            />
-            <StatCard
-              icon="👥"
-              label="Total Users"
-              value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
-              subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
-              accent="#2563eb"
-              accentBg="#2563eb"
-              onClick={onToggleUsers}
-              active={expanded === "users"}
-              loading={loading}
-            />
-            <StatCard
-              icon="🔔"
-              label="Awaiting Action"
-              value={loading ? "—" : metrics.pending}
-              subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
-              accent="#f59e0b"
-              accentBg="#f59e0b"
-              onClick={onNavTransactions}
-              navigates
-              loading={loading}
-            />
-          </div>
-
-          {/* Companies expand panel */}
-          {expanded === "companies" && (
-            <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
-              {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
+              </div>
+              {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? (
+                <Empty msg="No holdings found. Add transactions in the Portfolio page." />
+              ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <colgroup>
-                      <col style={{ width: "20%" }} />
-                      <col style={{ width: "10%" }} />
-                      <col style={{ width: "13%" }} />
-                      <col style={{ width: "12%" }} />
-                      <col style={{ width: "13%" }} />
-                      <col style={{ width: "14%" }} />
+                      <col style={{ width: "16%" }} />
                       <col style={{ width: "8%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "9%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "7%" }} />
+                      <col style={{ width: "10%" }} />
                     </colgroup>
                     <thead>
                       <tr>
                         <Th>Company</Th>
                         <Th right>Shares Held</Th>
-                        <Th right>Current Invested Capital</Th>
-                        <Th right>Cost Allocation %</Th>
+                        <Th right>Invested Capital</Th>
+                        <Th right>Current Price</Th>
                         <Th right>Market Value</Th>
                         <Th right>Unrealized Gain / Loss</Th>
-                        <Th right>Status</Th>
+                        <Th right>Unrealized Return %</Th>
+                        <Th right>Days Held</Th>
+                        <Th right>Portfolio Weight %</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1657,16 +2110,47 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                             <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                               <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
                               {c.name}
+                              {c.hasAnomaly && (
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    background: "#fef2f2",
+                                    color: C.red,
+                                    border: `1px solid ${C.red}25`,
+                                    borderRadius: 6,
+                                    padding: "1px 5px",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  ⚠ oversold
+                                </span>
+                              )}
                             </div>
                           </Td>
                           <Td right>{fmt(c.netShares)}</Td>
                           <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
+                          <Td right bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
+                          <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
+                          <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
+                            {c.currentPrice > 0 && c.unrealizedGL !== 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
+                          </Td>
+                          <Td right>
+                            {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
+                              <Badge
+                                value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
+                                positive={c.unrealizedRetPct >= 0}
+                              />
+                            ) : "—"}
+                          </Td>
+                          <Td right color={C.gray500} small>{c.firstBuyDays !== null ? `${c.firstBuyDays}d` : "—"}</Td>
                           <Td right>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                              <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
+                              <div style={{ width: 50, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
                                 <div
                                   style={{
-                                    width: `${Math.min(c.costWeight || 0, 100)}%`,
+                                    width: `${Math.min(c.weight, 100)}%`,
                                     height: "100%",
                                     background: c.color,
                                     borderRadius: 4,
@@ -1674,27 +2158,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                   }}
                                 />
                               </div>
-                              <span style={{ fontSize: 11, color: C.gray500 }}>{(c.costWeight || 0).toFixed(1)}%</span>
+                              <span style={{ fontSize: 11, color: C.gray500 }}>{c.weight.toFixed(1)}%</span>
                             </div>
-                          </Td>
-                          <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
-                          <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                            {c.currentPrice > 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
-                          </Td>
-                          <Td right>
-                            <span
-                              style={{
-                                background: "#f0fdf4",
-                                color: C.green,
-                                border: `1px solid ${C.green}25`,
-                                borderRadius: 20,
-                                padding: "2px 10px",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              Active
-                            </span>
                           </Td>
                         </tr>
                       ))}
@@ -1702,16 +2167,21 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     {metrics.companyMetrics.length > 1 && (
                       <tfoot>
                         <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                            {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
+                          <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
+                            TOTAL
+                            {metrics.companyMetrics.length > 5 && (
+                              <div style={{ fontSize: 10, fontWeight: 400, color: C.gray400, marginTop: 2 }}>
+                                all {metrics.companyMetrics.length} companies
+                              </div>
+                            )}
                           </td>
+                          <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
+                          <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
+                          <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>—</td>
+                          <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalMarketValue)}</td>
                           <td
                             style={{
-                              padding: "9px 12px",
+                              padding: "10px 12px",
                               fontWeight: 800,
                               fontSize: 13,
                               color: metrics.unrealizedGL >= 0 ? C.green : C.red,
@@ -1720,317 +2190,26 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                           >
                             {metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmt(metrics.unrealizedGL)}` : "—"}
                           </td>
-                          <td />
+                          <td style={{ padding: "10px 12px", textAlign: "right" }}>
+                            <Badge
+                              value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
+                              positive={metrics.unrealizedRetPct >= 0}
+                            />
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>
+                            {metrics.avgFirstBuyDays !== null ? `avg ${metrics.avgFirstBuyDays}d` : "—"}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
                         </tr>
                       </tfoot>
                     )}
                   </table>
                 </div>
               )}
-            </ExpandPanel>
-          )}
-
-          {/* Users expand panel */}
-          {expanded === "users" && (
-            <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
-              {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
-                <>
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr>
-                          <Th>User Name</Th>
-                          <Th>Role</Th>
-                          <Th>Phone Number</Th>
-                          <Th>Email</Th>
-                          <Th>Status</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cdsUsers.map((u, i) => (
-                          <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                            <Td bold>
-                              <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
-                                <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
-                                  {u.avatar_url && (
-                                    <img
-                                      src={u.avatar_url}
-                                      alt={u.full_name || "User"}
-                                      style={{
-                                        width: 30,
-                                        height: 30,
-                                        borderRadius: 8,
-                                        objectFit: "cover",
-                                        display: "block",
-                                        border: `1.5px solid ${C.gray200}`,
-                                      }}
-                                      onError={(e) => {
-                                        e.target.style.display = "none";
-                                        if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
-                                      }}
-                                    />
-                                  )}
-                                  <div
-                                    style={{
-                                      width: 30,
-                                      height: 30,
-                                      borderRadius: 8,
-                                      background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
-                                      display: u.avatar_url ? "none" : "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontSize: 11,
-                                      fontWeight: 800,
-                                      color: C.white,
-                                    }}
-                                  >
-                                    {u._initials}
-                                  </div>
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      bottom: -1,
-                                      right: -1,
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: "50%",
-                                      border: `2px solid ${C.white}`,
-                                      background: u._isActive ? "#16a34a" : "#d1d5db",
-                                    }}
-                                  />
-                                </div>
-                                {u.full_name || "—"}
-                              </div>
-                            </Td>
-                            <Td>
-                              <span
-                                style={{
-                                  background: `${C.navy}12`,
-                                  color: C.navy,
-                                  borderRadius: 20,
-                                  padding: "2px 10px",
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {u._roleName}
-                              </span>
-                            </Td>
-                            <Td color={C.gray500}>{u.phone || "—"}</Td>
-                            <Td color={C.gray500}>{u.email || "—"}</Td>
-                            <Td>
-                              <span
-                                style={{
-                                  background: u._isActive ? "#f0fdf4" : "#fef2f2",
-                                  color: u._isActive ? C.green : C.red,
-                                  border: `1px solid ${u._isActive ? C.green : C.red}25`,
-                                  borderRadius: 20,
-                                  padding: "2px 10px",
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {u._isActive ? "Active" : "Inactive"}
-                              </span>
-                            </Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {isSAAD && (
-                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={onNavUserMgmt}
-                        style={{
-                          background: "none",
-                          border: `1.5px solid ${C.navy}`,
-                          color: C.navy,
-                          borderRadius: 9,
-                          padding: "7px 18px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = C.navy;
-                          e.currentTarget.style.color = C.white;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "none";
-                          e.currentTarget.style.color = C.navy;
-                        }}
-                      >
-                        Go to User Management →
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </ExpandPanel>
-          )}
-
-          {/* Top 5 Holdings table */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
-            <div
-              style={{
-                padding: "14px 20px",
-                borderBottom: `1px solid ${C.gray100}`,
-                background: C.gray50,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
-              <div style={{ fontSize: 11, color: C.gray400 }}>
-                {metrics.hasFinancials
-                  ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`
-                  : "Set prices in Portfolio to compute market values"}
-              </div>
             </div>
-            {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? (
-              <Empty msg="No holdings found. Add transactions in the Portfolio page." />
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <colgroup>
-                    <col style={{ width: "16%" }} />
-                    <col style={{ width: "8%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "9%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "7%" }} />
-                    <col style={{ width: "10%" }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <Th>Company</Th>
-                      <Th right>Shares Held</Th>
-                      <Th right>Invested Capital</Th>
-                      <Th right>Current Price</Th>
-                      <Th right>Market Value</Th>
-                      <Th right>Unrealized Gain / Loss</Th>
-                      <Th right>Unrealized Return %</Th>
-                      <Th right>Days Held</Th>
-                      <Th right>Portfolio Weight %</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                        <Td bold>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                            {c.name}
-                            {c.hasAnomaly && (
-                              <span
-                                style={{
-                                  marginLeft: 6,
-                                  fontSize: 9,
-                                  fontWeight: 700,
-                                  background: "#fef2f2",
-                                  color: C.red,
-                                  border: `1px solid ${C.red}25`,
-                                  borderRadius: 6,
-                                  padding: "1px 5px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                ⚠ oversold
-                              </span>
-                            )}
-                          </div>
-                        </Td>
-                        <Td right>{fmt(c.netShares)}</Td>
-                        <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
-                        <Td right bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
-                        <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
-                        <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                          {c.currentPrice > 0 && c.unrealizedGL !== 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
-                        </Td>
-                        <Td right>
-                          {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
-                            <Badge
-                              value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
-                              positive={c.unrealizedRetPct >= 0}
-                            />
-                          ) : "—"}
-                        </Td>
-                        <Td right color={C.gray500} small>{c.firstBuyDays !== null ? `${c.firstBuyDays}d` : "—"}</Td>
-                        <Td right>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                            <div style={{ width: 50, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
-                              <div
-                                style={{
-                                  width: `${Math.min(c.weight, 100)}%`,
-                                  height: "100%",
-                                  background: c.color,
-                                  borderRadius: 4,
-                                  transition: "width 0.5s ease",
-                                }}
-                              />
-                            </div>
-                            <span style={{ fontSize: 11, color: C.gray500 }}>{c.weight.toFixed(1)}%</span>
-                          </div>
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {metrics.companyMetrics.length > 1 && (
-                    <tfoot>
-                      <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                        <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
-                          TOTAL
-                          {metrics.companyMetrics.length > 5 && (
-                            <div style={{ fontSize: 10, fontWeight: 400, color: C.gray400, marginTop: 2 }}>
-                              all {metrics.companyMetrics.length} companies
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                        <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
-                        <td style={{ padding: "10px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>—</td>
-                        <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalMarketValue)}</td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            fontWeight: 800,
-                            fontSize: 13,
-                            color: metrics.unrealizedGL >= 0 ? C.green : C.red,
-                            textAlign: "right",
-                          }}
-                        >
-                          {metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmt(metrics.unrealizedGL)}` : "—"}
-                        </td>
-                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                          <Badge
-                            value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
-                            positive={metrics.unrealizedRetPct >= 0}
-                          />
-                        </td>
-                        <td style={{ padding: "10px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>
-                          {metrics.avgFirstBuyDays !== null ? `avg ${metrics.avgFirstBuyDays}d` : "—"}
-                        </td>
-                        <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
