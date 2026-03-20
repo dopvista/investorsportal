@@ -579,8 +579,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             }))
           : []
       );
-
-      //if (fromPull) showToast?.("Dashboard refreshed", "success");
     } catch {
       if (mountedRef.current) {
         showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
@@ -593,7 +591,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [activeCds?.cds_id, profile?.cds_number, showToast]);
 
-  // ── Data load with cancellation ───────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
     loadDashboard();
@@ -602,7 +599,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     };
   }, [loadDashboard]);
 
-  // ── Pre-group verified transactions ────────────────────────────
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
     let grossBuyCapital = 0;
@@ -625,7 +621,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     return { map, grossBuyCapital, pending };
   }, [myTxns]);
 
-  // ── Core metrics (heavily memoized) ────────────────────────────
   const metrics = useMemo(() => {
     const total = myTxns.length;
     const pending = groupedVerifiedByCompany.pending;
@@ -798,7 +793,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     };
   }, [portfolio, myTxns, groupedVerifiedByCompany]);
 
-  // ── cdsUsers ───────────────────────────────────────────────────
   const cdsUsers = useMemo(() => cdsMembers.map((u) => {
     const name = u.full_name || u.email || "?";
     const code = u.role_code || "";
@@ -811,7 +805,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     };
   }), [cdsMembers]);
 
-  // ── Stable callbacks ───────────────────────────────────────────
   const toggleExpand = useCallback((key) => setExpanded((prev) => (prev === key ? null : key)), []);
   const onToggleRealized = useCallback(() => toggleExpand("realized"), [toggleExpand]);
   const onToggleCompanies = useCallback(() => toggleExpand("companies"), [toggleExpand]);
@@ -820,7 +813,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onNavUserMgmt = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand = useCallback(() => setExpanded(null), []);
 
-  // ── Pull to refresh (mobile only) ───────────────────────────────
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing || loading) return;
 
@@ -882,7 +874,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [isMobile, loading, pullDistance, refreshing, loadDashboard]);
 
-  // ── Scroll to top on panel close ───────────────────────────────
   useEffect(() => {
     if (expanded !== null) {
       hasExpandedRef.current = true;
@@ -900,13 +891,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }
   }, [expanded]);
 
-  // ── Today string ───────────────────────────────────────────────
   const todayStr = useMemo(
     () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
     []
   );
 
-  // ── Mobile level 2: Realized GL panel ──────────────────────────
   const renderMobileRealizedPanel = useCallback(() => (
     <div
       style={{
@@ -1019,7 +1008,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     </div>
   ), [metrics, loading, onCloseExpand]);
 
-  // ── Mobile level 2: Companies panel (Top 5 Holdings) ───────────
   const renderMobileCompaniesPanel = useCallback(() => (
     <div
       style={{
@@ -1134,7 +1122,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     </div>
   ), [metrics, loading, onCloseExpand]);
 
-  // ── Mobile level 2: Users panel ─────────────────────────────────
   const renderMobileUsersPanel = useCallback(() => (
     <div
       style={{
@@ -1286,9 +1273,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
   const pullReady = pullDistance >= 64;
 
-  // ──────────────────────────────────────────────────────────────────
-  // ── RENDER
-  // ──────────────────────────────────────────────────────────────────
   return (
     <div
       ref={rootRef}
@@ -1301,7 +1285,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         margin: isMobile ? 0 : "0 auto",
         position: "relative",
         overflow: "visible",
-        paddingBottom: isMobile ? 36 : 0,
+        paddingBottom: isMobile ? 96 : 0,
       }}
     >
       <style>{`
@@ -1373,10 +1357,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           willChange: isMobile ? "transform" : "auto",
         }}
       >
-        {/* MOBILE LAYOUT */}
         {isMobile && (
           <div>
-            {/* Hero card */}
             <div
               style={{
                 background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
@@ -1552,7 +1534,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* GL row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
               <MobileMetricCard
                 label="Unrealized GL"
@@ -1572,7 +1553,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {expanded === "realized" && renderMobileRealizedPanel()}
 
-            {/* Stat row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               <MobileStatPill
                 icon="🏢"
@@ -1605,10 +1585,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           </div>
         )}
 
-        {/* DESKTOP LAYOUT */}
         {!isMobile && (
           <>
-            {/* Snapshot strip */}
             <div
               ref={snapRef}
               style={{
@@ -1674,7 +1652,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               />
             </div>
 
-            {/* Realized GL expand panel */}
             {expanded === "realized" && (
               <ExpandPanel
                 title="📤 Realized Gain / Loss — Closed Positions"
@@ -1758,7 +1735,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </ExpandPanel>
             )}
 
-            {/* Stat cards row */}
             <div
               style={{
                 display: "grid",
@@ -1802,7 +1778,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               />
             </div>
 
-            {/* Companies expand panel */}
             {expanded === "companies" && (
               <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
@@ -1908,7 +1883,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </ExpandPanel>
             )}
 
-            {/* Users expand panel */}
             {expanded === "users" && (
               <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
@@ -2055,7 +2029,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </ExpandPanel>
             )}
 
-            {/* Top 5 Holdings table */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
               <div
                 style={{
