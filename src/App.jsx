@@ -170,6 +170,9 @@ export default function App() {
       setLoading(false);
       setAppBootstrapping(false);
       setDbError(null);
+      setDrawerOpen(false);
+      setShowCdsSwitcher(false);
+      setSwitchTarget(null);
       forceMobileDashboardOnNextLoginRef.current = false;
 
       if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -446,6 +449,9 @@ export default function App() {
     setCdsList([]);
     setCompanies([]);
     setTransactions([]);
+    setDrawerOpen(false);
+    setShowCdsSwitcher(false);
+    setSwitchTarget(null);
 
     forceMobileDashboardOnNextLoginRef.current =
       typeof window !== "undefined" && window.innerWidth < 768;
@@ -474,6 +480,9 @@ export default function App() {
     setLoading(false);
     setAppBootstrapping(false);
     setDbError(null);
+    setDrawerOpen(false);
+    setShowCdsSwitcher(false);
+    setSwitchTarget(null);
     forceMobileDashboardOnNextLoginRef.current = false;
 
     if (typeof window !== "undefined" && window.innerWidth < 768) {
