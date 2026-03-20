@@ -580,7 +580,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           : []
       );
 
-      if (fromPull) showToast?.("Dashboard refreshed", "success");
+      //if (fromPull) showToast?.("Dashboard refreshed", "success");
     } catch {
       if (mountedRef.current) {
         showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
