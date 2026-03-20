@@ -1285,7 +1285,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         margin: isMobile ? 0 : "0 auto",
         position: "relative",
         overflow: "visible",
-        paddingBottom: isMobile ? 65 : 0,
+        paddingBottom: isMobile ? 96 : 0,
       }}
     >
       <style>{`
