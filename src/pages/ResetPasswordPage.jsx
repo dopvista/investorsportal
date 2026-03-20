@@ -193,7 +193,6 @@ export default function ResetPasswordPage({ onDone }) {
         overflow: "hidden",
       }}
     >
-      {/* dot grid */}
       <div
         style={{
           position: "absolute",
@@ -204,7 +203,6 @@ export default function ResetPasswordPage({ onDone }) {
           pointerEvents: "none",
         }}
       />
-      {/* green orb */}
       <div
         style={{
           position: "absolute",
@@ -217,7 +215,6 @@ export default function ResetPasswordPage({ onDone }) {
           pointerEvents: "none",
         }}
       />
-      {/* gold orb */}
       <div
         style={{
           position: "absolute",
@@ -576,6 +573,36 @@ export default function ResetPasswordPage({ onDone }) {
                 </button>
               </form>
             )}
+          </div>
+
+          <div
+            style={{
+              marginTop: 22,
+              textAlign: "center",
+              opacity: 0.72,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.42)",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              Manage Your Investments Digitally
+            </div>
+            <div
+              style={{
+                marginTop: 5,
+                fontSize: 10,
+                color: "rgba(255,255,255,0.34)",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              © 2026 Dopvista Creative Hub. All rights reserved.
+            </div>
           </div>
         </div>
       ) : (
