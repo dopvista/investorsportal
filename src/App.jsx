@@ -82,6 +82,7 @@ export default function App() {
   const [switching, setSwitching] = useState(false);
   const cdsChipRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const forceMobileDashboardOnNextLoginRef = useRef(false);
 
   // ── Mobile state ─────────────────────────────────────────────────
   const isMobile = useIsMobile();
@@ -157,6 +158,7 @@ export default function App() {
       setLoading(false);
       setAppBootstrapping(false);
       setDbError(null);
+      forceMobileDashboardOnNextLoginRef.current = false;
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
   });
@@ -294,6 +296,13 @@ export default function App() {
         setLoading(true);
         setAppBootstrapping(true);
         setDbError(null);
+
+        if (isMobile && forceMobileDashboardOnNextLoginRef.current) {
+          setTab("dashboard");
+          try {
+            localStorage.setItem("app_active_tab", "dashboard");
+          } catch {}
+        }
       }
 
       try {
@@ -346,6 +355,7 @@ export default function App() {
         if (!cancelled) {
           setLoading(false);
           setAppBootstrapping(false);
+          forceMobileDashboardOnNextLoginRef.current = false;
         }
       }
     };
@@ -355,7 +365,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, isMobile]);
 
   // ── Ensure active tab is allowed for current role ────────────────
   useEffect(() => {
@@ -417,7 +427,10 @@ export default function App() {
     setCompanies([]);
     setTransactions([]);
 
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    forceMobileDashboardOnNextLoginRef.current =
+      typeof window !== "undefined" && window.innerWidth < 768;
+
+    if (forceMobileDashboardOnNextLoginRef.current) {
       setTab("dashboard");
       try {
         localStorage.setItem("app_active_tab", "dashboard");
@@ -441,6 +454,7 @@ export default function App() {
     setLoading(false);
     setAppBootstrapping(false);
     setDbError(null);
+    forceMobileDashboardOnNextLoginRef.current = false;
   };
 
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
@@ -1160,7 +1174,6 @@ export default function App() {
         @keyframes cdsPopIn { from { opacity:0; transform:translateY(-8px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
       `}</style>
 
-      {/* ── Desktop Sidebar — not rendered on mobile ── */}
       {!isMobile && (
         <div
           style={{
@@ -1201,7 +1214,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Mobile: backdrop + slide-out drawer ── */}
       {isMobile && (
         <>
           <div
@@ -1262,7 +1274,6 @@ export default function App() {
         </>
       )}
 
-      {/* ── Main content area ── */}
       <div
         style={{
           flex: 1,
@@ -1402,7 +1413,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Desktop Header ── */}
         {!isMobile && (
           <div
             style={{
@@ -1626,7 +1636,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Pages ── */}
         <div
           style={{
             flex: 1,
@@ -1703,7 +1712,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Mobile Bottom Navigation ── */}
       {isMobile && (
         <div
           style={{
@@ -1788,7 +1796,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Switch confirmation modal ── */}
       {switchTarget && (
         <div
           onClick={() => !switching && setSwitchTarget(null)}
