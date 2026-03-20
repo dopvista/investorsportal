@@ -132,6 +132,18 @@ export default function App() {
     } catch {}
   }, [tab]);
 
+  // Force mobile login screen to always reset to dashboard
+  useEffect(() => {
+    if (session !== null) return;
+    if (!isMobile) return;
+
+    setTab((prev) => (prev === "dashboard" ? prev : "dashboard"));
+
+    try {
+      localStorage.setItem("app_active_tab", "dashboard");
+    } catch {}
+  }, [session, isMobile]);
+
   // Close CDS switcher on outside click
   useEffect(() => {
     if (!showCdsSwitcher) return;
@@ -159,6 +171,14 @@ export default function App() {
       setAppBootstrapping(false);
       setDbError(null);
       forceMobileDashboardOnNextLoginRef.current = false;
+
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        setTab("dashboard");
+        try {
+          localStorage.setItem("app_active_tab", "dashboard");
+        } catch {}
+      }
+
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
   });
@@ -455,6 +475,13 @@ export default function App() {
     setAppBootstrapping(false);
     setDbError(null);
     forceMobileDashboardOnNextLoginRef.current = false;
+
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setTab("dashboard");
+      try {
+        localStorage.setItem("app_active_tab", "dashboard");
+      } catch {}
+    }
   };
 
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
@@ -1174,6 +1201,7 @@ export default function App() {
         @keyframes cdsPopIn { from { opacity:0; transform:translateY(-8px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
       `}</style>
 
+      {/* ── Desktop Sidebar — not rendered on mobile ── */}
       {!isMobile && (
         <div
           style={{
@@ -1214,6 +1242,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Mobile: backdrop + slide-out drawer ── */}
       {isMobile && (
         <>
           <div
@@ -1274,6 +1303,7 @@ export default function App() {
         </>
       )}
 
+      {/* ── Main content area ── */}
       <div
         style={{
           flex: 1,
@@ -1413,6 +1443,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Desktop Header ── */}
         {!isMobile && (
           <div
             style={{
@@ -1636,6 +1667,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Pages ── */}
         <div
           style={{
             flex: 1,
@@ -1712,6 +1744,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Mobile Bottom Navigation ── */}
       {isMobile && (
         <div
           style={{
@@ -1796,6 +1829,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Switch confirmation modal ── */}
       {switchTarget && (
         <div
           onClick={() => !switching && setSwitchTarget(null)}
