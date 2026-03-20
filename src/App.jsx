@@ -37,6 +37,7 @@ const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
+
   useEffect(() => {
     let t;
     const handler = () => {
@@ -49,6 +50,7 @@ const useIsMobile = () => {
       clearTimeout(t);
     };
   }, []);
+
   return isMobile;
 };
 
@@ -67,6 +69,7 @@ export default function App() {
   const [companies, setCompanies] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [appBootstrapping, setAppBootstrapping] = useState(true);
   const [dbError, setDbError] = useState(null);
   const [toast, setToast] = useState({ msg: "", type: "" });
   const [recoveryMode, setRecoveryMode] = useState(false);
@@ -83,6 +86,17 @@ export default function App() {
   // ── Mobile state ─────────────────────────────────────────────────
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Safety timeout to force loading false after 10 seconds
+  useEffect(() => {
+    if (!loading && !appBootstrapping) return;
+    const timer = setTimeout(() => {
+      console.warn("Loading timeout – forcing loading/bootstrap false");
+      setLoading(false);
+      setAppBootstrapping(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loading, appBootstrapping]);
 
   // Close drawer on tab change or on resize back to desktop
   useEffect(() => {
@@ -141,6 +155,7 @@ export default function App() {
       setCompanies([]);
       setTransactions([]);
       setLoading(false);
+      setAppBootstrapping(false);
       setDbError(null);
       showToast("You were logged out after 5 minutes of inactivity.", "error");
     },
@@ -149,6 +164,7 @@ export default function App() {
   // ── Session recovery / initial load ──────────────────────────────
   useEffect(() => {
     let cancelled = false;
+
     const resolveSession = async () => {
       const hash = window.location.hash;
       const search = window.location.search;
@@ -164,6 +180,7 @@ export default function App() {
             setRecoveryMode(true);
             setSession(null);
             setLoading(false);
+            setAppBootstrapping(false);
           }
           return;
         }
@@ -190,6 +207,7 @@ export default function App() {
             setRecoveryMode(true);
             setSession(null);
             setLoading(false);
+            setAppBootstrapping(false);
             return;
           }
         } catch {
@@ -199,10 +217,13 @@ export default function App() {
 
       // Normal session check
       const s = await getSession();
-      if (!cancelled) setSession(s || null);
+      if (!cancelled) {
+        setSession(s || null);
+      }
     };
 
     resolveSession();
+
     return () => {
       cancelled = true;
     };
@@ -224,7 +245,6 @@ export default function App() {
 
     loadLoginSettings();
 
-    // Listen for changes via BroadcastChannel
     try {
       const handleFocus = () => loadLoginSettings();
       window.addEventListener("focus", handleFocus);
@@ -265,22 +285,16 @@ export default function App() {
           setTransactions([]);
           setDbError(null);
           setLoading(false);
+          setAppBootstrapping(false);
         }
         return;
       }
 
       if (!cancelled) {
         setLoading(true);
+        setAppBootstrapping(true);
         setDbError(null);
       }
-
-      // Safety timeout to force loading false after 8 seconds
-      const safetyTimeout = setTimeout(() => {
-        if (!cancelled && loading) {
-          console.warn("Profile load timed out – forcing loading false");
-          setLoading(false);
-        }
-      }, 8000);
 
       try {
         const freshToken = session?.access_token;
@@ -294,8 +308,8 @@ export default function App() {
 
         if (cancelled) return;
 
-        setProfile(p);
-        setRole(r);
+        setProfile(p ?? null);
+        setRole(r ?? null);
 
         if (activeCdsRow) {
           setActiveCds(activeCdsRow);
@@ -305,28 +319,34 @@ export default function App() {
             cds_name: p.full_name || p.cds_number,
             cds_id: null,
           });
+        } else {
+          setActiveCds(null);
         }
 
-        // Load user's CDS list asynchronously
         if (uid) {
           sbGetUserCDS(uid)
             .then((list) => {
               if (!cancelled) setCdsList(list || []);
             })
-            .catch(() => {});
+            .catch(() => {
+              if (!cancelled) setCdsList([]);
+            });
+        } else {
+          setCdsList([]);
         }
 
-        // Reset company/transaction data (will be loaded by child pages)
         setCompanies([]);
         setTransactions([]);
       } catch (e) {
         if (!cancelled) {
-          console.error("Profile load error:", e);
+          console.error("loadAppCore error:", e);
           setDbError(e?.message || "Failed to load application data.");
         }
       } finally {
-        clearTimeout(safetyTimeout);
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setAppBootstrapping(false);
+        }
       }
     };
 
@@ -386,10 +406,18 @@ export default function App() {
     [session, switching, cdsList, showToast]
   );
 
-  const handleLogin = (s) => {
+  const handleLogin = useCallback((s) => {
     setDbError(null);
+    setLoading(true);
+    setAppBootstrapping(true);
+    setProfile(undefined);
+    setRole(null);
+    setActiveCds(null);
+    setCdsList([]);
+    setCompanies([]);
+    setTransactions([]);
     setSession(s);
-  };
+  }, []);
 
   const handleProfileDone = (p) => setProfile(p);
 
@@ -403,6 +431,7 @@ export default function App() {
     setCompanies([]);
     setTransactions([]);
     setLoading(false);
+    setAppBootstrapping(false);
     setDbError(null);
   };
 
@@ -427,6 +456,7 @@ export default function App() {
     "user-management": { title: "User Management", sub: "Manage system users and assign roles" },
     "system-settings": { title: "System Settings", sub: "Configure portal appearance and behaviour" },
   };
+
   const currentMeta = TAB_META[tab] || {
     title: NAV.find((n) => n.id === tab)?.label || tab,
     sub: "",
@@ -439,13 +469,13 @@ export default function App() {
     { id: "transactions", label: "Trades", icon: "🔁", roles: ["SA", "AD", "DE", "VR", "RO"] },
     { id: "user-management", label: "Users", icon: "👥", roles: ["SA", "AD"] },
   ];
+
   const filteredBottomNav = BOTTOM_NAV.filter((item) => visibleNav.some((n) => n.id === item.id));
-  const mobileHeaderTitle = tab === "dashboard"
-    ? profile?.full_name?.split(" ")[0] || "Investor"
-    : currentMeta.title;
+  const mobileHeaderTitle =
+    tab === "dashboard" ? profile?.full_name?.split(" ")[0] || "Investor" : currentMeta.title;
   const moreIsActive = !filteredBottomNav.some((n) => n.id === tab);
 
-  // ── Render helpers (memoized with useCallback) ───────────────────
+  // ── Render helpers ───────────────────────────────────────────────
   const renderSidebarInner = useCallback(
     () => (
       <>
@@ -476,6 +506,7 @@ export default function App() {
               ✕
             </button>
           )}
+
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <img
               src={logo}
@@ -547,10 +578,9 @@ export default function App() {
               flexShrink: 0,
             }}
           />
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-            Supabase connected
-          </span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Supabase connected</span>
         </div>
+
         <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
 
         <nav style={{ padding: "16px 12px", flex: 1 }}>
@@ -567,6 +597,7 @@ export default function App() {
           >
             Navigation
           </div>
+
           {visibleNav
             .filter((item) => !isMobile || item.id !== "system-settings")
             .map((item) => {
@@ -679,6 +710,7 @@ export default function App() {
             Click Switch to change active account
           </div>
         </div>
+
         <div style={{ padding: "8px 0", maxHeight: 320, overflowY: "auto" }}>
           {cdsList.map((c) => {
             const isActive = c.cds_number === activeCdsNumber;
@@ -710,6 +742,7 @@ export default function App() {
                 >
                   🔒
                 </div>
+
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -735,6 +768,7 @@ export default function App() {
                     {c.cds_name || "—"}
                   </div>
                 </div>
+
                 {isActive ? (
                   <span
                     style={{
@@ -817,6 +851,7 @@ export default function App() {
           @keyframes spin{to{transform:rotate(360deg)}}
           @keyframes pulse{0%,100%{opacity:0.4;transform:scale(0.95)}50%{opacity:1;transform:scale(1)}}
         `}</style>
+
         <div
           style={{
             position: "absolute",
@@ -903,7 +938,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} loginSettings={loginSettings} />;
   }
 
-  if (loading) {
+  if (session && (loading || appBootstrapping || profile === undefined)) {
     return (
       <div
         style={{
@@ -921,8 +956,9 @@ export default function App() {
         <style>{`
           @keyframes spin{to{transform:rotate(360deg)}}
           @keyframes pulse{0%,100%{opacity:0.4;transform:scale(0.95)}50%{opacity:1;transform:scale(1)}}
-          @keyframes bar{0%{width:"0%"}100%{width:"100%"}}
+          @keyframes bar{0%{width:0%}100%{width:100%}}
         `}</style>
+
         <div
           style={{
             position: "absolute",
@@ -1378,6 +1414,7 @@ export default function App() {
                 {currentMeta.sub}
               </div>
             </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div
@@ -1417,6 +1454,7 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
                 <div
                   style={{
                     display: "flex",
@@ -1473,6 +1511,7 @@ export default function App() {
                     }}
                   />
                 )}
+
                 {cdsList.length > 1 && (
                   <div
                     style={{
@@ -1487,6 +1526,7 @@ export default function App() {
                     }}
                   />
                 )}
+
                 <div
                   onClick={() => cdsList.length > 1 && setShowCdsSwitcher((v) => !v)}
                   style={{
@@ -1507,8 +1547,9 @@ export default function App() {
                     userSelect: "none",
                   }}
                   onMouseEnter={(e) => {
-                    if (cdsList.length > 1)
+                    if (cdsList.length > 1) {
                       e.currentTarget.style.boxShadow = "0 4px 18px rgba(11,31,58,0.45)";
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.boxShadow = "0 2px 10px rgba(11,31,58,0.25)";
@@ -1568,6 +1609,7 @@ export default function App() {
                     </span>
                   )}
                 </div>
+
                 {showCdsSwitcher && cdsList.length > 1 && renderCdsSwitcherPopover()}
               </div>
             </div>
@@ -1594,6 +1636,7 @@ export default function App() {
               activeCds={activeCds}
             />
           )}
+
           {tab === "companies" && (
             <CompaniesPage
               key={`companies-${activeCdsNumber || "none"}`}
@@ -1605,6 +1648,7 @@ export default function App() {
               profile={activeProfile}
             />
           )}
+
           {tab === "transactions" && (
             <TransactionsPage
               key={`transactions-${activeCdsNumber || "none"}`}
@@ -1616,6 +1660,7 @@ export default function App() {
               cdsNumber={activeCdsNumber}
             />
           )}
+
           {tab === "profile" && (
             <ProfilePage
               profile={profile}
@@ -1629,9 +1674,11 @@ export default function App() {
               onSwitchCds={handleCdsSwitch}
             />
           )}
+
           {tab === "user-management" && (
             <UserManagementPage role={role} showToast={showToast} profile={activeProfile} />
           )}
+
           {tab === "system-settings" && (
             <SystemSettingsPage
               role={role}
@@ -1698,6 +1745,7 @@ export default function App() {
               </button>
             );
           })}
+
           <button
             onClick={() => setDrawerOpen(true)}
             style={{
@@ -1782,6 +1830,7 @@ export default function App() {
                   Confirm account change
                 </div>
               </div>
+
               <button
                 onClick={() => !switching && setSwitchTarget(null)}
                 style={{
@@ -1801,6 +1850,7 @@ export default function App() {
                 ✕
               </button>
             </div>
+
             <div style={{ padding: "22px 24px" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>🔄</div>
@@ -1819,6 +1869,7 @@ export default function App() {
                   All portfolio data will update to reflect this CDS account.
                 </div>
               </div>
+
               <div
                 style={{
                   display: "flex",
@@ -1847,7 +1898,9 @@ export default function App() {
                     {activeCdsNumber}
                   </div>
                 </div>
+
                 <div style={{ fontSize: 16, color: C.gray400 }}>→</div>
+
                 <div style={{ flex: 1, textAlign: "center" }}>
                   <div
                     style={{
@@ -1865,6 +1918,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
               <div style={{ display: "flex", gap: 10 }}>
                 <button
                   onClick={() => !switching && setSwitchTarget(null)}
@@ -1884,6 +1938,7 @@ export default function App() {
                 >
                   Cancel
                 </button>
+
                 <button
                   onClick={() => handleCdsSwitch(switchTarget)}
                   disabled={switching}
