@@ -416,6 +416,14 @@ export default function App() {
     setCdsList([]);
     setCompanies([]);
     setTransactions([]);
+
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setTab("dashboard");
+      try {
+        localStorage.setItem("app_active_tab", "dashboard");
+      } catch {}
+    }
+
     setSession(s);
   }, []);
 
@@ -578,7 +586,9 @@ export default function App() {
               flexShrink: 0,
             }}
           />
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Supabase connected</span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+            Supabase connected
+          </span>
         </div>
 
         <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
