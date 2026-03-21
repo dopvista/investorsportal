@@ -53,8 +53,17 @@ const INVITE_BTN_STYLE   = {
 const focusGreen = (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (e) => { e.target.style.borderColor = C.gray200; };
 
+// ── Mobile keyboard accessory bar suppression attrs ───────────────
+const MOBILE_INPUT_ATTRS = {
+  autoComplete: "off",
+  autoCorrect: "off",
+  autoCapitalize: "off",
+  spellCheck: false,
+  "data-form-type": "other",
+  "data-lpignore": "true",
+};
+
 // ── Modal portal ──────────────────────────────────────────────────
-// Mobile: renders as bottom sheet. Desktop: centered modal. UNCHANGED logic.
 const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, maxWidth = 460, closeOnBackdrop = true }) {
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return createPortal(
@@ -112,7 +121,7 @@ const Field = memo(function Field({ label, required, hint, children }) {
   );
 });
 
-// ── CDSSearchBox (optimized with useCallback and memo) ────────────
+// ── CDSSearchBox ──────────────────────────────────────────────────
 const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excludeCdsIds=[], excludeCdsNumbers=[], onSelect, placeholder="Search by CDS number or owner name..." }) {
   const [query,setQuery]           = useState("");
   const [results,setResults]       = useState([]);
@@ -271,7 +280,7 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
   );
 });
 
-// ── CDSPoolPicker (optimized) ─────────────────────────────────────
+// ── CDSPoolPicker ─────────────────────────────────────────────────
 const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], excludeCdsNumbers=[], mode="single", onSelect, onSelectMulti }) {
   const [open,setOpen]         = useState(false);
   const [selected,setSelected] = useState([]);
@@ -347,7 +356,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
 });
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Manage CDS (optimized with useCallback and memo)
+// MODAL — Manage CDS
 // ═══════════════════════════════════════════════════════
 const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCdsList, onClose, showToast, onRefresh }) {
   const [userCdsList,setUserCdsList]   = useState([]);
@@ -480,7 +489,7 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
 });
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Cascade Remove (optimized)
+// MODAL — Cascade Remove
 // ═══════════════════════════════════════════════════════
 const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, onClose, onDone, showToast }) {
   const [affectedUsers,setAffectedUsers] = useState([]);
@@ -570,7 +579,7 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
 });
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Change Role (optimized)
+// MODAL — Change Role
 // ═══════════════════════════════════════════════════════
 const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole, onClose, onSave, showToast }) {
   const available = useMemo(() => (callerRole==="SA" ? roles : roles.filter(r=>r.code!=="SA")), [callerRole, roles]);
@@ -621,7 +630,7 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
 });
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Toggle Status (optimized)
+// MODAL — Toggle Status
 // ═══════════════════════════════════════════════════════
 const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onConfirm, showToast }) {
   const [saving, setSaving] = useState(false);
@@ -652,7 +661,7 @@ const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onCon
 });
 
 // ═══════════════════════════════════════════════════════
-// MODAL — Invite User (optimized)
+// MODAL — Invite User
 // ═══════════════════════════════════════════════════════
 const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, showToast }) {
   const isAD = callerRole === "AD";
@@ -770,7 +779,7 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
   );
 });
 
-// ── Role badge / User avatar / Stat card (optimized with memo) ─────
+// ── Role badge / User avatar / Stat card ──────────────────────────
 const RoleBadge = memo(function RoleBadge({ code }) {
   const m = ROLE_META[code];
   if (!m) return <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20, background:"#fffbeb", border:"1px solid #fde68a", color:"#b45309" }}>No Role</span>;
@@ -802,11 +811,10 @@ const StatCard = memo(function StatCard({ label, value, color, icon }) {
   );
 });
 
-// ── Mobile User Card (optimized) ──────────────────────────────────
+// ── Mobile User Card ──────────────────────────────────────────────
 const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onManageCDS, onToggleStatus }) {
   return (
     <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : "#fecaca"}`, borderRadius:12, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", opacity:user.is_active?1:0.75 }}>
-      {/* Row 1: Avatar + Name + Status */}
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
         <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={38}/>
         <div style={{ flex:1, minWidth:0 }}>
@@ -822,7 +830,6 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      {/* Row 2: CDS number */}
       <div style={{ background:C.gray50, borderRadius:9, padding:"7px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:7 }}>
         <span style={{ fontSize:13 }}>🔒</span>
         <div style={{ flex:1 }}>
@@ -833,7 +840,6 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      {/* Row 3: Action buttons */}
       <div style={{ display:"flex", gap:6 }}>
         <button onClick={() => onChangeRole(user)}
           style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}
@@ -878,10 +884,20 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const [toggleUser, setToggleUser]       = useState(null);
   const [manageCdsUser, setManageCdsUser] = useState(null);
 
+  // ── Pull-to-refresh state ─────────────────────────────────────
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing]     = useState(false);
+
   const isMobile     = useIsMobile();
   const isMountedRef = useRef(true);
   const loadReqRef   = useRef(0);
   const isAllowed    = ["SA","AD"].includes(role);
+
+  // ── Pull-to-refresh refs ──────────────────────────────────────
+  const rootRef        = useRef(null);
+  const touchStartYRef = useRef(null);
+  const pullingRef     = useRef(false);
+  const scrollHostRef  = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -890,21 +906,27 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   const roleNameById = useMemo(() => Object.fromEntries(roles.map(r => [r.id, r.name])), [roles]);
 
-  const loadData = useCallback(async () => {
+  // ── loadData — supports fromPull ─────────────────────────────
+  const loadData = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++loadReqRef.current;
-    if (isMountedRef.current) { setLoading(true); setError(null); }
+    if (!fromPull && isMountedRef.current) { setLoading(true); setError(null); }
     try {
       const [u, r] = await Promise.all([sbGetAllUsers(), sbGetRoles()]);
       if (!isMountedRef.current || reqId !== loadReqRef.current) return;
       setUsers(u);
       setRoles(r);
+      setError(null);
     } catch(e) {
       if (!isMountedRef.current || reqId !== loadReqRef.current) return;
-      setError(e.message);
+      if (!fromPull) setError(e.message);
+      else showToast?.("Refresh failed", "error");
     } finally {
-      if (isMountedRef.current && reqId === loadReqRef.current) setLoading(false);
+      if (isMountedRef.current && reqId === loadReqRef.current) {
+        setLoading(false);
+        if (fromPull) { setRefreshing(false); setPullDistance(0); }
+      }
     }
-  }, []);
+  }, [showToast]);
 
   const refreshUsersQuiet = useCallback(async () => {
     const reqId = ++loadReqRef.current;
@@ -943,6 +965,58 @@ export default function UserManagementPage({ role, showToast, profile }) {
   useEffect(() => { loadCallerCds(); }, [loadCallerCds]);
   useEffect(() => { if (!isAllowed) return; loadData(); }, [isAllowed, loadData]);
 
+  // ── getScrollParent ───────────────────────────────────────────
+  const getScrollParent = useCallback((el) => {
+    let node = el?.parentElement;
+    while (node) {
+      const style = window.getComputedStyle(node);
+      const canScroll =
+        (style.overflowY === "auto" || style.overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight;
+      if (canScroll) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }, []);
+
+  // ── Pull-to-refresh touch handlers ───────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    if (!isMobile || refreshing || loading) return;
+    const host = getScrollParent(rootRef.current);
+    scrollHostRef.current = host;
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; return; }
+    touchStartYRef.current = e.touches[0].clientY;
+    pullingRef.current = false;
+  }, [isMobile, refreshing, loading, getScrollParent]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isMobile || refreshing || loading) return;
+    if (touchStartYRef.current == null) return;
+    const host = scrollHostRef.current || getScrollParent(rootRef.current);
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+    if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
+    pullingRef.current = true;
+    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
+    setPullDistance(resisted);
+  }, [isMobile, refreshing, loading, getScrollParent]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile || refreshing || loading) {
+      touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return;
+    }
+    const shouldRefresh = pullingRef.current && pullDistance >= 64;
+    touchStartYRef.current = null;
+    pullingRef.current = false;
+    if (shouldRefresh) {
+      setPullDistance(56);
+      setRefreshing(true);
+      loadData({ fromPull: true });
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, refreshing, loading, pullDistance, loadData]);
+
   const handleAssignRole = useCallback(async (userId, roleId) => {
     await sbAssignRole(userId, roleId);
     showToast(`Role updated to ${roleNameById[roleId] || "role"}`, "success");
@@ -964,6 +1038,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
     await loadData();
   }, [showToast, loadData]);
 
+  // ── filtered — search now includes role label + status on mobile ──
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter(u => {
@@ -971,7 +1046,19 @@ export default function UserManagementPage({ role, showToast, profile }) {
         if (!adScopeReady) return false;
         if (adScopeUserIds !== null && !adScopeUserIds.has(String(u.id))) return false;
       }
-      const matchSearch = !q || (u.full_name||"").toLowerCase().includes(q) || (u.cds_number||"").toLowerCase().includes(q) || (u.phone||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q);
+      const roleLabel  = ROLE_META[u.role_code]?.label?.toLowerCase() || "";
+      const roleCode   = (u.role_code || "").toLowerCase();
+      const statusText = u.is_active ? "active" : "inactive";
+      const matchSearch = !q
+        || (u.full_name||"").toLowerCase().includes(q)
+        || (u.cds_number||"").toLowerCase().includes(q)
+        || (u.phone||"").toLowerCase().includes(q)
+        || (u.email||"").toLowerCase().includes(q)
+        || roleLabel.includes(q)
+        || roleCode.includes(q)
+        || statusText.includes(q);
+      // On mobile: filterRole and filterStatus are always "ALL" (dropdowns removed),
+      // so these lines are effectively no-ops on mobile but preserved for desktop.
       const matchRole   = filterRole === "ALL" || u.role_code === filterRole || (filterRole === "" && !u.role_code);
       const matchStatus = filterStatus === "ALL" || (filterStatus === "ACTIVE" && u.is_active) || (filterStatus === "INACTIVE" && !u.is_active);
       return matchSearch && matchRole && matchStatus;
@@ -990,6 +1077,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const handleCloseChangeRole = useCallback(() => setChangeRoleUser(null), []);
   const handleCloseToggle     = useCallback(() => setToggleUser(null), []);
   const handleCloseManageCds  = useCallback(() => setManageCdsUser(null), []);
+
+  const pullReady = pullDistance >= 64;
 
   if (!isAllowed) {
     return (
@@ -1020,7 +1109,21 @@ export default function UserManagementPage({ role, showToast, profile }) {
   }
 
   return (
-    <div style={{ height: isMobile ? "auto" : "calc(100vh - 118px)", display:"flex", flexDirection:"column", overflow: isMobile ? "visible" : "hidden" }}>
+    <div
+      ref={rootRef}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchCancel={isMobile ? handleTouchEnd : undefined}
+      style={{
+        height: isMobile ? "auto" : "calc(100vh - 118px)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+        position: "relative",
+        paddingBottom: isMobile ? 96 : 0,
+      }}
+    >
       <style>{`
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin   { to { transform: rotate(360deg); } }
@@ -1032,163 +1135,196 @@ export default function UserManagementPage({ role, showToast, profile }) {
         select option { font-weight: 500; }
       `}</style>
 
-      {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT
-          ══════════════════════════════════════════════════════════ */}
+      {/* ── Pull-to-refresh indicator ── */}
       {isMobile && (
-        <div>
-          {/* 3 stat cards: Total, Active, No Role */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
-            <StatCard label="Total Users"  value={stats.total}       color={C.navy}  icon="👥"/>
-            <StatCard label="Active"       value={stats.activeCount} color={C.green} icon="✅"/>
-            <StatCard label="No Role"      value={stats.noRoleCount} color={C.gold}  icon="⚠️"/>
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:0, pointerEvents:"none", zIndex:3 }}>
+          <div style={{
+            position:"absolute", left:"50%", top:0,
+            transform:`translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
+            opacity: refreshing || pullDistance > 6 ? 1 : 0,
+            transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
+            background: C.white,
+            border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
+            borderRadius: 999, padding:"7px 12px",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.08)",
+            display:"flex", alignItems:"center", gap:8,
+          }}>
+            <div style={{
+              width:14, height:14, borderRadius:"50%",
+              border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
+              borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
+              animation: refreshing ? "spin 0.8s linear infinite" : "none",
+              transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
+              transition:"transform 0.12s ease, border-color 0.12s ease",
+              flexShrink:0,
+            }}/>
+            <span style={{ fontSize:11, fontWeight:700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace:"nowrap" }}>
+              {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
+            </span>
           </div>
-
-          {/* Search + Invite row */}
-          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-            <div style={{ flex:1, position:"relative" }}>
-              <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
-              <input placeholder="Search name, CDS..." value={search} onChange={e => setSearch(e.target.value)}
-                style={{ width:"100%", height:40, borderRadius:9, border:`1.5px solid ${C.gray200}`, paddingLeft:28, fontSize:13, outline:"none", color:C.text, boxSizing:"border-box" }}
-                onFocus={focusGreen} onBlur={blurGray} />
-            </div>
-            <button onClick={handleOpenInvite}
-              style={{ height:40, padding:"0 14px", borderRadius:9, border:"none", background:C.green, color:C.white, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:`0 2px 10px ${C.green}44`, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}>
-              + Invite
-            </button>
-          </div>
-
-          {/* Filter row */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
-            <select value={filterRole} onChange={e => setFilterRole(e.target.value)} onFocus={focusGreen} onBlur={blurGray}
-              style={{ height:36, borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, fontSize:12, fontFamily:"inherit", outline:"none", padding:"0 8px", cursor:"pointer" }}>
-              <option value="ALL">All Roles</option>
-              {Object.entries(ROLE_META).map(([c,m]) => <option key={c} value={c}>{m.label}</option>)}
-              <option value="">No Role</option>
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} onFocus={focusGreen} onBlur={blurGray}
-              style={{ height:36, borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, fontSize:12, fontFamily:"inherit", outline:"none", padding:"0 8px", cursor:"pointer" }}>
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </div>
-
-          {/* Count indicator */}
-          <div style={{ fontSize:11, color:C.gray400, marginBottom:8, fontWeight:600 }}>
-            {filtered.length} of {stats.total} user{stats.total!==1?"s":""}
-            {(search || filterRole!=="ALL" || filterStatus!=="ALL") && (
-              <button onClick={() => { setSearch(""); setFilterRole("ALL"); setFilterStatus("ALL"); }}
-                style={{ marginLeft:10, fontSize:11, color:C.navy, fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
-                Clear filters
-              </button>
-            )}
-          </div>
-
-          {/* User cards */}
-          {filtered.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"40px 20px", color:C.gray400 }}>
-              <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
-              <div style={{ fontSize:13 }}>No users match your search</div>
-            </div>
-          ) : (
-            filtered.map(user => (
-              <MobileUserCard
-                key={user.id}
-                user={user}
-                onChangeRole={setChangeRoleUser}
-                onManageCDS={setManageCdsUser}
-                onToggleStatus={setToggleUser}
-              />
-            ))
-          )}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — COMPLETELY UNCHANGED FROM ORIGINAL
-          ══════════════════════════════════════════════════════════ */}
-      {!isMobile && (
-        <>
-          <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
-            <StatCard label="Total Users"   value={stats.total}             color="#0A2540" icon="👥"/>
-            <StatCard label="Active"        value={stats.activeCount}       color={C.green} icon="✅"/>
-            <StatCard label="No Role"       value={stats.noRoleCount}       color={C.gold}  icon="⚠️"/>
-            <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0} color="#0A2540" icon="🔑"/>
-            <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0} color="#1D4ED8" icon="✏️"/>
-            <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0} color="#065F46" icon="✔️"/>
-          </div>
+      {/* ── Transform wrapper ── */}
+      <div style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : "none",
+        transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
+        willChange: isMobile ? "transform" : "auto",
+        flex: isMobile ? "unset" : 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+      }}>
 
-          <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, alignItems:"center", flexWrap:"wrap" }}>
-            <div style={{ position:"relative", flex:1, minWidth:180 }}>
-              <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
-              <input placeholder="Search by name, CDS or phone..." value={search} onChange={e=>setSearch(e.target.value)} style={SEARCH_INPUT_STYLE} onFocus={focusGreen} onBlur={blurGray}/>
+        {/* ══════════════════════════════════════════════════════════
+            MOBILE LAYOUT
+            ══════════════════════════════════════════════════════════ */}
+        {isMobile && (
+          <div>
+            {/* 3 stat cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
+              <StatCard label="Total Users"  value={stats.total}       color={C.navy}  icon="👥"/>
+              <StatCard label="Active"       value={stats.activeCount} color={C.green} icon="✅"/>
+              <StatCard label="No Role"      value={stats.noRoleCount} color={C.gold}  icon="⚠️"/>
             </div>
-            <select value={filterRole}   onChange={e=>setFilterRole(e.target.value)}   onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
-              <option value="ALL">All Roles</option>
-              {Object.entries(ROLE_META).map(([c,m])=><option key={c} value={c}>{m.label}</option>)}
-              <option value="">No Role</option>
-            </select>
-            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-            <span style={{ fontSize:11, color:C.gray400, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:8, padding:"5px 10px", whiteSpace:"nowrap" }}>{filtered.length}/{stats.total}</span>
-            <button onClick={handleOpenInvite} style={INVITE_BTN_STYLE} onMouseEnter={e=>e.currentTarget.style.opacity="0.9"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>+ Invite User</button>
-          </div>
 
-          <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0 }}>
-            <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-              <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"8px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, background:C.gray50, flexShrink:0 }}>
-                {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
-                  <div key={i} style={{ fontSize:9, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
-                ))}
+            {/* Search + Invite — no filter dropdowns on mobile */}
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <div style={{ flex:1, position:"relative" }}>
+                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
+                <input
+                  placeholder="Search name, CDS, role, status..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  {...MOBILE_INPUT_ATTRS}
+                  style={{ width:"100%", height:40, borderRadius:9, border:`1.5px solid ${C.gray200}`, paddingLeft:28, fontSize:13, outline:"none", color:C.text, boxSizing:"border-box" }}
+                  onFocus={focusGreen} onBlur={blurGray}
+                />
               </div>
-              <div className="um-scroll" style={{ overflowY:"auto", flex:1 }}>
-                {filtered.length===0 ? (
-                  <div style={{ padding:"40px 20px", textAlign:"center", color:C.gray400 }}>
-                    <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
-                    <div style={{ fontSize:13 }}>No users match your search</div>
-                  </div>
-                ) : filtered.map((user,idx)=>(
-                  <div key={user.id}
-                    style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.5 }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-                  >
-                    <div style={{ fontSize:11, color:C.gray400, fontWeight:600 }}>{idx+1}</div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                      <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={32}/>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.full_name||"New User"}</span>
-                          <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, flexShrink:0, background:user.is_active?"#f0fdf4":"#fef2f2", border:`1px solid ${user.is_active?"#bbf7d0":"#fecaca"}`, color:user.is_active?"#16a34a":"#dc2626" }}>{user.is_active?"Active":"Inactive"}</span>
+              <button onClick={handleOpenInvite}
+                style={{ height:40, padding:"0 14px", borderRadius:9, border:"none", background:C.green, color:C.white, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:`0 2px 10px ${C.green}44`, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}>
+                + Invite
+              </button>
+            </div>
+
+            {/* Count indicator */}
+            <div style={{ fontSize:11, color:C.gray400, marginBottom:8, fontWeight:600 }}>
+              {filtered.length} of {stats.total} user{stats.total!==1?"s":""}
+              {search && (
+                <button onClick={() => setSearch("")}
+                  style={{ marginLeft:10, fontSize:11, color:C.navy, fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* User cards */}
+            {filtered.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 20px", color:C.gray400 }}>
+                <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
+                <div style={{ fontSize:13 }}>No users match your search</div>
+              </div>
+            ) : (
+              filtered.map(user => (
+                <MobileUserCard
+                  key={user.id}
+                  user={user}
+                  onChangeRole={setChangeRoleUser}
+                  onManageCDS={setManageCdsUser}
+                  onToggleStatus={setToggleUser}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            DESKTOP LAYOUT — COMPLETELY UNCHANGED
+            ══════════════════════════════════════════════════════════ */}
+        {!isMobile && (
+          <>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
+              <StatCard label="Total Users"   value={stats.total}             color="#0A2540" icon="👥"/>
+              <StatCard label="Active"        value={stats.activeCount}       color={C.green} icon="✅"/>
+              <StatCard label="No Role"       value={stats.noRoleCount}       color={C.gold}  icon="⚠️"/>
+              <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0} color="#0A2540" icon="🔑"/>
+              <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0} color="#1D4ED8" icon="✏️"/>
+              <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0} color="#065F46" icon="✔️"/>
+            </div>
+
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, alignItems:"center", flexWrap:"wrap" }}>
+              <div style={{ position:"relative", flex:1, minWidth:180 }}>
+                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
+                <input placeholder="Search by name, CDS or phone..." value={search} onChange={e=>setSearch(e.target.value)} style={SEARCH_INPUT_STYLE} onFocus={focusGreen} onBlur={blurGray}/>
+              </div>
+              <select value={filterRole}   onChange={e=>setFilterRole(e.target.value)}   onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
+                <option value="ALL">All Roles</option>
+                {Object.entries(ROLE_META).map(([c,m])=><option key={c} value={c}>{m.label}</option>)}
+                <option value="">No Role</option>
+              </select>
+              <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} onFocus={focusGreen} onBlur={blurGray} style={SELECT_STYLE}>
+                <option value="ALL">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+              <span style={{ fontSize:11, color:C.gray400, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:8, padding:"5px 10px", whiteSpace:"nowrap" }}>{filtered.length}/{stats.total}</span>
+              <button onClick={handleOpenInvite} style={INVITE_BTN_STYLE} onMouseEnter={e=>e.currentTarget.style.opacity="0.9"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>+ Invite User</button>
+            </div>
+
+            <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0 }}>
+              <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+                <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"8px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, background:C.gray50, flexShrink:0 }}>
+                  {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
+                    <div key={i} style={{ fontSize:9, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
+                  ))}
+                </div>
+                <div className="um-scroll" style={{ overflowY:"auto", flex:1 }}>
+                  {filtered.length===0 ? (
+                    <div style={{ padding:"40px 20px", textAlign:"center", color:C.gray400 }}>
+                      <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
+                      <div style={{ fontSize:13 }}>No users match your search</div>
+                    </div>
+                  ) : filtered.map((user,idx)=>(
+                    <div key={user.id}
+                      style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.5 }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                    >
+                      <div style={{ fontSize:11, color:C.gray400, fontWeight:600 }}>{idx+1}</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={32}/>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                            <span style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.full_name||"New User"}</span>
+                            <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, flexShrink:0, background:user.is_active?"#f0fdf4":"#fef2f2", border:`1px solid ${user.is_active?"#bbf7d0":"#fecaca"}`, color:user.is_active?"#16a34a":"#dc2626" }}>{user.is_active?"Active":"Inactive"}</span>
+                          </div>
                         </div>
                       </div>
+                      <div style={{ fontSize:11, fontWeight:600, color:C.text }}>{user.cds_number||<span style={{ color:C.gray400 }}>—</span>}</div>
+                      <div style={{ fontSize:11, color:C.text }}>{user.account_type||<span style={{ color:C.gray400 }}>—</span>}</div>
+                      <div><RoleBadge code={user.role_code}/></div>
+                      <div style={{ fontSize:11, color:C.text }}>{user.phone||<span style={{ color:C.gray400 }}>—</span>}</div>
+                      <div style={{ fontSize:11, color:C.gray400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email||"—"}</div>
+                      <div style={{ fontSize:10, color:C.gray400 }}>{user.assigned_at?new Date(user.assigned_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}):"—"}</div>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <button onClick={() => setChangeRoleUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap" }} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.gray200;e.currentTarget.style.color=C.text;}}>✏️ Role</button>
+                        <button onClick={() => setManageCdsUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:`1px solid ${C.navy}25`, background:C.navy+"08", color:C.navy, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap" }} onMouseEnter={e=>{e.currentTarget.style.background=C.navy;e.currentTarget.style.color=C.white;}} onMouseLeave={e=>{e.currentTarget.style.background=C.navy+"08";e.currentTarget.style.color=C.navy;}}>🏦 CDS</button>
+                        {user.role_code && (
+                          <button onClick={() => setToggleUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:"none", background:user.is_active?"#fef2f2":"#f0fdf4", color:user.is_active?"#dc2626":"#16a34a", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>{user.is_active?"🚫":"✅"}</button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ fontSize:11, fontWeight:600, color:C.text }}>{user.cds_number||<span style={{ color:C.gray400 }}>—</span>}</div>
-                    <div style={{ fontSize:11, color:C.text }}>{user.account_type||<span style={{ color:C.gray400 }}>—</span>}</div>
-                    <div><RoleBadge code={user.role_code}/></div>
-                    <div style={{ fontSize:11, color:C.text }}>{user.phone||<span style={{ color:C.gray400 }}>—</span>}</div>
-                    <div style={{ fontSize:11, color:C.gray400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email||"—"}</div>
-                    <div style={{ fontSize:10, color:C.gray400 }}>{user.assigned_at?new Date(user.assigned_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}):"—"}</div>
-                    <div style={{ display:"flex", gap:4 }}>
-                      <button onClick={() => setChangeRoleUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap" }} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.gray200;e.currentTarget.style.color=C.text;}}>✏️ Role</button>
-                      <button onClick={() => setManageCdsUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:`1px solid ${C.navy}25`, background:C.navy+"08", color:C.navy, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap" }} onMouseEnter={e=>{e.currentTarget.style.background=C.navy;e.currentTarget.style.color=C.white;}} onMouseLeave={e=>{e.currentTarget.style.background=C.navy+"08";e.currentTarget.style.color=C.navy;}}>🏦 CDS</button>
-                      {user.role_code && (
-                        <button onClick={() => setToggleUser(user)} style={{ padding:"4px 7px", borderRadius:7, border:"none", background:user.is_active?"#fef2f2":"#f0fdf4", color:user.is_active?"#dc2626":"#16a34a", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>{user.is_active?"🚫":"✅"}</button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {/* ── Modals (shared — rendered via portal, work on both mobile/desktop) ── */}
+      </div>
+
+      {/* ── Modals — use createPortal to document.body, always viewport-safe ── */}
       {inviteOpen && (
         <InviteModal
           roles={roles}
