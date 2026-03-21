@@ -223,7 +223,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   );
 });
 
-// ── Desktop Pagination ───────────────────────────────────────────────
+// ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   return (
     <button onClick={onClick} disabled={disabled}
@@ -310,7 +310,7 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
   );
 });
 
-// ── Row permissions helper ───────────────────────────────────────────
+// ── Row permissions helper ────────────────────────────────────────
 const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   const isPending   = transaction.status === "pending";
   const isConfirmed = transaction.status === "confirmed";
@@ -581,6 +581,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         flexDirection: "column",
       }}>
 
+        {/* ── Header ── */}
         <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -588,11 +589,17 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               <span style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBdr}`, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
               <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{st.icon} {st.label}</span>
             </div>
-            <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <span>📅 {fmtDate(transaction.date)}</span>
+            {/* ── FIX: date + cds always on one line, no internal wrapping ── */}
+            <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
+              <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>📅 {fmtDate(transaction.date)}</span>
               {transaction.cds_number && (
-                <span>🪪 {transaction.cds_number}
-                  {cdsAccountName === null ? <span style={{ color: C.gray400 }}> — …</span> : cdsAccountName ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span> : null}
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                  🪪 {transaction.cds_number}
+                  {cdsAccountName === null
+                    ? <span style={{ color: C.gray400 }}> — …</span>
+                    : cdsAccountName
+                      ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
+                      : null}
                 </span>
               )}
             </div>
@@ -600,6 +607,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
+        {/* ── Summary row ── */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
@@ -626,6 +634,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
+        {/* ── Body ── */}
         <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
             renderRightPanel()
@@ -641,6 +650,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           )}
         </div>
 
+        {/* ── Footer ── */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
@@ -872,6 +882,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const txLoadRef      = useRef(0);
   const companyLoadRef = useRef(0);
 
+  // ── Pull-to-refresh refs ──────────────────────────────────────
+  const rootRef        = useRef(null);
+  const touchStartYRef = useRef(null);
+  const pullingRef     = useRef(false);
+  const scrollHostRef  = useRef(null);
+
   const [localCompanies, setLocalCompanies]           = useState([]);
   const [brokers, setBrokers]                         = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
@@ -885,6 +901,10 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(50);
   const [selected, setSelected]         = useState(new Set());
+
+  // ── Pull-to-refresh state ─────────────────────────────────────
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing]     = useState(false);
 
   const [confirmingIds,   setConfirmingIds]   = useState(new Set());
   const [verifyingIds,    setVerifyingIds]    = useState(new Set());
@@ -902,8 +922,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [rejectModal,       setRejectModal]       = useState(null);
   const [detailModal,       setDetailModal]       = useState(null);
 
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const effectiveCompanies = useMemo(
@@ -911,20 +929,26 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [companies, localCompanies]
   );
 
-  const loadTransactions = useCallback(async () => {
+  // ── loadTransactions — supports fromPull for pull-to-refresh ──
+  const loadTransactions = useCallback(async ({ fromPull = false } = {}) => {
     const requestId = ++txLoadRef.current;
-    if (isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
+    if (!fromPull && isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
     try {
       const data = await sbGetTransactions();
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
       setTransactions(data);
+      setPageError(null);
     } catch (e) {
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
       setPageError(e.message || "Failed to load transactions.");
+      if (fromPull) showToast?.("Refresh failed", "error");
     } finally {
-      if (isMountedRef.current && requestId === txLoadRef.current) setLoadingTransactions(false);
+      if (isMountedRef.current && requestId === txLoadRef.current) {
+        setLoadingTransactions(false);
+        if (fromPull) { setRefreshing(false); setPullDistance(0); }
+      }
     }
-  }, [setTransactions]);
+  }, [setTransactions, showToast]);
 
   const loadCompanies = useCallback(async () => {
     const requestId = ++companyLoadRef.current;
@@ -962,6 +986,58 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     loadCompanies();
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
+
+  // ── getScrollParent ───────────────────────────────────────────
+  const getScrollParent = useCallback((el) => {
+    let node = el?.parentElement;
+    while (node) {
+      const style = window.getComputedStyle(node);
+      const canScroll =
+        (style.overflowY === "auto" || style.overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight;
+      if (canScroll) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }, []);
+
+  // ── Pull-to-refresh touch handlers ───────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    if (!isMobile || refreshing || loadingTransactions) return;
+    const host = getScrollParent(rootRef.current);
+    scrollHostRef.current = host;
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; return; }
+    touchStartYRef.current = e.touches[0].clientY;
+    pullingRef.current = false;
+  }, [isMobile, refreshing, loadingTransactions, getScrollParent]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isMobile || refreshing || loadingTransactions) return;
+    if (touchStartYRef.current == null) return;
+    const host = scrollHostRef.current || getScrollParent(rootRef.current);
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+    if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
+    pullingRef.current = true;
+    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
+    setPullDistance(resisted);
+  }, [isMobile, refreshing, loadingTransactions, getScrollParent]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile || refreshing || loadingTransactions) {
+      touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return;
+    }
+    const shouldRefresh = pullingRef.current && pullDistance >= 64;
+    touchStartYRef.current = null;
+    pullingRef.current = false;
+    if (shouldRefresh) {
+      setPullDistance(56);
+      setRefreshing(true);
+      loadTransactions({ fromPull: true });
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, refreshing, loadingTransactions, pullDistance, loadTransactions]);
 
   const isAnyConfirming  = confirmingIds.size  > 0;
   const isAnyVerifying   = verifyingIds.size   > 0;
@@ -1342,13 +1418,70 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const hasActiveFilters = search || typeFilter !== "All" || statusFilter !== defaultStatus;
 
-  const pageHeight = isMobile ? "calc(100vh - 148px)" : "calc(100vh - 118px)";
+  const pageHeight = "calc(100vh - 118px)";
+
+  // ── Pull-to-refresh indicator trigger ────────────────────────
+  const pullReady = pullDistance >= 64;
+
+  // ── Mobile keyboard accessory bar suppression ─────────────────
+  const mobileInputAttrs = isMobile ? {
+    autoComplete: "off",
+    autoCorrect: "off",
+    autoCapitalize: "off",
+    spellCheck: false,
+    "data-form-type": "other",
+    "data-lpignore": "true",
+  } : {};
 
   return (
-    <div style={{ height: pageHeight, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div
+      ref={rootRef}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchCancel={isMobile ? handleTouchEnd : undefined}
+      style={{
+        height: isMobile ? "auto" : pageHeight,
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+        position: "relative",
+        paddingBottom: isMobile ? 96 : 0,
+      }}
+    >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Modals ── */}
+      {/* ── Pull-to-refresh indicator ── */}
+      {isMobile && (
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
+          <div style={{
+            position: "absolute", left: "50%", top: 0,
+            transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
+            opacity: refreshing || pullDistance > 6 ? 1 : 0,
+            transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
+            background: C.white,
+            border: `1.5px solid ${pullReady || refreshing ? C.navy : C.gray200}`,
+            borderRadius: 999, padding: "7px 12px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: "50%",
+              border: `2px solid ${refreshing ? `${C.navy}33` : C.gray200}`,
+              borderTop: `2px solid ${pullReady || refreshing ? C.navy : C.gray400}`,
+              animation: refreshing ? "spin 0.8s linear infinite" : "none",
+              transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
+              transition: "transform 0.12s ease, border-color 0.12s ease",
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.navy : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
+              {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modals — OUTSIDE transform wrapper so position:fixed works correctly ── */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1401,254 +1534,264 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
-      {/* ── Stat cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
-        {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
-      </div>
+      {/* ── Transform wrapper — modals must never be inside here ── */}
+      <div style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : "none",
+        transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
+        willChange: isMobile ? "transform" : "auto",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+      }}>
 
-      {/* ══════════════════════════════════════════════════════════
-          MOBILE TOOLBAR — updated as requested
-          ══════════════════════════════════════════════════════════ */}
-      {isMobile && (
-        <div style={{ marginBottom: 10, flexShrink: 0 }}>
-          {(isDE || isSAAD) ? (
-            // DE/AD/SA: search + record in one row
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+        {/* ── Stat cards ── */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
+          {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        {/* ── Mobile toolbar ── */}
+        {isMobile && (
+          <div style={{ marginBottom: 10, flexShrink: 0 }}>
+            {(isDE || isSAAD) ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                  <input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); resetPage(); }}
+                    placeholder="Search company, date, status..."
+                    {...mobileInputAttrs}
+                    style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
+                    onFocus={e => { e.target.style.borderColor = C.navy; }}
+                    onBlur={e => { e.target.style.borderColor = C.gray200; }}
+                  />
+                </div>
+                <button
+                  onClick={() => openFormModal(null)}
+                  disabled={loadingCompanies}
+                  style={{ height: 40, padding: "0 16px", borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                >
+                  + Record
+                </button>
+              </div>
+            ) : (
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
                 <input
                   value={search}
                   onChange={e => { setSearch(e.target.value); resetPage(); }}
                   placeholder="Search company, date, status..."
+                  {...mobileInputAttrs}
                   style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
                   onFocus={e => { e.target.style.borderColor = C.navy; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }}
                 />
               </div>
-              <button
-                onClick={() => openFormModal(null)}
-                disabled={loadingCompanies}
-                style={{ height: 40, padding: "0 16px", borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-              >
-                + Record
-              </button>
-            </div>
-          ) : (
-            // VR/RO: full‑width search only
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
-              <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); resetPage(); }}
-                placeholder="Search company, date, status..."
-                style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
-                onFocus={e => { e.target.style.borderColor = C.navy; }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; }}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          DESKTOP TOOLBAR — UNCHANGED
-          ══════════════════════════════════════════════════════════ */}
-      {!isMobile && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
-            <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
-              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-              <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
-                placeholder="Search company, date, month, type, broker, status, remarks..."
-                style={TOOLBAR_INPUT}
-                onFocus={e => { e.target.style.borderColor = C.navy; }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; }} />
-            </div>
-            {["All", "Buy", "Sell"].map(t => (
-              <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-                style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>
-                {t}
-              </button>
-            ))}
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-              style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
-              onFocus={e => { e.target.style.borderColor = C.navy; }}
-              onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
-              {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
-            {hasSelection ? (
-              <>
-                {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
-                {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-                {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
-                {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-                {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
-                <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
-              </>
-            ) : (
-              <>
-                <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
-                {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
-                {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
-                {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
-              </>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Content area ── */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
-          {loadingTransactions ? (
-            <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-              <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-              <div style={{ fontSize: 13 }}>Loading transactions...</div>
-            </div>
-          ) : pageError ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: C.red }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
-              <div style={{ fontWeight: 600 }}>Failed to load transactions</div>
-              <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{pageError}</div>
-              <button onClick={loadTransactions} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
-            </div>
-          ) : stats.total === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>No transactions yet</div>
-              <div style={{ fontSize: 13 }}>{isDE ? 'Tap "Record" to add your first buy or sell' : "Transactions will appear here once created"}</div>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-              <div style={{ fontWeight: 600 }}>No results found</div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
-              <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
-            </div>
-          ) : isMobile ? (
-            /* Mobile cards */
-            <>
-              <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
-                {paginated.map(transaction => (
-                  <TransactionMobileCard
-                    key={transaction.id}
-                    transaction={transaction}
-                    onOpenFormModal={openFormModal}
-                    onOpenRejectModal={openRejectModal}
-                    onOpenDeleteModal={openDeleteModal}
-                    onHandleConfirm={handleConfirm}
-                    onHandleVerify={handleVerify}
-                    onHandleUnverify={handleUnVerify}
-                    confirmingIds={confirmingIds}
-                    verifyingIds={verifyingIds}
-                    rejectingIds={rejectingIds}
-                    unverifyingIds={unverifyingIds}
-                    deletingId={deletingId}
-                    bulkDeletingIds={bulkDeletingIds}
-                    isDE={isDE} isVR={isVR} isSAAD={isSAAD}
-                    showActions={showActions}
-                    onOpenDetail={setDetailModal}
-                  />
-                ))}
+        {/* ── Desktop toolbar ── */}
+        {!isMobile && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
+              <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
+                <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
+                  placeholder="Search company, date, month, type, broker, status, remarks..."
+                  style={TOOLBAR_INPUT}
+                  onFocus={e => { e.target.style.borderColor = C.navy; }}
+                  onBlur={e => { e.target.style.borderColor = C.gray200; }} />
               </div>
-              <MobilePagination
-                page={safePage} totalPages={totalPages}
-                setPage={setPage} filtered={filtered.length} pageSize={pageSize}
-              />
-            </>
-          ) : (
-            /* Desktop table */
-            <>
-              <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
-                  {showActions ? (
-                  <colgroup>
-                    <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
-                    <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
-                    <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
-                    <col style={{ width: 100 }} /><col style={{ width: 96 }} /><col style={{ width: 80 }} />
-                  </colgroup>
-                  ) : (
-                  <colgroup>
-                    <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
-                    <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
-                    <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
-                    <col style={{ width: 100 }} /><col style={{ width: 96 }} />
-                  </colgroup>
-                  )}
-                  <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
-                    <tr>
-                      {showCheckbox && (
-                        <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: "#f5f6fa" }}>
-                          <input type="checkbox" checked={allSelected}
-                            ref={el => el && (el.indeterminate = someSelected && !allSelected)}
-                            onChange={toggleAll}
-                            style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
-                        </th>
-                      )}
-                      {tableHeaders.map(h => (
-                        <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>
-                          {h.label}
-                        </th>
+              {["All", "Buy", "Sell"].map(t => (
+                <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
+                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? C.white : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+                  {t}
+                </button>
+              ))}
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+                onFocus={e => { e.target.style.borderColor = C.navy; }}
+                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
+                {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
+              {hasSelection ? (
+                <>
+                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
+                  {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
+                </>
+              ) : (
+                <>
+                  <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
+                  {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Content area ── */}
+        <div style={{ flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
+          <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
+            {loadingTransactions ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
+                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.navy}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+                <div style={{ fontSize: 13 }}>Loading transactions...</div>
+              </div>
+            ) : pageError ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: C.red }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+                <div style={{ fontWeight: 600 }}>Failed to load transactions</div>
+                <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{pageError}</div>
+                <button onClick={loadTransactions} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
+              </div>
+            ) : stats.total === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>No transactions yet</div>
+                <div style={{ fontSize: 13 }}>{isDE ? 'Tap "Record" to add your first buy or sell' : "Transactions will appear here once created"}</div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+                <div style={{ fontWeight: 600 }}>No results found</div>
+                <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
+                <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
+              </div>
+            ) : isMobile ? (
+              /* ── Mobile cards — natural flow, no fixed-height scroll ── */
+              <>
+                <div style={{ padding: "8px 12px" }}>
+                  {paginated.map(transaction => (
+                    <TransactionMobileCard
+                      key={transaction.id}
+                      transaction={transaction}
+                      onOpenFormModal={openFormModal}
+                      onOpenRejectModal={openRejectModal}
+                      onOpenDeleteModal={openDeleteModal}
+                      onHandleConfirm={handleConfirm}
+                      onHandleVerify={handleVerify}
+                      onHandleUnverify={handleUnVerify}
+                      confirmingIds={confirmingIds}
+                      verifyingIds={verifyingIds}
+                      rejectingIds={rejectingIds}
+                      unverifyingIds={unverifyingIds}
+                      deletingId={deletingId}
+                      bulkDeletingIds={bulkDeletingIds}
+                      isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                      showActions={showActions}
+                      onOpenDetail={setDetailModal}
+                    />
+                  ))}
+                </div>
+                <MobilePagination
+                  page={safePage} totalPages={totalPages}
+                  setPage={setPage} filtered={filtered.length} pageSize={pageSize}
+                />
+              </>
+            ) : (
+              /* ── Desktop table ── */
+              <>
+                <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                    {showActions ? (
+                    <colgroup>
+                      <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
+                      <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
+                      <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
+                      <col style={{ width: 100 }} /><col style={{ width: 96 }} /><col style={{ width: 80 }} />
+                    </colgroup>
+                    ) : (
+                    <colgroup>
+                      <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
+                      <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
+                      <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
+                      <col style={{ width: 100 }} /><col style={{ width: 96 }} />
+                    </colgroup>
+                    )}
+                    <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
+                      <tr>
+                        {showCheckbox && (
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: "#f5f6fa" }}>
+                            <input type="checkbox" checked={allSelected}
+                              ref={el => el && (el.indeterminate = someSelected && !allSelected)}
+                              onChange={toggleAll}
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
+                          </th>
+                        )}
+                        {tableHeaders.map(h => (
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>
+                            {h.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((transaction, i) => (
+                        <TransactionRow
+                          key={transaction.id}
+                          transaction={transaction}
+                          globalIdx={(safePage - 1) * pageSize + i + 1}
+                          selected={selected}
+                          onToggleOne={toggleOne}
+                          onOpenFormModal={openFormModal}
+                          onOpenRejectModal={openRejectModal}
+                          onOpenDeleteModal={openDeleteModal}
+                          onHandleConfirm={handleConfirm}
+                          onHandleVerify={handleVerify}
+                          onHandleUnverify={handleUnVerify}
+                          confirmingIds={confirmingIds}
+                          verifyingIds={verifyingIds}
+                          rejectingIds={rejectingIds}
+                          unverifyingIds={unverifyingIds}
+                          deletingId={deletingId}
+                          bulkDeletingIds={bulkDeletingIds}
+                          isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                          showCheckbox={showCheckbox} showActions={showActions}
+                          onOpenDetail={setDetailModal}
+                        />
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map((transaction, i) => (
-                      <TransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                        globalIdx={(safePage - 1) * pageSize + i + 1}
-                        selected={selected}
-                        onToggleOne={toggleOne}
-                        onOpenFormModal={openFormModal}
-                        onOpenRejectModal={openRejectModal}
-                        onOpenDeleteModal={openDeleteModal}
-                        onHandleConfirm={handleConfirm}
-                        onHandleVerify={handleVerify}
-                        onHandleUnverify={handleUnVerify}
-                        confirmingIds={confirmingIds}
-                        verifyingIds={verifyingIds}
-                        rejectingIds={rejectingIds}
-                        unverifyingIds={unverifyingIds}
-                        deletingId={deletingId}
-                        bulkDeletingIds={bulkDeletingIds}
-                        isDE={isDE} isVR={isVR} isSAAD={isSAAD}
-                        showCheckbox={showCheckbox} showActions={showActions}
-                        onOpenDetail={setDetailModal}
-                      />
-                    ))}
-                  </tbody>
-                  {filtered.length > 1 && (
-                  <tfoot>
-                    <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
-                      <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
-                      </td>
-                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
-                      </td>
-                      <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
-                      </td>
-                      <td colSpan={tfootRightCols} />
-                    </tr>
-                  </tfoot>
-                  )}
-                </table>
-              </div>
-              <Pagination
-                page={safePage} totalPages={totalPages} pageSize={pageSize}
-                setPage={setPage} setPageSize={setPageSize}
-                total={stats.total} filtered={filtered.length}
-              />
-            </>
-          )}
-        </SectionCard>
+                    </tbody>
+                    {filtered.length > 1 && (
+                    <tfoot>
+                      <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
+                        <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                        </td>
+                        <td colSpan={tfootRightCols} />
+                      </tr>
+                    </tfoot>
+                    )}
+                  </table>
+                </div>
+                <Pagination
+                  page={safePage} totalPages={totalPages} pageSize={pageSize}
+                  setPage={setPage} setPageSize={setPageSize}
+                  total={stats.total} filtered={filtered.length}
+                />
+              </>
+            )}
+          </SectionCard>
+        </div>
+
       </div>
     </div>
   );
