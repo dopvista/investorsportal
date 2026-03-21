@@ -650,14 +650,60 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [switchTarget, setSwitchTarget]       = useState(null);
   const [switching, setSwitching]             = useState(false);
   const [cdsExpanded, setCdsExpanded]         = useState(false);
-  // Mobile tab: "personal" | "more"
   const [mobileTab, setMobileTab]             = useState("personal");
+
+  const [pullDistance, setPullDistance]       = useState(0);
+  const [refreshing, setRefreshing]           = useState(false);
+
   const fileRef = useRef();
+  const rootRef = useRef(null);
+  const touchStartYRef = useRef(null);
+  const pullingRef = useRef(false);
+  const scrollHostRef = useRef(null);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const uid             = session?.user?.id || profile?.id;
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
+
+  const getScrollParent = useCallback((el) => {
+    let node = el?.parentElement;
+    while (node) {
+      const style = window.getComputedStyle(node);
+      const canScroll =
+        (style.overflowY === "auto" || style.overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight;
+      if (canScroll) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }, []);
+
+  const refreshProfileView = useCallback(async () => {
+    try {
+      const reqId = ++cdsCountReqRef.current;
+      if (!activeCdsNumber) {
+        if (isMountedRef.current && reqId === cdsCountReqRef.current) setCdsUserCount(1);
+        return;
+      }
+      const tok = session?.access_token || KEY;
+      const res = await fetch(`${BASE}/rest/v1/rpc/get_cds_user_count`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
+        body: JSON.stringify({ cds: activeCdsNumber }),
+      });
+      const count = await res.json().catch(() => 1);
+      if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return;
+      setCdsUserCount(typeof count === "number" ? count : 1);
+    } catch {
+      if (!isMountedRef.current) return;
+      setCdsUserCount(1);
+    } finally {
+      if (!isMountedRef.current) return;
+      setRefreshing(false);
+      setPullDistance(0);
+    }
+  }, [activeCdsNumber, session?.access_token]);
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
@@ -770,6 +816,68 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } finally { if (isMountedRef.current) setSaving(false); }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
+  const handleTouchStart = useCallback((e) => {
+    if (!isMobile || refreshing || saving || uploadingAvatar || switching) return;
+
+    const host = getScrollParent(rootRef.current);
+    scrollHostRef.current = host;
+
+    if ((host?.scrollTop || 0) > 0) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      return;
+    }
+
+    touchStartYRef.current = e.touches[0].clientY;
+    pullingRef.current = false;
+  }, [getScrollParent, isMobile, refreshing, saving, uploadingAvatar, switching]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isMobile || refreshing || saving || uploadingAvatar || switching) return;
+    if (touchStartYRef.current == null) return;
+
+    const host = scrollHostRef.current || getScrollParent(rootRef.current);
+    if ((host?.scrollTop || 0) > 0) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+    if (deltaY <= 0) {
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    pullingRef.current = true;
+    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
+    setPullDistance(resisted);
+  }, [getScrollParent, isMobile, refreshing, saving, uploadingAvatar, switching]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile || refreshing || saving || uploadingAvatar || switching) {
+      touchStartYRef.current = null;
+      pullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const shouldRefresh = pullingRef.current && pullDistance >= 64;
+
+    touchStartYRef.current = null;
+    pullingRef.current = false;
+
+    if (shouldRefresh) {
+      setPullDistance(56);
+      setRefreshing(true);
+      refreshProfileView();
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, pullDistance, refreshProfileView, refreshing, saving, uploadingAvatar, switching]);
+
   // ── Shared: avatar element (tappable) ─────────────────────────
   const renderAvatarEl = (size = 56) => {
     const mobileMode = isMobile && size >= 60;
@@ -783,7 +891,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             {avatarPreview
               ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : initials}
-            {/* Tap-to-edit overlay — mobile only */}
             {mobileMode && !uploadingAvatar && (
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", opacity: 0, transition: "opacity 0.2s" }}
                 onTouchStart={e => e.currentTarget.style.opacity = "1"}
@@ -798,11 +905,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             )}
           </div>
-          {/* Camera badge */}
           <div onClick={() => !uploadingAvatar && fileRef.current?.click()} style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}>📷</div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
         </div>
-        {/* Mobile: tap-to-edit button below avatar */}
         {mobileMode && (
           <button
             onClick={() => !uploadingAvatar && fileRef.current?.click()}
@@ -916,9 +1021,25 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     </>
   ) : null;
 
+  const pullReady = pullDistance >= 64;
+
   // ════════════════════════════════════════════════════════════════
   return (
-    <div style={{ height: isMobile ? "auto" : "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
+    <div
+      ref={rootRef}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchCancel={isMobile ? handleTouchEnd : undefined}
+      style={{
+        height: isMobile ? "auto" : "calc(100vh - 118px)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+        position: "relative",
+        paddingBottom: isMobile ? 96 : 0,
+      }}
+    >
       <style>{`
         @keyframes spin   { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
@@ -929,352 +1050,392 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         .pcol { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
       `}</style>
 
-      {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
-      {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
-      {renderSwitchModal()}
-
-      {/* ══════════════════════════════════════════════════════════
-          MOBILE LAYOUT — unchanged
-          ══════════════════════════════════════════════════════════ */}
       {isMobile && (
-        <div>
-          {/* ── Profile hero card ── */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            {/* Navy banner */}
-            <div style={{ height: 56, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
-            {/* Body */}
-            <div style={{ padding: "0 16px 16px", marginTop: -32 }}>
-              {/* Avatar — centered with Change Photo button */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 12 }}>
-                {renderAvatarEl(68)}
-              </div>
-              {/* Name */}
-              <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>
-                {form.full_name || "Your Name"}
-              </div>
-              {/* Email */}
-              <div style={{ fontSize: 12, color: C.gray400, marginBottom: 10, fontWeight: 500 }}>{email}</div>
-              {/* Role badge */}
-              <div style={{ marginBottom: 12 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}30`, borderRadius: 20, padding: "3px 11px" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
-                </span>
-              </div>
-              {/* CDS accordion */}
-              {renderCdsAccordion()}
-              {/* Completion */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.06em" }}>Profile Complete</span>
-                <span style={{ fontSize: 11, fontWeight: 800, color: completionColor }}>{completion}%</span>
-              </div>
-              <div style={{ height: 5, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
-              </div>
-            </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 0,
+            pointerEvents: "none",
+            zIndex: 3,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 0,
+              transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
+              opacity: refreshing || pullDistance > 6 ? 1 : 0,
+              transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
+              background: C.white,
+              border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
+              borderRadius: 999,
+              padding: "7px 12px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: "50%",
+                border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
+                borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
+                animation: refreshing ? "spin 0.8s linear infinite" : "none",
+                transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
+                transition: "transform 0.12s ease, border-color 0.12s ease",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: refreshing ? C.green : (pullReady ? C.text : C.gray500),
+                whiteSpace: "nowrap",
+              }}
+            >
+              {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
+            </span>
           </div>
-
-          {/* ── Account Type ── */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-            <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-              <span style={{ fontSize: 14 }}>🏦</span>
-              <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
-            </div>
-            <div style={{ padding: "10px 14px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 9, marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
-                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>
-                    {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
-                  </div>
-                </div>
-                <span style={{ fontSize: 22 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
-              </div>
-              <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.7 }}>
-                <span>👤 <strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span><br />
-                <span>🏢 <strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Security ── */}
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
-            <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-              <span style={{ fontSize: 14 }}>🔐</span>
-              <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
-            </div>
-            <div style={{ padding: "10px 14px" }}>
-              <button onClick={() => setShowPwModal(true)}
-                style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
-                onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
-              >🔑 Change Password</button>
-              {/* Daily usage bar */}
-              <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
-                {[1,2,3].map(i => (
-                  <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
-                ))}
-                <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>
-                  {remainingPwChanges(uid)}/{PW_MAX_DAILY} today
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Tab switcher: Personal | More Info ── */}
-          <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4 }}>
-            {[
-              { key: "personal", label: "Personal",  icon: "👤" },
-              { key: "more",     label: "More Info",  icon: "📋" },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setMobileTab(tab.key)}
-                style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: mobileTab === tab.key ? C.white : "transparent", color: mobileTab === tab.key ? C.navy : C.gray500, fontWeight: mobileTab === tab.key ? 700 : 500, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "inherit", boxShadow: mobileTab === tab.key ? "0 1px 5px rgba(0,0,0,0.09)" : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <span>{tab.icon}</span> {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Personal tab ── (Full Name, Gender, Date of Birth) */}
-          {mobileTab === "personal" && (
-            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Information</div>
-              {/* Full Name */}
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
-                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </div>
-              {/* Gender */}
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
-                <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
-                  <option value="">Select gender</option>
-                  {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-              {/* Date of Birth */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
-                <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-              </div>
-              {renderSaveBtn()}
-              {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
-            </div>
-          )}
-
-          {/* ── More Info tab ── (Phone Number, National ID, Nationality, Postal Address) */}
-          {mobileTab === "more" && (
-            <div>
-              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity & Contact</div>
-                {/* Phone Number */}
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
-                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </div>
-                {/* National ID */}
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>National ID (NIDA)</label>
-                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </div>
-                {/* Nationality */}
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Nationality</label>
-                  <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
-                </div>
-                {/* Postal Address */}
-                <div style={{ marginBottom: 4 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Postal Address</label>
-                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                </div>
-              </div>
-              {renderSaveBtn()}
-              {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
-            </div>
-          )}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          DESKTOP LAYOUT — Contact Details now full‑width (single column)
-          ══════════════════════════════════════════════════════════ */}
-      {!isMobile && (
-        <>
-          <div style={{ marginBottom: 6, flexShrink: 0 }}>
-            <div style={{ fontSize: 12, color: C.gray400 }}>
-              Manage your personal information and security settings
-              {lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}
-            </div>
-          </div>
+      <div
+        style={{
+          transform: isMobile ? `translateY(${pullDistance}px)` : "none",
+          transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
+          willChange: isMobile ? "transform" : "auto",
+          flex: isMobile ? "unset" : 1,
+          minHeight: 0,
+        }}
+      >
+        {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
+        {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
+        {renderSwitchModal()}
 
-          <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
-
-            {/* ── Left column ── */}
-            <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
-              {/* Profile card */}
-              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-                <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
-                <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
-                  <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
-                    <div
-                      style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative" }}
-                      onClick={() => !uploadingAvatar && fileRef.current?.click()}
-                    >
-                      {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
-                      {uploadingAvatar && (
-                        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
-                          <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                        </div>
-                      )}
-                    </div>
-                    <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
-                    <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
-                  </div>
-
-                  <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
-                  <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
-
-                  <div style={{ marginBottom: 6 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
-                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
-                    </span>
-                  </div>
-
-                  {/* CDS accordion */}
-                  <div style={{ marginBottom: 8 }}>
-                    <div
-                      onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
-                      style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: "5px 8px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}
-                    >
-                      <span>🔒</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
-                        {cdsList.length > 1 && <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>{cdsExpanded ? "Click to close" : "Click here to switch CDS"}</div>}
-                      </div>
-                      {cdsList.length > 1 && <span style={{ fontSize: 11, color: cdsExpanded ? C.green : C.gray400, transform: cdsExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>}
-                    </div>
-                    {cdsExpanded && cdsList.length > 1 && (
-                      <div style={{ border: `1px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden", background: C.white }}>
-                        {cdsList.map((c, i) => {
-                          const isActive = c.cds_number === activeCdsNumber;
-                          return (
-                            <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", background: isActive ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none" }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
-                                <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
-                              </div>
-                              {isActive
-                                ? <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
-                                : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity="0.8"} onMouseLeave={e => e.currentTarget.style.opacity="1"}>Switch</button>}
-                            </div>
-                          );
-                        })}
-                        <div style={{ padding: "5px 9px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
-                          <div style={{ fontSize: 9, color: C.gray400, lineHeight: 1.4 }}>Switching updates data system-wide.</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.04em" }}>Profile complete</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: completionColor }}>{completion}%</span>
-                  </div>
-                  <div style={{ height: 4, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
-                  </div>
-                  {completion < 100 && <div style={{ fontSize: 9, color: C.gray400, marginTop: 3 }}>{completion < 50 ? "Fill in more details" : "Almost there"}</div>}
+        {/* ══════════════════════════════════════════════════════════
+            MOBILE LAYOUT
+            ══════════════════════════════════════════════════════════ */}
+        {isMobile && (
+          <div>
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ height: 56, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
+              <div style={{ padding: "0 16px 16px", marginTop: -32 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 12 }}>
+                  {renderAvatarEl(68)}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>
+                  {form.full_name || "Your Name"}
+                </div>
+                <div style={{ fontSize: 12, color: C.gray400, marginBottom: 10, fontWeight: 500 }}>{email}</div>
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}30`, borderRadius: 20, padding: "3px 11px" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                  </span>
+                </div>
+                {renderCdsAccordion()}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.06em" }}>Profile Complete</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: completionColor }}>{completion}%</span>
+                </div>
+                <div style={{ height: 5, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
                 </div>
               </div>
+            </div>
 
-              <Section title="Account Type" icon="🏦">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+                <span style={{ fontSize: 14 }}>🏦</span>
+                <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
+              </div>
+              <div style={{ padding: "10px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 9, marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
-                    <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
+                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>
+                      {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
+                    </div>
                   </div>
-                  <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+                  <span style={{ fontSize: 22 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
                 </div>
-                <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}><span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}><span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
+                <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.7 }}>
+                  <span>👤 <strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span><br />
+                  <span>🏢 <strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
                 </div>
-              </Section>
+              </div>
+            </div>
 
-              <Section title="Security" icon="🔐">
+            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
+              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+                <span style={{ fontSize: 14 }}>🔐</span>
+                <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
+              </div>
+              <div style={{ padding: "10px 14px" }}>
                 <button onClick={() => setShowPwModal(true)}
-                  style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+                  style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
                 >🔑 Change Password</button>
-                <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
-                  {[1,2,3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
-                  <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
+                <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
+                  {[1,2,3].map(i => (
+                    <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
+                  ))}
+                  <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>
+                    {remainingPwChanges(uid)}/{PW_MAX_DAILY} today
+                  </span>
                 </div>
-              </Section>
+              </div>
             </div>
 
-            {/* ── Right column — Contact Details now full‑width (single column) ── */}
-            <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
-              <Section title="Account Information" icon="👤">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <Field label="Full Name" required>
-                    <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                  </Field>
-                  <Field label="Phone Number" required>
-                    <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                  </Field>
-                  <Field label="Gender">
-                    <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
-                      <option value="">Select gender</option>
-                      {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Date of Birth">
-                    <input style={inp()} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                  </Field>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <Field label="National ID (NIDA)">
-                      <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                    </Field>
+            <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4 }}>
+              {[
+                { key: "personal", label: "Personal",  icon: "👤" },
+                { key: "more",     label: "More Info",  icon: "📋" },
+              ].map(tab => (
+                <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+                  style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: mobileTab === tab.key ? C.white : "transparent", color: mobileTab === tab.key ? C.navy : C.gray500, fontWeight: mobileTab === tab.key ? 700 : 500, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "inherit", boxShadow: mobileTab === tab.key ? "0 1px 5px rgba(0,0,0,0.09)" : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span>{tab.icon}</span> {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {mobileTab === "personal" && (
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Information</div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
+                  <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
+                    <option value="">Select gender</option>
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
+                  <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                </div>
+                {renderSaveBtn()}
+                {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
+              </div>
+            )}
+
+            {mobileTab === "more" && (
+              <div>
+                <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity & Contact</div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
+                    <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>National ID (NIDA)</label>
+                    <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Nationality</label>
+                    <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
+                  </div>
+                  <div style={{ marginBottom: 4 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Postal Address</label>
+                    <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                   </div>
                 </div>
-              </Section>
-
-              {/* ── Contact Details section — now single column (both fields full width) ── */}
-              <Section title="Contact Details" icon="📍">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-                  <Field label="Nationality">
-                    <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
-                  </Field>
-                  <Field label="Postal Address">
-                    <input style={inp()} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
-                  </Field>
-                </div>
-              </Section>
-
-              <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
-                  <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>
-                </div>
+                {renderSaveBtn()}
+                {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
               </div>
+            )}
+          </div>
+        )}
 
-              <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
-                {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
-                <button onClick={handleSave} disabled={saving}
-                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}>
-                  {saving
-                    ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
-                    : <>💾 Save Changes</>}
-                </button>
+        {/* ══════════════════════════════════════════════════════════
+            DESKTOP LAYOUT
+            ══════════════════════════════════════════════════════════ */}
+        {!isMobile && (
+          <>
+            <div style={{ marginBottom: 6, flexShrink: 0 }}>
+              <div style={{ fontSize: 12, color: C.gray400 }}>
+                Manage your personal information and security settings
+                {lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}
               </div>
             </div>
-          </div>
-        </>
-      )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+              <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
+                <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                  <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
+                  <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
+                    <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
+                      <div
+                        style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: C.white, position: "relative" }}
+                        onClick={() => !uploadingAvatar && fileRef.current?.click()}
+                      >
+                        {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+                        {uploadingAvatar && (
+                          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
+                            <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                          </div>
+                        )}
+                      </div>
+                      <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
+                      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
+                    </div>
+
+                    <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
+                    <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
+
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
+                        <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                      </span>
+                    </div>
+
+                    <div style={{ marginBottom: 8 }}>
+                      <div
+                        onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
+                        style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: "5px 8px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}
+                      >
+                        <span>🔒</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
+                          {cdsList.length > 1 && <div style={{ fontSize: 9, color: cdsExpanded ? C.green : C.gray400, marginTop: 1, transition: "color 0.15s" }}>{cdsExpanded ? "Click to close" : "Click here to switch CDS"}</div>}
+                        </div>
+                        {cdsList.length > 1 && <span style={{ fontSize: 11, color: cdsExpanded ? C.green : C.gray400, transform: cdsExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>}
+                      </div>
+                      {cdsExpanded && cdsList.length > 1 && (
+                        <div style={{ border: `1px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden", background: C.white }}>
+                          {cdsList.map((c, i) => {
+                            const isActive = c.cds_number === activeCdsNumber;
+                            return (
+                              <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", background: isActive ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none" }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                                  <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
+                                </div>
+                                {isActive
+                                  ? <span style={{ fontSize: 9, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                                  : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity="0.8"} onMouseLeave={e => e.currentTarget.style.opacity="1"}>Switch</button>}
+                              </div>
+                            );
+                          })}
+                          <div style={{ padding: "5px 9px", borderTop: `1px solid ${C.gray100}`, background: C.gray50 }}>
+                            <div style={{ fontSize: 9, color: C.gray400, lineHeight: 1.4 }}>Switching updates data system-wide.</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.04em" }}>Profile complete</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: completionColor }}>{completion}%</span>
+                    </div>
+                    <div style={{ height: 4, background: C.gray100, borderRadius: 10, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${completion}%`, background: completionColor, borderRadius: 10, transition: "width 0.5s ease" }} />
+                    </div>
+                    {completion < 100 && <div style={{ fontSize: 9, color: C.gray400, marginTop: 3 }}>{completion < 50 ? "Fill in more details" : "Almost there"}</div>}
+                  </div>
+                </div>
+
+                <Section title="Account Type" icon="🏦">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 8, marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
+                      <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
+                    </div>
+                    <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}><span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}><span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
+                  </div>
+                </Section>
+
+                <Section title="Security" icon="🔐">
+                  <button onClick={() => setShowPwModal(true)}
+                    style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.white; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
+                  >🔑 Change Password</button>
+                  <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
+                    {[1,2,3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
+                    <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
+                  </div>
+                </Section>
+              </div>
+
+              <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
+                <Section title="Account Information" icon="👤">
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Field label="Full Name" required>
+                      <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
+                    <Field label="Phone Number" required>
+                      <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
+                    <Field label="Gender">
+                      <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
+                        <option value="">Select gender</option>
+                        {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Date of Birth">
+                      <input style={inp()} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <Field label="National ID (NIDA)">
+                        <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                      </Field>
+                    </div>
+                  </div>
+                </Section>
+
+                <Section title="Contact Details" icon="📍">
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+                    <Field label="Nationality">
+                      <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
+                    </Field>
+                    <Field label="Postal Address">
+                      <input style={inp()} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                    </Field>
+                  </div>
+                </Section>
+
+                <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
+                    <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
+                  {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
+                  <button onClick={handleSave} disabled={saving}
+                    style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}>
+                    {saving
+                      ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>
+                      : <>💾 Save Changes</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
