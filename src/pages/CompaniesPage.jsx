@@ -161,16 +161,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [formModal, setFormModal]       = useState({ open: false, company: null });
 
   const [pullDistance, setPullDistance] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing]     = useState(false);
 
   const isMountedRef    = useRef(true);
   const portfolioReqRef = useRef(0);
   const masterReqRef    = useRef(0);
-
-  const rootRef = useRef(null);
-  const touchStartYRef = useRef(null);
-  const pullingRef = useRef(false);
-  const scrollHostRef = useRef(null);
+  const rootRef         = useRef(null);
+  const touchStartYRef  = useRef(null);
+  const pullingRef      = useRef(false);
+  const scrollHostRef   = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -182,13 +181,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
   const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  // Modal close handlers
-  const closeDeleteModal    = useCallback(() => setDeleteModal(null), []);
-  const closeHistoryModal   = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
-  const closeUpdateModal    = useCallback(() => setUpdateModal({ open: false, company: null }), []);
-  const closeFormModal      = useCallback(() => setFormModal({ open: false, company: null }), []);
-  const closeActionSheet    = useCallback(() => setActionSheetCompany(null), []);
-
+  const closeDeleteModal  = useCallback(() => setDeleteModal(null), []);
+  const closeHistoryModal = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
+  const closeUpdateModal  = useCallback(() => setUpdateModal({ open: false, company: null }), []);
+  const closeFormModal    = useCallback(() => setFormModal({ open: false, company: null }), []);
+  const closeActionSheet  = useCallback(() => setActionSheetCompany(null), []);
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
   const getScrollParent = useCallback((el) => {
@@ -207,25 +204,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   // ── Data loaders ──────────────────────────────────────────────
   const loadPortfolio = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++portfolioReqRef.current;
-
     if (!cdsNumber) {
       if (isMountedRef.current && reqId === portfolioReqRef.current) {
         setPortfolio([]);
         setPortfolioError(null);
         setPortfolioLoading(false);
-        if (fromPull) {
-          setRefreshing(false);
-          setPullDistance(0);
-        }
+        if (fromPull) { setRefreshing(false); setPullDistance(0); }
       }
       return;
     }
-
-    if (!fromPull && isMountedRef.current) {
-      setPortfolioLoading(true);
-      setPortfolioError(null);
-    }
-
+    if (!fromPull && isMountedRef.current) { setPortfolioLoading(true); setPortfolioError(null); }
     try {
       const data = await sbGetPortfolio(cdsNumber);
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
@@ -238,18 +226,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     } finally {
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
       setPortfolioLoading(false);
-      if (fromPull) {
-        setRefreshing(false);
-        setPullDistance(0);
-      }
+      if (fromPull) { setRefreshing(false); setPullDistance(0); }
     }
   }, [cdsNumber, showToast]);
 
   const loadMasterList = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++masterReqRef.current;
-
     if (!fromPull && isMountedRef.current) setMasterLoading(true);
-
     try {
       const data = await sbGetAllCompanies();
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
@@ -260,19 +243,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     } finally {
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       setMasterLoading(false);
-      if (fromPull) {
-        setRefreshing(false);
-        setPullDistance(0);
-      }
+      if (fromPull) { setRefreshing(false); setPullDistance(0); }
     }
   }, [showToast]);
 
   const refreshCurrentView = useCallback(async ({ fromPull = false } = {}) => {
-    if (activeTab === "manage" && isSA) {
-      await loadMasterList({ fromPull });
-    } else {
-      await loadPortfolio({ fromPull });
-    }
+    if (activeTab === "manage" && isSA) await loadMasterList({ fromPull });
+    else await loadPortfolio({ fromPull });
   }, [activeTab, isSA, loadMasterList, loadPortfolio]);
 
   useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
@@ -282,16 +259,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing) return;
     if ((activeTab === "portfolio" && portfolioLoading) || (activeTab === "manage" && masterLoading)) return;
-
     const host = getScrollParent(rootRef.current);
     scrollHostRef.current = host;
-
-    if ((host?.scrollTop || 0) > 0) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      return;
-    }
-
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; return; }
     touchStartYRef.current = e.touches[0].clientY;
     pullingRef.current = false;
   }, [activeTab, getScrollParent, isMobile, masterLoading, portfolioLoading, refreshing]);
@@ -300,22 +270,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     if (!isMobile || refreshing) return;
     if ((activeTab === "portfolio" && portfolioLoading) || (activeTab === "manage" && masterLoading)) return;
     if (touchStartYRef.current == null) return;
-
     const host = scrollHostRef.current || getScrollParent(rootRef.current);
-    if ((host?.scrollTop || 0) > 0) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
-    }
-
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
     const deltaY = e.touches[0].clientY - touchStartYRef.current;
-    if (deltaY <= 0) {
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
-    }
-
+    if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
     pullingRef.current = true;
     const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
     setPullDistance(resisted);
@@ -323,24 +281,12 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile || refreshing || (activeTab === "portfolio" && portfolioLoading) || (activeTab === "manage" && masterLoading)) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
+      touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return;
     }
-
     const shouldRefresh = pullingRef.current && pullDistance >= 64;
-
-    touchStartYRef.current = null;
-    pullingRef.current = false;
-
-    if (shouldRefresh) {
-      setPullDistance(56);
-      setRefreshing(true);
-      refreshCurrentView({ fromPull: true });
-    } else {
-      setPullDistance(0);
-    }
+    touchStartYRef.current = null; pullingRef.current = false;
+    if (shouldRefresh) { setPullDistance(56); setRefreshing(true); refreshCurrentView({ fromPull: true }); }
+    else setPullDistance(0);
   }, [activeTab, isMobile, masterLoading, portfolioLoading, pullDistance, refreshing, refreshCurrentView]);
 
   // ── Stats ─────────────────────────────────────────────────────
@@ -371,23 +317,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     try {
       const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
       await sbUpsertCdsPrice({
-        companyId: company.id,
-        companyName: company.name,
-        cdsNumber,
-        newPrice,
-        oldPrice,
-        reason,
-        updatedBy: profile?.full_name || "Unknown",
-        datetime,
+        companyId: company.id, companyName: company.name, cdsNumber,
+        newPrice, oldPrice, reason,
+        updatedBy: profile?.full_name || "Unknown", datetime,
       });
       if (!isMountedRef.current) return;
       setPortfolio(prev => prev.map(c =>
         c.id === company.id ? {
-          ...c,
-          cds_price: newPrice,
-          cds_previous_price: oldPrice,
-          cds_updated_by: profile?.full_name,
-          cds_updated_at: resolvedUpdatedAt,
+          ...c, cds_price: newPrice, cds_previous_price: oldPrice,
+          cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt,
         } : c
       ));
       showToast("Price updated for your portfolio!", "success");
@@ -461,14 +399,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const pullReady = pullDistance >= 64;
 
-  // ── Mobile keyboard accessory bar suppression attrs ───────────
+  // ── Mobile keyboard suppression attrs ─────────────────────────
   const mobileInputAttrs = isMobile ? {
-    autoComplete: "off",
-    autoCorrect: "off",
-    autoCapitalize: "off",
-    spellCheck: false,
-    "data-form-type": "other",
-    "data-lpignore": "true",
+    autoComplete: "off", autoCorrect: "off", autoCapitalize: "off",
+    spellCheck: false, "data-form-type": "other", "data-lpignore": "true",
   } : {};
 
   return (
@@ -478,95 +412,71 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       onTouchMove={isMobile ? handleTouchMove : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
       onTouchCancel={isMobile ? handleTouchEnd : undefined}
-      style={{
-        position: "relative",
-        overflow: "visible",
-        paddingBottom: isMobile ? 96 : 0,
-      }}
+      style={{ position: "relative", overflow: "visible", paddingBottom: isMobile ? 96 : 0 }}
     >
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      {/* ── Pull to refresh indicator ── */}
       {isMobile && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 0,
-            pointerEvents: "none",
-            zIndex: 3,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: 0,
-              transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
-              opacity: refreshing || pullDistance > 6 ? 1 : 0,
-              transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
-              background: C.white,
-              border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
-              borderRadius: 999,
-              padding: "7px 12px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: "50%",
-                border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
-                borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
-                animation: refreshing ? "spin 0.8s linear infinite" : "none",
-                transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
-                transition: "transform 0.12s ease, border-color 0.12s ease",
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: refreshing ? C.green : (pullReady ? C.text : C.gray500),
-                whiteSpace: "nowrap",
-              }}
-            >
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
+          <div style={{
+            position: "absolute", left: "50%", top: 0,
+            transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
+            opacity: refreshing || pullDistance > 6 ? 1 : 0,
+            transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
+            background: C.white, border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
+            borderRadius: 999, padding: "7px 12px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: "50%",
+              border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
+              borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
+              animation: refreshing ? "spin 0.8s linear infinite" : "none",
+              transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
+              transition: "transform 0.12s ease, border-color 0.12s ease", flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
               {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
             </span>
           </div>
         </div>
       )}
 
-      <div
-        style={{
-          transform: isMobile ? `translateY(${pullDistance}px)` : "none",
-          transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
-          willChange: isMobile ? "transform" : "auto",
-        }}
-      >
-        {/* ── Modals ── */}
-        {deleteModal  && <Modal type="confirm" title="Delete Company" message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`} onConfirm={confirmDelete} onClose={closeDeleteModal} />}
-        {historyModal.open && <PriceHistoryModal company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null} history={historyModal.history} onClose={closeHistoryModal} />}
-        {updateModal.open  && <UpdatePriceModal key={updateModal.company?.id} company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null} onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />}
-        {formModal.open    && <CompanyFormModal key={formModal.company?.id || "new"} company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />}
+      {/* ── Modals — OUTSIDE the transformed div so position:fixed works correctly ── */}
+      {deleteModal && (
+        <Modal type="confirm" title="Delete Company"
+          message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
+          onConfirm={confirmDelete} onClose={closeDeleteModal} />
+      )}
+      {historyModal.open && (
+        <PriceHistoryModal
+          company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null}
+          history={historyModal.history} onClose={closeHistoryModal} />
+      )}
+      {updateModal.open && (
+        <UpdatePriceModal key={updateModal.company?.id}
+          company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null}
+          onConfirm={confirmUpdatePrice} onClose={closeUpdateModal} />
+      )}
+      {formModal.open && (
+        <CompanyFormModal key={formModal.company?.id || "new"}
+          company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />
+      )}
+      {actionSheetCompany && (
+        <ActionSheet
+          company={actionSheetCompany}
+          onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
+          onViewHistory={viewHistory}
+          onClose={closeActionSheet} />
+      )}
 
-        {/* Mobile action sheet */}
-        {actionSheetCompany && (
-          <ActionSheet
-            company={actionSheetCompany}
-            onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
-            onViewHistory={viewHistory}
-            onClose={closeActionSheet}
-          />
-        )}
+      {/* ── Transformed content div (pull-to-refresh) ── */}
+      <div style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : "none",
+        transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
+        willChange: isMobile ? "transform" : "auto",
+      }}>
 
         {/* ══════════════════════════════════════════════════════════
             PORTFOLIO TAB
@@ -587,13 +497,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               </div>
             )}
 
-            {/* Search + refresh */}
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16 }}>
               <div style={{ flex: 1, position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
                 <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search your holdings..."
                   {...mobileInputAttrs}
                   style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: isMobile ? 13 : 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
@@ -667,7 +575,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                               {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                              {hasCdsPrice ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
+                              {hasCdsPrice
+                                ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
                                 : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -679,7 +588,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                               {c.cds_previous_price != null ? <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span> : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
-                              {c.cds_updated_at ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                              {c.cds_updated_at
+                                ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px" }}>
@@ -714,8 +624,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
-                <StatCard label="Total Companies"   value={manageStats.total}             sub="In master registry" icon="🏢" color={C.navy}  />
-                <StatCard label="Registered Today"  value={manageStats.registeredToday}   sub="Added today"        icon="✅" color={C.green} />
+                <StatCard label="Total Companies"   value={manageStats.total}           sub="In master registry" icon="🏢" color={C.navy}  />
+                <StatCard label="Registered Today"  value={manageStats.registeredToday} sub="Added today"        icon="✅" color={C.green} />
                 <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
                   <Btn variant="navy" icon="+" onClick={openNewCompanyModal}>Register New Company</Btn>
                 </div>
