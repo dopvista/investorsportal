@@ -622,7 +622,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
 
 // ─── Update Price Modal ───────────────────────────────────────────
 export function UpdatePriceModal({ company, onConfirm, onClose }) {
-  const isMobile = useIsMobile(); // ← CHANGE 1: detect mobile
+  const isMobile = useIsMobile();
   const nowDate = new Date();
   const localDatetime = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [newPrice, setNewPrice] = useState("");
@@ -649,16 +649,6 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   const changePct = changeAmt !== null && Number(company.price) !== 0 ? (changeAmt / Number(company.price)) * 100 : null;
   const up = changeAmt !== null ? changeAmt >= 0 : null;
 
-  // ← CHANGE 2: suppress keyboard accessory bar on mobile only
-  const mobileInputAttrs = isMobile ? {
-    autoComplete: "off",
-    autoCorrect: "off",
-    autoCapitalize: "off",
-    spellCheck: false,
-    "data-form-type": "other",
-    "data-lpignore": "true",
-  } : {};
-
   return (
     <ModalShell
       title={company.name}
@@ -683,12 +673,22 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
           New Price (TZS) <span style={{ color: C.red }}>*</span>
         </label>
         <input
-          type="number"
+          // ── FIX: type="text" + inputMode="decimal" on mobile prevents
+          //    Android Chrome from showing the autofill toolbar (🔑 💳 📍).
+          //    type="number" ignores autoComplete="off" on Android Chrome.
+          //    inputMode="decimal" still shows the numeric keyboard.
+          type={isMobile ? "text" : "number"}
+          inputMode={isMobile ? "decimal" : undefined}
+          autoComplete={isMobile ? "off" : undefined}
+          autoCorrect={isMobile ? "off" : undefined}
+          autoCapitalize={isMobile ? "off" : undefined}
+          spellCheck={isMobile ? false : undefined}
+          data-form-type={isMobile ? "other" : undefined}
+          data-lpignore={isMobile ? "true" : undefined}
           value={newPrice}
           onChange={e => { setNewPrice(e.target.value); setError(""); }}
           placeholder="Enter new price..."
           autoFocus
-          {...mobileInputAttrs}
           style={{
             border: `1.5px solid ${error ? C.red : C.gray200}`,
             borderRadius: 8,
