@@ -622,6 +622,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
 
 // ─── Update Price Modal ───────────────────────────────────────────
 export function UpdatePriceModal({ company, onConfirm, onClose }) {
+  const isMobile = useIsMobile(); // ← CHANGE 1: detect mobile
   const nowDate = new Date();
   const localDatetime = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [newPrice, setNewPrice] = useState("");
@@ -647,6 +648,16 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   const changeAmt = newPrice ? Number(newPrice) - Number(company.price) : null;
   const changePct = changeAmt !== null && Number(company.price) !== 0 ? (changeAmt / Number(company.price)) * 100 : null;
   const up = changeAmt !== null ? changeAmt >= 0 : null;
+
+  // ← CHANGE 2: suppress keyboard accessory bar on mobile only
+  const mobileInputAttrs = isMobile ? {
+    autoComplete: "off",
+    autoCorrect: "off",
+    autoCapitalize: "off",
+    spellCheck: false,
+    "data-form-type": "other",
+    "data-lpignore": "true",
+  } : {};
 
   return (
     <ModalShell
@@ -677,6 +688,7 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
           onChange={e => { setNewPrice(e.target.value); setError(""); }}
           placeholder="Enter new price..."
           autoFocus
+          {...mobileInputAttrs}
           style={{
             border: `1.5px solid ${error ? C.red : C.gray200}`,
             borderRadius: 8,
