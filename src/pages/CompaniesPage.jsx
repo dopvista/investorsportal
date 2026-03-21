@@ -461,6 +461,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const pullReady = pullDistance >= 64;
 
+  // ── Mobile keyboard accessory bar suppression attrs ───────────
+  const mobileInputAttrs = isMobile ? {
+    autoComplete: "off",
+    autoCorrect: "off",
+    autoCapitalize: "off",
+    spellCheck: false,
+    "data-form-type": "other",
+    "data-lpignore": "true",
+  } : {};
+
   return (
     <div
       ref={rootRef}
@@ -581,10 +591,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16 }}>
               <div style={{ flex: 1, position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search your holdings..."
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search your holdings..."
+                  {...mobileInputAttrs}
                   style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: isMobile ? 13 : 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
                   onFocus={e => { e.target.style.borderColor = C.green; }}
-                  onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+                  onBlur={e => { e.target.style.borderColor = C.gray200; }}
+                />
               </div>
               {search && <Btn variant="secondary" onClick={() => setSearch("")}>Clear</Btn>}
               {!isMobile && <Btn variant="secondary" icon="🔄" onClick={() => loadPortfolio()}>Refresh</Btn>}
