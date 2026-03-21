@@ -178,7 +178,6 @@ function CountrySelect({ value, onChange }) {
               style={{ width: "100%", padding: "6px 8px", borderRadius: 7, fontSize: 12, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
             />
           </div>
-
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {filtered.length === 0 ? (
               <div style={{ padding: "10px 12px", color: C.gray400, fontSize: 12 }}>No results</div>
@@ -208,7 +207,7 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Modal Shell (used by ChangePasswordModal) ─────────────────────
+// ── Modal Shell ───────────────────────────────────────────────────
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const isMobile = useIsMobile();
 
@@ -256,25 +255,16 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
             <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{title}</div>
             {subtitle && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>{subtitle}</div>}
           </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
             {!lockBackdrop && (
               <button
                 onClick={onClose}
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  border: "none",
-                  background: "rgba(255,255,255,0.1)",
-                  cursor: "pointer",
-                  fontSize: 15,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: C.white,
-                  flexShrink: 0,
+                  width: 40, height: 40, borderRadius: 8, border: "none",
+                  background: "rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 15,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: C.white, flexShrink: 0,
                 }}
               >
                 ✕
@@ -286,11 +276,8 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         <div
           style={{
             padding: isMobile ? "16px 18px" : "20px 28px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            overflowY: "auto",
-            flex: 1,
+            display: "flex", flexDirection: "column", gap: 14,
+            overflowY: "auto", flex: 1,
           }}
         >
           {children}
@@ -301,16 +288,12 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
             style={{
               padding: isMobile ? "12px 18px" : "16px 28px",
               borderTop: `1px solid ${C.gray200}`,
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-              alignItems: "center",
+              display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center",
               background: C.gray50,
               borderRadius: isMobile ? 0 : "0 0 16px 16px",
               flexShrink: 0,
               position: isMobile ? "sticky" : "static",
-              bottom: 0,
-              zIndex: 2,
+              bottom: 0, zIndex: 2,
             }}
           >
             {footer}
@@ -357,10 +340,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const pw = strength(newPw);
 
   const handleSendOtp = async () => {
-    if (remaining <= 0) {
-      setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`);
-      return;
-    }
+    if (remaining <= 0) { setError(`Maximum ${PW_MAX_DAILY} changes/day reached. Try tomorrow.`); return; }
     setError("");
     setLoading(true);
     try {
@@ -441,69 +421,29 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
           <p style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>
             For security, we'll send a one-time verification code to your email before allowing a password change.
           </p>
-
-          <div
-            style={{
-              background: C.gray50,
-              border: `1px solid ${C.gray100}`,
-              borderRadius: 9,
-              padding: "10px 13px",
-              fontSize: 15,
-              fontWeight: 600,
-              color: C.text,
-              marginBottom: 20,
-              textAlign: "center",
-            }}
-          >
+          <div style={{ background: C.gray50, border: `1px solid ${C.gray100}`, borderRadius: 9, padding: "10px 13px", fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 20, textAlign: "center" }}>
             📧 {email}
           </div>
-
           {error && (
             <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>
               {error}
             </div>
           )}
-
           <div style={{ display: "flex", gap: 10 }}>
             <button
               onClick={handleSendOtp}
               disabled={loading || remaining <= 0}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 10,
-                border: "none",
-                background: loading || remaining <= 0 ? C.gray200 : C.green,
-                color: C.white,
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: loading || remaining <= 0 ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-              }}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading || remaining <= 0 ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading || remaining <= 0 ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
             >
               {loading ? "Sending..." : "Send Verification Code"}
             </button>
-
             <button
               onClick={onClose}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 10,
-                border: `1.5px solid ${C.gray200}`,
-                background: C.white,
-                color: C.gray400,
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
             >
               Cancel
             </button>
           </div>
-
           {remaining <= 0 && (
             <div style={{ fontSize: 12, color: C.red, marginTop: 10, textAlign: "center" }}>
               Daily limit reached. Try again tomorrow.
@@ -519,13 +459,11 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
           <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>
             An 8-digit code has been sent to <strong>{email}</strong>. Enter it below along with your new password.
           </p>
-
           {error && (
             <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginBottom: 16 }}>
               {error}
             </div>
           )}
-
           <Field label="Verification Code">
             <input
               style={inp({ letterSpacing: "0.2em", fontWeight: 700, textAlign: "center", fontSize: 18 })}
@@ -537,7 +475,6 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
               onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
             />
           </Field>
-
           <Field label="New Password">
             <div style={{ position: "relative" }}>
               <input
@@ -550,42 +487,20 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
               <button
                 type="button"
                 onClick={() => setShow(s => ({ ...s, new: !s.new }))}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 16,
-                  color: C.gray400,
-                }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}
               >
                 {show.new ? "🙈" : "👁"}
               </button>
             </div>
-
             {newPw && (
               <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
                 {[1, 2, 3, 4].map(i => (
-                  <div
-                    key={i}
-                    style={{
-                      flex: 1,
-                      height: 3,
-                      borderRadius: 3,
-                      background: i <= pw.score ? pw.color : C.gray100,
-                    }}
-                  />
+                  <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= pw.score ? pw.color : C.gray100 }} />
                 ))}
-                <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>
-                  {pw.label}
-                </span>
+                <span style={{ fontSize: 10, color: pw.color, marginLeft: 6, fontWeight: 700 }}>{pw.label}</span>
               </div>
             )}
           </Field>
-
           <Field label="Confirm New Password">
             <div style={{ position: "relative" }}>
               <input
@@ -598,74 +513,32 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
               <button
                 type="button"
                 onClick={() => setShow(s => ({ ...s, confirm: !s.confirm }))}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 16,
-                  color: C.gray400,
-                }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400 }}
               >
                 {show.confirm ? "🙈" : "👁"}
               </button>
             </div>
           </Field>
-
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
             <button
               onClick={handleVerifyAndUpdate}
               disabled={loading}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 10,
-                border: "none",
-                background: loading ? C.gray200 : C.green,
-                color: C.white,
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}
             >
               {loading ? "Verifying..." : "Update Password"}
             </button>
-
             <button
               onClick={onClose}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 10,
-                border: `1.5px solid ${C.gray200}`,
-                background: C.white,
-                color: C.gray400,
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
             >
               Cancel
             </button>
           </div>
-
           <div style={{ textAlign: "center", marginTop: 12 }}>
             <button
               onClick={countdown > 0 ? null : handleSendOtp}
               disabled={countdown > 0}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: 12,
-                color: countdown > 0 ? C.gray400 : C.green,
-                cursor: countdown > 0 ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ background: "none", border: "none", fontSize: 12, color: countdown > 0 ? C.gray400 : C.green, cursor: countdown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}
             >
               {countdown > 0
                 ? `Resend in ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, "0")}`
@@ -678,29 +551,11 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
 
     return (
       <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            background: `${C.green}15`,
-            border: `2px solid ${C.green}`,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 16px",
-            fontSize: 28,
-          }}
-        >
+        <div style={{ width: 64, height: 64, background: `${C.green}15`, border: `2px solid ${C.green}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>
           ✓
         </div>
-
-        <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>
-          Password Updated!
-        </div>
-        <div style={{ fontSize: 13, color: C.gray400 }}>
-          Your password has been changed successfully.
-        </div>
+        <div style={{ fontWeight: 800, fontSize: 16, color: C.text, marginBottom: 6 }}>Password Updated!</div>
+        <div style={{ fontSize: 13, color: C.gray400 }}>Your password has been changed successfully.</div>
         <div style={{ fontSize: 12, color: C.gray400, marginTop: 6 }}>
           {remainingPwChanges(uid)} of {PW_MAX_DAILY} changes remaining today
         </div>
@@ -709,13 +564,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   };
 
   return (
-    <ModalShell
-      title="Change Password"
-      subtitle="Verify your identity with a one-time code"
-      onClose={onClose}
-      maxWidth={440}
-      footer={null}
-    >
+    <ModalShell title="Change Password" subtitle="Verify your identity with a one-time code" onClose={onClose} maxWidth={440} footer={null}>
       {renderContent()}
     </ModalShell>
   );
@@ -742,15 +591,14 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [cdsExpanded, setCdsExpanded]         = useState(false);
   const [mobileTab, setMobileTab]             = useState("personal");
 
-  // pull-to-refresh
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing]     = useState(false);
 
-  const fileRef = useRef();
-  const rootRef = useRef(null);
+  const fileRef        = useRef();
+  const rootRef        = useRef(null);
   const touchStartYRef = useRef(null);
-  const pullingRef = useRef(false);
-  const scrollHostRef = useRef(null);
+  const pullingRef     = useRef(false);
+  const scrollHostRef  = useRef(null);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -763,14 +611,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     setForm(profileToForm(profile));
     setAvatarPreview(profile?.avatar_url || null);
   }, [
-    profile?.full_name,
-    profile?.phone,
-    profile?.nationality,
-    profile?.postal_address,
-    profile?.national_id,
-    profile?.date_of_birth,
-    profile?.gender,
-    profile?.avatar_url,
+    profile?.full_name, profile?.phone, profile?.nationality,
+    profile?.postal_address, profile?.national_id,
+    profile?.date_of_birth, profile?.gender, profile?.avatar_url,
   ]);
 
   useEffect(() => {
@@ -783,16 +626,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       if (isMountedRef.current && reqId === cdsCountReqRef.current) setCdsUserCount(1);
       return;
     }
-
     const tok = session?.access_token || KEY;
     try {
       const res = await fetch(`${BASE}/rest/v1/rpc/get_cds_user_count`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: KEY,
-          "Authorization": `Bearer ${tok}`,
-        },
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` },
         body: JSON.stringify({ cds: activeCdsNumber }),
       });
       const count = await res.json();
@@ -804,9 +642,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     }
   }, [activeCdsNumber, session?.access_token]);
 
-  useEffect(() => {
-    fetchCdsUserCount();
-  }, [fetchCdsUserCount]);
+  useEffect(() => { fetchCdsUserCount(); }, [fetchCdsUserCount]);
 
   const getScrollParent = useCallback((el) => {
     let node = el?.parentElement;
@@ -838,13 +674,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   const lastSaved = profile?.updated_at
-    ? new Date(profile.updated_at).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
   const handleSwitchCDS = useCallback(async () => {
@@ -862,15 +692,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const handleFileSelect = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      showToast("Image must be under 10MB", "error");
-      return;
-    }
+    if (file.size > 10 * 1024 * 1024) { showToast("Image must be under 10MB", "error"); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (!isMountedRef.current) return;
-      setCropSrc(ev.target.result);
-    };
+    reader.onload = (ev) => { if (!isMountedRef.current) return; setCropSrc(ev.target.result); };
     reader.readAsDataURL(file);
     e.target.value = "";
   }, [showToast]);
@@ -881,38 +705,21 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     try {
       const uid2 = session?.user?.id || profile?.id;
       const tok  = session?.access_token || KEY;
-
       const uploadRes = await fetch(`${BASE}/storage/v1/object/avatars/${uid2}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${tok}`,
-          "Content-Type": "image/jpeg",
-          "x-upsert": "true",
-        },
+        headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
         body: blob,
       });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}));
-        throw new Error(err.message || "Upload failed");
-      }
-
+      if (!uploadRes.ok) { const err = await uploadRes.json().catch(() => ({})); throw new Error(err.message || "Upload failed"); }
       const publicUrl = `${BASE}/storage/v1/object/public/avatars/${uid2}?t=${Date.now()}`;
-
       const patchRes = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: KEY,
-          "Authorization": `Bearer ${tok}`,
-          "Prefer": "return=representation",
-        },
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify({ avatar_url: publicUrl }),
       });
       if (!patchRes.ok) throw new Error("Failed to save avatar URL");
-
       const rows = await patchRes.json();
       if (!isMountedRef.current) return;
-
       setProfile(rows[0] || { ...profile, avatar_url: publicUrl });
       setAvatarPreview(publicUrl);
       showToast("Profile picture updated!", "success");
@@ -927,23 +734,16 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const handleSave = useCallback(async () => {
     if (!form.full_name.trim()) { showToast("Full name is required", "error"); return; }
     if (!form.phone.trim())     { showToast("Phone number is required", "error"); return; }
-
     setSaving(true);
     try {
       const tok  = session?.access_token || KEY;
       const uid2 = session?.user?.id || profile?.id;
       const res  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: KEY,
-          "Authorization": `Bearer ${tok}`,
-          "Prefer": "return=representation",
-        },
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
-
       const rows = await res.json();
       if (!isMountedRef.current) return;
       setProfile(rows[0] || { ...profile, ...form });
@@ -956,19 +756,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
 
-  // ── pull-to-refresh handlers ────────────────────────────────────
+  // ── Pull to refresh handlers ──────────────────────────────────
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing || saving || uploadingAvatar || switching) return;
-
     const host = getScrollParent(rootRef.current);
     scrollHostRef.current = host;
-
-    if ((host?.scrollTop || 0) > 0) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      return;
-    }
-
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; return; }
     touchStartYRef.current = e.touches[0].clientY;
     pullingRef.current = false;
   }, [getScrollParent, isMobile, refreshing, saving, uploadingAvatar, switching]);
@@ -976,22 +769,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const handleTouchMove = useCallback((e) => {
     if (!isMobile || refreshing || saving || uploadingAvatar || switching) return;
     if (touchStartYRef.current == null) return;
-
     const host = scrollHostRef.current || getScrollParent(rootRef.current);
-    if ((host?.scrollTop || 0) > 0) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
-    }
-
+    if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
     const deltaY = e.touches[0].clientY - touchStartYRef.current;
-    if (deltaY <= 0) {
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
-    }
-
+    if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
     pullingRef.current = true;
     const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
     setPullDistance(resisted);
@@ -999,127 +780,60 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile || refreshing || saving || uploadingAvatar || switching) {
-      touchStartYRef.current = null;
-      pullingRef.current = false;
-      setPullDistance(0);
-      return;
+      touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return;
     }
-
     const shouldRefresh = pullingRef.current && pullDistance >= 64;
-
-    touchStartYRef.current = null;
-    pullingRef.current = false;
-
-    if (shouldRefresh) {
-      setPullDistance(56);
-      setRefreshing(true);
-      refreshProfileView();
-    } else {
-      setPullDistance(0);
-    }
+    touchStartYRef.current = null; pullingRef.current = false;
+    if (shouldRefresh) { setPullDistance(56); setRefreshing(true); refreshProfileView(); }
+    else setPullDistance(0);
   }, [isMobile, refreshing, saving, uploadingAvatar, switching, pullDistance, refreshProfileView]);
 
-  // ── Shared: avatar element ──────────────────────────────────────
+  // ── Avatar element ────────────────────────────────────────────
   const renderAvatarEl = (size = 56) => {
     const mobileMode = isMobile && size >= 60;
     return (
       <div style={{ display: mobileMode ? "flex" : "inline-block", flexDirection: mobileMode ? "column" : undefined, alignItems: mobileMode ? "center" : undefined, gap: mobileMode ? 8 : undefined }}>
         <div style={{ position: "relative", display: "inline-block" }}>
           <div
-            style={{
-              width: size,
-              height: size,
-              borderRadius: "50%",
-              border: `3px solid ${C.white}`,
-              boxShadow: "0 3px 12px rgba(0,0,0,0.18)",
-              background: avatarPreview ? "transparent" : C.navy,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-              cursor: "pointer",
-              fontSize: Math.round(size * 0.28),
-              fontWeight: 800,
-              color: C.white,
-              position: "relative",
-            }}
+            style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: C.white, position: "relative" }}
             onClick={() => !uploadingAvatar && fileRef.current?.click()}
           >
             {avatarPreview
               ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : initials}
-
             {mobileMode && !uploadingAvatar && (
               <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.28)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "50%",
-                  opacity: 0,
-                  transition: "opacity 0.2s",
-                }}
+                style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", opacity: 0, transition: "opacity 0.2s" }}
                 onTouchStart={e => e.currentTarget.style.opacity = "1"}
                 onTouchEnd={e => e.currentTarget.style.opacity = "0"}
               >
                 <span style={{ fontSize: 22 }}>📷</span>
               </div>
             )}
-
             {uploadingAvatar && (
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>
                 <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
               </div>
             )}
           </div>
-
           <div
             onClick={() => !uploadingAvatar && fileRef.current?.click()}
-            style={{
-              position: "absolute",
-              bottom: 1,
-              right: 1,
-              width: mobileMode ? 24 : 20,
-              height: mobileMode ? 24 : 20,
-              borderRadius: "50%",
-              background: C.green,
-              border: `2px solid ${C.white}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: mobileMode ? 11 : 9,
-            }}
+            style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}
           >
             📷
           </div>
-
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
         </div>
       </div>
     );
   };
 
-  // ── Shared: CDS accordion ───────────────────────────────────────
+  // ── CDS accordion ─────────────────────────────────────────────
   const renderCdsAccordion = () => (
     <div style={{ marginBottom: 8 }}>
       <div
         onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          background: "#f0fdf4",
-          border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`,
-          borderRadius: cdsExpanded ? "8px 8px 0 0" : 8,
-          padding: "6px 9px",
-          cursor: cdsList.length > 1 ? "pointer" : "default",
-          transition: "border-radius 0.15s, border 0.15s",
-          userSelect: "none",
-        }}
+        style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: `1px solid ${cdsExpanded ? C.green : "#bbf7d0"}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: "6px 9px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}
       >
         <span style={{ fontSize: 16 }}>🔒</span>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1169,42 +883,23 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     </div>
   );
 
-  // ── Shared: save button ─────────────────────────────────────────
+  // ── Save button ───────────────────────────────────────────────
   const renderSaveBtn = () => (
     <button
       onClick={handleSave}
       disabled={saving}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: "13px 20px",
-        borderRadius: 10,
-        border: "none",
-        background: saving ? C.gray200 : C.green,
-        color: C.white,
-        fontWeight: 700,
-        fontSize: 15,
-        cursor: saving ? "not-allowed" : "pointer",
-        fontFamily: "inherit",
-        boxShadow: saving ? "none" : `0 4px 14px ${C.green}44`,
-        marginTop: 6,
-      }}
+      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 14px ${C.green}44`, marginTop: 6 }}
     >
       {saving ? (
         <>
           <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
           Saving...
         </>
-      ) : (
-        <>💾 Save Changes</>
-      )}
+      ) : <>💾 Save Changes</>}
     </button>
   );
 
-  // ── CDS switch confirmation modal ───────────────────────────────
+  // ── CDS switch confirmation modal ─────────────────────────────
   const renderSwitchModal = () => switchTarget ? (
     <>
       <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
@@ -1217,7 +912,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
             <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
-
           <div style={{ padding: "20px 22px" }}>
             <div style={{ textAlign: "center", marginBottom: 18 }}>
               <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
@@ -1225,7 +919,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
               <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
             </div>
-
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
@@ -1237,7 +930,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 <div style={{ fontWeight: 800, color: C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => !switching && setSwitchTarget(null)}
@@ -1246,7 +938,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleSwitchCDS}
                 disabled={switching}
@@ -1257,9 +948,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                     Switching...
                   </>
-                ) : (
-                  "Yes, Switch Account"
-                )}
+                ) : "Yes, Switch Account"}
               </button>
             </div>
           </div>
@@ -1277,14 +966,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       onTouchMove={isMobile ? handleTouchMove : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
       onTouchCancel={isMobile ? handleTouchEnd : undefined}
-      style={{
-        height: isMobile ? "auto" : "calc(100vh - 118px)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: isMobile ? "visible" : "hidden",
-        position: "relative",
-        paddingBottom: isMobile ? 96 : 0,
-      }}
+      style={{ height: isMobile ? "auto" : "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden", position: "relative", paddingBottom: isMobile ? 96 : 0 }}
     >
       <style>{`
         @keyframes spin   { to { transform: rotate(360deg); } }
@@ -1296,75 +978,27 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         .pcol { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
       `}</style>
 
+      {/* ── Pull to refresh indicator ── */}
       {isMobile && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 0,
-            pointerEvents: "none",
-            zIndex: 3,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: 0,
-              transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`,
-              opacity: refreshing || pullDistance > 6 ? 1 : 0,
-              transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
-              background: C.white,
-              border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
-              borderRadius: 999,
-              padding: "7px 12px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: "50%",
-                border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
-                borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
-                animation: refreshing ? "spin 0.8s linear infinite" : "none",
-                transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
-                transition: "transform 0.12s ease, border-color 0.12s ease",
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: refreshing ? C.green : (pullReady ? C.text : C.gray500),
-                whiteSpace: "nowrap",
-              }}
-            >
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
+          <div style={{ position: "absolute", left: "50%", top: 0, transform: `translate(-50%, ${Math.max(8, pullDistance - 34)}px)`, opacity: refreshing || pullDistance > 6 ? 1 : 0, transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease", background: C.white, border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`, borderRadius: 999, padding: "7px 12px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`, borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`, animation: refreshing ? "spin 0.8s linear infinite" : "none", transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`, transition: "transform 0.12s ease, border-color 0.12s ease", flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
               {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
             </span>
           </div>
         </div>
       )}
 
+      {/* ── Modals — OUTSIDE the transform wrapper so position:fixed works correctly ── */}
+      {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
+      {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
+      {renderSwitchModal()}
+
+      {/* ── Pull-to-refresh transform wrapper — modals must never be inside here ── */}
       <div
-        style={{
-          transform: isMobile ? `translateY(${pullDistance}px)` : "none",
-          transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
-          willChange: isMobile ? "transform" : "auto",
-          flex: isMobile ? "unset" : 1,
-          minHeight: 0,
-        }}
+        style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: isMobile ? "unset" : 1, minHeight: 0 }}
       >
-        {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
-        {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
-        {renderSwitchModal()}
 
         {/* MOBILE */}
         {isMobile && (
@@ -1375,21 +1009,15 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", marginBottom: 12 }}>
                   {renderAvatarEl(68)}
                 </div>
-
-                <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>
-                  {form.full_name || "Your Name"}
-                </div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>{form.full_name || "Your Name"}</div>
                 <div style={{ fontSize: 12, color: C.gray400, marginBottom: 10, fontWeight: 500 }}>{email}</div>
-
                 <div style={{ marginBottom: 12 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}30`, borderRadius: 20, padding: "3px 11px" }}>
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
                   </span>
                 </div>
-
                 {renderCdsAccordion()}
-
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.06em" }}>Profile Complete</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: completionColor }}>{completion}%</span>
@@ -1409,9 +1037,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: `${C.green}0d`, border: `1.5px solid ${C.green}22`, borderRadius: 9, marginBottom: 10 }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
-                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>
-                      {cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}
-                    </div>
+                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
                   </div>
                   <span style={{ fontSize: 22 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
                 </div>
@@ -1436,14 +1062,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 >
                   🔑 Change Password
                 </button>
-
                 <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
                   {[1, 2, 3].map(i => (
                     <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />
                   ))}
-                  <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>
-                    {remainingPwChanges(uid)}/{PW_MAX_DAILY} today
-                  </span>
+                  <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
                 </div>
               </div>
             </div>
@@ -1466,12 +1089,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             {mobileTab === "personal" && (
               <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Personal Information</div>
-
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name <span style={{ color: C.red }}>*</span></label>
                   <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. Naomi Maguya" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                 </div>
-
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
                   <select style={{ ...inp({ fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
@@ -1479,12 +1100,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
-
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
                   <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                 </div>
-
                 {renderSaveBtn()}
                 {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
               </div>
@@ -1494,28 +1113,23 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               <div>
                 <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Identity & Contact</div>
-
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number <span style={{ color: C.red }}>*</span></label>
                     <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                   </div>
-
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>National ID (NIDA)</label>
                     <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                   </div>
-
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Nationality</label>
                     <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
                   </div>
-
                   <div style={{ marginBottom: 4 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Postal Address</label>
                     <input style={inp({ fontSize: 14, padding: "11px 13px" })} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                   </div>
                 </div>
-
                 {renderSaveBtn()}
                 {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
               </div>
@@ -1550,23 +1164,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                           </div>
                         )}
                       </div>
-
-                      <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>
-                        📷
-                      </div>
+                      <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
                       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
                     </div>
-
                     <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
                     <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
-
                     <div style={{ marginBottom: 6 }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
                         <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
                         <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
                       </span>
                     </div>
-
                     <div style={{ marginBottom: 8 }}>
                       <div
                         onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
@@ -1580,7 +1188,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                         </div>
                         {cdsList.length > 1 && <span style={{ fontSize: 11, color: cdsExpanded ? C.green : C.gray400, transform: cdsExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>}
                       </div>
-
                       {cdsExpanded && cdsList.length > 1 && (
                         <div style={{ border: `1px solid ${C.green}`, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden", background: C.white }}>
                           {cdsList.map((c, i) => {
@@ -1612,7 +1219,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                         </div>
                       )}
                     </div>
-
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.04em" }}>Profile complete</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: completionColor }}>{completion}%</span>
@@ -1647,7 +1253,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   >
                     🔑 Change Password
                   </button>
-
                   <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
                     {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
                     <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
@@ -1661,22 +1266,18 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <Field label="Full Name" required>
                       <input style={inp()} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                     </Field>
-
                     <Field label="Phone Number" required>
                       <input style={inp()} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                     </Field>
-
                     <Field label="Gender">
                       <select style={{ ...inp(), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen} onBlur={blurGray}>
                         <option value="">Select gender</option>
                         {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </Field>
-
                     <Field label="Date of Birth">
                       <input style={inp()} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                     </Field>
-
                     <div style={{ gridColumn: "1 / -1" }}>
                       <Field label="National ID (NIDA)">
                         <input style={inp()} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
@@ -1690,7 +1291,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <Field label="Nationality">
                       <CountrySelect value={form.nationality} onChange={v => set("nationality", v)} />
                     </Field>
-
                     <Field label="Postal Address">
                       <input style={inp()} type="text" placeholder="e.g. P.O. Box 1234, Dar es Salaam" value={form.postal_address} onChange={e => set("postal_address", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
                     </Field>
@@ -1717,9 +1317,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                         <div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                         Saving...
                       </>
-                    ) : (
-                      <>💾 Save Changes</>
-                    )}
+                    ) : <>💾 Save Changes</>}
                   </button>
                 </div>
               </div>
