@@ -10,7 +10,7 @@ import {
   sbGetUserCDS,
   sbSwitchActiveCDS,
 } from "./lib/supabase";
-import { C, Toast } from "./components/ui";
+import { C, Toast, useTheme } from "./components/ui";
 import CompaniesPage from "./pages/CompaniesPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import LoginPage from "./pages/LoginPage";
@@ -126,6 +126,7 @@ export default function App() {
   const forceMobileDashboardOnNextLoginRef = useRef(false);
 
   const isMobile = useIsMobile();
+  const { C } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -480,7 +481,7 @@ export default function App() {
         onOpenProfile={() => { setTab("profile"); if (isMobile) setDrawerOpen(false); }}
       />
     </>
-  ), [isMobile, tab, visibleNav, counts, activeProfile, session, role, handleSignOut, now]);
+  ), [isMobile, tab, visibleNav, counts, activeProfile, session, role, handleSignOut, now, C]);
 
   const renderCdsSwitcherPopover = useCallback(() => (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.gray200}`, borderRadius: 14, minWidth: 280, maxWidth: 340, boxShadow: "0 12px 40px rgba(0,0,0,0.18)", animation: "cdsPopIn 0.18s ease", overflow: "hidden" }}>
@@ -513,7 +514,7 @@ export default function App() {
         })}
       </div>
     </div>
-  ), [cdsList, activeCdsNumber]);
+  ), [cdsList, activeCdsNumber, C]);
 
   // ── Render guards ────────────────────────────────────────────────
   if (recoveryMode) {
