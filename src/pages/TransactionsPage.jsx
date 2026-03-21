@@ -1460,21 +1460,21 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             opacity: refreshing || pullDistance > 6 ? 1 : 0,
             transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease",
             background: C.white,
-            border: `1.5px solid ${pullReady || refreshing ? C.navy : C.gray200}`,
+            border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`,
             borderRadius: 999, padding: "7px 12px",
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
             display: "flex", alignItems: "center", gap: 8,
           }}>
             <div style={{
               width: 14, height: 14, borderRadius: "50%",
-              border: `2px solid ${refreshing ? `${C.navy}33` : C.gray200}`,
-              borderTop: `2px solid ${pullReady || refreshing ? C.navy : C.gray400}`,
+              border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`,
+              borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
               animation: refreshing ? "spin 0.8s linear infinite" : "none",
               transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
               transition: "transform 0.12s ease, border-color 0.12s ease",
               flexShrink: 0,
             }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.navy : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
               {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
             </span>
           </div>
