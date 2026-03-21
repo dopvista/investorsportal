@@ -1,15 +1,15 @@
-// ── src/pages/CompaniesPage.jsx ───────────────────────────────────
+// ── src/pages/CompaniesPage.jsx ──────────────────────────────────────
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   sbInsert, sbUpdate, sbDelete,
   sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies
 } from "../lib/supabase";
 import {
-  C, fmt, fmtSmart, Btn, StatCard, SectionCard,
+  useTheme, fmt, fmtSmart, Btn, StatCard, SectionCard,
   Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu
 } from "../components/ui";
 
-// ── Mobile breakpoint hook ────────────────────────────────────────
+// ── Mobile breakpoint hook ────────────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -21,16 +21,14 @@ const useIsMobile = () => {
       t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
     };
     window.addEventListener("resize", handler, { passive: true });
-    return () => {
-      window.removeEventListener("resize", handler);
-      clearTimeout(t);
-    };
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
 
-// ── Mobile Action Sheet ───────────────────────────────────────────
+// ── Mobile Action Sheet ────────────────────────────────────────────────
 function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
+  const { C } = useTheme();
   const hasCdsPrice = company.cds_price != null;
   return (
     <>
@@ -70,8 +68,9 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
   );
 }
 
-// ── Mobile Portfolio Card ─────────────────────────────────────────
+// ── Mobile Portfolio Card ──────────────────────────────────────────────
 function PortfolioMobileCard({ company: c, onTap }) {
+  const { C } = useTheme();
   const hasCdsPrice = c.cds_price != null;
   const priceUp     = hasCdsPrice && c.cds_previous_price != null
     ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
@@ -112,8 +111,9 @@ function PortfolioMobileCard({ company: c, onTap }) {
   );
 }
 
-// ── Mobile Manage Card (SA only) ──────────────────────────────────
+// ── Mobile Manage Card (SA only) ───────────────────────────────────────
 function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
+  const { C } = useTheme();
   const actions = [
     { icon: "✏️", label: "Edit Company", onClick: () => onEdit(c) },
     { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => onDelete(c) },
@@ -132,10 +132,11 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
 // ── MAIN PAGE
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
 export default function CompaniesPage({ companies: globalCompanies, setCompanies, transactions, showToast, role, profile, manageOnly = false }) {
+  const { C } = useTheme();
   const isSA      = role === "SA";
   const cdsNumber = profile?.cds_number || null;
   const isMobile  = useIsMobile();
@@ -192,23 +193,19 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     let node = el?.parentElement;
     while (node) {
       const style = window.getComputedStyle(node);
-      const canScroll =
-        (style.overflowY === "auto" || style.overflowY === "scroll") &&
-        node.scrollHeight > node.clientHeight;
+      const canScroll = (style.overflowY === "auto" || style.overflowY === "scroll") && node.scrollHeight > node.clientHeight;
       if (canScroll) return node;
       node = node.parentElement;
     }
     return document.scrollingElement || document.documentElement;
   }, []);
 
-  // ── Data loaders ──────────────────────────────────────────────
+  // ── Data loaders ────────────────────────────────────────────────────
   const loadPortfolio = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++portfolioReqRef.current;
     if (!cdsNumber) {
       if (isMountedRef.current && reqId === portfolioReqRef.current) {
-        setPortfolio([]);
-        setPortfolioError(null);
-        setPortfolioLoading(false);
+        setPortfolio([]); setPortfolioError(null); setPortfolioLoading(false);
         if (fromPull) { setRefreshing(false); setPullDistance(0); }
       }
       return;
@@ -217,8 +214,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     try {
       const data = await sbGetPortfolio(cdsNumber);
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
-      setPortfolio(data);
-      setPortfolioError(null);
+      setPortfolio(data); setPortfolioError(null);
     } catch (e) {
       if (!isMountedRef.current || reqId !== portfolioReqRef.current) return;
       setPortfolioError(e.message || "Failed to load portfolio.");
@@ -255,7 +251,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
   useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
 
-  // ── Pull to refresh ────────────────────────────────────────────
+  // ── Pull to refresh ──────────────────────────────────────────────────
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing) return;
     if ((activeTab === "portfolio" && portfolioLoading) || (activeTab === "manage" && masterLoading)) return;
@@ -275,8 +271,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     const deltaY = e.touches[0].clientY - touchStartYRef.current;
     if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
     pullingRef.current = true;
-    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
-    setPullDistance(resisted);
+    setPullDistance(Math.min(92, Math.round(Math.pow(deltaY, 0.85))));
   }, [activeTab, getScrollParent, isMobile, masterLoading, portfolioLoading, refreshing]);
 
   const handleTouchEnd = useCallback(() => {
@@ -289,7 +284,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     else setPullDistance(0);
   }, [activeTab, isMobile, masterLoading, portfolioLoading, pullDistance, refreshing, refreshCurrentView]);
 
-  // ── Stats ─────────────────────────────────────────────────────
+  // ── Stats ────────────────────────────────────────────────────────────
   const portfolioStats = useMemo(() => {
     const priced   = portfolio.filter(c => c.cds_price != null);
     const avgPrice = priced.length ? priced.reduce((s, c) => s + Number(c.cds_price), 0) / priced.length : 0;
@@ -307,7 +302,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     registeredToday: masterList.filter(c => c.created_at?.startsWith(todayIso)).length,
   }), [masterList, todayIso]);
 
-  // ── Handlers ──────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────
   const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
     const company = updateModal.company;
     if (!company) return;
@@ -316,18 +311,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     setUpdating(company.id);
     try {
       const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
-      await sbUpsertCdsPrice({
-        companyId: company.id, companyName: company.name, cdsNumber,
-        newPrice, oldPrice, reason,
-        updatedBy: profile?.full_name || "Unknown", datetime,
-      });
+      await sbUpsertCdsPrice({ companyId: company.id, companyName: company.name, cdsNumber, newPrice, oldPrice, reason, updatedBy: profile?.full_name || "Unknown", datetime });
       if (!isMountedRef.current) return;
-      setPortfolio(prev => prev.map(c =>
-        c.id === company.id ? {
-          ...c, cds_price: newPrice, cds_previous_price: oldPrice,
-          cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt,
-        } : c
-      ));
+      setPortfolio(prev => prev.map(c => c.id === company.id ? { ...c, cds_price: newPrice, cds_previous_price: oldPrice, cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt } : c));
       showToast("Price updated for your portfolio!", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -399,7 +385,6 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const pullReady = pullDistance >= 64;
 
-  // ── Mobile keyboard suppression attrs ─────────────────────────
   const mobileInputAttrs = isMobile ? {
     autoComplete: "off", autoCorrect: "off", autoCapitalize: "off",
     spellCheck: false, "data-form-type": "other", "data-lpignore": "true",
@@ -416,7 +401,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Pull to refresh indicator ── */}
+      {/* Pull to refresh indicator */}
       {isMobile && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
           <div style={{
@@ -443,7 +428,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         </div>
       )}
 
-      {/* ── Modals — OUTSIDE the transformed div so position:fixed works correctly ── */}
+      {/* Modals — OUTSIDE transform div so position:fixed works correctly */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Company"
           message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
@@ -471,16 +456,14 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           onClose={closeActionSheet} />
       )}
 
-      {/* ── Transformed content div (pull-to-refresh) ── */}
+      {/* Transform wrapper (pull-to-refresh) */}
       <div style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
         willChange: isMobile ? "transform" : "auto",
       }}>
 
-        {/* ══════════════════════════════════════════════════════════
-            PORTFOLIO TAB
-            ══════════════════════════════════════════════════════════ */}
+        {/* ═══════════════════ PORTFOLIO TAB ══════════════════════ */}
         {activeTab === "portfolio" && (
           <>
             {isMobile ? (
@@ -504,7 +487,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search your holdings..."
                   {...mobileInputAttrs}
-                  style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: isMobile ? 13 : 14, outline: "none", fontFamily: "inherit", color: C.text, boxSizing: "border-box" }}
+                  style={{ width: "100%", border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "9px 12px 9px 36px", fontSize: isMobile ? 13 : 14, outline: "none", fontFamily: "inherit", color: C.text, background: C.white, boxSizing: "border-box" }}
                   onFocus={e => { e.target.style.borderColor = C.green; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }}
                 />
@@ -575,8 +558,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                               {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                              {hasCdsPrice
-                                ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
+                              {hasCdsPrice ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
                                 : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -588,8 +570,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                               {c.cds_previous_price != null ? <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span> : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
-                              {c.cds_updated_at
-                                ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                              {c.cds_updated_at ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px" }}>
@@ -607,9 +588,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           </>
         )}
 
-        {/* ══════════════════════════════════════════════════════════
-            MANAGE TAB (SA only)
-            ══════════════════════════════════════════════════════════ */}
+        {/* ═══════════════════ MANAGE TAB (SA only) ═══════════════ */}
         {activeTab === "manage" && isSA && (
           <>
             {isMobile ? (
