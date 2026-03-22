@@ -401,7 +401,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
       {/* FIX 1: inputMode="decimal" + autoComplete="off" suppresses the iOS/Android
           QuickType autofill bar (Key, Card, Location) on numeric fields.
           Previously type="number" alone triggered the autofill suggestion row. */}
-      {!isEdit && <FInput label="Opening Price (TZS)" required type="number" inputMode="decimal" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
+      {!isEdit && <FInput label="Opening Price (TZS)" required type="text" inputMode="decimal" autoComplete="new-password" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
       <FTextarea label="Remarks" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Optional notes..." style={{ minHeight: 72 }} />
     </ModalShell>
   );
@@ -452,14 +452,14 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
           New Price (TZS) <span style={{ color: C.red }}>*</span>
         </label>
         <input
-          type={isMobile ? "text" : "number"}
-          inputMode={isMobile ? "decimal" : undefined}
-          autoComplete={isMobile ? "off" : undefined}
-          autoCorrect={isMobile ? "off" : undefined}
-          autoCapitalize={isMobile ? "off" : undefined}
-          spellCheck={isMobile ? false : undefined}
-          data-form-type={isMobile ? "other" : undefined}
-          data-lpignore={isMobile ? "true" : undefined}
+          type="text"
+          inputMode="decimal"
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-form-type="other"
+          data-lpignore="true"
           value={newPrice}
           onChange={e => { setNewPrice(e.target.value); setError(""); }}
           placeholder="Enter new price..."
@@ -871,8 +871,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         <div>
           <FInput
             label={!isBuy && maxSellQty > 0 ? `Quantity (max ${fmtInt(maxSellQty)})` : "Quantity (Shares)"}
-            required type="number" inputMode="decimal"
-            autoComplete="off" autoCorrect="off" autoCapitalize="off"
+            required type="text" inputMode="decimal"
+            autoComplete="new-password" autoCorrect="off" autoCapitalize="off"
             spellCheck={false} data-form-type="other" data-lpignore="true"
             min="1" max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
             value={form.qty} onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
@@ -882,8 +882,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           {!isBuy && form.qty && Number(form.qty) > maxSellQty && maxSellQty > 0 && <div style={{ fontSize: 11, color: C.red, marginTop: 3 }}>⚠ Exceeds your {fmtInt(maxSellQty)} shares</div>}
         </div>
         <FInput
-          label="Price per Share (TZS)" required type="number" inputMode="decimal"
-          autoComplete="off" autoCorrect="off" autoCapitalize="off"
+          label="Price per Share (TZS)" required type="text" inputMode="decimal"
+          autoComplete="new-password" autoCorrect="off" autoCapitalize="off"
           spellCheck={false} data-form-type="other" data-lpignore="true"
           min="0.01" value={form.price}
           onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }}
