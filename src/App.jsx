@@ -417,7 +417,7 @@ export default function App() {
           <img src={logo} alt="DI" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }} />
           <div>
             <div style={{ fontSize: 17, lineHeight: 1.2, fontWeight: 800 }}>
-              <span style={{ color: C.white }}>Investors</span>{" "}
+              <span style={{ color: "#ffffff" }}>Investors</span>{" "}
               <span style={{ color: C.gold }}>Portal</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
@@ -440,14 +440,14 @@ export default function App() {
       <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
 
       <nav style={{ padding: "16px 12px", flex: 1 }}>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 12px", marginBottom: 8 }}>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 12px", marginBottom: 8 }}>
           Navigation
         </div>
         {visibleNav
           .filter((item) => !isMobile || item.id !== "system-settings")
           .map((item) => {
             const active = tab === item.id;
-            const iconColor = active ? C.white : "rgba(255,255,255,0.55)";
+            const iconColor = active ? "#ffffff" : "rgba(255,255,255,0.55)";
             const iconSw = active ? 2.4 : 1.8;
             return (
               <button
@@ -456,17 +456,17 @@ export default function App() {
                 style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 12,
                   padding: "11px 14px", borderRadius: 10, border: "none", cursor: "pointer",
-                  marginBottom: 4, background: active ? `${C.green}22` : "transparent",
+                  marginBottom: 4, background: active ? `${C.green}35` : "transparent",
                   borderLeft: `3px solid ${active ? C.green : "transparent"}`,
                   transition: "all 0.2s",
                 }}
               >
                 {NAV_ICONS[item.id]?.(iconColor, iconSw)}
-                <span style={{ color: active ? C.white : "rgba(255,255,255,0.55)", fontWeight: active ? 700 : 500, fontSize: 14, flex: 1, textAlign: "left" }}>
+                <span style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.55)", fontWeight: active ? 700 : 500, fontSize: 14, flex: 1, textAlign: "left" }}>
                   {item.label}
                 </span>
                 {counts[item.id] !== undefined && (
-                  <span style={{ background: active ? C.green : "rgba(255,255,255,0.1)", color: active ? C.white : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
+                  <span style={{ background: active ? C.green : "rgba(255,255,255,0.1)", color: active ? "#ffffff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
                     {counts[item.id]}
                   </span>
                 )}
@@ -504,7 +504,7 @@ export default function App() {
               ) : (
                 <button
                   onClick={() => { setSwitchTarget(c); setShowCdsSwitcher(false); }}
-                  style={{ fontSize: 11, fontWeight: 700, background: C.navy, color: C.white, border: "none", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, transition: "opacity 0.15s" }}
+                  style={{ fontSize: 11, fontWeight: 700, background: C.navy, color: "#ffffff", border: "1.5px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, transition: "opacity 0.15s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                 >Switch</button>
@@ -641,7 +641,7 @@ export default function App() {
                 <div style={{ width: 22, height: 22, borderRadius: 6, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>🔒</div>
                 <div>
                   <div style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>CDS</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.white, letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#ffffff", letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>
                 </div>
                 {cdsList.length > 1 && (
                   <span style={{ fontSize: 10, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", marginLeft: 2, lineHeight: 1 }}>▾</span>
