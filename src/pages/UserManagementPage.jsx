@@ -9,14 +9,22 @@ import {
 import { useTheme } from "../components/ui";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
+// FIX A: added 80ms debounce — consistent with every other page in
+// the app (CompaniesPage, TransactionsPage, DashboardPage, etc.).
+// Without debounce every resize pixel fires a setState, causing
+// unnecessary re-renders of the entire page tree.
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => {
+      clearTimeout(t);
+      t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
+    };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -32,8 +40,6 @@ const ROLE_META = {
 const AVATAR_COLORS = ["#0A2540","#1E3A5F","#1D4ED8","#065F46","#374151","#7C3AED","#B45309","#0369A1"];
 const GRID = "28px 1.5fr 0.9fr 0.8fr 0.8fr 1.1fr 1.3fr 90px 145px";
 
-// ── inp(C, extra) — theme-reactive input base style ───────────────
-// Must receive live C from useTheme(); do NOT call at module level.
 function inp(C, extra = {}) {
   return {
     width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
@@ -43,11 +49,9 @@ function inp(C, extra = {}) {
   };
 }
 
-// ── Focus/blur factory — returns event handlers bound to live C ────
 const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
 
-// ── Mobile keyboard accessory bar suppression attrs ───────────────
 const MOBILE_INPUT_ATTRS = {
   autoComplete: "off",
   autoCorrect: "off",
@@ -71,7 +75,6 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
         style={{
           background: C.white,
           borderRadius: isMobile ? "16px 16px 0 0" : 20,
-          // ── Consistent border matching CDS accounts popup style ──
           border: `1.5px solid ${C.gray200}`,
           borderBottom: isMobile ? "none" : undefined,
           width: "100%",
@@ -227,7 +230,6 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
     }
   }, [createForm, handleSelect]);
 
-  // Theme-aware "create new" panel colors
   const createPanelBg  = isDark ? `${C.gold}18` : "#fffbeb";
   const createPanelBdr = isDark ? `${C.gold}55` : `${C.gold}40`;
   const createTitleCol = isDark ? C.gold : "#92400e";
@@ -486,9 +488,7 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
                         <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
                         <div style={{ fontSize:11, color:C.gray400 }}>{c.cds_name||"—"}</div>
                       </div>
-                      {/* "Active" badge — theme-aware tint */}
                       {c.is_active && <span style={{ fontSize:10, fontWeight:700, background:C.greenBg, color:C.green, border:`1px solid ${isDark ? `${C.green}40` : `${C.green}25`}`, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap", flexShrink:0 }}>Active</span>}
-                      {/* Remove button — theme-aware */}
                       <button onClick={() => handleRemove(c)} style={{ fontSize:11, fontWeight:600, background:C.redBg, color:C.red, border:"none", borderRadius:7, padding:"4px 10px", cursor:"pointer", fontFamily:"inherit", flexShrink:0 }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>Remove</button>
                     </div>
                   ))}
@@ -584,14 +584,12 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
           </div>
         ) : (
           <div>
-            {/* Warning box — theme-aware */}
             <div style={{ padding:"10px 14px", borderRadius:9, background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#fecaca"}`, marginBottom:14, fontSize:13, color:C.red }}>
               ⚠️ <strong>{affectedUsers.length} user{affectedUsers.length>1?"s":""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
             </div>
             <div style={{ maxHeight:140, overflowY:"auto", marginBottom:14, border:`1px solid ${C.gray200}`, borderRadius:9, overflow:"hidden" }}>
               {affectedUsers.map((u,i) => (
                 <div key={u.user_id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:i%2?C.gray50:C.white, borderBottom:i<affectedUsers.length-1?`1px solid ${C.gray100}`:"none" }}>
-                  {/* Avatar bg — theme-aware, navy text readable in both themes */}
                   <div style={{ width:24, height:24, borderRadius:6, background:C.gray100, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:C.text, flexShrink:0 }}>{(u.full_name||"?")[0]?.toUpperCase()}</div>
                   <div style={{ flex:1, fontSize:12, fontWeight:600, color:C.text }}>{u.full_name||"—"}</div>
                   <span style={{ fontSize:10, fontWeight:700, color:C.gray400 }}>{u.role_code||"—"}</span>
@@ -710,11 +708,11 @@ const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onCon
 const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList, onClose, onSuccess, showToast }) {
   const { C, isDark } = useTheme();
   const isAD = callerRole === "AD";
-  const [form, setForm]                   = useState({ email:"", password:"", role_id:"" });
-  const [selectedCds, setSelectedCds]     = useState(isAD && callerCdsList?.length === 1 ? callerCdsList[0] : null);
+  const [form, setForm]                         = useState({ email:"", password:"", role_id:"" });
+  const [selectedCds, setSelectedCds]           = useState(isAD && callerCdsList?.length === 1 ? callerCdsList[0] : null);
   const [selectedCdsMulti, setSelectedCdsMulti] = useState([]);
-  const [saving, setSaving]               = useState(false);
-  const [error, setError]                 = useState("");
+  const [saving, setSaving]                     = useState(false);
+  const [error, setError]                       = useState("");
 
   const allowedRoles = useMemo(() => (isAD ? roles.filter(r => r.code !== "SA") : roles), [isAD, roles]);
 
@@ -736,34 +734,71 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
     if (!form.email.trim()) return setError("Email is required");
     if (!form.password.trim()) return setError("Temporary password is required.");
     const pwErrors = [];
-    if (form.password.length < 8)          pwErrors.push("at least 8 characters");
-    if (!/[A-Z]/.test(form.password))      pwErrors.push("one uppercase letter");
-    if (!/[a-z]/.test(form.password))      pwErrors.push("one lowercase letter");
-    if (!/[0-9]/.test(form.password))      pwErrors.push("one number");
+    if (form.password.length < 8)            pwErrors.push("at least 8 characters");
+    if (!/[A-Z]/.test(form.password))        pwErrors.push("one uppercase letter");
+    if (!/[a-z]/.test(form.password))        pwErrors.push("one lowercase letter");
+    if (!/[0-9]/.test(form.password))        pwErrors.push("one number");
     if (!/[^A-Za-z0-9]/.test(form.password)) pwErrors.push("one special character");
     if (pwErrors.length > 0) return setError("Password must contain: " + pwErrors.join(", ") + ".");
     const adMultiMode = isAD && (callerCdsList?.length ?? 0) > 1;
     const cdsReady = adMultiMode ? selectedCdsMulti.length > 0 : !!selectedCds;
     if (!cdsReady) return setError("Please select at least one CDS account");
     if (!form.role_id) return setError("Please select a role");
+
     setSaving(true);
     try {
       const primaryCds = adMultiMode ? selectedCdsMulti[0] : selectedCds;
       const result = await sbAdminCreateUser(form.email, form.password, primaryCds.cds_number);
       const uid = result?.user?.id || result?.id;
-      if (uid) {
+
+      if (!uid) throw new Error("User created but no ID returned — contact support.");
+
+      // FIX D: separate account creation from role/CDS assignment.
+      // If sbAdminCreateUser succeeds but sbAssignRole or sbAssignCDS
+      // throws, the previous code re-threw into the outer catch, showed
+      // an error, and let the user retry — which called sbAdminCreateUser
+      // AGAIN, creating a duplicate account. Now we catch role/CDS
+      // failures independently: the new account is always surfaced in
+      // the table via onSuccess(), and a specific toast explains what
+      // still needs to be done manually.
+      let roleAssigned = false;
+      let cdsFailCount = 0;
+
+      try {
         await sbAssignRole(uid, parseInt(form.role_id, 10));
+        roleAssigned = true;
+      } catch (roleErr) {
+        // Role failed — account exists, surface it in the table
+        showToast(
+          `User account created but role assignment failed: ${roleErr.message}. Find the user and set their role manually.`,
+          "error"
+        );
+        onSuccess();
+        onClose();
+        return;
+      }
+
+      if (roleAssigned) {
         const cdsToAssign = adMultiMode ? selectedCdsMulti : [selectedCds];
-        let cdsFailCount = 0;
         for (const cds of cdsToAssign) {
           const cdsId = cds.id || cds.cds_id;
           if (cdsId) { try { await sbAssignCDS(uid, cdsId); } catch { cdsFailCount++; } }
         }
-        if (cdsFailCount > 0) showToast(`User created, but ${cdsFailCount} CDS assignment${cdsFailCount>1?"s":""} failed. Check CDS tab.`, "error");
-        else showToast("User created successfully!", "success");
+        if (cdsFailCount > 0) {
+          showToast(
+            `User created, but ${cdsFailCount} CDS assignment${cdsFailCount > 1 ? "s" : ""} failed. Use "Manage CDS" on the user to fix.`,
+            "error"
+          );
+        } else {
+          showToast("User created successfully!", "success");
+        }
       }
-      onSuccess(); onClose();
+
+      onSuccess();
+      onClose();
     } catch(err) {
+      // Only sbAdminCreateUser failures land here — safe to show error
+      // and let user retry (no duplicate account risk).
       setError(err.message);
     } finally {
       setSaving(false);
@@ -802,7 +837,6 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
               <span key={c.label} style={{
                 flex:"1 1 0", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                 textAlign:"center", fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:999,
-                // Theme-aware password strength badges
                 background: c.ok ? (isDark ? `${C.green}22` : "#dcfce7") : (isDark ? `${C.red}22` : "#fee2e2"),
                 color:       c.ok ? (isDark ? C.green : "#166534")        : (isDark ? C.red  : "#991b1b"),
                 border:     `1px solid ${c.ok ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`,
@@ -872,7 +906,6 @@ const StatCard = memo(function StatCard({ label, value, color, icon }) {
 // ── Mobile User Card ──────────────────────────────────────────────
 const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onManageCDS, onToggleStatus }) {
   const { C, isDark } = useTheme();
-  // Theme-aware inactive border
   const inactiveBorder = isDark ? `${C.red}55` : "#fecaca";
   return (
     <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:12, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", opacity:user.is_active?1:0.75 }}>
@@ -883,7 +916,6 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
             {user.full_name || "New User"}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-            {/* Theme-aware Active/Inactive badge */}
             <span style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`, color:user.is_active ? C.green : C.red }}>
               {user.is_active ? "Active" : "Inactive"}
             </span>
@@ -939,17 +971,22 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
 export default function UserManagementPage({ role, showToast, profile }) {
   const { C, isDark } = useTheme();
 
-  // ── Theme-reactive style constants (computed after useTheme) ────
-  const SEARCH_INPUT_STYLE = inp(C, { paddingLeft: 28 });
-  const SELECT_STYLE       = { ...inp(C), width: "auto", cursor: "pointer" };
-  const INVITE_BTN_STYLE   = {
+  // FIX C: memoize style objects that depend on C — previously recreated
+  // as fresh object literals on every render. useMemo([C]) ensures they
+  // only rebuild when the theme changes (light ↔ dark switch).
+  const SEARCH_INPUT_STYLE = useMemo(() => inp(C, { paddingLeft: 28 }), [C]);
+  const SELECT_STYLE       = useMemo(() => ({ ...inp(C), width: "auto", cursor: "pointer" }), [C]);
+  const INVITE_BTN_STYLE   = useMemo(() => ({
     display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
     borderRadius: 9, border: "none", background: C.green, color: "#ffffff",
     fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
     boxShadow: `0 2px 10px ${C.green}44`, whiteSpace: "nowrap",
-  };
-  // Navy gradient table header — matches TransactionsPage/CompaniesPage
-  const theadBg = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+  }), [C]);
+
+  const theadBg = useMemo(
+    () => isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`,
+    [isDark, C]
+  );
 
   const [users, setUsers]                   = useState([]);
   const [roles, setRoles]                   = useState([]);
@@ -972,6 +1009,9 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const isMobile     = useIsMobile();
   const isMountedRef = useRef(true);
   const loadReqRef   = useRef(0);
+  // FIX E: request ID guard for loadCallerCds — consistent with every
+  // other data-loading function in the app.
+  const cdsLoadRef   = useRef(0);
   const isAllowed    = ["SA","AD"].includes(role);
 
   const rootRef        = useRef(null);
@@ -1013,25 +1053,35 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   const loadCallerCds = useCallback(async () => {
     if (!isAllowed || !profile?.id) return;
+    // FIX E: stamp the request so a superseded call (e.g. profile.id
+    // changes during a CDS switch) cannot overwrite fresh scope data.
+    const reqId = ++cdsLoadRef.current;
     try {
       const list = await sbGetUserCDS(profile.id);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || reqId !== cdsLoadRef.current) return;
       setCallerCdsList(list || []);
       if (role === "AD") {
         if (!list || list.length === 0) {
           setAdScopeUserIds(new Set());
         } else {
           const results = await Promise.all(list.map(c => sbGetCDSAssignedUsers(c.cds_id).catch(() => [])));
-          if (!isMountedRef.current) return;
+          if (!isMountedRef.current || reqId !== cdsLoadRef.current) return;
           setAdScopeUserIds(new Set(results.flat().map(u => String(u.user_id))));
         }
       } else {
         setAdScopeUserIds(null);
       }
     } catch {
+      if (!isMountedRef.current || reqId !== cdsLoadRef.current) return;
+      // FIX B: always mark scope as ready even on failure — previously
+      // adScopeReady stayed false permanently if this threw, leaving AD
+      // users with a blank table and no error message and no way to
+      // recover without refreshing the whole page.
       if (role === "AD") setAdScopeUserIds(new Set());
     } finally {
-      if (isMountedRef.current) setAdScopeReady(true);
+      // FIX B: set adScopeReady in finally so it runs regardless of
+      // success or failure, and respects the request ID guard.
+      if (isMountedRef.current && reqId === cdsLoadRef.current) setAdScopeReady(true);
     }
   }, [isAllowed, profile?.id, role]);
 
@@ -1271,7 +1321,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
             <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0 }}>
               <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-                {/* Table header — navy gradient matching TransactionsPage/CompaniesPage */}
                 <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"8px 14px", minWidth:940, borderBottom:`2px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
                   {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
                     <div key={i} style={{ fontSize:9, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
@@ -1295,7 +1344,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                         <div style={{ minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                             <span style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.full_name||"New User"}</span>
-                            {/* Theme-aware Active/Inactive badge */}
                             <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, flexShrink:0, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`, color:user.is_active ? C.green : C.red }}>{user.is_active?"Active":"Inactive"}</span>
                           </div>
                         </div>
@@ -1307,7 +1355,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                       <div style={{ fontSize:11, color:C.gray400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email||"—"}</div>
                       <div style={{ fontSize:10, color:C.gray400 }}>{user.assigned_at?new Date(user.assigned_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}):"—"}</div>
                       <div style={{ display:"flex", gap:4 }}>
-                        {/* ✏️ Role */}
                         <button onClick={() => setChangeRoleUser(user)}
                           style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;e.currentTarget.style.background=`${C.green}10`;}}
@@ -1315,7 +1362,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                           <span style={{ fontSize:13 }}>✏️</span>
                           <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>Role</span>
                         </button>
-                        {/* 🏦 CDS */}
                         <button onClick={() => setManageCdsUser(user)}
                           style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                           onMouseEnter={e=>{e.currentTarget.style.background=C.navy;e.currentTarget.style.color="#ffffff";e.currentTarget.style.borderColor=C.navy;}}
@@ -1323,7 +1369,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                           <span style={{ fontSize:13 }}>🏦</span>
                           <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>CDS</span>
                         </button>
-                        {/* 🚫/✅ Toggle */}
                         {user.role_code && (
                           <button onClick={() => setToggleUser(user)}
                             style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
