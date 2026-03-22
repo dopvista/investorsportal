@@ -690,7 +690,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
           <>
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
               <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-                <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>🖼️ Login Page</div>
+                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🖼️ Login Page</div>
                 <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 500 }}>Customize the slideshow shown on the login screen</div>
               </div>
             </div>
