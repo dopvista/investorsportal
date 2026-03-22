@@ -26,6 +26,20 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// ── Amber "no price" badge helper — theme-aware ───────────────────────
+// Light: warm amber tint (#FEF3C7 bg, #FDE68A border, #D97706 text).
+// Dark:  alpha-keyed tints so they sit on dark card surfaces without
+//        glowing or washing out.
+const amberBadgeStyle = (isDark) => ({
+  background: isDark ? "#D9770622" : "#FEF3C7",
+  color:      "#D97706",
+  border:     `1px solid ${isDark ? "#D9770655" : "#FDE68A"}`,
+  padding:    "4px 10px",
+  borderRadius: 20,
+  fontSize:   11,
+  fontWeight: 700,
+});
+
 // ── Mobile Action Sheet ────────────────────────────────────────────────
 function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
   const { C } = useTheme();
@@ -36,7 +50,7 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" }}>
         <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
 
-        {/* Header — matches Price History / Update Price style */}
+        {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", marginBottom: 3 }}>{company.name}</div>
@@ -47,7 +61,7 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
               {hasCdsPrice
                 ? <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.cds_price)}</div>
-                : <div style={{ fontSize: 13, color: C.gold, fontWeight: 700 }}>No price set</div>}
+                : <div style={{ fontSize: 13, color: "#F0B429", fontWeight: 700 }}>No price set</div>}
             </div>
             <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
           </div>
@@ -73,9 +87,9 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
           </button>
         </div>
 
-        {/* Cancel button */}
+        {/* Cancel */}
         <div style={{ padding: "0 16px 12px" }}>
-          <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray400}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         </div>
       </div>
     </>
@@ -84,13 +98,15 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
 
 // ── Mobile Portfolio Card ──────────────────────────────────────────────
 function PortfolioMobileCard({ company: c, onTap }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const hasCdsPrice = c.cds_price != null;
   const priceUp     = hasCdsPrice && c.cds_previous_price != null
     ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
   const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
     ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
-  const accentColor = !hasCdsPrice ? C.gold : priceUp === false ? C.red : C.green;
+  const accentColor = !hasCdsPrice ? "#D97706" : priceUp === false ? C.red : C.green;
+  // Theme-aware change badge borders
+  const changeBdr = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
 
   return (
     <div onClick={() => onTap(c)} style={{
@@ -111,13 +127,13 @@ function PortfolioMobileCard({ company: c, onTap }) {
           <>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 3 }}>{fmt(c.cds_price)}</div>
             {changePct !== null
-              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, border: `1px solid ${priceUp ? C.green : C.red}40`, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, border: `1px solid ${changeBdr}`, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                   {priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
                 </span>
               : <span style={{ fontSize: 10, color: C.gray400 }}>No prev.</span>}
           </>
         ) : (
-          <span style={{ background: `${C.gold}20`, color: C.gold, border: `1px solid ${C.gold}40`, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>
+          <span style={amberBadgeStyle(isDark)}>💰 Set price</span>
         )}
       </div>
       <div style={{ color: C.gray400, fontSize: 16, flexShrink: 0 }}>›</div>
@@ -134,7 +150,8 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   ];
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.navy}0f`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
+      {/* Icon bg uses C.gray100 — theme-aware, replaces C.navy + "0f" which was near-invisible in dark */}
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
         <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
@@ -150,7 +167,7 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
 // ── MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════
 export default function CompaniesPage({ companies: globalCompanies, setCompanies, transactions, showToast, role, profile, manageOnly = false }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const isSA      = role === "SA";
   const cdsNumber = profile?.cds_number || null;
   const isMobile  = useIsMobile();
@@ -399,6 +416,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const pullReady = pullDistance >= 64;
 
+  // Shared table header style — navy gradient in light, C.gray50 in dark
+  // Matches TransactionsPage thead pattern exactly
+  const theadBg = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+
   const mobileInputAttrs = isMobile ? {
     autoComplete: "off", autoCorrect: "off", autoCapitalize: "off",
     spellCheck: false, "data-form-type": "other", "data-lpignore": "true",
@@ -442,7 +463,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         </div>
       )}
 
-      {/* Modals — OUTSIDE transform div so position:fixed works correctly */}
+      {/* Modals */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Company"
           message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
@@ -470,7 +491,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           onClose={closeActionSheet} />
       )}
 
-      {/* Transform wrapper (pull-to-refresh) */}
+      {/* Transform wrapper */}
       <div style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
@@ -546,9 +567,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                     <thead>
-                      <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
+                      <tr style={{ background: theadBg }}>
                         {["#", "Company", "New Price (TZS)", "Change", "Previous Price (TZS)", "Last Updated", "Updated By", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price (TZS)" || h === "Change" || h === "Previous Price (TZS)" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price (TZS)" || h === "Change" || h === "Previous Price (TZS)" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -558,37 +579,52 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         const priceUp     = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
                         const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
                           ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
+                        // Theme-aware row bg for unpriced rows — amber tint in light, subtle in dark
+                        const rowBg      = !hasCdsPrice ? (isDark ? "#D9770610" : "#FFFBEB") : "transparent";
+                        const rowBgHover = !hasCdsPrice ? (isDark ? "#D9770620" : "#FFF8DC") : C.gray50;
+                        // Theme-aware change badge border
+                        const changeBdr  = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
                         const portfolioActions = [
                           { icon: "💰", label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price", onClick: () => setUpdateModal({ open: true, company: c }) },
                           { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => viewHistory(c) },
                         ];
                         return (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? C.gray50 : i % 2 ? C.gray50 : "transparent" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = C.gray100; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? C.gray50 : i % 2 ? C.gray50 : "transparent"; }}>
+                          <tr key={c.id}
+                            style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: rowBg }}
+                            onMouseEnter={e => { e.currentTarget.style.background = rowBgHover; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
                             <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
                             <td style={{ padding: "10px 16px", minWidth: 140 }}>
                               <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
                               {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                              {hasCdsPrice ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
-                                : <span style={{ background: `${C.gold}20`, color: C.gold, border: `1px solid ${C.gold}40`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
+                              {hasCdsPrice
+                                ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
+                                : <span style={amberBadgeStyle(isDark)}>💰 Set price</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                               {priceUp !== null && changePct !== null
-                                ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? C.green : C.red}40` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
+                                ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${changeBdr}` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                               {c.cds_previous_price != null ? <span style={{ color: C.gray500, fontSize: 13 }}>{fmt(c.cds_previous_price)}</span> : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
-                              {c.cds_updated_at ? <span style={{ fontSize: 12, color: C.gray600 }}>{new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}<span style={{ color: C.gray400, margin: "0 5px" }}>|</span>{new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                              {c.cds_updated_at
+                                ? <span style={{ fontSize: 12, color: C.gray600 }}>
+                                    {new Date(c.cds_updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                                    <span style={{ color: C.gray400, margin: "0 5px" }}>|</span>
+                                    {new Date(c.cds_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                                  </span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px" }}>
-                              {c.cds_updated_by ? <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span> : <span style={{ color: C.gray400 }}>—</span>}
+                              {/* "Updated by" badge — matches TransactionsPage broker badge style */}
+                              {c.cds_updated_by
+                                ? <span style={{ fontSize: 11, fontWeight: 600, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span>
+                                : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right" }}><ActionMenu actions={portfolioActions} /></td>
                           </tr>
@@ -611,7 +647,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   <StatCard label="Total Companies"  value={manageStats.total}           sub="In master registry" icon="🏢" color={C.navy}  />
                   <StatCard label="Registered Today" value={manageStats.registeredToday} sub="Added today"        icon="✅" color={C.green} />
                 </div>
-                <button onClick={openNewCompanyModal} style={{ width: "100%", height: 42, borderRadius: 9, border: "none", background: C.navy, color: C.white, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={openNewCompanyModal} style={{ width: "100%", height: 42, borderRadius: 9, border: "none", background: C.navy, color: "#ffffff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
                   + Register New Company
                 </button>
               </div>
@@ -646,9 +682,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                     <thead>
-                      <tr style={{ background: `linear-gradient(135deg, ${C.navy}08, ${C.navy}04)` }}>
+                      <tr style={{ background: theadBg }}>
                         {["#", "Company Name", "Remarks", "Registered", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "10px 18px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding: "10px 18px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -659,9 +695,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                           { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                         ];
                         return (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: i % 2 ? C.gray50 : "transparent" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = C.gray100; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = i % 2 ? C.gray50 : "transparent"; }}>
+                          <tr key={c.id}
+                            style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
                             <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
                             <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
                             <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
