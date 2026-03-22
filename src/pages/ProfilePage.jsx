@@ -412,6 +412,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const completion      = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
   const completionColor = completion >= 80 ? C.green : completion >= 50 ? "#f59e0b" : C.red;
   const roleMeta        = ROLE_META[role] || { label: role || "User", color: C.gray400 };
+  // Dark-mode readable text colors — same palette as UserManagementPage's darkText variants.
+  // roleColor values (e.g. #0A2540 for SA) are too dark to read on dark card surfaces.
+  const ROLE_DARK_TEXT = { SA: "#7EB3FF", AD: "#8BBFE8", DE: "#93C5FD", VR: "#6EE7B7", RO: "#D1D5DB" };
+  const roleColor = isDark ? (ROLE_DARK_TEXT[role] || C.gray400) : roleMeta.color;
   const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   const lastSaved = profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
@@ -662,9 +666,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 <div style={{ fontWeight: 800, fontSize: 18, color: C.text, lineHeight: 1.2, marginBottom: 3 }}>{form.full_name || "Your Name"}</div>
                 <div style={{ fontSize: 12, color: C.gray400, marginBottom: 10, fontWeight: 500 }}>{email}</div>
                 <div style={{ marginBottom: 12 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}30`, borderRadius: 20, padding: "3px 11px" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: roleColor + "15", border: `1px solid ${roleColor}30`, borderRadius: 20, padding: "3px 11px" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: roleColor, display: "inline-block" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: roleColor }}>{roleMeta.label}</span>
                   </span>
                 </div>
                 {renderCdsAccordion(false)}
@@ -804,9 +808,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <div style={{ fontWeight: 800, fontSize: 14, color: C.text, lineHeight: 1.2 }}>{form.full_name || "Your Name"}</div>
                     <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, marginBottom: 6, fontWeight: 500 }}>{email}</div>
                     <div style={{ marginBottom: 6 }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleMeta.color + "15", border: `1px solid ${roleMeta.color}25`, borderRadius: 20, padding: "2px 8px" }}>
-                        <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleMeta.color, display: "inline-block" }} />
-                        <span style={{ fontSize: 10, fontWeight: 700, color: roleMeta.color }}>{roleMeta.label}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: roleColor + "15", border: `1px solid ${roleColor}25`, borderRadius: 20, padding: "2px 8px" }}>
+                        <span style={{ width: 4, height: 4, borderRadius: "50%", background: roleColor, display: "inline-block" }} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: roleColor }}>{roleMeta.label}</span>
                       </span>
                     </div>
                     {renderCdsAccordion(true)}
