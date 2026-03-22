@@ -696,7 +696,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "18px 20px", flexShrink: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gray300 : C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gold : C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>2s</span>
                 <input type="range" min="2000" max="10000" step="500" value={settings.interval} className="speed-slider"
