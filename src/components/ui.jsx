@@ -302,16 +302,16 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
     >
       <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, width: "100%", maxWidth: isMobile ? "100%" : maxWidth, display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxHeight: isMobile ? "92vh" : (maxHeight || undefined) }}>
-        {/* Header */}
-        <div style={{ padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+        {/* Header — navy gradient, consistent with ActionSheet */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: C.gray400, marginTop: 3 }}>{subtitle}</div>}
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>{subtitle}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
             {!lockBackdrop && (
-              <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: C.gray600, flexShrink: 0 }}>✕</button>
+              <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
             )}
           </div>
         </div>
@@ -428,8 +428,8 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
       subtitle="💰 Update share price"
       headerRight={
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: C.navy }}>TZS {fmt(company.price)}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div>
         </div>
       }
       onClose={onClose}
@@ -540,7 +540,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
       subtitle="📈 Price history"
       headerRight={
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
           <div style={{ fontSize: isMobile ? 16 : 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.price)}</div>
         </div>
       }
