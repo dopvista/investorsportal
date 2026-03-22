@@ -26,10 +26,7 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── Amber "no price" badge helper — theme-aware ───────────────────────
-// Light: warm amber tint (#FEF3C7 bg, #FDE68A border, #D97706 text).
-// Dark:  alpha-keyed tints so they sit on dark card surfaces without
-//        glowing or washing out.
+// ── Amber "no price" badge helper ────────────────────────────────────
 const amberBadgeStyle = (isDark) => ({
   background: isDark ? "#D9770622" : "#FEF3C7",
   color:      "#D97706",
@@ -49,8 +46,6 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", border: `1.5px solid ${C.gray200}`, borderBottom: "none", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" }}>
         <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-
-        {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", marginBottom: 3 }}>{company.name}</div>
@@ -66,8 +61,6 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
             <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
           </div>
         </div>
-
-        {/* Action Buttons */}
         <div style={{ padding: "14px 16px 8px", display: "flex", flexDirection: "column", gap: 9 }}>
           <button onClick={() => { onClose(); onUpdatePrice(company); }}
             style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.green}44`, background: C.greenBg, color: C.green, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
@@ -86,8 +79,6 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
             </div>
           </button>
         </div>
-
-        {/* Cancel */}
         <div style={{ padding: "0 16px 12px" }}>
           <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         </div>
@@ -97,7 +88,9 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
 }
 
 // ── Mobile Portfolio Card ──────────────────────────────────────────────
-function PortfolioMobileCard({ company: c, onTap }) {
+// FIX 3: receives isBusy prop — suppresses tap while a price update or
+// history fetch is in progress for this specific company.
+function PortfolioMobileCard({ company: c, onTap, isBusy }) {
   const { C, isDark } = useTheme();
   const hasCdsPrice = c.cds_price != null;
   const priceUp     = hasCdsPrice && c.cds_previous_price != null
@@ -105,15 +98,19 @@ function PortfolioMobileCard({ company: c, onTap }) {
   const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
     ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
   const accentColor = !hasCdsPrice ? "#D97706" : priceUp === false ? C.red : C.green;
-  // Theme-aware change badge borders
-  const changeBdr = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
+  const changeBdr   = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
 
   return (
-    <div onClick={() => onTap(c)} style={{
-      background: C.white, border: `1px solid ${C.gray200}`, borderLeft: `4px solid ${accentColor}`,
-      borderRadius: 12, padding: "13px 14px", marginBottom: 9, cursor: "pointer",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 12,
-    }}>
+    <div
+      onClick={() => !isBusy && onTap(c)}
+      style={{
+        background: C.white, border: `1px solid ${C.gray200}`, borderLeft: `4px solid ${accentColor}`,
+        borderRadius: 12, padding: "13px 14px", marginBottom: 9,
+        cursor: isBusy ? "not-allowed" : "pointer",
+        opacity: isBusy ? 0.6 : 1,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 12,
+        transition: "opacity 0.15s",
+      }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
         <div style={{ fontSize: 11, color: C.gray400 }}>
@@ -150,7 +147,6 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   ];
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      {/* Icon bg uses C.gray100 — theme-aware, replaces C.navy + "0f" which was near-invisible in dark */}
       <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
@@ -279,8 +275,27 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     else await loadPortfolio({ fromPull });
   }, [activeTab, isSA, loadMasterList, loadPortfolio]);
 
-  useEffect(() => { loadPortfolio(); }, [loadPortfolio]);
-  useEffect(() => { if (!isSA || activeTab !== "manage") return; loadMasterList(); }, [isSA, activeTab, loadMasterList]);
+  // FIX 4: Single boot effect fires both loads in parallel for SA users.
+  // Previously two separate useEffects triggered sequential render cycles.
+  // Portfolio always loads (needed for the default tab).
+  // Master list loads in parallel only when the user is SA — they will
+  // land on portfolio tab but having the master list pre-fetched means
+  // switching to the manage tab is instant.
+  useEffect(() => {
+    const loads = [loadPortfolio()];
+    if (isSA) loads.push(loadMasterList());
+    Promise.all(loads);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount
+
+  // Keep manage tab fresh on subsequent tab switches (not on first mount —
+  // the boot effect above already handles the initial SA load).
+  const prevTabRef = useRef(null);
+  useEffect(() => {
+    if (prevTabRef.current === null) { prevTabRef.current = activeTab; return; }
+    if (activeTab === "manage" && isSA) loadMasterList();
+    prevTabRef.current = activeTab;
+  }, [activeTab, isSA, loadMasterList]);
 
   // ── Pull to refresh ──────────────────────────────────────────────────
   const handleTouchStart = useCallback((e) => {
@@ -334,6 +349,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   }), [masterList, todayIso]);
 
   // ── Handlers ─────────────────────────────────────────────────────────
+
+  // FIX 2: confirmUpdatePrice — use the return value from sbUpsertCdsPrice
+  // to update cds_price_id and cds_price_created_by_id in state.
+  // Previously the optimistic update set cds_price/cds_previous_price/
+  // cds_updated_by/cds_updated_at correctly but left cds_price_id and
+  // cds_price_created_by_id pointing at the old values. These IDs are used
+  // by the detail/history modals and by the next upsert conflict resolution.
   const confirmUpdatePrice = useCallback(async ({ newPrice, datetime, reason }) => {
     const company = updateModal.company;
     if (!company) return;
@@ -342,9 +364,30 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     setUpdating(company.id);
     try {
       const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
-      await sbUpsertCdsPrice({ companyId: company.id, companyName: company.name, cdsNumber, newPrice, oldPrice, reason, updatedBy: profile?.full_name || "Unknown", datetime });
+      // sbUpsertCdsPrice returns the upserted cds_prices row:
+      // { id, company_id, cds_number, price, previous_price, updated_by, updated_at, created_by_id }
+      const upsertedRow = await sbUpsertCdsPrice({
+        companyId: company.id, companyName: company.name, cdsNumber,
+        newPrice, oldPrice, reason,
+        updatedBy: profile?.full_name || "Unknown", datetime,
+      });
       if (!isMountedRef.current) return;
-      setPortfolio(prev => prev.map(c => c.id === company.id ? { ...c, cds_price: newPrice, cds_previous_price: oldPrice, cds_updated_by: profile?.full_name, cds_updated_at: resolvedUpdatedAt } : c));
+
+      // Update state with all fields — including cds_price_id and
+      // cds_price_created_by_id from the actual DB response.
+      setPortfolio(prev => prev.map(c => {
+        if (c.id !== company.id) return c;
+        return {
+          ...c,
+          cds_price:               newPrice,
+          cds_previous_price:      oldPrice,
+          cds_updated_by:          profile?.full_name || "Unknown",
+          cds_updated_at:          upsertedRow?.updated_at || resolvedUpdatedAt,
+          // FIX: these two were previously left stale after every price update
+          cds_price_id:            upsertedRow?.id            ?? c.cds_price_id,
+          cds_price_created_by_id: upsertedRow?.created_by_id ?? c.cds_price_created_by_id,
+        };
+      }));
       showToast("Price updated for your portfolio!", "success");
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -354,7 +397,12 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     }
   }, [updateModal.company, cdsNumber, profile?.full_name, showToast]);
 
+  // FIX 1: viewHistory — guard against concurrent requests for the same company.
+  // loadingHistory is already set before the request so a second tap on the
+  // same company while loading is in progress is no-ops immediately.
   const viewHistory = useCallback(async (company) => {
+    // Guard: don't fire a second request for the same company
+    if (loadingHistory === company.id) return;
     setLoadingHistory(company.id);
     try {
       const history = await sbGetCdsPriceHistory(company.id, cdsNumber);
@@ -366,7 +414,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     } finally {
       if (isMountedRef.current) setLoadingHistory(null);
     }
-  }, [cdsNumber, showToast]);
+  }, [cdsNumber, loadingHistory, showToast]);
 
   const handleFormConfirm = useCallback(async ({ name, price, remarks }) => {
     const editingCompany = formModal.company;
@@ -414,11 +462,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     </div>
   );
 
-  const pullReady = pullDistance >= 64;
-
-  // Shared table header style — navy gradient in light, C.gray50 in dark
-  // Matches TransactionsPage thead pattern exactly
-  const theadBg = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+  const pullReady  = pullDistance >= 64;
+  const theadBg    = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
 
   const mobileInputAttrs = isMobile ? {
     autoComplete: "off", autoCorrect: "off", autoCapitalize: "off",
@@ -560,7 +605,14 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               ) : isMobile ? (
                 <div style={{ padding: "8px 12px" }}>
                   {filteredPortfolio.map(c => (
-                    <PortfolioMobileCard key={c.id} company={c} onTap={setActionSheetCompany} />
+                    <PortfolioMobileCard
+                      key={c.id}
+                      company={c}
+                      onTap={setActionSheetCompany}
+                      // FIX 3: pass busy state so the card suppresses tap while
+                      // a price update or history fetch is in progress.
+                      isBusy={updating === c.id || loadingHistory === c.id}
+                    />
                   ))}
                 </div>
               ) : (
@@ -579,15 +631,30 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         const priceUp     = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
                         const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
                           ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
-                        // Theme-aware row bg for unpriced rows — amber tint in light, subtle in dark
                         const rowBg      = !hasCdsPrice ? (isDark ? "#D9770610" : "#FFFBEB") : "transparent";
                         const rowBgHover = !hasCdsPrice ? (isDark ? "#D9770620" : "#FFF8DC") : C.gray50;
-                        // Theme-aware change badge border
                         const changeBdr  = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
+
+                        // FIX 1: add disabled to both actions when this row is busy.
+                        // Previously neither action had disabled: true, so a double-tap
+                        // on "Price History" would fire two concurrent requests and open
+                        // two sequential modals. Same issue for "Update Price".
+                        const isRowBusy = updating === c.id || loadingHistory === c.id;
                         const portfolioActions = [
-                          { icon: "💰", label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price", onClick: () => setUpdateModal({ open: true, company: c }) },
-                          { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => viewHistory(c) },
+                          {
+                            icon: "💰",
+                            label: updating === c.id ? "Updating..." : hasCdsPrice ? "Update Price" : "Set Price",
+                            disabled: isRowBusy,
+                            onClick: () => setUpdateModal({ open: true, company: c }),
+                          },
+                          {
+                            icon: "📈",
+                            label: loadingHistory === c.id ? "Loading..." : "Price History",
+                            disabled: isRowBusy,
+                            onClick: () => viewHistory(c),
+                          },
                         ];
+
                         return (
                           <tr key={c.id}
                             style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: rowBg }}
@@ -621,7 +688,6 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px" }}>
-                              {/* "Updated by" badge — matches TransactionsPage broker badge style */}
                               {c.cds_updated_by
                                 ? <span style={{ fontSize: 11, fontWeight: 600, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px" }}>{c.cds_updated_by}</span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
@@ -692,7 +758,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                       {masterList.map((c, i) => {
                         const manageActions = [
                           { icon: "✏️", label: "Edit Company", onClick: () => setFormModal({ open: true, company: c }) },
-                          { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
+                          { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, disabled: deleting === c.id, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                         ];
                         return (
                           <tr key={c.id}
