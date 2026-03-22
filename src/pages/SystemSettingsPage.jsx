@@ -1,6 +1,6 @@
 // ── src/pages/SystemSettingsPage.jsx ─────────────────────────────
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
-import { C } from "../components/ui";
+import { useTheme } from "../components/ui";
 import ImageCropModal from "../components/ImageCropModal";
 import {
   sbGetSiteSettings, sbSaveSiteSettings, sbUploadSlideImage,
@@ -9,14 +9,17 @@ import {
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
 
-const inp = (extra = {}) => ({
-  width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
-  border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
-  background: C.white, color: C.text, transition: "border 0.2s",
-  boxSizing: "border-box", ...extra,
-});
-const focusGreen = e => { e.target.style.borderColor = C.green; };
-const blurGray   = e => { e.target.style.borderColor = C.gray200; };
+// ── inp(C, extra) — must receive live C from useTheme() ───────────
+function inp(C, extra = {}) {
+  return {
+    width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
+    border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
+    background: C.white, color: C.text, transition: "border 0.2s",
+    boxSizing: "border-box", ...extra,
+  };
+}
+const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
+const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
 
 const DEFAULT_SLIDES = [
   { label: "Investors Portal", title: "Secure Investing",   sub: "Your assets are protected with us.",          image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1280&q=80", color: "#064e3b", overlay: 0.35 },
@@ -31,19 +34,21 @@ const COLOR_PRESETS = [
   { label: "Slate",  value: "#1e293b" }, { label: "Teal",   value: "#134e4a" },
 ];
 
-// ── Shared Field wrapper ───────────────────────────────────────────
+// ── Shared Field wrapper ──────────────────────────────────────────
 const Field = memo(function Field({ label, children, hint }) {
+  const { C, isDark } = useTheme();
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ fontSize: 11, fontWeight: 700, color: C.navy, display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</label>
+      <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</label>
       {children}
       {hint && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{hint}</div>}
     </div>
   );
 });
 
-// ── Slide Preview ──────────────────────────────────────────────────
+// ── Slide Preview ─────────────────────────────────────────────────
 const SlidePreview = memo(function SlidePreview({ slide, allSlides = [], activeIdx = 0, animated = true }) {
+  const { C } = useTheme();
   const overlayVal = slide.overlay ?? 0.35;
   const hexAlpha   = Math.round(overlayVal * 255).toString(16).padStart(2, "0");
   const dots       = allSlides.length > 0 ? allSlides : [slide];
@@ -72,6 +77,7 @@ const SlidePreview = memo(function SlidePreview({ slide, allSlides = [], activeI
 // ── BROKER FORM MODAL ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClose }) {
+  const { C, isDark } = useTheme();
   const isEdit = !!broker;
   const [form, setForm] = useState({
     broker_name:   broker?.broker_name   || "",
@@ -97,53 +103,54 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
     catch (e) { setSError(e.message); setSaving(false); }
   };
 
-  const fieldStyle = { border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, outline: "none", background: C.white, color: C.text, width: "100%", boxSizing: "border-box", fontFamily: "inherit", transition: "border-color 0.2s" };
-  const onFocus    = e => (e.target.style.borderColor = C.green);
-  const onBlur     = e => (e.target.style.borderColor = C.gray200);
+  const fieldStyle = inp(C, { borderRadius: 8, padding: "10px 12px", fontSize: 13 });
+  const onFocus    = focusGreen(C);
+  const onBlur     = blurGray(C);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 500, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column" }}>
-        {/* Header */}
-        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{
+        background: C.white, borderRadius: 16, width: "100%", maxWidth: 500,
+        border: `1.5px solid ${C.gray200}`,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden", display: "flex", flexDirection: "column",
+      }}>
+        {/* Header — navy gradient matching all other modals */}
+        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "18px 24px 14px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{isEdit ? "✏️ Edit Broker" : "➕ Register New Broker"}</div>
-            <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>Fill in the broker details below</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{isEdit ? "✏️ Edit Broker" : "➕ Register New Broker"}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>Fill in the broker details below</div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600 }}>✕</button>
+          <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
         </div>
 
         {/* Body */}
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto" }}>
           {error && (
-            <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "#EF4444", fontWeight: 500 }}>
+            <div style={{ background: C.redBg, border: `1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
               ⚠️ {error}
             </div>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {/* Broker Name */}
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
-                Broker Name <span style={{ color: "#EF4444" }}>*</span>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+                Broker Name <span style={{ color: C.red }}>*</span>
               </label>
               <input value={form.broker_name} onChange={e => set("broker_name", e.target.value)}
                 placeholder="e.g. Wealth Capital Fund" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} autoFocus />
             </div>
 
-            {/* Broker Code */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
-                Broker Code <span style={{ color: "#EF4444" }}>*</span>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+                Broker Code <span style={{ color: C.red }}>*</span>
               </label>
               <input value={form.broker_code} onChange={e => set("broker_code", e.target.value.toUpperCase().slice(0, 10))}
                 placeholder="e.g. WCF" style={{ ...fieldStyle, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }} onFocus={onFocus} onBlur={onBlur} />
               <div style={{ fontSize: 10, color: C.gray400, marginTop: 3 }}>Short unique code — max 10 chars</div>
             </div>
 
-            {/* Status */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Status</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Status</label>
               <select value={form.status} onChange={e => set("status", e.target.value)}
                 style={{ ...fieldStyle, cursor: "pointer" }} onFocus={onFocus} onBlur={onBlur}>
                 <option value="Active">✅ Active</option>
@@ -151,23 +158,20 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
               </select>
             </div>
 
-            {/* Phone */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Phone</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Phone</label>
               <input value={form.contact_phone} onChange={e => set("contact_phone", e.target.value)}
                 placeholder="e.g. +255 22 123 4567" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
             </div>
 
-            {/* Email */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Email</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Email</label>
               <input value={form.contact_email} onChange={e => set("contact_email", e.target.value)}
                 placeholder="e.g. info@broker.co.tz" type="email" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
             </div>
 
-            {/* Remarks */}
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Remarks</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Remarks</label>
               <textarea value={form.remarks} onChange={e => set("remarks", e.target.value)}
                 placeholder="Optional notes..."
                 style={{ ...fieldStyle, resize: "vertical", minHeight: 60, lineHeight: 1.5 }}
@@ -183,7 +187,7 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={saving}
-            style={{ padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
+            style={{ padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
             {saving
               ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Saving...</>
               : <>{isEdit ? "💾 Save Changes" : "➕ Register Broker"}</>}
@@ -198,6 +202,10 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
 // ── BROKERS SECTION ───────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 const BrokersSection = memo(function BrokersSection({ showToast, session }) {
+  const { C, isDark } = useTheme();
+  // Navy gradient thead — matches TransactionsPage/CompaniesPage
+  const theadBg = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+
   const [brokers,       setBrokers]       = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [formModal,     setFormModal]     = useState({ open: false, broker: null });
@@ -236,7 +244,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
   }, [brokers, search]);
 
   const handleFormConfirm = useCallback(async (formData) => {
-    const isEdit = !!formModal.broker;
+    const isEdit    = !!formModal.broker;
     const createdBy = session?.user?.email || "SA";
     try {
       if (isEdit) {
@@ -251,9 +259,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
         showToast("Broker registered!", "success");
       }
       setFormModal({ open: false, broker: null });
-    } catch (e) {
-      throw e; // bubble up to modal to show inline error
-    }
+    } catch (e) { throw e; }
   }, [formModal.broker, session, showToast]);
 
   const handleToggleStatus = useCallback(async (broker) => {
@@ -293,25 +299,28 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
   const activeCount   = brokers.filter(b => b.status === "Active").length;
   const inactiveCount = brokers.filter(b => b.status === "Inactive").length;
 
+  // Theme-aware badge border helpers
+  const activeBdr   = isDark ? `${C.green}55` : "#BBF7D0";
+  const inactiveBdr = isDark ? `${C.red}55`   : "#FECACA";
+
   return (
     <>
       {/* Header */}
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
         <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-          <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>🏦 Manage Brokers</div>
-          <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register and manage DSE-licensed stockbrokers available across the platform</div>
+          <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🏦 Manage Brokers</div>
+          <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register and manage DSE-licensed stockbrokers available across the platform</div>
         </div>
       </div>
 
       {/* Stats + toolbar */}
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "14px 18px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          {/* Stats */}
           <div style={{ display: "flex", gap: 12 }}>
             {[
-              { label: "Total", value: brokers.length,  color: C.navy,  bg: `${C.navy}10`  },
-              { label: "Active",   value: activeCount,   color: C.green, bg: C.greenBg       },
-              { label: "Inactive", value: inactiveCount, color: "#EF4444", bg: "#FEF2F2"     },
+              { label: "Total",    value: brokers.length,  color: isDark ? "#93C5FD" : C.navy, bg: isDark ? `${C.navy}22` : `${C.navy}10` },
+              { label: "Active",   value: activeCount,     color: C.green,                     bg: C.greenBg                              },
+              { label: "Inactive", value: inactiveCount,   color: C.red,                       bg: C.redBg                                },
             ].map(s => (
               <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "6px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -320,18 +329,17 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
             ))}
           </div>
 
-          {/* Search + Add */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search broker..."
-                style={{ padding: "8px 12px 8px 32px", border: `1.5px solid ${C.gray200}`, borderRadius: 8, fontSize: 12, outline: "none", width: 200, fontFamily: "inherit", color: C.text }}
+                style={{ padding: "8px 12px 8px 32px", border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, borderRadius: 8, fontSize: 12, outline: "none", width: 200, fontFamily: "inherit" }}
                 onFocus={e => (e.target.style.borderColor = C.green)}
                 onBlur={e => (e.target.style.borderColor = C.gray200)} />
             </div>
             <button onClick={() => setFormModal({ open: true, broker: null })}
-              style={{ padding: "8px 16px", border: "none", borderRadius: 8, background: C.green, color: C.white, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: `0 2px 8px ${C.green}44` }}>
+              style={{ padding: "8px 16px", border: "none", borderRadius: 8, background: C.green, color: "#ffffff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: `0 2px 8px ${C.green}44` }}>
               ➕ Add Broker
             </button>
           </div>
@@ -356,9 +364,9 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ background: "#f5f6fa" }}>
+                <tr style={{ background: theadBg }}>
                   {["#", "Broker Name", "Code", "Phone", "Email", "Remarks", "Status", "Actions"].map(h => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: h === "#" || h === "Actions" ? "center" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap" }}>
+                    <th key={h} style={{ padding: "10px 14px", textAlign: h === "#" || h === "Actions" ? "center" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>
                       {h}
                     </th>
                   ))}
@@ -366,50 +374,44 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
               </thead>
               <tbody>
                 {filtered.map((b, i) => {
-                  const isActive    = b.status === "Active";
-                  const isToggling  = togglingId === b.id;
-                  const isDeleting  = deletingId === b.id;
-                  const isBusy      = isToggling || isDeleting;
+                  const isActive   = b.status === "Active";
+                  const isToggling = togglingId === b.id;
+                  const isDeleting = deletingId === b.id;
+                  const isBusy     = isToggling || isDeleting;
                   return (
                     <tr key={b.id}
-                      style={{ borderBottom: `1px solid ${C.gray100}`, background: !isActive ? "#FAFAFA" : "transparent", opacity: isBusy ? 0.6 : 1, transition: "background 0.15s" }}
+                      style={{ borderBottom: `1px solid ${C.gray100}`, background: !isActive ? C.gray50 : "transparent", opacity: isBusy ? 0.6 : 1, transition: "background 0.15s" }}
                       onMouseEnter={e => { if (!isBusy) e.currentTarget.style.background = C.gray50; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = !isActive ? "#FAFAFA" : "transparent"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = !isActive ? C.gray50 : "transparent"; }}
                     >
                       <td style={{ padding: "10px 14px", color: C.gray400, fontWeight: 600, textAlign: "center", fontSize: 12 }}>{i + 1}</td>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: C.text, maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={b.broker_name}>{b.broker_name}</td>
                       <td style={{ padding: "10px 14px" }}>
-                        <span style={{ background: `${C.navy}10`, color: C.navy, padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>{b.broker_code}</span>
+                        <span style={{ background: isDark ? `${C.navy}22` : `${C.navy}10`, color: isDark ? "#93C5FD" : C.navy, padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em" }}>{b.broker_code}</span>
                       </td>
                       <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 12 }}>{b.contact_phone || <span style={{ color: C.gray400 }}>—</span>}</td>
                       <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 12 }}>{b.contact_email || <span style={{ color: C.gray400 }}>—</span>}</td>
                       <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 11, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                        <span style={{ background: isActive ? "#F0FDF4" : "#FEF2F2", color: isActive ? "#15803D" : "#DC2626", border: `1px solid ${isActive ? "#BBF7D0" : "#FECACA"}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                        <span style={{ background: isActive ? C.greenBg : C.redBg, color: isActive ? C.green : C.red, border: `1px solid ${isActive ? activeBdr : inactiveBdr}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                           {isActive ? "✅ Active" : "⛔ Inactive"}
                         </span>
                       </td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap", textAlign: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                          {/* Edit */}
-                          <button onClick={() => setFormModal({ open: true, broker: b })} disabled={isBusy}
-                            title="Edit broker"
+                          <button onClick={() => setFormModal({ open: true, broker: b })} disabled={isBusy} title="Edit broker"
                             style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                             ✏️
                           </button>
-                          {/* Toggle status */}
-                          <button onClick={() => handleToggleStatus(b)} disabled={isBusy}
-                            title={isActive ? "Deactivate" : "Activate"}
-                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? "#FECACA" : "#BBF7D0"}`, background: isActive ? "#FEF2F2" : "#F0FDF4", color: isActive ? "#DC2626" : "#15803D", fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                          <button onClick={() => handleToggleStatus(b)} disabled={isBusy} title={isActive ? "Deactivate" : "Activate"}
+                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? inactiveBdr : activeBdr}`, background: isActive ? C.redBg : C.greenBg, color: isActive ? C.red : C.green, fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
                             {isToggling
-                              ? <div style={{ width: 11, height: 11, border: "2px solid rgba(0,0,0,0.15)", borderTop: `2px solid ${isActive ? "#DC2626" : "#15803D"}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                              ? <div style={{ width: 11, height: 11, border: "2px solid rgba(0,0,0,0.15)", borderTop: `2px solid ${isActive ? C.red : C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                               : isActive ? "⛔" : "✅"}
                             {isActive ? "Deactivate" : "Activate"}
                           </button>
-                          {/* Delete */}
-                          <button onClick={() => setDeleteConfirm({ id: b.id, name: b.broker_name })} disabled={isBusy}
-                            title="Delete broker"
-                            style={{ padding: "5px 10px", borderRadius: 7, border: "1.5px solid #FECACA", background: "#FEF2F2", color: "#DC2626", fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                          <button onClick={() => setDeleteConfirm({ id: b.id, name: b.broker_name })} disabled={isBusy} title="Delete broker"
+                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${inactiveBdr}`, background: C.redBg, color: C.red, fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                             {isDeleting ? "..." : "🗑️"}
                           </button>
                         </div>
@@ -423,21 +425,16 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
         )}
       </div>
 
-      {/* Broker Form Modal */}
       {formModal.open && (
-        <BrokerFormModal
-          broker={formModal.broker}
-          onConfirm={handleFormConfirm}
-          onClose={() => setFormModal({ open: false, broker: null })}
-        />
+        <BrokerFormModal broker={formModal.broker} onConfirm={handleFormConfirm} onClose={() => setFormModal({ open: false, broker: null })} />
       )}
 
       {/* Delete Confirm Modal */}
       {deleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+          <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, border: `1.5px solid ${C.gray200}`, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
             <div style={{ background: "linear-gradient(135deg, #7f1d1d, #991b1b)", padding: "16px 20px" }}>
-              <div style={{ color: C.white, fontWeight: 700, fontSize: 15 }}>🗑️ Delete Broker</div>
+              <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>🗑️ Delete Broker</div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{deleteConfirm.name}</div>
             </div>
             <div style={{ padding: "20px" }}>
@@ -454,7 +451,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                 Cancel
               </button>
               <button onClick={handleDelete}
-                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#EF4444", color: C.white, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Yes, Delete
               </button>
             </div>
@@ -469,6 +466,8 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
 // ── MAIN PAGE ─────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 export default function SystemSettingsPage({ role, session, showToast, setLoginSettings, companies, setCompanies, transactions }) {
+  const { C, isDark } = useTheme();
+
   const [activeMenu, setActiveMenu] = useState(() => {
     try { return localStorage.getItem(ACTIVE_MENU_KEY) || "companies"; }
     catch { return "companies"; }
@@ -486,8 +485,8 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   const fileRef0 = useRef(); const fileRef1 = useRef(); const fileRef2 = useRef();
   const fileRefs = useMemo(() => [fileRef0, fileRef1, fileRef2], []);
 
-  const isSA       = role === "SA";  // SA ONLY — not AD
-  const animated   = settings.animated ?? true;
+  const isSA        = role === "SA";
+  const animated    = settings.animated ?? true;
   const intervalSec = useMemo(() => (settings.interval / 1000).toFixed(0), [settings.interval]);
   const resetSlides = useMemo(() => {
     const userDefaults = settings.defaults;
@@ -616,7 +615,6 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     </div>
   );
 
-  // ── Sidebar menu items ─────────────────────────────────────────
   const menuItems = [
     { id: "companies",  icon: "🏢", label: "Companies"  },
     { id: "brokers",    icon: "🏦", label: "Brokers"    },
@@ -643,7 +641,13 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
         <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.07em", padding: "6px 10px 8px" }}>Settings</div>
         {menuItems.map(item => (
           <button key={item.id} onClick={() => setActiveMenu(item.id)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%", transition: "all 0.15s", background: activeMenu === item.id ? `${C.navy}10` : "transparent", color: activeMenu === item.id ? C.navy : C.gray400, fontWeight: activeMenu === item.id ? 700 : 500, fontSize: 12, borderLeft: activeMenu === item.id ? `3px solid ${C.navy}` : "3px solid transparent" }}>
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%", transition: "all 0.15s",
+              background:   activeMenu === item.id ? (isDark ? `${C.navy}25` : `${C.navy}10`) : "transparent",
+              color:        activeMenu === item.id ? (isDark ? "#93C5FD" : C.navy) : C.gray400,
+              fontWeight:   activeMenu === item.id ? 700 : 500,
+              fontSize: 12,
+              borderLeft:   activeMenu === item.id ? `3px solid ${isDark ? "#93C5FD" : C.navy}` : "3px solid transparent",
+            }}>
             <span>{item.icon}</span> {item.label}
           </button>
         ))}
@@ -661,8 +665,8 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
         {activeMenu === "companies" && (
           <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
             <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-              <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>🏢 Manage Companies</div>
-              <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register, edit and manage listed companies</div>
+              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🏢 Manage Companies</div>
+              <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register, edit and manage listed companies</div>
             </div>
             <div style={{ padding: "16px" }}>
               <CompaniesPage
@@ -674,7 +678,9 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
           </div>
         )}
 
-        {/* ── LOGIN PAGE ── */}
+        {/* ════════════════════════════════════════════════════════
+            LOGIN PAGE — UNTOUCHED (preserved character-for-character)
+            ════════════════════════════════════════════════════════ */}
         {activeMenu === "login_page" && (
           <>
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
@@ -801,13 +807,13 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Text</div>
                       <Field label="Label (small gold text)">
-                        <input style={inp()} placeholder="e.g. Investors Portal" value={slide.label || ""} onChange={e => setSlideField(idx, "label", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                        <input style={inp(C)} placeholder="e.g. Investors Portal" value={slide.label || ""} onChange={e => setSlideField(idx, "label", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                       </Field>
                       <Field label="Title (large white text)">
-                        <input style={inp()} placeholder="e.g. Secure Investing" value={slide.title || ""} onChange={e => setSlideField(idx, "title", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                        <input style={inp(C)} placeholder="e.g. Secure Investing" value={slide.title || ""} onChange={e => setSlideField(idx, "title", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                       </Field>
                       <Field label="Subtitle">
-                        <textarea style={{ ...inp(), resize: "vertical", minHeight: 64, lineHeight: 1.5 }} placeholder="e.g. Your assets are protected with us." value={slide.sub || ""} onChange={e => setSlideField(idx, "sub", e.target.value)} onFocus={focusGreen} onBlur={blurGray} />
+                        <textarea style={{ ...inp(C), resize: "vertical", minHeight: 64, lineHeight: 1.5 }} placeholder="e.g. Your assets are protected with us." value={slide.sub || ""} onChange={e => setSlideField(idx, "sub", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                       </Field>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Live Preview</div>
                       <SlidePreview slide={slide} allSlides={settings.slides} activeIdx={idx} animated={animated} />
