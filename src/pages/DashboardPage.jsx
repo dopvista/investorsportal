@@ -1400,11 +1400,12 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       </table>
                     </div>
                     {isSAAD && (
-                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                      //<div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.green}`, display: "flex", justifyContent: "flex-end" }}>                        
                         <button
                           onClick={onNavUserMgmt}
                           style={{
-                            background: "none",
+                            background: C.navy,
                             border: `1.5px solid ${C.navy}`,
                             color: C.navy,
                             borderRadius: 9, padding: "7px 18px",
