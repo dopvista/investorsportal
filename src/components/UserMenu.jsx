@@ -86,8 +86,12 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
 
             {/* ── Theme Selector ──────────────────────────────────────── */}
             <div style={{ padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}>
-                <span style={{ fontSize: 13 }}>🎨</span> Theme
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🎨</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff" }}>App Theme</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Appearance preference</div>
+                </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {THEME_OPTIONS.map(opt => {
@@ -126,10 +130,6 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
                 {theme === "default" ? "Following your device setting" : theme === "dark" ? "Dark mode always on" : "Light mode always on"}
               </div>
             </div>
-
-            {/* Divider */}
-            <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "6px 0" }} />
-
             {/* Sign Out */}
             <button
               onClick={onSignOut}
@@ -146,7 +146,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
           </div>
 
           <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>Investors Portal v1.0</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>Investors Portal v1.0</div>
           </div>
         </div>
       )}
