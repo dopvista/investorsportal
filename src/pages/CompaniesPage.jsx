@@ -33,35 +33,51 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform" }}>
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" }}>
         <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-        <div style={{ padding: "12px 20px 0", textAlign: "center" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: C.gray200, margin: "0 auto 14px" }} />
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 3 }}>{company.name}</div>
-          {hasCdsPrice
-            ? <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>TZS {fmt(company.cds_price)}</div>
-            : <div style={{ fontSize: 12, color: "#D97706", fontWeight: 600 }}>No price set yet</div>}
+
+        {/* ── Header — matches Price History / Update Price style ── */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", marginBottom: 3 }}>{company.name}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>👆 Select an action</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexShrink: 0, marginLeft: 16 }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+              {hasCdsPrice
+                ? <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.cds_price)}</div>
+                : <div style={{ fontSize: 13, color: "#F0B429", fontWeight: 700 }}>No price set</div>}
+            </div>
+            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
+          </div>
         </div>
+
+        {/* ── Action Buttons ── */}
         <div style={{ padding: "14px 16px 8px", display: "flex", flexDirection: "column", gap: 9 }}>
           <button onClick={() => { onClose(); onUpdatePrice(company); }}
-            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.green}33`, background: C.greenBg, color: C.green, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.green}44`, background: C.greenBg, color: C.green, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
             <span style={{ fontSize: 22 }}>💰</span>
             <div>
               <div style={{ fontWeight: 700 }}>{hasCdsPrice ? "Update Price" : "Set Price"}</div>
-              <div style={{ fontSize: 11, color: C.green + "99", fontWeight: 500 }}>{hasCdsPrice ? "Change your current analysis price" : "Add a price to track performance"}</div>
+              {/* Fix #3 — subtitle readable in both themes */}
+              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>{hasCdsPrice ? "Change your current analysis price" : "Add a price to track performance"}</div>
             </div>
           </button>
+          {/* Fix #2 — Price History button visible in dark mode */}
           <button onClick={() => { onClose(); onViewHistory(company); }}
-            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.navy}22`, background: C.navy + "08", color: C.navy, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.gray100, color: C.text, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
             <span style={{ fontSize: 22 }}>📈</span>
             <div>
               <div style={{ fontWeight: 700 }}>Price History</div>
-              <div style={{ fontSize: 11, color: C.navy + "88", fontWeight: 500 }}>View price changes over time</div>
+              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>View price changes over time</div>
             </div>
           </button>
         </div>
+
+        {/* Fix #4 — Cancel button with visible boundary */}
         <div style={{ padding: "0 16px 12px" }}>
-          <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray400}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         </div>
       </div>
     </>
