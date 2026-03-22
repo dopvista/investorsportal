@@ -1024,7 +1024,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     <div
       style={{
         background: C.white,
-        border: `1.5px solid ${C.navy}40`,
+        border: "1.5px solid rgba(59,111,196,0.4)",
         borderRadius: 14,
         marginBottom: 12,
         overflow: "hidden",
@@ -1063,74 +1063,63 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       {loading ? (
         <Spinner />
       ) : (
-        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "0 16px", overflowX: "hidden" }}>
+        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           {metrics.companyMetrics.length === 0 ? (
             <Empty msg="No active positions." />
           ) : (
-            <div style={{ width: "100%" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-                <colgroup>
-                  <col style={{ width: "40%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "25%" }} />
-                  <col style={{ width: "20%" }} />
-                </colgroup>
-                <thead>
-                  {/* CHANGE 3: <Th> component — same as Realized GL */}
-                  <tr>
-                    <Th>Company</Th>
-                    <Th right>Shares</Th>
-                    <Th right>Market Val.</Th>
-                    <Th right>Return %</Th>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <Th>Company</Th>
+                  <Th right>Shares</Th>
+                  <Th right>Market Val.</Th>
+                  <Th right>Return %</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.companyMetrics.slice(0, 5).map((c, i) => (
+                  <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                    <Td bold>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                        {c.name}
+                      </div>
+                    </Td>
+                    <Td right small>{fmt(c.netShares)}</Td>
+                    <Td right bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
+                    <Td right>
+                      {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
+                        <Badge
+                          value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
+                          positive={c.unrealizedRetPct >= 0}
+                        />
+                      ) : (
+                        <span style={{ color: C.gray400, fontSize: 11 }}>—</span>
+                      )}
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                    // CHANGE 4: <Td> component — same as Realized GL
-                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                      <Td bold>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "normal", wordBreak: "break-word" }}>
-                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                          {c.name}
-                        </div>
-                      </Td>
-                      <Td right small>{fmt(c.netShares)}</Td>
-                      <Td right bold small>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                      <Td right small>
-                        {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
-                          <Badge
-                            value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
-                            positive={c.unrealizedRetPct >= 0}
-                          />
-                        ) : (
-                          <span style={{ color: C.gray400, fontSize: 11 }}>—</span>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-                {metrics.companyMetrics.length > 1 && (
-                  <tfoot>
-                    {/* CHANGE 5: same style as Realized GL total (padding "8px 12px" for mobile) */}
-                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right", whiteSpace: "nowrap" }}>{fmt(metrics.totalNetShares)}</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right", whiteSpace: "nowrap" }}>
-                        {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
-                        {metrics.hasFinancials ? (
-                          <Badge
-                            value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
-                            positive={metrics.unrealizedRetPct >= 0}
-                          />
-                        ) : "—"}
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+                ))}
+              </tbody>
+              {metrics.companyMetrics.length > 1 && (
+                <tfoot>
+                  <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                    <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
+                    <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
+                    <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right" }}>
+                      {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
+                    </td>
+                    <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                      {metrics.hasFinancials ? (
+                        <Badge
+                          value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
+                          positive={metrics.unrealizedRetPct >= 0}
+                        />
+                      ) : "—"}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           )}
         </div>
       )}
@@ -1412,7 +1401,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   <div
                     style={{
                       fontSize: 10,
-                      color: "rgba(255,255,255,0.4)",
+                      color: "rgba(255,255,255,0.6)",
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
@@ -1455,7 +1444,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 <div
                   style={{
                     fontSize: 9,
-                    color: "rgba(255,255,255,0.4)",
+                    color: "rgba(255,255,255,0.6)",
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.07em",
@@ -1537,7 +1526,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     <div
                       style={{
                         fontSize: 9,
-                        color: "rgba(255,255,255,0.4)",
+                        color: "rgba(255,255,255,0.6)",
                         fontWeight: 700,
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
@@ -1578,7 +1567,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 value={loading ? "—" : metrics.totalCompanies}
                 onClick={onToggleCompanies}
                 active={expanded === "companies"}
-                accent={C.navy}
+                accent="#3b6fc4"
               />
               <MobileStatPill
                 icon="👥"
