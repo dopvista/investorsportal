@@ -107,12 +107,12 @@ export function StatCard({ label, value, sub, color, icon }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
     }}>
       <div style={{
-        width: 36, height: 36, background: accentColor + "18",
+        width: 36, height: 36, background: accentColor + "28",
         borderRadius: 10, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 17, flexShrink: 0,
       }}>{icon}</div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
         {sub && <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>{sub}</div>}
       </div>
