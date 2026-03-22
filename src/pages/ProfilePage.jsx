@@ -603,47 +603,75 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   );
 
   const renderSwitchModal = () => switchTarget ? (
-    <>
-      <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", inset: 0, zIndex: 201, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 400, border: `1.5px solid ${C.gray200}`, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease" }}>
-          <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)`, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
-              <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
-            </div>
-            <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+    <div
+      onClick={() => !switching && setSwitchTarget(null)}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(10,37,64,0.55)", backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.white,
+          borderRadius: isMobile ? "18px 18px 0 0" : 18,
+          border: `1.5px solid ${C.gray200}`,
+          borderBottom: isMobile ? "none" : undefined,
+          overflow: "hidden",
+          width: "100%",
+          maxWidth: isMobile ? "100%" : 400,
+          boxShadow: isMobile ? "0 -8px 32px rgba(0,0,0,0.18)" : "0 24px 64px rgba(0,0,0,0.3)",
+          animation: isMobile ? "sheetIn 0.28s cubic-bezier(0.4,0,0.2,1)" : "fadeIn 0.2s ease",
+          paddingBottom: isMobile ? "env(safe-area-inset-bottom, 12px)" : undefined,
+        }}
+      >
+        <style>{`@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+
+        {/* Header */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)`, padding: isMobile ? "18px 20px 14px" : "16px 22px", borderRadius: isMobile ? "18px 18px 0 0" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
+            <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
           </div>
-          <div style={{ padding: "20px 22px" }}>
-            <div style={{ textAlign: "center", marginBottom: 18 }}>
-              <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
-              {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
-              <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
+          <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 36, height: 36, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: isMobile ? "20px 18px 8px" : "20px 22px" }}>
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
+            {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
+            <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+              <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
-                <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
-              </div>
-              <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
-                <div style={{ fontWeight: 800, color: isDark ? "#93C5FD" : C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching}
-                style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
-              <button onClick={handleSwitchCDS} disabled={switching}
-                style={{ flex: 2, padding: "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                {switching ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</> : "Yes, Switch Account"}
-              </button>
+            <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
+              <div style={{ fontWeight: 800, color: isDark ? "#93C5FD" : C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
             </div>
           </div>
         </div>
+
+        {/* Footer — sticky on mobile */}
+        <div style={{ padding: isMobile ? "0 18px 16px" : "0 22px 20px", display: "flex", gap: 10, position: isMobile ? "sticky" : "static", bottom: 0, background: C.white, zIndex: 2 }}>
+          <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching}
+            style={{ flex: 1, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={handleSwitchCDS} disabled={switching}
+            style={{ flex: 2, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {switching ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</> : "Yes, Switch Account"}
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   ) : null;
 
   const pullReady = pullDistance >= 64;
