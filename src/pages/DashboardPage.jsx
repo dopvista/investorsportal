@@ -133,8 +133,6 @@ const SnapCard = memo(function SnapCard({
   const { C } = useTheme();
   const isColored = expanded && accentBg && !dark;
   const labelClr = dark ? "rgba(255,255,255,0.4)"   : isColored ? "rgba(255,255,255,0.6)"  : C.gray400;
-  // FIX 1: was `C.white` — in dark mode C.white is a dark surface colour (#1D2E42),
-  // not actually white. Use literal "#ffffff" for text on any coloured/dark background.
   const valueClr = dark ? "#ffffff" : isColored ? "#ffffff" : C.text;
   const subClr   = dark ? "rgba(255,255,255,0.3)"   : isColored ? "rgba(255,255,255,0.55)" : C.gray400;
   const chevClr  = isColored
@@ -228,8 +226,6 @@ const StatCard = memo(function StatCard({
 }) {
   const { C } = useTheme();
   const isColored = active && accentBg;
-  // FIX 2: was `C.white` — same issue as SnapCard. C.white is a surface colour in dark
-  // mode, not white. Use "#ffffff" for text that must show on a coloured/dark gradient.
   const hdrText = isColored ? "#ffffff" : C.text;
   const hdrSub  = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
   const hdrHint = isColored ? "rgba(255,255,255,0.45)" : C.gray400;
@@ -320,9 +316,6 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
             border: "none", borderRadius: "50%",
             width: 40, height: 40,
             cursor: "pointer", fontSize: 13,
-            // FIX 5: accentColor for the Companies panel is C.navy (#0B1F3A in both
-            // themes). On a dark card surface that icon is invisible. C.gray500 is always
-            // legible in both themes and still clearly signals a dismiss action.
             color: C.gray500,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
@@ -437,6 +430,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const snapRef          = useRef(null);
   const hasExpandedRef   = useRef(false);
   const mountedRef       = useRef(true);
+  // FIX 1: request ID counter — prevents a superseded loadDashboard call
+  // (triggered by a fast CDS switch) from overwriting fresh data once the
+  // slower stale call eventually resolves.
+  const dashReqRef       = useRef(0);
   const rootRef          = useRef(null);
   const touchStartYRef   = useRef(null);
   const pullingRef       = useRef(false);
@@ -461,19 +458,35 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
   const loadDashboard = useCallback(async ({ fromPull = false } = {}) => {
     if (!mountedRef.current) return;
+
+    // FIX 1: stamp this call with a request ID. If a newer call starts
+    // before this one resolves, all setState calls below are skipped.
+    const reqId = ++dashReqRef.current;
+
     if (fromPull) setRefreshing(true);
     else          setLoading(true);
 
     try {
       const activeCdsId = activeCds?.cds_id;
+
       const [port, txns, users, members] = await Promise.all([
         sbGetPortfolio(profile?.cds_number).catch(() => []),
         sbGetTransactions().catch(() => []),
-        activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
-        activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
+        // FIX 2: only call sbGetAllUsers for SA/AD roles.
+        // DE/VR/RO users hit a permission-denied error on this RPC
+        // on every single dashboard open. The .catch masked the error
+        // but still fired a wasted network round-trip. For non-admins
+        // and when a specific CDS is active, skip entirely.
+        (isSAAD && !activeCdsId)
+          ? sbGetAllUsers().catch(() => [])
+          : Promise.resolve([]),
+        activeCdsId
+          ? sbGetCDSAssignedUsers(activeCdsId).catch(() => [])
+          : Promise.resolve([]),
       ]);
 
-      if (!mountedRef.current) return;
+      // FIX 1: discard results if a newer request has already started
+      if (!mountedRef.current || reqId !== dashReqRef.current) return;
 
       setPortfolio(port || []);
       setTransactions(txns || []);
@@ -481,7 +494,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       if (users?.length) {
         setUserCount(users.length);
         setAllUsers(users);
-      } else if (!activeCdsId) {
+      } else if (isSAAD && !activeCdsId) {
+        // SA/AD with no specific CDS — genuinely zero users, not skipped
         setUserCount(0);
         setAllUsers([]);
       }
@@ -500,14 +514,15 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           : []
       );
     } catch {
-      if (mountedRef.current) showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
+      if (mountedRef.current && reqId === dashReqRef.current)
+        showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
     } finally {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || reqId !== dashReqRef.current) return;
       setLoading(false);
       setRefreshing(false);
       setPullDistance(0);
     }
-  }, [activeCds?.cds_id, profile?.cds_number, showToast]);
+  }, [activeCds?.cds_id, profile?.cds_number, isSAAD, showToast]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -739,11 +754,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📤 Realized Gain / Loss</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
@@ -812,11 +823,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Top 5 Holdings</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
@@ -885,62 +892,32 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>👥 Members ({cdsUsers.length})</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           {cdsUsers.length === 0 ? <Empty msg="No users found." /> : (
             <div>
               {cdsUsers.map((u, i) => (
-                <div key={u.id} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 16px",
-                  borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none",
-                }}>
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 9,
-                      background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 800, color: "#ffffff",
-                    }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#ffffff" }}>
                       {u._initials}
                     </div>
-                    <div style={{
-                      position: "absolute", bottom: -1, right: -1,
-                      width: 8, height: 8, borderRadius: "50%",
-                      border: `2px solid ${C.white}`,
-                      background: u._isActive ? C.green : C.gray400,
-                    }} />
+                    <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: u._isActive ? C.green : C.gray400 }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {u.full_name || "—"}
-                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.full_name || "—"}</div>
                     <div style={{ fontSize: 11, color: C.gray400 }}>{u._roleName}</div>
                   </div>
-                  <span style={{
-                    background: u._isActive ? C.greenBg : C.redBg,
-                    color: u._isActive ? C.green : C.red,
-                    border: `1px solid ${u._isActive ? C.green : C.red}25`,
-                    borderRadius: 20, padding: "2px 9px",
-                    fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0,
-                  }}>
+                  <span style={{ background: u._isActive ? C.greenBg : C.redBg, color: u._isActive ? C.green : C.red, border: `1px solid ${u._isActive ? C.green : C.red}25`, borderRadius: 20, padding: "2px 9px", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
                     {u._isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
               ))}
               {isSAAD && (
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.gray100}` }}>
-                  <button onClick={onNavUserMgmt} style={{
-                    width: "100%", padding: "10px", borderRadius: 9,
-                    border: "none", background: C.green, color: "#ffffff",
-                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-                  }}>
+                  <button onClick={onNavUserMgmt} style={{ width: "100%", padding: "10px", borderRadius: 9, border: "none", background: C.green, color: "#ffffff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                     Go to User Management →
                   </button>
                 </div>
@@ -1023,12 +1000,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
-                    Shares Held
-                  </div>
-                  <div style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800 }}>
-                    {loading ? "—" : fmt(metrics.totalNetShares)}
-                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Shares Held</div>
+                  <div style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800 }}>{loading ? "—" : fmt(metrics.totalNetShares)}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 9, padding: "6px 12px", border: "1px solid rgba(255,255,255,0.45)", textAlign: "right" }}>
                   <div style={{ fontSize: 10, color: "#ffffff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</div>
@@ -1037,9 +1010,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
 
               <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
-                  Portfolio Value
-                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Portfolio Value</div>
                 {(() => {
                   let displayValue = "—";
                   if (!loading) {
@@ -1069,7 +1040,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   },
                   { label: "Holdings", value: loading ? "—" : String(metrics.totalCompanies), color: "rgba(255,255,255,0.85)" },
                 ].map((item, i) => (
-                  <div key={item.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none", padding: "0 0" }}>
+                  <div key={item.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{item.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</div>
                   </div>
@@ -1271,8 +1242,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Companies expand panel */}
             {expanded === "companies" && (
-              // FIX 5 (part 2): always use #3b6fc4 — matches mobile Holdings pill accent,
-              // no dark-mode conditional needed.
               <ExpandPanel title="🏢 Companies" accentColor="#3b6fc4" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                   <div style={{ overflowX: "auto" }}>
@@ -1392,17 +1361,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                 </div>
                               </Td>
                               <Td>
-                                {/*
-                                  FIX 3: use #2563eb — matches the Users panel/pill accent
-                                  used in mobile. No isDark needed; this blue is legible
-                                  on both light and dark card surfaces.
-                                */}
-                                <span style={{
-                                  background: "#2563eb18",
-                                  color: "#2563eb",
-                                  borderRadius: 20, padding: "2px 10px",
-                                  fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-                                }}>
+                                <span style={{ background: "#2563eb18", color: "#2563eb", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                                   {u._roleName}
                                 </span>
                               </Td>
@@ -1420,28 +1379,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     </div>
                     {isSAAD && (
                       <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
-                        {/*
-                          FIX 4: use #2563eb — matches the Users panel accent used
-                          in mobile. No isDark needed.
-                        */}
                         <button
                           onClick={onNavUserMgmt}
-                          style={{
-                            background: "none",
-                            border: `1.5px solid #2563eb`,
-                            color: "#2563eb",
-                            borderRadius: 9, padding: "7px 18px",
-                            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                            display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#2563eb";
-                            e.currentTarget.style.color = "#ffffff";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "none";
-                            e.currentTarget.style.color = "#2563eb";
-                          }}
+                          style={{ background: "none", border: `1.5px solid #2563eb`, color: "#2563eb", borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "#2563eb"; e.currentTarget.style.color = "#ffffff"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#2563eb"; }}
                         >
                           Go to User Management →
                         </button>
