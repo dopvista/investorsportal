@@ -1023,9 +1023,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     {loading ? "—" : fmt(metrics.totalNetShares)}
                   </div>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 9, padding: "5px 10px", border: "1px solid rgba(255,255,255,0.35)", textAlign: "right" }}>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.85)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</div>
-                  <div style={{ fontSize: 11, color: C.white, fontWeight: 700, whiteSpace: "nowrap" }}>{todayStr}</div>
+                <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 9, padding: "6px 12px", border: "1px solid rgba(255,255,255,0.45)", textAlign: "right" }}>
+                  <div style={{ fontSize: 10, color: "#ffffff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</div>
+                  <div style={{ fontSize: 13, color: C.white, fontWeight: 800, whiteSpace: "nowrap" }}>{todayStr}</div>
                 </div>
               </div>
 
