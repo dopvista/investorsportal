@@ -292,10 +292,6 @@ export function ActionMenu({ actions }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ── MODAL SHELL ───────────────────────────────────────────────────
-// Single source of truth for all modal containers.
-// The border change here propagates to every modal in the app:
-// UpdatePriceModal, PriceHistoryModal, CompanyFormModal, Modal,
-// TransactionFormModal, ImportTransactionsModal — desktop & mobile.
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
@@ -308,9 +304,6 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
       <div style={{
         background: C.white,
         borderRadius: isMobile ? "16px 16px 0 0" : 16,
-        // ── Border fix: matches the CDS accounts popup border style ──
-        // 1.5px solid C.gray200 on all sides; bottom omitted on mobile
-        // since the sheet slides in from the screen edge (no visible base).
         border: `1.5px solid ${C.gray200}`,
         borderBottom: isMobile ? "none" : undefined,
         width: "100%",
@@ -320,7 +313,6 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
         boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
       }}>
-        {/* Header — navy gradient */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
@@ -333,11 +325,9 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
             )}
           </div>
         </div>
-        {/* Body */}
         <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>
           {children}
         </div>
-        {/* Footer */}
         {footer && (
           <div style={{ padding: isMobile ? "12px 18px" : "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 16px 16px", flexShrink: 0, position: isMobile ? "sticky" : "static", bottom: 0, zIndex: 2 }}>
             {footer}
@@ -408,7 +398,10 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
     >
       {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>⚠️ {error}</div>}
       <FInput label="Company Name" required value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="e.g. Tanzania Breweries" autoFocus />
-      {!isEdit && <FInput label="Opening Price (TZS)" required type="number" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
+      {/* FIX 1: inputMode="decimal" + autoComplete="off" suppresses the iOS/Android
+          QuickType autofill bar (Key, Card, Location) on numeric fields.
+          Previously type="number" alone triggered the autofill suggestion row. */}
+      {!isEdit && <FInput label="Opening Price (TZS)" required type="number" inputMode="decimal" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
       <FTextarea label="Remarks" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Optional notes..." style={{ minHeight: 72 }} />
     </ModalShell>
   );
@@ -870,19 +863,32 @@ export function TransactionFormModal({ transaction, companies, transactions = []
         </div>
       </div>
 
-      {/* Row 4: Qty · Price */}
+      {/* Row 4: Qty · Price
+          FIX 2 & 3: inputMode="decimal" + autoComplete="off" on both numeric
+          fields suppresses the iOS/Android QuickType autofill bar that was
+          showing Key, Card, Location suggestions above the keyboard. */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
           <FInput
             label={!isBuy && maxSellQty > 0 ? `Quantity (max ${fmtInt(maxSellQty)})` : "Quantity (Shares)"}
-            required type="number" min="1" max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
+            required type="number" inputMode="decimal"
+            autoComplete="off" autoCorrect="off" autoCapitalize="off"
+            spellCheck={false} data-form-type="other" data-lpignore="true"
+            min="1" max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
             value={form.qty} onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
             placeholder="0"
             style={!isBuy && form.qty && Number(form.qty) > maxSellQty ? { borderColor: C.red } : {}}
           />
           {!isBuy && form.qty && Number(form.qty) > maxSellQty && maxSellQty > 0 && <div style={{ fontSize: 11, color: C.red, marginTop: 3 }}>⚠ Exceeds your {fmtInt(maxSellQty)} shares</div>}
         </div>
-        <FInput label="Price per Share (TZS)" required type="number" min="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }} placeholder="0.00" />
+        <FInput
+          label="Price per Share (TZS)" required type="number" inputMode="decimal"
+          autoComplete="off" autoCorrect="off" autoCapitalize="off"
+          spellCheck={false} data-form-type="other" data-lpignore="true"
+          min="0.01" value={form.price}
+          onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }}
+          placeholder="0.00"
+        />
       </div>
 
       {/* Fee summary */}
