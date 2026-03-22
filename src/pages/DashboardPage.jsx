@@ -1,6 +1,6 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
-import { C } from "../components/ui";
+import { useTheme } from "../components/ui";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
 
 // ── Mobile breakpoint hook ─────────────────────────────────────────
@@ -49,7 +49,7 @@ const daysBetween = (dateStr) => {
 
 // ── Module-level constants (never recreated) ───────────────────────
 const CHART_COLORS = [
-  "#3b82f6", C.green, "#f59e0b", "#8b5cf6",
+  "#3b82f6", "#00843D", "#f59e0b", "#8b5cf6",
   "#ec4899", "#06b6d4", "#f97316", "#84cc16",
 ];
 const AVATAR_COLORS = [
@@ -71,6 +71,7 @@ const txTime = (t) => new Date(t?.date || t?.created_at || 0).getTime() || 0;
 
 // ── Shared table primitives ────────────────────────────────────────
 const Th = memo(function Th({ children, right }) {
+  const { C } = useTheme();
   return (
     <th
       style={{
@@ -92,6 +93,7 @@ const Th = memo(function Th({ children, right }) {
 });
 
 const Td = memo(function Td({ children, bold, color, small, right }) {
+  const { C } = useTheme();
   return (
     <td
       style={{
@@ -109,11 +111,12 @@ const Td = memo(function Td({ children, bold, color, small, right }) {
 });
 
 const Badge = memo(function Badge({ value, positive }) {
+  const { C } = useTheme();
   const isPos = positive ?? Number(value) >= 0;
   return (
     <span
       style={{
-        background: isPos ? "#f0fdf4" : "#fef2f2",
+        background: isPos ? C.greenBg : C.redBg,
         color: isPos ? C.green : C.red,
         border: `1px solid ${isPos ? C.green : C.red}20`,
         borderRadius: 8,
@@ -143,6 +146,7 @@ const SnapCard = memo(function SnapCard({
   children,
   hoverable,
 }) {
+  const { C } = useTheme();
   const isColored = expanded && accentBg && !dark;
   const labelClr = dark ? "rgba(255,255,255,0.4)" : isColored ? "rgba(255,255,255,0.6)" : C.gray400;
   const valueClr = dark ? C.white : isColored ? C.white : C.text;
@@ -280,6 +284,7 @@ const StatCard = memo(function StatCard({
   navigates,
   loading,
 }) {
+  const { C } = useTheme();
   const isColored = active && accentBg;
   const hdrText = isColored ? C.white : C.text;
   const hdrSub = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
@@ -362,6 +367,7 @@ const StatCard = memo(function StatCard({
 
 // ── ExpandPanel ────────────────────────────────────────────────────
 const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, children }) {
+  const { C } = useTheme();
   return (
     <div
       style={{
@@ -402,6 +408,7 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
 
 // ── Spinner / Empty ────────────────────────────────────────────────
 const Spinner = memo(function Spinner() {
+  const { C } = useTheme();
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 0" }}>
       <div
@@ -419,11 +426,13 @@ const Spinner = memo(function Spinner() {
 });
 
 const Empty = memo(function Empty({ msg }) {
+  const { C } = useTheme();
   return <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "24px 0" }}>{msg}</div>;
 });
 
 // ── Mobile metric card ─────────────────────────────────────────────
 const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, accent, onClick, chevron }) {
+  const { C } = useTheme();
   const hasAccent = !!accent;
   return (
     <div
@@ -472,6 +481,7 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
 
 // ── Mobile stat pill ──────────────────────────────────────────────
 const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClick, active, accent, navigates }) {
+  const { C } = useTheme();
   return (
     <div
       onClick={onClick}
@@ -499,6 +509,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
+  const { C } = useTheme();
   const [portfolio, setPortfolio] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [userCount, setUserCount] = useState(null);
