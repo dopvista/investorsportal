@@ -325,7 +325,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   );
 
   return (
-    <div style={{ minHeight: "100vh", width: "100%", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)" }}>
+    <div style={{ height: "100%", width: "100%", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)" }}>
 
       {/* Background decoration */}
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
@@ -334,7 +334,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* ══════════ MOBILE ══════════ */}
       {isMobile && (
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
           {formPanel}
           <div style={{ marginTop: 22, textAlign: "center", opacity: 0.72 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontWeight: 500, letterSpacing: "0.01em" }}>Manage Your Investments Digitally</div>
@@ -345,7 +345,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* ══════════ DESKTOP ══════════ */}
       {!isMobile && (
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
           <div style={{ width: "min(960px, 92vw)", background: "white", borderRadius: 28, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", display: "grid", gridTemplateColumns: "1.68fr 0.85fr", overflow: "hidden", position: "relative" }}>
             <SlidePanel
               adverts={ADVERTS}
