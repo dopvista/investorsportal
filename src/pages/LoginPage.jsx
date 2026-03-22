@@ -282,7 +282,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         </div>
       </div>
 
-      <SubmitBtn label="Sign In →" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
+      <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
     </form>
   );
 
