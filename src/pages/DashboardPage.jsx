@@ -420,9 +420,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
-  // FIX 3 & 4: destructure isDark so we can make navy-as-text/border theme-aware
-  // below (role badge + "Go to User Management" button).
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const [portfolio,     setPortfolio]     = useState([]);
   const [transactions,  setTransactions]  = useState([]);
   const [userCount,     setUserCount]     = useState(null);
@@ -1254,7 +1252,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               <StatCard icon="🏢" label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
-                accent={C.navy} accentBg={C.navy}
+                accent="#3b6fc4" accentBg="#3b6fc4"
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
               />
               <StatCard icon="👥" label="Total Users"
@@ -1273,10 +1271,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Companies expand panel */}
             {expanded === "companies" && (
-              // FIX 5 (part 2): accentColor was C.navy — dark in both themes,
-              // making the close button × icon invisible in dark mode. Using a
-              // theme-aware blue keeps the panel on-brand while staying legible.
-              <ExpandPanel title="🏢 Companies" accentColor={isDark ? "#3b6fc4" : C.navy} onClose={onCloseExpand}>
+              // FIX 5 (part 2): always use #3b6fc4 — matches mobile Holdings pill accent,
+              // no dark-mode conditional needed.
+              <ExpandPanel title="🏢 Companies" accentColor="#3b6fc4" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1396,15 +1393,13 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               </Td>
                               <Td>
                                 {/*
-                                  FIX 3: was `background: ${C.navy}12, color: C.navy`.
-                                  C.navy (#0B1F3A) is near-black in both themes, so on a
-                                  dark card surface (C.white = #1D2E42) it is completely
-                                  invisible. Using a theme-aware blue keeps the role badge
-                                  visually distinct and legible in both light and dark modes.
+                                  FIX 3: use #2563eb — matches the Users panel/pill accent
+                                  used in mobile. No isDark needed; this blue is legible
+                                  on both light and dark card surfaces.
                                 */}
                                 <span style={{
-                                  background: isDark ? `#2563eb20` : `${C.navy}12`,
-                                  color: isDark ? "#60a5fa" : C.navy,
+                                  background: "#2563eb18",
+                                  color: "#2563eb",
                                   borderRadius: 20, padding: "2px 10px",
                                   fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
                                 }}>
@@ -1426,27 +1421,26 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     {isSAAD && (
                       <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
                         {/*
-                          FIX 4: was `border/color: C.navy` (#0B1F3A) — invisible on dark
-                          card surface. Using a theme-aware blue keeps it on-brand and
-                          clearly legible in dark mode. Hover also updated to match.
+                          FIX 4: use #2563eb — matches the Users panel accent used
+                          in mobile. No isDark needed.
                         */}
                         <button
                           onClick={onNavUserMgmt}
                           style={{
                             background: "none",
-                            border: `1.5px solid ${isDark ? "#3b82f6" : C.navy}`,
-                            color: isDark ? "#3b82f6" : C.navy,
+                            border: `1.5px solid #2563eb`,
+                            color: "#2563eb",
                             borderRadius: 9, padding: "7px 18px",
                             fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                             display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = isDark ? "#3b82f6" : C.navy;
+                            e.currentTarget.style.background = "#2563eb";
                             e.currentTarget.style.color = "#ffffff";
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = "none";
-                            e.currentTarget.style.color = isDark ? "#3b82f6" : C.navy;
+                            e.currentTarget.style.color = "#2563eb";
                           }}
                         >
                           Go to User Management →
