@@ -1301,27 +1301,30 @@ export default function UserManagementPage({ role, showToast, profile }) {
                       <div style={{ fontSize:11, color:C.gray400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email||"—"}</div>
                       <div style={{ fontSize:10, color:C.gray400 }}>{user.assigned_at?new Date(user.assigned_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}):"—"}</div>
                       <div style={{ display:"flex", gap:4 }}>
-                        {/* ✏️ Role — green accent on hover, visible border in dark */}
+                        {/* ✏️ Role */}
                         <button onClick={() => setChangeRoleUser(user)}
-                          style={{ padding:"4px 9px", borderRadius:7, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}
+                          style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;e.currentTarget.style.background=`${C.green}10`;}}
                           onMouseLeave={e=>{e.currentTarget.style.borderColor=C.gray200;e.currentTarget.style.color=C.text;e.currentTarget.style.background=C.white;}}>
-                          ✏️ Role
+                          <span style={{ fontSize:13 }}>✏️</span>
+                          <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>Role</span>
                         </button>
-                        {/* 🏦 CDS — navy accent, always visible */}
+                        {/* 🏦 CDS */}
                         <button onClick={() => setManageCdsUser(user)}
-                          style={{ padding:"4px 9px", borderRadius:7, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}
+                          style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                           onMouseEnter={e=>{e.currentTarget.style.background=C.navy;e.currentTarget.style.color="#ffffff";e.currentTarget.style.borderColor=C.navy;}}
                           onMouseLeave={e=>{e.currentTarget.style.background=isDark?`${C.navy}20`:C.navy+"0d";e.currentTarget.style.color=isDark?"#93C5FD":C.navy;e.currentTarget.style.borderColor=isDark?`${C.navy}60`:`${C.navy}40`;}}>
-                          🏦 CDS
+                          <span style={{ fontSize:13 }}>🏦</span>
+                          <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>CDS</span>
                         </button>
-                        {/* 🚫/✅ Toggle — red/green with visible bg */}
+                        {/* 🚫/✅ Toggle */}
                         {user.role_code && (
                           <button onClick={() => setToggleUser(user)}
-                            style={{ padding:"4px 9px", borderRadius:7, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4 }}
+                            style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                             onMouseEnter={e=>e.currentTarget.style.opacity="0.75"}
                             onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                            {user.is_active ? "🚫 Off" : "✅ On"}
+                            <span style={{ fontSize:13 }}>{user.is_active ? "🚫" : "✅"}</span>
+                            <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>{user.is_active ? "Off" : "On"}</span>
                           </button>
                         )}
                       </div>
