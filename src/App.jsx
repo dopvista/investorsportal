@@ -889,7 +889,7 @@ export default function App() {
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation"
-              style={{ width: 38, height: 38, borderRadius: "50%", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, overflow: "hidden", position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
+              style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid #ffffff", padding: 0, cursor: "pointer", flexShrink: 0, overflow: "hidden", position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
             >
               {activeProfile?.avatar_url ? (
                 <img
