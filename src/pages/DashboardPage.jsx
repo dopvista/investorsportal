@@ -163,8 +163,8 @@ const SnapCard = memo(function SnapCard({
   return (
     <div
       style={{
-        background: dark ? "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)" : C.white,
-        border: `1.5px solid ${expanded ? eff : (dark ? "#1e3a5f" : C.gray200)}`,
+        background: dark ? `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)` : C.white,
+        border: `1.5px solid ${expanded ? eff : (dark ? C.navyLight : C.gray200)}`,
         borderRadius: 14,
         overflow: "hidden",
         boxShadow: expanded ? `0 4px 20px ${eff}33` : "0 1px 4px rgba(0,0,0,0.04)",
@@ -179,7 +179,7 @@ const SnapCard = memo(function SnapCard({
       }}
       onMouseLeave={(e) => {
         if (!hoverable) return;
-        e.currentTarget.style.borderColor = expanded ? eff : (dark ? "#1e3a5f" : C.gray200);
+        e.currentTarget.style.borderColor = expanded ? eff : (dark ? C.navyLight : C.gray200);
         e.currentTarget.style.boxShadow = expanded ? `0 4px 20px ${eff}33` : "0 1px 4px rgba(0,0,0,0.04)";
         e.currentTarget.style.transform = "none";
       }}
@@ -486,7 +486,6 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
     <div
       onClick={onClick}
       style={{
-        // CHANGE 6: unselected → C.white bg + C.gray200 border for cleaner definition
         background: active ? `${accent}12` : C.white,
         border: `1.5px solid ${active ? accent : C.gray200}`,
         borderRadius: 12,
@@ -1018,13 +1017,13 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand]);
+  ), [metrics, loading, onCloseExpand, C]);
 
   const renderMobileCompaniesPanel = useCallback(() => (
     <div
       style={{
         background: C.white,
-        border: "1.5px solid rgba(59,111,196,0.4)",
+        border: `1.5px solid ${C.navy}40`,
         borderRadius: 14,
         marginBottom: 12,
         overflow: "hidden",
@@ -1117,20 +1116,20 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       ) : "—"}
                     </td>
                   </tr>
-                </tfoot>
-              )}
-            </table>
+                )}
+              </table>
+            </div>
           )}
         </div>
       )}
     </div>
-  ), [metrics, loading, onCloseExpand]);
+  ), [metrics, loading, onCloseExpand, C]);
 
   const renderMobileUsersPanel = useCallback(() => (
     <div
       style={{
         background: C.white,
-        border: "1.5px solid #2563eb40",
+        border: `1.5px solid ${C.navy}40`,
         borderRadius: 14,
         marginBottom: 12,
         overflow: "hidden",
@@ -1147,7 +1146,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         }}
       >
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>👥 Members ({cdsUsers.length})</div>
-        {/* CHANGE 7: C.gray100 circle → rgba(255,255,255,0.12) bg, #ffffff color, rounded square */}
         <button
           onClick={onCloseExpand}
           style={{
@@ -1274,7 +1272,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
     </div>
-  ), [cdsUsers, loading, isSAAD, onCloseExpand, onNavUserMgmt]);
+  ), [cdsUsers, loading, isSAAD, onCloseExpand, onNavUserMgmt, isDark, C]);
 
   const pullReady = pullDistance >= 64;
 
@@ -1366,7 +1364,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           <div>
             <div
               style={{
-                background: "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)",
+                background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
                 borderRadius: 16,
                 padding: "18px 18px 20px",
                 marginBottom: 10,
@@ -1391,7 +1389,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   width: 160,
                   height: 160,
                   borderRadius: "50%",
-                  background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)",
+                  background: `radial-gradient(circle, ${C.green}2e 0%, transparent 70%)`,
                   pointerEvents: "none",
                 }}
               />
@@ -1414,7 +1412,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     {loading ? "—" : fmt(metrics.totalNetShares)}
                   </div>
                 </div>
-                {/* CHANGE 1: date badge bg rgba(255,255,255,0.22) + border rgba(255,255,255,0.35) */}
                 <div
                   style={{
                     background: "rgba(255,255,255,0.22)",
@@ -1424,7 +1421,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     textAlign: "right",
                   }}
                 >
-                  {/* CHANGE 2: "TODAY" label rgba(255,255,255,0.85) */}
                   <div
                     style={{
                       fontSize: 8,
@@ -1567,7 +1563,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 value={loading ? "—" : metrics.totalCompanies}
                 onClick={onToggleCompanies}
                 active={expanded === "companies"}
-                accent="#3b6fc4"
+                accent={C.navy}
               />
               <MobileStatPill
                 icon="👥"
@@ -1582,7 +1578,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 label="Pending"
                 value={loading ? "—" : metrics.pending}
                 onClick={onNavTransactions}
-                accent="#f59e0b"
+                accent={C.gold}
                 navigates
               />
             </div>
@@ -1777,8 +1773,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 label="Awaiting Action"
                 value={loading ? "—" : metrics.pending}
                 subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
-                accent="#f59e0b"
-                accentBg="#f59e0b"
+                accent={C.gold}
+                accentBg={C.gold}
                 onClick={onNavTransactions}
                 navigates
                 loading={loading}
@@ -1964,7 +1960,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <Td>
                                 <span
                                   style={{
-                                    background: isDark ? `${C.gray200}` : `${C.navy}12`,
+                                    background: isDark ? C.gray200 : `${C.navy}12`,
                                     color: isDark ? C.gray600 : C.navy,
                                     borderRadius: 20,
                                     padding: "2px 10px",
@@ -2070,7 +2066,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       <col style={{ width: "7%" }} />
                       <col style={{ width: "10%" }} />
                     </colgroup>
-                    {/* CHANGE 3: <Th> component — same as Realized GL */}
                     <thead>
                       <tr>
                         <Th>Company</Th>
@@ -2084,7 +2079,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         <Th right>Portfolio Weight %</Th>
                       </tr>
                     </thead>
-                    {/* CHANGE 4: <Td> component — same as Realized GL */}
                     <tbody>
                       {metrics.companyMetrics.slice(0, 5).map((c, i) => (
                         <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
@@ -2148,7 +2142,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     </tbody>
                     {metrics.companyMetrics.length > 1 && (
                       <tfoot>
-                        {/* CHANGE 5: padding "9px 12px" — same as Realized GL total row */}
                         <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                           <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
                             TOTAL
