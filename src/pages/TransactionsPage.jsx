@@ -61,16 +61,13 @@ const fmtDateTime = (d) => {
   return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-// ── Status config — theme-aware function (replaces static object) ─
-// The old static STATUS object used hardcoded light-only hex values for
-// backgrounds and borders. Dark mode needs alpha-based tints derived from
-// the live theme C so they sit correctly on dark card surfaces.
-const getStatusConfig = (C, isDark) => ({
-  pending:   { label: "Pending",   color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: "🕐" },
-  confirmed: { label: "Confirmed", color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: "✅" },
-  verified:  { label: "Verified",  color: C.green,   bg: C.greenBg,                        border: isDark ? `${C.green}55` : "#BBF7D0", icon: "✔️" },
-  rejected:  { label: "Rejected",  color: C.red,     bg: C.redBg,                          border: isDark ? `${C.red}55`  : "#FECACA", icon: "✖"  },
-});
+// ── Status config — semantic colors, theme-independent ───────────
+const STATUS = {
+  pending:   { label: "Pending",   bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA", icon: "🕐" },
+  confirmed: { label: "Confirmed", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", icon: "✅" },
+  verified:  { label: "Verified",  bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0", icon: "✔️" },
+  rejected:  { label: "Rejected",  bg: "#FEF2F2", color: "#DC2626", border: "#FECACA", icon: "✖" },
+};
 
 const defaultStatus = "All";
 const statusOptions = [
@@ -104,10 +101,8 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
   );
 });
 
-// ── Status Badge — fully theme-aware ─────────────────────────────
+// ── Status Badge — semantic colors only, no C needed ─────────────
 const StatusBadge = memo(function StatusBadge({ status }) {
-  const { C, isDark } = useTheme();
-  const STATUS = getStatusConfig(C, isDark);
   const s = STATUS[status] || STATUS.pending;
   return (
     <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -133,16 +128,15 @@ function RejectModal({ count, onConfirm, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20 }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            {/* "#ffffff" not C.white — C.white in dark mode is a surface colour, not white */}
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>✖ Reject Transaction{count > 1 ? "s" : ""}</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{count > 1 ? `${count} transactions selected` : "1 transaction selected"}</div>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 14 }}>✕</button>
         </div>
         <div style={{ padding: "20px" }}>
-          {err && <div style={{ background: C.redBg, border: `1px solid ${C.red}55`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          {err && <div style={{ background: C.redBg, border: `1px solid ${C.red}`, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
           <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Rejection Reason <span style={{ color: C.red }}>*</span></label>
           <textarea value={comment} onChange={e => { setComment(e.target.value); setErr(""); }} placeholder="Explain why this transaction is being rejected..." rows={4}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, background: C.white, boxSizing: "border-box" }}
@@ -162,11 +156,11 @@ function RejectModal({ count, onConfirm, onClose }) {
 
 // ── Confirm Action Modal ──────────────────────────────────────────
 const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1, company, onConfirm, onClose, loading }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const isVerify    = action === "verify";
-  const accentColor = isVerify ? C.green : "#1D4ED8";
-  const accentBg    = isVerify ? C.greenBg                      : (isDark ? "#1D4ED828" : "#EFF6FF");
-  const accentBdr   = isVerify ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? "#1D4ED855" : "#BFDBFE");
+  const accentColor = isVerify ? C.green : C.navy;
+  const accentBg    = isVerify ? C.greenBg : `${C.navy}18`;
+  const accentBdr   = isVerify ? `${C.green}40` : `${C.navy}40`;
   const icon        = isVerify ? "✔" : "✅";
   const title       = isVerify ? `Verify Transaction${count > 1 ? "s" : ""}` : "Confirm Transaction";
   const subtitle    = count > 1 ? `${count} transactions selected` : company || "1 transaction";
@@ -179,7 +173,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{icon} {title}</div>
             <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{subtitle}</div>
@@ -212,7 +206,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{title}</div>
             <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{count} transaction{count > 1 ? "s" : ""} selected</div>
@@ -236,10 +230,9 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
 // ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   const { C } = useTheme();
-  // Navy brand active state — white text on dark bg works in both light and dark themes
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? "#0B1F3A" : C.gray200}`, background: active ? "#0B1F3A" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`, background: active ? C.navy : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {label}
     </button>
   );
@@ -260,7 +253,7 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
   }, [page, totalPages]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 12, color: C.gray400 }}>
           Showing <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
@@ -297,7 +290,7 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
   const to   = Math.min(page * pageSize, filtered);
   if (totalPages <= 1 && filtered === 0) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
       <span style={{ fontSize: 12, color: C.gray500 }}>
         <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
       </span>
@@ -343,7 +336,7 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 
 // ── Transaction Detail Modal ──────────────────────────────────────
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const isMobile = useIsMobile();
 
   const [cdsAccountName, setCdsAccountName] = useState(null);
@@ -360,21 +353,19 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
   if (!transaction) return null;
 
-  const STATUS      = getStatusConfig(C, isDark);
-  const isBuy       = transaction.type === "Buy";
-  const isVerified  = transaction.status === "verified";
-  const tradeVal    = Number(transaction.total || 0);
-  const fees        = Number(transaction.fees  || 0);
-  const gt          = isBuy ? tradeVal + fees : tradeVal - fees;
-  const st          = STATUS[transaction.status] || STATUS.pending;
-  const bd          = calcFees(tradeVal);
-  const totalFees   = fees || bd.total;
-  const feePct      = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
-  const qty         = Number(transaction.qty || 0);
-  // Theme-aware sell accent — C.red is readable in both themes; borders alpha-keyed
+  const isBuy      = transaction.type === "Buy";
+  const isVerified = transaction.status === "verified";
+  const tradeVal   = Number(transaction.total || 0);
+  const fees       = Number(transaction.fees  || 0);
+  const gt         = isBuy ? tradeVal + fees : tradeVal - fees;
+  const st         = STATUS[transaction.status] || STATUS.pending;
+  const bd         = calcFees(tradeVal);
+  const totalFees  = fees || bd.total;
+  const feePct     = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
+  const qty        = Number(transaction.qty || 0);
   const accentColor = isBuy ? C.green : C.red;
   const accentBg    = isBuy ? C.greenBg : C.redBg;
-  const accentBdr   = isBuy ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
+  const accentBdr   = isBuy ? `${C.green}40` : `${C.red}40`;
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
   const companiesMap = useMemo(
@@ -434,13 +425,13 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
   const AUDIT_STEPS = useMemo(() => [
     { icon: "📝", label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
-    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: isDark ? "#1D4ED820" : "#EFF6FF" },
+    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: C.navy,    activeBg: `${C.navy}18` },
     { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
     ...(transaction.status === "rejected"
       ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
       : []
     ),
-  ], [C, isDark, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
+  ], [C, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
       transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name,
       transaction.status]);
 
@@ -476,7 +467,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     </div>
   ));
 
-  // Section title uses C.gray500 — always readable in both themes (C.navy was invisible in dark mode)
   const renderSectionTitle = (title) => (
     <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
   );
@@ -485,8 +475,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     if (!gl) return null;
     const isGain = gl.gain >= 0;
     const glBg   = isGain ? C.greenBg : C.redBg;
-    const glBdr  = isGain ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
-    const glCol  = isGain ? C.green : C.red;
+    const glBdr  = isGain ? `${C.green}40` : `${C.red}40`;
+    const glCol  = isGain ? C.green   : C.red;
     const rows   = type === "buy"
       ? [["Current Price × " + fmtInt(qty) + " shares", `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
       : [["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`], ["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`]];
@@ -528,7 +518,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           </div>
         ))}
         {transaction.status === "rejected" && transaction.rejection_comment && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${isDark ? `${C.red}55` : "#FECACA"}` }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${C.red}` }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.red, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
             <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
           </div>
@@ -599,7 +589,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         flexDirection: "column",
       }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -624,7 +614,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
-        {/* ── Summary row ── */}
+        {/* Summary row */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
@@ -651,7 +641,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
             renderRightPanel()
@@ -667,7 +657,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           )}
         </div>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
@@ -688,7 +678,7 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
   isDE, isVR, isSAAD, showActions,
   onOpenDetail,
 }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const isBuy    = transaction.type === "Buy";
   const tradeVal = Number(transaction.total || 0);
   const fees     = Number(transaction.fees  || 0);
@@ -718,10 +708,9 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
 
   const accentColor = isBuy ? C.green : C.red;
   const accentBg    = isBuy ? C.greenBg : C.redBg;
-  const accentBdr   = isBuy ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
-  // Theme-aware card backgrounds — stronger tint in dark so status is readable
-  const cardBg  = perms.isRejected ? (isDark ? `${C.red}18`    : "#FFF5F5") : perms.isVerified ? (isDark ? `${C.green}10` : "#F9FFFB") : C.white;
-  const cardBdr = perms.isRejected ? (isDark ? `${C.red}55`    : "#FECACA") : perms.isVerified ? (isDark ? `${C.green}55` : "#BBF7D0") : C.gray200;
+  const accentBdr   = isBuy ? `${C.green}40` : `${C.red}40`;
+  const cardBg      = perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : C.white;
+  const cardBdr     = perms.isRejected ? C.red : perms.isVerified ? C.green : C.gray200;
 
   return (
     <div
@@ -777,7 +766,7 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
       </div>
 
       {perms.isRejected && transaction.rejection_comment && (
-        <div style={{ marginTop: 8, padding: "6px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, padding: "6px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${C.red}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
           💬 {transaction.rejection_comment}
         </div>
       )}
@@ -801,7 +790,7 @@ const TransactionRow = memo(function TransactionRow({
   isDE, isVR, isSAAD, showCheckbox, showActions,
   onOpenDetail,
 }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const isBuy    = transaction.type === "Buy";
   const tradeVal = Number(transaction.total || 0);
   const fees     = Number(transaction.fees  || 0);
@@ -830,24 +819,17 @@ const TransactionRow = memo(function TransactionRow({
   ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
       transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
-  // Theme-aware row tints — dark needs stronger values to show on dark card surface
-  const rowBg      = perms.isRejected ? (isDark ? `${C.red}18`    : "#FFF5F5") : perms.isVerified ? (isDark ? `${C.green}10` : "#F9FFFB") : "transparent";
-  const rowBgHover = perms.isRejected ? (isDark ? `${C.red}28`    : "#FFF0F0") : perms.isVerified ? (isDark ? `${C.green}1c` : "#F0FDF4") : C.gray50;
-  // Buy/Sell badge borders — alpha-keyed so they work on any background
-  const buyBdr  = isDark ? `${C.green}55` : "#BBF7D0";
-  const sellBdr = isDark ? `${C.red}55`   : "#FECACA";
-
   return (
     <tr
-      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : i % 2 ? C.gray50 : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
       onClick={() => onOpenDetail(transaction.id)}
-      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = rowBgHover; }}
-      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
+      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : C.gray100; }}
+      onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : i % 2 ? C.gray50 : "transparent"; }}
     >
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: C.navy }} />
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
@@ -856,7 +838,7 @@ const TransactionRow = memo(function TransactionRow({
         <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
       </td>
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${isBuy ? buyBdr : sellBdr}` }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${isBuy ? C.green : C.red}40` }}>
           {isBuy ? "▲ Buy" : "▼ Sell"}
         </span>
       </td>
@@ -868,13 +850,13 @@ const TransactionRow = memo(function TransactionRow({
         <span style={{ color: C.gold, fontWeight: 700 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
       </td>
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
-        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isBuy ? buyBdr : sellBdr}` }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isBuy ? C.green : C.red}40` }}>
           {fmt(gt)}
         </span>
       </td>
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
-          ? <span style={{ fontSize: 11, fontWeight: 600, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px", display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.broker_name}>{transaction.broker_name}</span>
+          ? <span style={{ fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
@@ -915,7 +897,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const txLoadRef      = useRef(0);
   const companyLoadRef = useRef(0);
 
-  // ── Pull-to-refresh refs ──────────────────────────────────────
+  // Pull-to-refresh refs
   const rootRef        = useRef(null);
   const touchStartYRef = useRef(null);
   const pullingRef     = useRef(false);
@@ -935,7 +917,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [pageSize, setPageSize]         = useState(50);
   const [selected, setSelected]         = useState(new Set());
 
-  // ── Pull-to-refresh state ─────────────────────────────────────
+  // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing]     = useState(false);
 
@@ -1479,7 +1461,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Pull-to-refresh indicator ── */}
+      {/* Pull-to-refresh indicator */}
       {isMobile && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
           <div style={{
@@ -1509,7 +1491,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         </div>
       )}
 
-      {/* ── Modals — OUTSIDE transform wrapper so position:fixed works correctly ── */}
+      {/* Modals — OUTSIDE transform wrapper so position:fixed works correctly */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1562,7 +1544,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
-      {/* ── Transform wrapper ── */}
+      {/* Transform wrapper */}
       <div style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
@@ -1574,12 +1556,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         overflow: isMobile ? "visible" : "hidden",
       }}>
 
-        {/* ── Stat cards ── */}
+        {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
           {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* ── Mobile toolbar ── */}
+        {/* Mobile toolbar */}
         {isMobile && (
           <div style={{ marginBottom: 10, flexShrink: 0 }}>
             {(isDE || isSAAD) ? (
@@ -1592,7 +1574,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     placeholder="Search company, date, status..."
                     {...mobileInputAttrs}
                     style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
-                    onFocus={e => { e.target.style.borderColor = C.green; }}
+                    onFocus={e => { e.target.style.borderColor = C.navy; }}
                     onBlur={e => { e.target.style.borderColor = C.gray200; }}
                   />
                 </div>
@@ -1613,7 +1595,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   placeholder="Search company, date, status..."
                   {...mobileInputAttrs}
                   style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
-                  onFocus={e => { e.target.style.borderColor = C.green; }}
+                  onFocus={e => { e.target.style.borderColor = C.navy; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }}
                 />
               </div>
@@ -1621,7 +1603,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           </div>
         )}
 
-        {/* ── Desktop toolbar ── */}
+        {/* Desktop toolbar */}
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
@@ -1630,19 +1612,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
                   placeholder="Search company, date, month, type, broker, status, remarks..."
                   style={TOOLBAR_INPUT}
-                  onFocus={e => { e.target.style.borderColor = C.green; e.target.style.background = C.white; }}
+                  onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.background = C.white; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }} />
               </div>
               {["All", "Buy", "Sell"].map(t => (
                 <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? "#0B1F3A" : C.gray200}`, background: typeFilter === t ? "#0B1F3A" : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? C.navy : C.gray200}`, background: typeFilter === t ? C.navy : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
                   {t}
                 </button>
               ))}
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? "#0B1F3A" : C.gray200}`, color: statusFilter !== "All" ? (isDark ? C.gray800 : "#0B1F3A") : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
-                onFocus={e => { e.target.style.borderColor = C.green; }}
-                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? "#0B1F3A" : C.gray200; }}>
+                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? C.navy : C.gray200}`, color: statusFilter !== "All" ? C.navy : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+                onFocus={e => { e.target.style.borderColor = C.navy; }}
+                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? C.navy : C.gray200; }}>
                 {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -1650,11 +1632,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
               {hasSelection ? (
                 <>
-                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
+                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : C.navy, color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
                   {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
                   {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>
               ) : (
@@ -1669,7 +1651,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           </div>
         )}
 
-        {/* ── Content area ── */}
+        {/* Content area */}
         <div style={{ flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
           <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
             {loadingTransactions ? (
@@ -1749,20 +1731,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
-                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: C.gray50 }}>
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
-                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: C.navy }} />
                           </th>
                         )}
                         {tableHeaders.map(h => (
-                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>
                             {h.label}
                           </th>
                         ))}
-                      </tr>
-                    </thead>
+                      </thead>
                     <tbody>
                       {paginated.map((transaction, i) => (
                         <TransactionRow
@@ -1791,22 +1772,22 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     </tbody>
                     {filtered.length > 1 && (
                     <tfoot>
-                      <tr style={{ background: C.gray50, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
+                      <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
                         <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                           TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
-                        </td>
+                         </td>
                         <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
-                        </td>
+                         </td>
                         <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
                           <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
-                        </td>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                         </td>
                         <td colSpan={tfootRightCols} />
-                      </tr>
+                       </tr>
                     </tfoot>
                     )}
-                  </table>
+                   </table>
                 </div>
                 <Pagination
                   page={safePage} totalPages={totalPages} pageSize={pageSize}
