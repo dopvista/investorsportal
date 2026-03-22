@@ -1,973 +1,1470 @@
-// ── src/pages/DashboardPage.jsx ────────────────────────────────────
-import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
-import { useTheme } from "../components/ui";
-import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
+// ── src/pages/TransactionsPage.jsx ───────────────────────────────
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
+import {
+  useTheme,
+  fmt, fmtInt, fmtSmart, calcFees,
+  Btn, StatCard, SectionCard, Modal, ActionMenu,
+  TransactionFormModal, ImportTransactionsModal,
+} from "../components/ui";
+import {
+  sbGetAllCompanies,
+  sbGetTransactions,
+  sbGetTransactionsByIds,
+  sbInsertTransaction,
+  sbUpdateTransaction,
+  sbDeleteTransaction,
+  sbConfirmTransaction,
+  sbVerifyTransactions,
+  sbRejectTransactions,
+  sbUnverifyTransaction,
+  sbUnverifyTransactions,
+  sbGetActiveBrokers,
+  sbGetCdsAccount,
+} from "../lib/supabase";
 
-// ── Mobile breakpoint hook ─────────────────────────────────────────
+// ── Module-level CSS injection (once, not per-render) ─────────────
+if (typeof document !== "undefined" && !document.getElementById("_tx_keyframes")) {
+  const s = document.createElement("style");
+  s.id = "_tx_keyframes";
+  s.textContent = "@keyframes _txSpin{to{transform:rotate(360deg)}} @keyframes _txPageSpin{to{transform:rotate(360deg)}}";
+  document.head.appendChild(s);
+}
+
+// ── TOOLBAR_BASE and TOOLBAR_BUTTON are theme-independent (no C usage) ──
+// TOOLBAR_INPUT and TOOLBAR_SELECT use C, so they are computed inside the
+// main component after useTheme() is called.
+const TOOLBAR_BASE   = { height: 36, borderRadius: 8, fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" };
+const TOOLBAR_BUTTON = { ...TOOLBAR_BASE, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 };
+
+// ── Module-level mobile breakpoint hook ──────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    let t;
-    const handler = () => {
-      clearTimeout(t);
-      t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
-    };
+    const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handler, { passive: true });
-    return () => {
-      window.removeEventListener("resize", handler);
-      clearTimeout(t);
-    };
+    return () => window.removeEventListener("resize", handler);
   }, []);
   return isMobile;
 };
 
-// ── Formatters ─────────────────────────────────────────────────────
-const fmt = (n) => {
-  const v = Number(n || 0);
-  return v % 1 === 0
-    ? v.toLocaleString("en-US")
-    : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// ── Formatters ────────────────────────────────────────────────────
+const fmtDate = (d) => {
+  if (!d) return "—";
+  const date = new Date(d.includes("T") ? d : d + "T00:00:00");
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const fmtShort = (n) => {
-  const v = Number(n || 0);
-  if (Math.abs(v) >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
-  if (Math.abs(v) >= 1_000_000)     return `${(v / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(v) >= 1_000)         return `${(v / 1_000).toFixed(1)}K`;
-  return fmt(v);
+const fmtDateTime = (d) => {
+  if (!d) return null;
+  return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-// ── Days between two dates ─────────────────────────────────────────
-const daysBetween = (dateStr) => {
-  if (!dateStr) return null;
-  const time = new Date(dateStr).getTime();
-  if (Number.isNaN(time)) return null;
-  return Math.max(0, Math.floor((Date.now() - time) / 86_400_000));
+// ── Status config — semantic colors, theme-independent ───────────
+const STATUS = {
+  pending:   { label: "Pending",   bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA", icon: "🕐" },
+  confirmed: { label: "Confirmed", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", icon: "✅" },
+  verified:  { label: "Verified",  bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0", icon: "✔️" },
+  rejected:  { label: "Rejected",  bg: "#FEF2F2", color: "#DC2626", border: "#FECACA", icon: "✖" },
 };
 
-// ── Module-level constants (never recreated) ───────────────────────
-const CHART_COLORS = [
-  "#3b82f6", "#00843D", "#f59e0b", "#8b5cf6",
-  "#ec4899", "#06b6d4", "#f97316", "#84cc16",
+const defaultStatus = "All";
+const statusOptions = [
+  ["All", "All Statuses"],
+  ["pending", "🕐 Pending"],
+  ["confirmed", "✅ Confirmed"],
+  ["verified", "✔️ Verified"],
+  ["rejected", "✖ Rejected"],
 ];
-const AVATAR_COLORS = [
-  "#0B1F3A", "#2563eb", "#065F46", "#7C3AED",
-  "#B45309", "#0369A1", "#1D4ED8", "#9D174D",
+
+// ── Table headers ─────────────────────────────────────────────────
+const TABLE_HEADERS_WITH_ACTIONS = [
+  { label: "#",           align: "right"  },
+  { label: "Date",        align: "left"   },
+  { label: "Company",     align: "left"   },
+  { label: "Type",        align: "left"   },
+  { label: "Qty",         align: "right"  },
+  { label: "Price/Share", align: "right"  },
+  { label: "Total Fees",  align: "right"  },
+  { label: "Grand Total", align: "right"  },
+  { label: "Broker",      align: "left"   },
+  { label: "Status",      align: "left"   },
+  { label: "Actions",     align: "center" },
 ];
-const ROLE_NAMES = {
-  SA: "Super Admin",
-  AD: "Admin",
-  DE: "Data Entrant",
-  VR: "Verifier",
-  RO: "Read Only",
-};
+const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
 
-// ── Status helpers ─────────────────────────────────────────────────
-const statusOf   = (t) => String(t?.status || "").toLowerCase().trim();
-const isVerified = (t) => statusOf(t) === "verified";
-const txTime     = (t) => new Date(t?.date || t?.created_at || 0).getTime() || 0;
-
-// ── Shared table primitives ────────────────────────────────────────
-const Th = memo(function Th({ children, right }) {
-  const { C } = useTheme();
+// ── Spinner ───────────────────────────────────────────────────────
+const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} }) {
   return (
-    <th style={{
-      padding: "8px 12px",
-      textAlign: right ? "right" : "left",
-      fontWeight: 700,
-      fontSize: 10,
-      color: C.gray400,
-      textTransform: "uppercase",
-      letterSpacing: "0.05em",
-      borderBottom: `1px solid ${C.gray200}`,
-      background: C.gray50,
-      whiteSpace: "nowrap",
-    }}>
-      {children}
-    </th>
+    <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
   );
 });
 
-const Td = memo(function Td({ children, bold, color, small, right }) {
-  const { C } = useTheme();
+// ── Status Badge — semantic colors only, no C needed ─────────────
+const StatusBadge = memo(function StatusBadge({ status }) {
+  const s = STATUS[status] || STATUS.pending;
   return (
-    <td style={{
-      padding: "9px 12px",
-      fontWeight: bold ? 700 : 400,
-      color: color || C.text,
-      fontSize: small ? 11 : 13,
-      textAlign: right ? "right" : "left",
-      whiteSpace: right ? "nowrap" : undefined,
-    }}>
-      {children}
-     </td>
-  );
-});
-
-const Badge = memo(function Badge({ value, positive }) {
-  const { C } = useTheme();
-  const isPos = positive ?? Number(value) >= 0;
-  return (
-    <span style={{
-      background: isPos ? C.greenBg : C.redBg,
-      color: isPos ? C.green : C.red,
-      border: `1px solid ${isPos ? C.green : C.red}20`,
-      borderRadius: 8,
-      padding: "2px 8px",
-      fontSize: 11,
-      fontWeight: 700,
-      whiteSpace: "nowrap",
-    }}>
-      {value}
+    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
+      {s.icon} {s.label}
     </span>
   );
 });
 
-// ── SnapCard ───────────────────────────────────────────────────────
-const SnapCard = memo(function SnapCard({
-  label, value, sub, dark, accent, accentBg,
-  expandable, expanded, onToggle, loading, children, hoverable,
-}) {
+// ── Reject Modal ──────────────────────────────────────────────────
+function RejectModal({ count, onConfirm, onClose }) {
   const { C } = useTheme();
-  const isColored = expanded && accentBg && !dark;
-  const labelClr = dark ? "rgba(255,255,255,0.4)"   : isColored ? "rgba(255,255,255,0.6)"  : C.gray400;
-  // FIX: use literal white for text on colored/dark backgrounds
-  const valueClr = dark ? "#FFFFFF"                 : isColored ? "#FFFFFF"                  : C.text;
-  const subClr   = dark ? "rgba(255,255,255,0.3)"   : isColored ? "rgba(255,255,255,0.55)" : C.gray400;
-  const chevClr  = isColored
-    ? "rgba(255,255,255,0.9)"
-    : expanded
-      ? (accent || C.green)
-      : dark ? "rgba(255,255,255,0.55)" : C.gray500;
-  const eff = accent || C.green;
+  const [comment, setComment] = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState("");
+
+  const handleSubmit = useCallback(async () => {
+    if (!comment.trim()) return setErr("Rejection reason is required");
+    setSaving(true);
+    try { await onConfirm(comment.trim()); }
+    catch (e) { setErr(e.message); setSaving(false); }
+  }, [comment, onConfirm]);
 
   return (
-    <div
-      style={{
-        background: dark ? "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)" : C.white,
-        border: `1.5px solid ${expanded ? eff : (dark ? "#1e3a5f" : C.gray200)}`,
-        borderRadius: 14,
-        overflow: "hidden",
-        boxShadow: expanded ? `0 4px 20px ${eff}33` : "0 1px 4px rgba(0,0,0,0.04)",
-        transition: "all 0.18s ease",
-        cursor: expandable ? "pointer" : "default",
-      }}
-      onMouseEnter={(e) => {
-        if (!hoverable) return;
-        e.currentTarget.style.borderColor = eff;
-        e.currentTarget.style.boxShadow   = `0 4px 20px ${eff}33`;
-        e.currentTarget.style.transform   = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        if (!hoverable) return;
-        e.currentTarget.style.borderColor = expanded ? eff : (dark ? "#1e3a5f" : C.gray200);
-        e.currentTarget.style.boxShadow   = expanded ? `0 4px 20px ${eff}33` : "0 1px 4px rgba(0,0,0,0.04)";
-        e.currentTarget.style.transform   = "none";
-      }}
-    >
-      <div
-        onClick={expandable ? onToggle : undefined}
-        style={{
-          padding: "16px 18px",
-          cursor: expandable ? "pointer" : "default",
-          userSelect: "none",
-          background: isColored ? `linear-gradient(135deg, ${accentBg}ee, ${accentBg}bb)` : "transparent",
-          transition: "background 0.2s",
-        }}
-        onMouseEnter={(e) => {
-          if (!expandable || isColored) return;
-          e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : `${C.gray50}80`;
-        }}
-        onMouseLeave={(e) => {
-          if (isColored) return;
-          e.currentTarget.style.background = "transparent";
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: labelClr, textTransform: "uppercase", letterSpacing: "0.07em" }}>
-            {label}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20 }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            {/* "#ffffff" not C.white — C.white in dark mode is a surface colour, not white */}
+            <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>✖ Reject Transaction{count > 1 ? "s" : ""}</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{count > 1 ? `${count} transactions selected` : "1 transaction selected"}</div>
           </div>
-          {expandable && (
-            <span style={{
-              fontSize: 12,
-              color: chevClr,
-              display: "inline-block",
-              transform: expanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
-              fontWeight: expanded ? 700 : 400,
-            }}>
-              ▾
-            </span>
-          )}
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 14 }}>✕</button>
         </div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: valueClr, lineHeight: 1, marginBottom: 5, transition: "color 0.2s" }}>
-          {loading
-            ? <span style={{ fontSize: 14, color: dark ? "rgba(255,255,255,0.2)" : isColored ? "rgba(255,255,255,0.3)" : C.gray400 }}>—</span>
-            : value}
+        <div style={{ padding: "20px" }}>
+          {err && <div style={{ background: C.redBg, border: `1px solid #FECACA`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Rejection Reason <span style={{ color: C.red }}>*</span></label>
+          <textarea value={comment} onChange={e => { setComment(e.target.value); setErr(""); }} placeholder="Explain why this transaction is being rejected..." rows={4}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, background: C.white, boxSizing: "border-box" }}
+            onFocus={e => { e.target.style.borderColor = C.red; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+          <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>This comment will be visible to the Data Entrant.</div>
         </div>
-        <div style={{ fontSize: 11, color: subClr, transition: "color 0.2s" }}>{sub}</div>
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving || !comment.trim()} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: saving || !comment.trim() ? C.gray200 : C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving || !comment.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {saving ? <><Spinner size={13} color="#fff" /> Rejecting...</> : `Reject ${count > 1 ? `${count} Transactions` : "Transaction"}`}
+          </button>
+        </div>
       </div>
-      {expandable && (
-        <div style={{ maxHeight: expanded ? "800px" : 0, overflow: "hidden", transition: "max-height 0.3s ease" }}>
-          <div style={{ borderTop: `1px solid ${isColored ? "rgba(255,255,255,0.15)" : dark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
-            {children}
+    </div>
+  );
+}
+
+// ── Confirm Action Modal ──────────────────────────────────────────
+const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1, company, onConfirm, onClose, loading }) {
+  const { C } = useTheme();
+  const isVerify    = action === "verify";
+  const accentColor = isVerify ? C.green : "#1D4ED8";
+  const accentBg    = isVerify ? C.greenBg : "#EFF6FF";
+  const accentBdr   = isVerify ? "#BBF7D0" : "#BFDBFE";
+  const icon        = isVerify ? "✔" : "✅";
+  const title       = isVerify ? `Verify Transaction${count > 1 ? "s" : ""}` : "Confirm Transaction";
+  const subtitle    = count > 1 ? `${count} transactions selected` : company || "1 transaction";
+  const description = isVerify
+    ? `Verifying will mark ${count > 1 ? "these transactions" : "this transaction"} as verified and finalize them.`
+    : action === "confirm-rejected"
+      ? "This transaction was previously rejected. Confirming will resubmit it to the Verifier for review."
+      : "Confirming will send this transaction to the Verifier for review.";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{icon} {title}</div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{subtitle}</div>
           </div>
+          <button onClick={onClose} disabled={loading} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: loading ? "not-allowed" : "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+        <div style={{ padding: "20px" }}>
+          <div style={{ background: accentBg, border: `1px solid ${accentBdr}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+            <span style={{ fontSize: 18, marginTop: 1 }}>{isVerify ? "🔍" : "📋"}</span>
+            <div style={{ fontSize: 13, color: accentColor, lineHeight: 1.5 }}>{description}</div>
+          </div>
+          <div style={{ fontSize: 13, color: C.gray600 }}>Are you sure you want to proceed?</div>
+        </div>
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : accentColor, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {loading
+              ? <><Spinner size={13} color="#fff" />{isVerify ? "Verifying..." : "Confirming..."}</>
+              : <>{icon} {isVerify ? (count > 1 ? `Verify ${count}` : "Verify") : "Confirm"}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ── Simple Confirm Modal ──────────────────────────────────────────
+const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, count, onConfirm, onClose, loading }) {
+  const { C } = useTheme();
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{title}</div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{count} transaction{count > 1 ? "s" : ""} selected</div>
+          </div>
+          <button onClick={onClose} disabled={loading} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: loading ? "not-allowed" : "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+        <div style={{ padding: "20px" }}>
+          <div style={{ fontSize: 14, color: C.text, marginBottom: 16 }}>{message}</div>
+        </div>
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ── Desktop Pagination ────────────────────────────────────────────
+const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
+  const { C } = useTheme();
+  // Active state uses #2563eb (matches Users/dashboard accent) — always visible in both themes
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? "#2563eb" : C.gray200}`, background: active ? "#2563eb" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {label}
+    </button>
+  );
+});
+
+const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPage, setPageSize, total, filtered }) {
+  const { C } = useTheme();
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to   = Math.min(page * pageSize, filtered);
+
+  const pages = useMemo(() => {
+    const arr = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) arr.push(i);
+      else if (arr[arr.length - 1] !== "...") arr.push("...");
+    }
+    return arr;
+  }, [page, totalPages]);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 12, color: C.gray400 }}>
+          Showing <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
+          {filtered !== total ? ` (${total} total)` : ""}
+        </span>
+        <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          style={{ padding: "3px 8px", borderRadius: 6, border: `1.5px solid ${C.gray200}`, fontSize: 11, fontFamily: "inherit", color: C.gray600, outline: "none", background: C.white, cursor: "pointer" }}>
+          <option value={50}>50 / page</option>
+          <option value={100}>100 / page</option>
+          <option value={200}>200 / page</option>
+        </select>
+      </div>
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <PgBtn onClick={() => setPage(1)} disabled={page === 1} label="«" />
+          <PgBtn onClick={() => setPage(p => p - 1)} disabled={page === 1} label="‹" />
+          {pages.map((p, i) => p === "..." ? (
+            <span key={`e${i}`} style={{ padding: "0 4px", color: C.gray400, fontSize: 12 }}>…</span>
+          ) : (
+            <PgBtn key={p} onClick={() => setPage(p)} active={p === page} label={p} />
+          ))}
+          <PgBtn onClick={() => setPage(p => p + 1)} disabled={page === totalPages} label="›" />
+          <PgBtn onClick={() => setPage(totalPages)} disabled={page === totalPages} label="»" />
         </div>
       )}
     </div>
   );
 });
 
-// ── StatCard ───────────────────────────────────────────────────────
-const StatCard = memo(function StatCard({
-  icon, label, value, subLabel, accent, accentBg,
-  onClick, active, navigates, loading,
-}) {
+// ── Mobile Pagination ─────────────────────────────────────────────
+const MobilePagination = memo(function MobilePagination({ page, totalPages, setPage, filtered, pageSize }) {
   const { C } = useTheme();
-  const isColored = active && accentBg;
-  // FIX: use literal white for text on colored cards
-  const hdrText = isColored ? "#FFFFFF" : C.text;
-  const hdrSub  = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
-  const hdrHint = isColored ? "rgba(255,255,255,0.45)" : C.gray400;
-
+  const from = filtered === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to   = Math.min(page * pageSize, filtered);
+  if (totalPages <= 1 && filtered === 0) return null;
   return (
-    <div
-      onClick={onClick}
-      style={{
-        background: C.white,
-        border: `1.5px solid ${active ? accent : C.gray200}`,
-        borderRadius: 14,
-        overflow: "hidden",
-        cursor: onClick ? "pointer" : "default",
-        transition: "all 0.18s ease",
-        boxShadow: active ? `0 4px 20px ${accent}33` : "0 1px 4px rgba(0,0,0,0.04)",
-      }}
-      onMouseEnter={(e) => {
-        if (!onClick) return;
-        e.currentTarget.style.borderColor = accent;
-        e.currentTarget.style.boxShadow   = `0 4px 20px ${accent}33`;
-        e.currentTarget.style.transform   = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        if (!onClick) return;
-        e.currentTarget.style.borderColor = active ? accent : C.gray200;
-        e.currentTarget.style.boxShadow   = active ? `0 4px 20px ${accent}33` : "0 1px 4px rgba(0,0,0,0.04)";
-        e.currentTarget.style.transform   = "none";
-      }}
-    >
-      <div style={{
-        padding: "16px 18px 14px",
-        background: isColored ? `linear-gradient(135deg, ${accentBg}ee, ${accentBg}bb)` : "transparent",
-        transition: "background 0.2s",
-      }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}18`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 19, transition: "background 0.2s",
-          }}>
-            {icon}
-          </div>
-          {navigates && <span style={{ fontSize: 13, color: isColored ? "rgba(255,255,255,0.6)" : C.gray400, marginTop: 2 }}>→</span>}
-          {!navigates && onClick && (
-            <span style={{
-              fontSize: 12,
-              color: isColored ? "rgba(255,255,255,0.9)" : (active ? accent : C.gray500),
-              marginTop: 2,
-              display: "inline-block",
-              transform: active ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
-              fontWeight: active ? 700 : 400,
-            }}>
-              ▾
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: hdrText, lineHeight: 1, transition: "color 0.2s" }}>
-          {loading ? <span style={{ fontSize: 14, color: isColored ? "rgba(255,255,255,0.3)" : C.gray400 }}>—</span> : value}
-        </div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: hdrSub, marginTop: 5, transition: "color 0.2s" }}>{label}</div>
-        {subLabel && <div style={{ fontSize: 11, color: hdrHint, marginTop: 2, transition: "color 0.2s" }}>{subLabel}</div>}
-      </div>
-    </div>
-  );
-});
-
-// ── ExpandPanel ────────────────────────────────────────────────────
-const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, children }) {
-  const { C, isDark } = useTheme();
-  return (
-    <div style={{
-      background: C.white,
-      border: `1.5px solid ${accentColor || C.gray200}`,
-      borderRadius: 14,
-      padding: "20px 24px",
-      marginBottom: 20,
-      animation: "dashFadeDown 0.2s ease",
-      boxShadow: isDark ? "0 4px 12px rgba(0,0,0,0.3)" : (accentColor ? `0 4px 20px ${accentColor}18` : "none"),
-    }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{title}</div>
-        <button
-          onClick={onClose}
-          style={{
-            background: accentColor ? `${accentColor}18` : (isDark ? "rgba(255,255,255,0.12)" : C.gray100),
-            border: "none", borderRadius: 8,
-            width: 36, height: 36,
-            cursor: "pointer", fontSize: 12,
-            color: isDark ? "#ffffff" : C.gray600,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          ✕
-        </button>
-      </div>
-      {children}
-    </div>
-  );
-});
-
-// ── Spinner / Empty ────────────────────────────────────────────────
-const Spinner = memo(function Spinner() {
-  const { C } = useTheme();
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 0" }}>
-      <div style={{
-        width: 22, height: 22,
-        border: `3px solid ${C.gray100}`,
-        borderTop: `3px solid ${C.green}`,
-        borderRadius: "50%",
-        animation: "spin 0.8s linear infinite",
-      }} />
-    </div>
-  );
-});
-
-const Empty = memo(function Empty({ msg }) {
-  const { C } = useTheme();
-  return <div style={{ textAlign: "center", color: C.gray400, fontSize: 13, padding: "24px 0" }}>{msg}</div>;
-});
-
-// ── Mobile metric card ─────────────────────────────────────────────
-const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, accent, onClick, chevron }) {
-  const { C } = useTheme();
-  const hasAccent = !!accent;
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: C.white,
-        border: `1.5px solid ${hasAccent ? `${accent}40` : C.gray200}`,
-        borderRadius: 12,
-        padding: "13px 14px",
-        cursor: onClick ? "pointer" : "default",
-      }}
-    >
-      <div style={{
-        fontSize: 9, color: C.gray400, fontWeight: 700,
-        textTransform: "uppercase", letterSpacing: "0.05em",
-        marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        {label}
-        {chevron && onClick && (
-          <span style={{
-            fontSize: 10, color: C.gray400,
-            transform: chevron === "open" ? "rotate(180deg)" : "none",
-            display: "inline-block", transition: "transform 0.2s",
-          }}>
-            ▾
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: `${C.navy}04` }}>
+      <span style={{ fontSize: 12, color: C.gray500 }}>
+        <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
+      </span>
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{ width: 36, height: 36, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: page === 1 ? C.gray50 : C.white, color: page === 1 ? C.gray400 : C.text, cursor: page === 1 ? "default" : "pointer", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            ‹
+          </button>
+          <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600, whiteSpace: "nowrap" }}>
+            {page} / {totalPages}
           </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{ width: 36, height: 36, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: page === totalPages ? C.gray50 : C.white, color: page === totalPages ? C.gray400 : C.text, cursor: page === totalPages ? "default" : "pointer", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            ›
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ── Row permissions helper ────────────────────────────────────────
+const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
+  const isPending   = transaction.status === "pending";
+  const isConfirmed = transaction.status === "confirmed";
+  const isVerified  = transaction.status === "verified";
+  const isRejected  = transaction.status === "rejected";
+  return {
+    canConfirm:  (isDE || isSAAD) && (isPending || isRejected),
+    canEdit:     isSAAD || (isDE && (isPending || isRejected)),
+    canDelete:   isDE ? (isPending || isRejected) : (isSAAD && !isVerified),
+    canUnVerify: isSAAD && isVerified,
+    canVerify:   (isVR || isSAAD) && isConfirmed,
+    canReject:   (isVR || isSAAD) && isConfirmed,
+    isPending, isConfirmed, isVerified, isRejected,
+  };
+};
+
+// ── Transaction Detail Modal ──────────────────────────────────────
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
+  const { C } = useTheme();
+  const isMobile = useIsMobile();
+
+  const [cdsAccountName, setCdsAccountName] = useState(null);
+  useEffect(() => {
+    const cdsNum = transaction?.cds_number;
+    if (!cdsNum) { setCdsAccountName(""); return; }
+    setCdsAccountName(null);
+    let cancelled = false;
+    sbGetCdsAccount(cdsNum)
+      .then(acc => { if (cancelled) return; setCdsAccountName(acc?.cds_name || ""); })
+      .catch(() => { if (!cancelled) setCdsAccountName(""); });
+    return () => { cancelled = true; };
+  }, [transaction?.cds_number]);
+
+  if (!transaction) return null;
+
+  const isBuy      = transaction.type === "Buy";
+  const isVerified = transaction.status === "verified";
+  const tradeVal   = Number(transaction.total || 0);
+  const fees       = Number(transaction.fees  || 0);
+  const gt         = isBuy ? tradeVal + fees : tradeVal - fees;
+  const st         = STATUS[transaction.status] || STATUS.pending;
+  const bd         = calcFees(tradeVal);
+  const totalFees  = fees || bd.total;
+  const feePct     = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
+  const qty        = Number(transaction.qty || 0);
+  const accentColor = isBuy ? C.green : "#EF4444";
+  const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
+  const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
+  const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
+
+  const companiesMap = useMemo(
+    () => new Map(companies.map(c => [c.id, c])),
+    [companies]
+  );
+
+  const unrealizedGL = useMemo(() => {
+    if (!isBuy || !isVerified || !qty) return null;
+    const company = companiesMap.get(transaction.company_id);
+    const currentPrice = Number(company?.price || company?.cds_price || 0);
+    if (!currentPrice) return null;
+    const currentValue = currentPrice * qty;
+    const costBasis    = gt;
+    const gain         = currentValue - costBasis;
+    const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
+    return { currentPrice, currentValue, costBasis, gain, pct };
+  }, [isBuy, isVerified, qty, companiesMap, transaction.company_id, gt]);
+
+  const realizedGL = useMemo(() => {
+    if (isBuy || !transaction.company_id) return null;
+    const companyTxns = transactions
+      .filter(t => t.company_id === transaction.company_id && t.status === "verified")
+      .map(t => ({ ...t, _ts: new Date(t.date || t.created_at || 0).getTime() }))
+      .sort((a, b) => a._ts !== b._ts ? a._ts - b._ts : new Date(a.created_at||0) - new Date(b.created_at||0));
+
+    let sharesHeld = 0, costHeld = 0, runningAvg = 0;
+    for (const t of companyTxns) {
+      const tQty   = Number(t.qty   || 0);
+      const tTotal = Number(t.total || 0);
+      const tFees  = Number(t.fees  || 0);
+      if (t.type === "Buy") {
+        const cost = tTotal + tFees;
+        costHeld   += cost;
+        sharesHeld += tQty;
+        runningAvg  = sharesHeld > 0 ? costHeld / sharesHeld : 0;
+      } else if (t.type === "Sell") {
+        const actualSold = Math.min(tQty, sharesHeld);
+        const costBasis  = actualSold * runningAvg;
+        const proceeds   = tTotal - tFees;
+        const gain       = proceeds - costBasis;
+        if (t.id === transaction.id) {
+          return {
+            gain, costBasis, proceeds,
+            avgBuyCostPerShare: runningAvg,
+            sellNetPerShare:    actualSold > 0 ? proceeds / actualSold : 0,
+            pct:                costBasis > 0 ? (gain / costBasis) * 100 : 0,
+          };
+        }
+        costHeld   -= costBasis;
+        sharesHeld -= actualSold;
+        if (sharesHeld <= 0) { sharesHeld = 0; costHeld = 0; runningAvg = 0; }
+      }
+    }
+    return null;
+  }, [isBuy, transaction.id, transaction.company_id, transactions]);
+
+  const AUDIT_STEPS = useMemo(() => [
+    { icon: "📝", label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
+    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: "#EFF6FF" },
+    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
+    ...(transaction.status === "rejected"
+      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
+      : []
+    ),
+  ], [C, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
+      transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name,
+      transaction.status]);
+
+  const summaryItems = [
+    { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
+    { label: "Total Fees",                           value: `TZS ${fmt(totalFees)}`, sub: `${feePct}% of trade value`,                                     valueColor: C.gold     },
+    { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`,         sub: isBuy ? "trade + fees" : "trade − fees",                        valueColor: accentColor },
+  ];
+
+  const transactionRows = [
+    ["Date",        fmtDate(transaction.date)],
+    ["Quantity",    `${fmtInt(transaction.qty)} shares`],
+    ["Price/Share", `TZS ${fmt(transaction.price)}`],
+    ["Trade Value", `TZS ${fmt(tradeVal)}`],
+    ...(allInCostPerShare ? [["All-in Cost/Share",  `TZS ${fmt(Math.round(allInCostPerShare))}`]] : []),
+    ...(unrealizedGL      ? [["Market Value/Share", `TZS ${fmt(unrealizedGL.currentPrice)}`]]     : []),
+    ...(realizedGL        ? [["All-in Cost/Share",  `TZS ${fmt(Math.round(realizedGL.avgBuyCostPerShare))}`]] : []),
+    ...(realizedGL        ? [["Net Sell/Share",      `TZS ${fmt(Math.round(realizedGL.sellNetPerShare))}`]]   : []),
+  ];
+
+  const commissionRows = [
+    ["Broker (+VAT)",    bd.broker   ],
+    ["CMSA (0.14%)",     bd.cmsa     ],
+    ["DSE (+VAT)",       bd.dse      ],
+    ["CSDR (+VAT)",      bd.csdr     ],
+    ["Fidelity (0.02%)", bd.fidelity ],
+  ];
+
+  const renderKVRows = (rows) => rows.map(([label, value], i, arr) => (
+    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
+      <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{typeof value === "number" ? fmt(value) : value}</span>
+    </div>
+  ));
+
+  // Section title uses C.gray500 — always readable in both themes (C.navy was invisible in dark mode)
+  const renderSectionTitle = (title) => (
+    <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
+  );
+
+  const renderGLCard = (gl, type) => {
+    if (!gl) return null;
+    const isGain = gl.gain >= 0;
+    const glBg   = isGain ? C.greenBg : "#FEF2F2";
+    const glBdr  = isGain ? "#BBF7D0" : "#FECACA";
+    const glCol  = isGain ? C.green   : "#EF4444";
+    const rows   = type === "buy"
+      ? [["Current Price × " + fmtInt(qty) + " shares", `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
+      : [["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`], ["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`]];
+    const cardTitle = type === "buy" ? "Unrealized Gain / Loss" : "Realized Gain / Loss";
+    return (
+      <div style={{ padding: "0 20px 14px" }}>
+        <div style={{ padding: "8px 10px", background: glBg, borderRadius: 8, border: `1px solid ${glBdr}` }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: glCol, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{cardTitle}</div>
+          {rows.map(([label, value], i, arr) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: i < arr.length - 1 ? 3 : 6, ...(i === arr.length - 1 ? { paddingBottom: 6, borderBottom: `1px solid ${glBdr}` } : {}) }}>
+              <span style={{ fontSize: 11, color: C.gray500 }}>{label}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{value}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: glCol }}>{isGain ? "▲ Gain" : "▼ Loss"}</span>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: glCol }}>{isGain ? "+" : ""}TZS {fmt(Math.round(gl.gain))}</span>
+              <span style={{ fontSize: 10, color: glCol, marginLeft: 6 }}>({isGain ? "+" : ""}{gl.pct.toFixed(2)}%)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRightPanel = () => (
+    <>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+        {renderSectionTitle("Reference & Broker")}
+        {[
+          ["Broker",  transaction.broker_name,    false],
+          ["Ref No.", transaction.control_number, true ],
+          ["Remarks", transaction.remarks,        false],
+        ].map(([label, value, mono]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}`, gap: 10 }}>
+            <span style={{ fontSize: 12, color: C.gray500, flexShrink: 0 }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: value ? C.text : C.gray400, fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, textAlign: "right", wordBreak: "break-all" }}>{value || "—"}</span>
+          </div>
+        ))}
+        {transaction.status === "rejected" && transaction.rejection_comment && (
+          <div style={{ marginTop: 8, padding: "8px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
+            <div style={{ fontSize: 12, color: "#7F1D1D", lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
+          </div>
         )}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: hasAccent ? accent : C.text, lineHeight: 1, marginBottom: 3 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>{sub}</div>}
+      <div style={{ padding: "14px 20px" }}>
+        {renderSectionTitle("Audit trail")}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {AUDIT_STEPS.map((step) => {
+            const done = !!step.time;
+            return (
+              <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: done ? step.activeBg : "transparent", border: `1px solid ${done ? step.stepColor + "22" : C.gray100}`, opacity: done ? 1 : 0.45 }}>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", background: done ? step.stepColor + "20" : C.gray100, border: `1.5px solid ${done ? step.stepColor + "40" : C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{step.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: done ? step.stepColor : C.gray400 }}>{step.label}</div>
+                  <div style={{ fontSize: 10, color: C.gray400 }}>{done ? fmtDateTime(step.time) : "Awaiting"}</div>
+                </div>
+                {done && step.name && (
+                  <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.name}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {unrealizedGL && renderGLCard(unrealizedGL, "buy")}
+      {realizedGL   && renderGLCard(realizedGL,   "sell")}
+    </>
+  );
+
+  const renderLeftPanel = () => (
+    <>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+        {renderSectionTitle("Transaction")}
+        {renderKVRows(transactionRows)}
+      </div>
+      <div style={{ padding: "14px 20px" }}>
+        {renderSectionTitle("Commission breakdown")}
+        {commissionRows.map(([label, value]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}` }}>
+            <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(value)}</span>
+          </div>
+        ))}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Total Fees</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>TZS {fmt(totalFees)}</span>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.6)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: C.white,
+        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        width: "100%",
+        maxWidth: isMobile ? "100%" : 720,
+        maxHeight: isMobile ? "92vh" : "95vh",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+        overflow: "hidden",
+        border: isMobile ? "none" : `1px solid ${C.gray200}`,
+        display: "flex",
+        flexDirection: "column",
+      }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: C.text }}>{transaction.company_name}</span>
+              <span style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBdr}`, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
+              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{st.icon} {st.label}</span>
+            </div>
+            <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
+              <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>📅 {fmtDate(transaction.date)}</span>
+              {transaction.cds_number && (
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                  🪪 {transaction.cds_number}
+                  {cdsAccountName === null
+                    ? <span style={{ color: C.gray400 }}> — …</span>
+                    : cdsAccountName
+                      ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
+                      : null}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
+        </div>
+
+        {/* ── Summary row ── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
+          borderBottom: `1px solid ${C.gray200}`,
+          background: C.gray50,
+          flexShrink: 0,
+        }}>
+          {summaryItems.map((item, i) => (
+            <div key={i} style={{
+              padding: isMobile ? "10px 18px" : "12px 20px",
+              borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none",
+              borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none",
+              background: i === 2 ? accentBg : "transparent",
+              display: "flex",
+              alignItems: isMobile ? "center" : "block",
+              justifyContent: isMobile ? "space-between" : "initial",
+            }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 4 }}>{item.label}</div>
+              <div>
+                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.value}</div>
+                {!isMobile && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Body ── */}
+        <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+          {isMobile ? (
+            renderRightPanel()
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+              <div style={{ borderRight: `1px solid ${C.gray200}` }}>
+                {renderLeftPanel()}
+              </div>
+              <div>
+                {renderRightPanel()}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
+          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
+          <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+        </div>
+
+      </div>
     </div>
   );
 });
 
-// ── Mobile stat pill ───────────────────────────────────────────────
-const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClick, active, accent, navigates }) {
+// ── Transaction Mobile Card ───────────────────────────────────────
+const TransactionMobileCard = memo(function TransactionMobileCard({
+  transaction,
+  onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
+  onHandleConfirm, onHandleVerify, onHandleUnverify,
+  confirmingIds, verifyingIds, rejectingIds, unverifyingIds,
+  deletingId, bulkDeletingIds,
+  isDE, isVR, isSAAD, showActions,
+  onOpenDetail,
+}) {
   const { C } = useTheme();
+  const isBuy    = transaction.type === "Buy";
+  const tradeVal = Number(transaction.total || 0);
+  const fees     = Number(transaction.fees  || 0);
+  const gt       = isBuy ? tradeVal + fees : tradeVal - fees;
+
+  const perms = useMemo(
+    () => getRowPermissions({ transaction, isDE, isVR, isSAAD }),
+    [transaction, isDE, isVR, isSAAD]
+  );
+
+  const isRowConfirming  = confirmingIds.has(transaction.id);
+  const isRowVerifying   = verifyingIds.has(transaction.id);
+  const isRowRejecting   = rejectingIds.has(transaction.id);
+  const isRowUnverifying = unverifyingIds.has(transaction.id);
+  const isRowDeleting    = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
+  const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
+
+  const rowActions = useMemo(() => [
+    ...(perms.canConfirm  ? [{ icon: "✅", label: isRowConfirming  ? "Confirming..."  : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
+    ...(perms.canEdit     ? [{ icon: "✏️", label: "Edit",      disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify   ? [{ icon: "✔️", label: isRowVerifying   ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject   ? [{ icon: "✖",  label: isRowRejecting   ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify ? [{ icon: "↩️", label: isRowUnverifying ? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete   ? [{ icon: "🗑️", label: isRowDeleting    ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+  ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
+      transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
+
+  const accentColor = isBuy ? C.green : C.red;
+  const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
+  const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
+  const cardBg      = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : C.white;
+  const cardBdr     = perms.isRejected ? "#FECACA" : perms.isVerified ? "#BBF7D0" : C.gray200;
+
   return (
     <div
-      onClick={onClick}
+      onClick={() => !isRowBusy && onOpenDetail(transaction.id)}
       style={{
-        background: active ? `${accent}12` : C.white,
-        border: `1.5px solid ${active ? accent : C.gray200}`,
+        background: cardBg,
+        border: `1px solid ${cardBdr}`,
         borderRadius: 12,
-        padding: "11px 12px",
-        cursor: onClick ? "pointer" : "default",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+        padding: "12px 14px",
+        marginBottom: 8,
+        cursor: isRowBusy ? "not-allowed" : "pointer",
+        opacity: isRowBusy ? 0.6 : 1,
+        transition: "box-shadow 0.15s",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
-      <div style={{ fontSize: 20 }}>{icon}</div>
-      <div style={{ fontSize: 17, fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 10, color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
-      {navigates && <span style={{ fontSize: 10, color: C.gray400 }}>→</span>}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 5 }}>
+            {transaction.company_name}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBdr}`, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+              {isBuy ? "▲ Buy" : "▼ Sell"}
+            </span>
+            <StatusBadge status={transaction.status} />
+          </div>
+        </div>
+        {showActions && rowActions.length > 0 && (
+          <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+            <ActionMenu actions={rowActions} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(transaction.date)}</span>
+        {transaction.broker_name && (
+          <span style={{ fontSize: 11, color: C.gray500, fontWeight: 500, maxWidth: 140, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{transaction.broker_name}</span>
+        )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
+        <div>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>Qty × Price</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmtInt(transaction.qty)} × {fmt(transaction.price)}</div>
+        </div>
+        <span style={{ fontSize: 14, color: C.gray400, margin: "0 6px" }}>→</span>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>{isBuy ? "Total Paid" : "Net Received"}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: accentColor }}>TZS {fmtSmart(gt)}</div>
+        </div>
+      </div>
+
+      {perms.isRejected && transaction.rejection_comment && (
+        <div style={{ marginTop: 8, padding: "6px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA`, fontSize: 11, color: "#7F1D1D", lineHeight: 1.5 }}>
+          💬 {transaction.rejection_comment}
+        </div>
+      )}
+
+      {isRowBusy && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.gray400 }}>
+          <Spinner size={11} color={C.gray400} /> Processing...
+        </div>
+      )}
     </div>
+  );
+});
+
+// ── Transaction Row ────────────────────────────────────────────────
+const TransactionRow = memo(function TransactionRow({
+  transaction, globalIdx, selected, onToggleOne,
+  onOpenFormModal, onOpenRejectModal, onOpenDeleteModal,
+  onHandleConfirm, onHandleVerify, onHandleUnverify,
+  confirmingIds, verifyingIds, rejectingIds, unverifyingIds,
+  deletingId, bulkDeletingIds,
+  isDE, isVR, isSAAD, showCheckbox, showActions,
+  onOpenDetail,
+}) {
+  const { C } = useTheme();
+  const isBuy    = transaction.type === "Buy";
+  const tradeVal = Number(transaction.total || 0);
+  const fees     = Number(transaction.fees  || 0);
+  const gt       = isBuy ? tradeVal + fees : tradeVal - fees;
+  const isChecked = selected.has(transaction.id);
+
+  const perms = useMemo(
+    () => getRowPermissions({ transaction, isDE, isVR, isSAAD }),
+    [transaction, isDE, isVR, isSAAD]
+  );
+
+  const isRowConfirming  = confirmingIds.has(transaction.id);
+  const isRowVerifying   = verifyingIds.has(transaction.id);
+  const isRowRejecting   = rejectingIds.has(transaction.id);
+  const isRowUnverifying = unverifyingIds.has(transaction.id);
+  const isRowDeleting    = deletingId === transaction.id || bulkDeletingIds.has(transaction.id);
+  const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
+
+  const rowActions = useMemo(() => [
+    ...(perms.canConfirm ? [{ icon: isRowConfirming ? null : "✅", label: isRowConfirming ? "Confirming..." : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
+    ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",       disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+  ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
+      transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
+
+  return (
+    <tr
+      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+      onClick={() => onOpenDetail(transaction.id)}
+      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
+      onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
+    >
+      {showCheckbox && (
+        <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
+          <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: "#2563eb" }} />
+        </td>
+      )}
+      <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
+      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(transaction.date)}</td>
+      <td style={{ padding: "7px 10px" }}>
+        <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{transaction.company_name}</div>
+      </td>
+      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+          {isBuy ? "▲ Buy" : "▼ Sell"}
+        </span>
+      </td>
+      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right", color: C.text }}>{fmtInt(transaction.qty)}</td>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{fmt(transaction.price)}</span>
+      </td>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fees > 0 ? fmt(fees) : ""}>
+        <span style={{ color: C.gold, fontWeight: 700 }}>{fees > 0 ? fmt(fees) : <span style={{ color: C.gray400 }}>—</span>}</span>
+      </td>
+      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden" }} title={fmt(gt)}>
+        <span style={{ background: isBuy ? C.greenBg : C.redBg, color: isBuy ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isBuy ? "#BBF7D0" : "#FECACA"}` }}>
+          {fmt(gt)}
+        </span>
+      </td>
+      <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {transaction.broker_name
+          ? <span style={{ fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
+          : <span style={{ color: C.gray400 }}>—</span>}
+      </td>
+      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+        <StatusBadge status={transaction.status} />
+        {perms.isRejected && transaction.rejection_comment && (
+          <div style={{ fontSize: 10, color: "#EF4444", marginTop: 3, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
+            💬 {transaction.rejection_comment}
+          </div>
+        )}
+      </td>
+      {showActions && (
+        <td style={{ padding: "7px 12px", textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+          {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
+        </td>
+      )}
+    </tr>
   );
 });
 
 // ══════════════════════════════════════════════════════════════════
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
-export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
+export default function TransactionsPage({ companies, transactions, setTransactions, showToast, role, cdsNumber }) {
   const { C } = useTheme();
-  const [portfolio,     setPortfolio]     = useState([]);
-  const [transactions,  setTransactions]  = useState([]);
-  const [userCount,     setUserCount]     = useState(null);
-  const [allUsers,      setAllUsers]      = useState([]);
-  const [cdsMembers,    setCdsMembers]    = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [expanded,      setExpanded]      = useState(null);
-  const [pullDistance,  setPullDistance]  = useState(0);
-  const [refreshing,    setRefreshing]    = useState(false);
+
+  // TOOLBAR_INPUT and TOOLBAR_SELECT reference C, so computed here after useTheme()
+  const TOOLBAR_INPUT  = { ...TOOLBAR_BASE, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text, background: C.white };
+  const TOOLBAR_SELECT = { ...TOOLBAR_BASE, padding: "0 10px", background: C.white, color: C.text, cursor: "pointer", outline: "none", flexShrink: 0 };
+
+  const isDE   = role === "DE";
+  const isVR   = role === "VR";
+  const isRO   = role === "RO";
+  const isSAAD = role === "SA" || role === "AD";
 
   const isMobile = useIsMobile();
-  const isSAAD   = ["SA", "AD"].includes(role);
 
-  const snapRef          = useRef(null);
-  const hasExpandedRef   = useRef(false);
-  const mountedRef       = useRef(true);
-  const rootRef          = useRef(null);
-  const touchStartYRef   = useRef(null);
-  const pullingRef       = useRef(false);
-  const scrollHostRef    = useRef(null);
+  const isMountedRef   = useRef(true);
+  const txLoadRef      = useRef(0);
+  const companyLoadRef = useRef(0);
 
-  const cds   = profile?.cds_number || null;
-  const myTxns = useMemo(
-    () => (cds ? transactions.filter((t) => t.cds_number === cds) : transactions),
-    [transactions, cds]
+  // ── Pull-to-refresh refs ──────────────────────────────────────
+  const rootRef        = useRef(null);
+  const touchStartYRef = useRef(null);
+  const pullingRef     = useRef(false);
+  const scrollHostRef  = useRef(null);
+
+  const [localCompanies, setLocalCompanies]           = useState([]);
+  const [brokers, setBrokers]                         = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [loadingCompanies, setLoadingCompanies]       = useState(true);
+  const [loadingBrokers, setLoadingBrokers]           = useState(true);
+  const [pageError, setPageError]                     = useState(null);
+
+  const [search, setSearch]             = useState("");
+  const [typeFilter, setTypeFilter]     = useState("All");
+  const [statusFilter, setStatusFilter] = useState(defaultStatus);
+  const [page, setPage]                 = useState(1);
+  const [pageSize, setPageSize]         = useState(50);
+  const [selected, setSelected]         = useState(new Set());
+
+  // ── Pull-to-refresh state ─────────────────────────────────────
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing]     = useState(false);
+
+  const [confirmingIds,   setConfirmingIds]   = useState(new Set());
+  const [verifyingIds,    setVerifyingIds]    = useState(new Set());
+  const [rejectingIds,    setRejectingIds]    = useState(new Set());
+  const [unverifyingIds,  setUnverifyingIds]  = useState(new Set());
+  const [deletingId,      setDeletingId]      = useState(null);
+  const [bulkDeletingIds, setBulkDeletingIds] = useState(new Set());
+
+  const [deleteModal,       setDeleteModal]       = useState(null);
+  const [bulkDeleteModal,   setBulkDeleteModal]   = useState(null);
+  const [bulkUnverifyModal, setBulkUnverifyModal] = useState(null);
+  const [formModal,         setFormModal]         = useState({ open: false, transaction: null });
+  const [importModal,       setImportModal]       = useState(false);
+  const [actionModal,       setActionModal]       = useState(null);
+  const [rejectModal,       setRejectModal]       = useState(null);
+  const [detailModal,       setDetailModal]       = useState(null);
+
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+
+  const effectiveCompanies = useMemo(
+    () => (companies?.length ? companies : localCompanies),
+    [companies, localCompanies]
   );
+
+  const loadTransactions = useCallback(async ({ fromPull = false } = {}) => {
+    const requestId = ++txLoadRef.current;
+    if (!fromPull && isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
+    try {
+      const data = await sbGetTransactions();
+      if (!isMountedRef.current || requestId !== txLoadRef.current) return;
+      setTransactions(data);
+      setPageError(null);
+    } catch (e) {
+      if (!isMountedRef.current || requestId !== txLoadRef.current) return;
+      setPageError(e.message || "Failed to load transactions.");
+      if (fromPull) showToast?.("Refresh failed", "error");
+    } finally {
+      if (isMountedRef.current && requestId === txLoadRef.current) {
+        setLoadingTransactions(false);
+        if (fromPull) { setRefreshing(false); setPullDistance(0); }
+      }
+    }
+  }, [setTransactions, showToast]);
+
+  const loadCompanies = useCallback(async () => {
+    const requestId = ++companyLoadRef.current;
+    if (isMountedRef.current) setLoadingCompanies(true);
+    try {
+      const data = await sbGetAllCompanies();
+      if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
+      setLocalCompanies(data);
+    } catch (e) {
+      if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
+      showToast("Error loading companies: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current && requestId === companyLoadRef.current) setLoadingCompanies(false);
+    }
+  }, [showToast]);
+
+  const loadBrokers = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    setLoadingBrokers(true);
+    try {
+      const data = await sbGetActiveBrokers();
+      if (!isMountedRef.current) return;
+      setBrokers(data);
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error loading brokers: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setLoadingBrokers(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { loadTransactions(); }, [loadTransactions]);
+  useEffect(() => {
+    if (companies?.length) { setLoadingCompanies(false); return; }
+    loadCompanies();
+  }, [companies, loadCompanies]);
+  useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
   const getScrollParent = useCallback((el) => {
     let node = el?.parentElement;
     while (node) {
-      const style     = window.getComputedStyle(node);
-      const canScroll = (style.overflowY === "auto" || style.overflowY === "scroll") && node.scrollHeight > node.clientHeight;
+      const style = window.getComputedStyle(node);
+      const canScroll =
+        (style.overflowY === "auto" || style.overflowY === "scroll") &&
+        node.scrollHeight > node.clientHeight;
       if (canScroll) return node;
       node = node.parentElement;
     }
     return document.scrollingElement || document.documentElement;
   }, []);
 
-  const loadDashboard = useCallback(async ({ fromPull = false } = {}) => {
-    if (!mountedRef.current) return;
-    if (fromPull) setRefreshing(true);
-    else          setLoading(true);
-
-    try {
-      const activeCdsId = activeCds?.cds_id;
-      const [port, txns, users, members] = await Promise.all([
-        sbGetPortfolio(profile?.cds_number).catch(() => []),
-        sbGetTransactions().catch(() => []),
-        activeCdsId ? Promise.resolve([]) : sbGetAllUsers().catch(() => []),
-        activeCdsId ? sbGetCDSAssignedUsers(activeCdsId).catch(() => []) : Promise.resolve([]),
-      ]);
-
-      if (!mountedRef.current) return;
-
-      setPortfolio(port || []);
-      setTransactions(txns || []);
-
-      if (users?.length) {
-        setUserCount(users.length);
-        setAllUsers(users);
-      } else if (!activeCdsId) {
-        setUserCount(0);
-        setAllUsers([]);
-      }
-
-      setCdsMembers(
-        members?.length
-          ? members.map((m) => ({
-              id:         m.user_id,
-              full_name:  m.full_name,
-              role_code:  m.role_code,
-              is_active:  m.is_active,
-              phone:      m.phone      || null,
-              email:      m.email      || null,
-              avatar_url: m.avatar_url || null,
-            }))
-          : []
-      );
-    } catch {
-      if (mountedRef.current) showToast?.(fromPull ? "Refresh failed" : "Dashboard load error", "error");
-    } finally {
-      if (!mountedRef.current) return;
-      setLoading(false);
-      setRefreshing(false);
-      setPullDistance(0);
-    }
-  }, [activeCds?.cds_id, profile?.cds_number, showToast]);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    loadDashboard();
-    return () => { mountedRef.current = false; };
-  }, [loadDashboard]);
-
-  const groupedVerifiedByCompany = useMemo(() => {
-    const map = new Map();
-    let grossBuyCapital = 0;
-    let pending         = 0;
-
-    for (const t of myTxns) {
-      const s = statusOf(t);
-      if (s === "pending" || s === "confirmed") pending++;
-      if (!isVerified(t)) continue;
-
-      const { company_id } = t;
-      if (company_id) {
-        if (!map.has(company_id)) map.set(company_id, []);
-        map.get(company_id).push(t);
-      }
-      if (t.type === "Buy") grossBuyCapital += Number(t.total || 0) + Number(t.fees || 0);
-    }
-
-    for (const arr of map.values()) arr.sort((a, b) => txTime(a) - txTime(b));
-    return { map, grossBuyCapital, pending };
-  }, [myTxns]);
-
-  const metrics = useMemo(() => {
-    const total          = myTxns.length;
-    const pending        = groupedVerifiedByCompany.pending;
-    const grossBuyCapital = groupedVerifiedByCompany.grossBuyCapital;
-    const hasCostData    = grossBuyCapital > 0;
-    const txnCompanyCount = new Set(myTxns.map((t) => t.company_id).filter(Boolean)).size;
-
-    let totalMarketValue        = 0;
-    let totalCurrentCost        = 0;
-    let totalRealizedGLAll      = 0;
-    let totalSaleProceedsAcc    = 0;
-    let totalCostBasisAcc       = 0;
-    let totalSharesSoldAcc      = 0;
-    let totalBuyTxnCount        = 0;
-    let firstBuyDaysNumerator   = 0;
-    let firstBuySharesDenominator = 0;
-
-    const companyMetricsRaw = portfolio.map((company, idx) => {
-      const color        = CHART_COLORS[idx % CHART_COLORS.length];
-      const verifiedTxns = groupedVerifiedByCompany.map.get(company.id) || [];
-
-      let sharesHeld = 0, costHeld = 0, runningAvg = 0;
-      let realizedGL = 0, totalSaleProceeds = 0, totalCostBasis = 0, totalSharesSold = 0;
-      let buyTxnCount = 0, firstBuyDate = null;
-      const realizedTrades = [];
-
-      for (const t of verifiedTxns) {
-        const qty  = Number(t.qty  || 0);
-        const fees = Number(t.fees || 0);
-
-        if (t.type === "Buy") {
-          const cost = Number(t.total || 0) + fees;
-          costHeld   += cost;
-          sharesHeld += qty;
-          runningAvg  = sharesHeld > 0 ? costHeld / sharesHeld : 0;
-          buyTxnCount++;
-          if (t.date && (!firstBuyDate || t.date < firstBuyDate)) firstBuyDate = t.date;
-
-        } else if (t.type === "Sell") {
-          if (sharesHeld <= 0) continue;
-          const actualSold   = Math.min(qty, sharesHeld);
-          const costBasis    = actualSold * runningAvg;
-          const netProceeds  = Number(t.total || 0) - fees;
-          const gain         = netProceeds - costBasis;
-          const retPct       = costBasis > 0 ? (gain / costBasis) * 100 : 0;
-          const daysHeld     = firstBuyDate && t.date
-            ? Math.max(0, Math.floor((new Date(t.date) - new Date(firstBuyDate)) / 86_400_000))
-            : null;
-
-          realizedGL         += gain;
-          totalSaleProceeds  += netProceeds;
-          totalCostBasis     += costBasis;
-          totalSharesSold    += actualSold;
-
-          costHeld   -= costBasis;
-          sharesHeld -= actualSold;
-          if (sharesHeld <= 0) { sharesHeld = 0; costHeld = 0; runningAvg = 0; }
-
-          realizedTrades.push({ soldShares: actualSold, costBasis, saleProceeds: netProceeds, realizedGL: gain, realRetPct: retPct, date: t.date, daysHeld });
-        }
-      }
-
-      const currentPrice     = Number(company.cds_price || 0);
-      const marketValue      = sharesHeld > 0 && currentPrice > 0 ? sharesHeld * currentPrice : 0;
-      const openPositionCost = costHeld;
-      const unrealizedGL     = currentPrice > 0 ? marketValue - openPositionCost : 0;
-      const unrealizedRetPct = openPositionCost > 0 ? (unrealizedGL / openPositionCost) * 100 : 0;
-      const firstBuyDays     = firstBuyDate ? daysBetween(firstBuyDate) : null;
-
-      totalMarketValue     += marketValue;
-      totalCurrentCost     += openPositionCost;
-      totalRealizedGLAll   += realizedGL;
-      totalSaleProceedsAcc += totalSaleProceeds;
-      totalCostBasisAcc    += totalCostBasis;
-      totalSharesSoldAcc   += totalSharesSold;
-      totalBuyTxnCount     += buyTxnCount;
-      if (sharesHeld > 0 && firstBuyDays !== null) {
-        firstBuyDaysNumerator     += firstBuyDays * sharesHeld;
-        firstBuySharesDenominator += sharesHeld;
-      }
-
-      return {
-        id: company.id, name: company.name, color,
-        netShares: sharesHeld, avgCost: runningAvg, currentPrice,
-        marketValue, openPositionCost, unrealizedGL, unrealizedRetPct,
-        firstBuyDays, buyTransactionCount: buyTxnCount,
-        hasAnomaly: sharesHeld < 0,
-        realizedTrades, realizedGL, totalSaleProceeds, totalCostBasis, totalSharesSold,
-        prevPrice: Number(company.cds_previous_price || 0),
-      };
-    });
-
-    const activeCompanies = [];
-    for (const c of companyMetricsRaw) {
-      if (c.netShares <= 0 && c.marketValue <= 0) continue;
-      activeCompanies.push({
-        ...c,
-        weight:     totalMarketValue  > 0 ? (c.marketValue      / totalMarketValue)  * 100 : 0,
-        costWeight: totalCurrentCost  > 0 ? (c.openPositionCost / totalCurrentCost)  * 100 : 0,
-      });
-    }
-    activeCompanies.sort((a, b) => b.marketValue - a.marketValue);
-
-    const unrealizedGL     = totalMarketValue - totalCurrentCost;
-    const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
-    const hasFinancials    = activeCompanies.some((c) => c.currentPrice > 0 && c.netShares > 0);
-    const hasRealized      = totalRealizedGLAll !== 0;
-    const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
-    const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
-    const avgFirstBuyDays  = firstBuySharesDenominator > 0
-      ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
-    const realizedCompanies = companyMetricsRaw.filter((c) => c.realizedTrades.length > 0);
-    const totalCompanies    = activeCompanies.length > 0
-      ? activeCompanies.length
-      : portfolio.length > 0 ? portfolio.length : txnCompanyCount;
-
-    return {
-      pending, total, totalCompanies, totalMarketValue, investedCapital, grossBuyCapital,
-      unrealizedGL, unrealizedRetPct, totalRealizedGL: totalRealizedGLAll,
-      totalSaleProceeds: totalSaleProceedsAcc, totalCostBasis: totalCostBasisAcc,
-      totalSharesSold: totalSharesSoldAcc, hasRealized, hasFinancials, hasCostData,
-      companyMetrics: activeCompanies, realizedCompanies,
-      totalNetShares, totalBuyTransactionCount: totalBuyTxnCount, avgFirstBuyDays,
-    };
-  }, [portfolio, myTxns, groupedVerifiedByCompany]);
-
-  const cdsUsers = useMemo(() => cdsMembers.map((u) => {
-    const name = u.full_name || u.email || "?";
-    const code = u.role_code || "";
-    return {
-      ...u,
-      _roleName:    ROLE_NAMES[code] || code || "—",
-      _initials:    name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2),
-      _avatarColor: AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length],
-      _isActive:    u.is_active !== false && u.status !== "inactive",
-    };
-  }), [cdsMembers]);
-
-  const toggleExpand       = useCallback((key) => setExpanded((prev) => (prev === key ? null : key)), []);
-  const onToggleRealized   = useCallback(() => toggleExpand("realized"),  [toggleExpand]);
-  const onToggleCompanies  = useCallback(() => toggleExpand("companies"), [toggleExpand]);
-  const onToggleUsers      = useCallback(() => toggleExpand("users"),     [toggleExpand]);
-  const onNavTransactions  = useCallback(() => onNavigate("transactions"),    [onNavigate]);
-  const onNavUserMgmt      = useCallback(() => onNavigate("user-management"), [onNavigate]);
-  const onCloseExpand      = useCallback(() => setExpanded(null), []);
-
   const handleTouchStart = useCallback((e) => {
-    if (!isMobile || refreshing || loading) return;
+    if (!isMobile || refreshing || loadingTransactions) return;
     const host = getScrollParent(rootRef.current);
     scrollHostRef.current = host;
     if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; return; }
     touchStartYRef.current = e.touches[0].clientY;
-    pullingRef.current     = false;
-  }, [getScrollParent, isMobile, loading, refreshing]);
+    pullingRef.current = false;
+  }, [isMobile, refreshing, loadingTransactions, getScrollParent]);
 
   const handleTouchMove = useCallback((e) => {
-    if (!isMobile || refreshing || loading) return;
+    if (!isMobile || refreshing || loadingTransactions) return;
     if (touchStartYRef.current == null) return;
     const host = scrollHostRef.current || getScrollParent(rootRef.current);
     if ((host?.scrollTop || 0) > 0) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
     const deltaY = e.touches[0].clientY - touchStartYRef.current;
     if (deltaY <= 0) { pullingRef.current = false; setPullDistance(0); return; }
     pullingRef.current = true;
-    setPullDistance(Math.min(92, Math.round(Math.pow(deltaY, 0.85))));
-  }, [getScrollParent, isMobile, loading, refreshing]);
+    const resisted = Math.min(92, Math.round(Math.pow(deltaY, 0.85)));
+    setPullDistance(resisted);
+  }, [isMobile, refreshing, loadingTransactions, getScrollParent]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!isMobile || refreshing || loading) { touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return; }
-    const shouldRefresh    = pullingRef.current && pullDistance >= 64;
-    touchStartYRef.current = null;
-    pullingRef.current     = false;
-    if (shouldRefresh) { setPullDistance(56); loadDashboard({ fromPull: true }); }
-    else setPullDistance(0);
-  }, [isMobile, loading, pullDistance, refreshing, loadDashboard]);
-
-  useEffect(() => {
-    if (expanded !== null) { hasExpandedRef.current = true; return; }
-    if (!hasExpandedRef.current || !snapRef.current) return;
-    let el = snapRef.current.parentElement;
-    while (el) {
-      const { overflowY } = window.getComputedStyle(el);
-      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollTop > 0) {
-        el.scrollTo({ top: 0, behavior: "smooth" });
-        break;
-      }
-      el = el.parentElement;
+    if (!isMobile || refreshing || loadingTransactions) {
+      touchStartYRef.current = null; pullingRef.current = false; setPullDistance(0); return;
     }
-  }, [expanded]);
+    const shouldRefresh = pullingRef.current && pullDistance >= 64;
+    touchStartYRef.current = null;
+    pullingRef.current = false;
+    if (shouldRefresh) {
+      setPullDistance(56);
+      setRefreshing(true);
+      loadTransactions({ fromPull: true });
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, refreshing, loadingTransactions, pullDistance, loadTransactions]);
 
-  const todayStr = useMemo(
-    () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-    []
+  const isAnyConfirming  = confirmingIds.size  > 0;
+  const isAnyVerifying   = verifyingIds.size   > 0;
+  const isAnyRejecting   = rejectingIds.size   > 0;
+  const isAnyUnverifying = unverifyingIds.size > 0;
+  const isAnyDeleting    = !!deletingId || bulkDeletingIds.size > 0;
+  const hasSelection     = selected.size > 0;
+
+  const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
+
+  const myTransactions = useMemo(
+    () => (cdsNumber ? transactions.filter(t => t.cds_number === cdsNumber) : transactions),
+    [transactions, cdsNumber]
   );
 
-  const renderMobileRealizedPanel = useCallback(() => (
-    <div style={{
-      background: C.white,
-      border: `1.5px solid ${metrics.totalRealizedGL >= 0 ? C.green : C.red}40`,
-      borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
-    }}>
-      <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📤 Realized Gain / Loss</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
-      </div>
-      {loading ? <Spinner /> : (
-        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-          {metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades." /> : (
-            <div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <Th>Company</Th>
-                    <Th right>Net Proceeds</Th>
-                    <Th right>Gain / Loss</Th>
-                    <Th right>Return %</Th>
-                   </thead>
-                <tbody>
-                  {metrics.realizedCompanies.map((c, i) => (
-                    <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                      <Td bold>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                          {c.name}
-                        </div>
-                      </Td>
-                      <Td right>{fmt(c.totalSaleProceeds)}</Td>
-                      <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
-                        {(c.realizedGL >= 0 ? "+" : "") + fmtShort(c.realizedGL)}
-                      </Td>
-                      <Td right>
-                        <Badge
-                          value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                          positive={c.realizedGL >= 0}
-                        />
-                      </Td>
-                     </tr>
-                  ))}
-                </tbody>
-                {metrics.realizedCompanies.length > 1 && (
-                  <tfoot>
-                    <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmtShort(metrics.totalSaleProceeds)}</td>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: metrics.totalRealizedGL >= 0 ? C.green : C.red, textAlign: "right" }}>
-                        {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmtShort(metrics.totalRealizedGL)}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                        <Badge
-                          value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                          positive={metrics.totalRealizedGL >= 0}
-                        />
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  ), [metrics, loading, onCloseExpand]);
+  const txById      = useMemo(() => new Map(myTransactions.map(t => [t.id, t])), [myTransactions]);
+  const companyById = useMemo(() => new Map(effectiveCompanies.map(c => [c.id, c])), [effectiveCompanies]);
 
-  const renderMobileCompaniesPanel = useCallback(() => (
-    <div style={{
-      background: C.white, border: "1.5px solid rgba(59,111,196,0.4)",
-      borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
-    }}>
-      <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Top 5 Holdings</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
-      </div>
-      {loading ? <Spinner /> : (
-        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-          {metrics.companyMetrics.length === 0 ? <Empty msg="No active positions." /> : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <Th>Company</Th>
-                  <Th right>Shares</Th>
-                  <Th right>Market Val.</Th>
-                  <Th right>Return %</Th>
-                 </thead>
-              <tbody>
-                {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                  <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                    <Td bold>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                        {c.name}
-                      </div>
-                    </Td>
-                    <Td right small>{fmt(c.netShares)}</Td>
-                    <Td right bold>{c.marketValue > 0 ? fmtShort(c.marketValue) : "—"}</Td>
-                    <Td right>
-                      {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
-                        <Badge
-                          value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`}
-                          positive={c.unrealizedRetPct >= 0}
-                        />
-                      ) : <span style={{ color: C.gray400, fontSize: 11 }}>—</span>}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-              {metrics.companyMetrics.length > 1 && (
-                <tfoot>
-                  <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                    <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text }}>TOTAL</td>
-                    <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                    <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, color: C.text, textAlign: "right" }}>
-                      {metrics.hasFinancials ? fmtShort(metrics.totalMarketValue) : "—"}
-                    </td>
-                    <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                      {metrics.hasFinancials ? (
-                        <Badge
-                          value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
-                          positive={metrics.unrealizedRetPct >= 0}
-                        />
-                      ) : "—"}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  ), [metrics, loading, onCloseExpand]);
+  const stats = useMemo(() => {
+    let total = 0, buys = 0, sells = 0, totalBuyVal = 0, totalSellVal = 0;
+    let totalBuyGrand = 0, totalSellGrand = 0;
+    let pending = 0, confirmed = 0, verified = 0, rejected = 0;
+    for (const t of myTransactions) {
+      total++;
+      const v    = Number(t.total || 0);
+      const fees = Number(t.fees  || 0);
+      if (t.type === "Buy") { buys++; totalBuyVal += v; totalBuyGrand += v + fees; }
+      else                  { sells++; totalSellVal += v; totalSellGrand += v - fees; }
+      if      (t.status === "pending")   pending++;
+      else if (t.status === "confirmed") confirmed++;
+      else if (t.status === "verified")  verified++;
+      else if (t.status === "rejected")  rejected++;
+    }
+    return { total, buys, sells, totalBuyVal, totalSellVal, totalBuyGrand, totalSellGrand, pending, confirmed, verified, rejected };
+  }, [myTransactions]);
 
-  const renderMobileUsersPanel = useCallback(() => (
-    <div style={{
-      background: C.white, border: "1.5px solid #2563eb40",
-      borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
-    }}>
-      <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>👥 Members ({cdsUsers.length})</div>
-        <button onClick={onCloseExpand} style={{
-          background: C.gray100, border: "none", borderRadius: "50%",
-          width: 36, height: 36, cursor: "pointer", fontSize: 12,
-          color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
-      </div>
-      {loading ? <Spinner /> : (
-        <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-          {cdsUsers.length === 0 ? <Empty msg="No users found." /> : (
-            <div>
-              {cdsUsers.map((u, i) => (
-                <div key={u.id} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 16px",
-                  borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none",
-                }}>
-                  <div style={{ position: "relative", flexShrink: 0 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 9,
-                      background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 800, color: "#ffffff",
-                    }}>
-                      {u._initials}
-                    </div>
-                    <div style={{
-                      position: "absolute", bottom: -1, right: -1,
-                      width: 8, height: 8, borderRadius: "50%",
-                      border: `2px solid ${C.white}`,
-                      background: u._isActive ? C.green : C.gray400,
-                    }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {u.full_name || "—"}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.gray400 }}>{u._roleName}</div>
-                  </div>
-                  <span style={{
-                    background: u._isActive ? C.greenBg : C.redBg,
-                    color: u._isActive ? C.green : C.red,
-                    border: `1px solid ${u._isActive ? C.green : C.red}25`,
-                    borderRadius: 20, padding: "2px 9px",
-                    fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0,
-                  }}>
-                    {u._isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              ))}
-              {isSAAD && (
-                <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.gray100}` }}>
-                  <button onClick={onNavUserMgmt} style={{
-                    width: "100%", padding: "10px", borderRadius: 9,
-                    border: `1.5px solid ${C.navy}`, background: "none",
-                    color: C.navy, fontWeight: 700, fontSize: 12,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>
-                    Go to User Management →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  ), [cdsUsers, loading, isSAAD, onCloseExpand, onNavUserMgmt]);
+  const filtered = useMemo(() => {
+    let list = myTransactions;
+    if (typeFilter !== "All")   list = list.filter(t => t.type === typeFilter);
+    if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
+    if (normalizedSearch) {
+      list = list.filter(t => {
+        const dateObj    = t.date ? new Date(t.date + "T00:00:00") : null;
+        const monthName  = dateObj ? dateObj.toLocaleDateString("en-GB", { month: "long" }).toLowerCase()  : "";
+        const monthShort = dateObj ? dateObj.toLocaleDateString("en-GB", { month: "short" }).toLowerCase() : "";
+        const yearStr    = dateObj ? String(dateObj.getFullYear()) : "";
+        const matchDate  = monthName.includes(normalizedSearch)
+                        || monthShort.includes(normalizedSearch)
+                        || (yearStr && normalizedSearch.length >= 4 && yearStr.includes(normalizedSearch));
+        return matchDate
+          || t.date?.includes(normalizedSearch)
+          || t.company_name?.toLowerCase().includes(normalizedSearch)
+          || t.type?.toLowerCase().includes(normalizedSearch)
+          || t.broker_name?.toLowerCase().includes(normalizedSearch)
+          || t.status?.toLowerCase().includes(normalizedSearch)
+          || t.remarks?.toLowerCase().includes(normalizedSearch);
+      });
+    }
+    return list.slice().sort((a, b) => {
+      const aActive = a.status === "pending" || a.status === "confirmed" || a.status === "rejected";
+      const bActive = b.status === "pending" || b.status === "confirmed" || b.status === "rejected";
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      const da = a.date || "", db = b.date || "";
+      return db > da ? 1 : db < da ? -1 : 0;
+    });
+  }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage   = useMemo(() => Math.min(page, totalPages), [page, totalPages]);
+  const paginated  = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
+
+  const resetPage    = useCallback(() => setPage(1), []);
+  const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
+
+  const totals = useMemo(() => {
+    let buyAmt = 0, sellAmt = 0, buyFees = 0, sellFees = 0;
+    for (const t of filtered) {
+      const amt  = Number(t.total || 0);
+      const fees = Number(t.fees  || 0);
+      if (t.type === "Buy") { buyAmt  += amt; buyFees  += fees; }
+      else                  { sellAmt += amt; sellFees += fees; }
+    }
+    return { buyAmount: buyAmt, sellAmount: sellAmt, fees: buyFees + sellFees, buyGrand: buyAmt + buyFees, sellGrand: sellAmt - sellFees };
+  }, [filtered]);
+
+  const paginatedIds = useMemo(() => paginated.map(t => t.id), [paginated]);
+
+  const { allSelected, someSelected } = useMemo(() => ({
+    allSelected:  paginatedIds.length > 0 && paginatedIds.every(id => selected.has(id)),
+    someSelected: paginatedIds.some(id => selected.has(id)),
+  }), [paginatedIds, selected]);
+
+  const toggleAll = useCallback(() => {
+    setSelected(prev => {
+      const s = new Set(prev);
+      if (paginatedIds.length > 0 && paginatedIds.every(id => s.has(id))) paginatedIds.forEach(id => s.delete(id));
+      else paginatedIds.forEach(id => s.add(id));
+      return s;
+    });
+  }, [paginatedIds]);
+
+  const toggleOne = useCallback((id) => {
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  }, []);
+
+  const selectedBuckets = useMemo(() => {
+    const pendingRejected = [], confirmed = [], verified = [], deletable = [];
+    for (const id of selected) {
+      const t = txById.get(id);
+      if (!t) continue;
+      if (t.status === "pending" || t.status === "rejected") pendingRejected.push(id);
+      if (t.status === "confirmed") confirmed.push(id);
+      if (t.status === "verified")  verified.push(id);
+      if ((isSAAD && t.status !== "verified") || (!isSAAD && (t.status === "pending" || t.status === "rejected"))) deletable.push(id);
+    }
+    return { pendingRejected, confirmed, verified, deletable };
+  }, [selected, txById, isSAAD]);
+
+  const canBulkConfirm  = (isDE || isSAAD) && selectedBuckets.pendingRejected.length > 0;
+  const canBulkDelete   = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
+  const canBulkVerify   = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkReject   = (isVR || isSAAD) && selectedBuckets.confirmed.length > 0;
+  const canBulkUnverify = isSAAD && selectedBuckets.verified.length > 0;
+
+  const openFormModal   = useCallback((transaction = null) => { if (loadingCompanies) return; setFormModal({ open: true, transaction }); }, [loadingCompanies]);
+  const openRejectModal = useCallback((ids) => setRejectModal({ ids }), []);
+  const openDeleteModal = useCallback((transaction) => setDeleteModal({ id: transaction.id, type: transaction.type, company: transaction.company_name }), []);
+
+  const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total, brokerId, brokerName }) => {
+    const isEdit  = !!formModal.transaction;
+    const company = companyById.get(companyId);
+    const payload = {
+      date, company_id: companyId, company_name: company?.name, type,
+      qty: Number(qty), price: Number(price), total,
+      fees:           fees ? Number(fees) : null,
+      control_number: controlNumber || null,
+      remarks:        remarks || null,
+      cds_number:     cdsNumber || null,
+      broker_id:      brokerId  || null,
+      broker_name:    brokerName || null,
+    };
+    try {
+      if (isEdit) {
+        const rows = await sbUpdateTransaction(formModal.transaction.id, payload);
+        if (!rows || rows.length === 0) throw new Error("Update failed – transaction may have been modified or you lack permission.");
+        if (!isMountedRef.current) return;
+        setTransactions(p => p.map(t => t.id === formModal.transaction.id ? rows[0] : t));
+        showToast("Transaction updated!", "success");
+      } else {
+        const rows = await sbInsertTransaction(payload);
+        if (!isMountedRef.current) return;
+        setTransactions(p => [rows[0], ...p]);
+        showToast("Transaction recorded!", "success");
+      }
+      if (isMountedRef.current) setFormModal({ open: false, transaction: null });
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    }
+  }, [formModal.transaction, companyById, cdsNumber, setTransactions, showToast]);
+
+  const refetchEnriched = useCallback(async (ids) => {
+    const enriched = await sbGetTransactionsByIds(ids);
+    if (!isMountedRef.current) return;
+    const map = new Map(enriched.map(r => [r.id, r]));
+    setTransactions(p => p.map(t => map.get(t.id) || t));
+  }, [setTransactions]);
+
+  const handleConfirm = useCallback((id, company, status) => {
+    setActionModal({ action: status === "rejected" ? "confirm-rejected" : "confirm", ids: [id], company });
+  }, []);
+
+  const doBulkConfirm = useCallback(async () => {
+    const ids = actionModal?.ids;
+    if (!ids?.length) return;
+    setActionModal(null);
+    setConfirmingIds(new Set(ids));
+    try {
+      const BATCH = 10;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        await Promise.all(ids.slice(i, i + BATCH).map(async id => {
+          const rows = await sbConfirmTransaction(id);
+          if (!rows || rows.length === 0) throw new Error(`Transaction ${id} could not be confirmed.`);
+        }));
+      }
+      await refetchEnriched(ids);
+      setSelected(new Set());
+      showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} confirmed!`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setConfirmingIds(new Set());
+    }
+  }, [actionModal, refetchEnriched, showToast]);
+
+  const handleVerify = useCallback((ids, company) => setActionModal({ action: "verify", ids, company: company || null }), []);
+
+  const doVerify = useCallback(async () => {
+    const ids = actionModal?.ids;
+    if (!ids?.length) return;
+    setActionModal(null);
+    setVerifyingIds(new Set(ids));
+    try {
+      await sbVerifyTransactions(ids);
+      await refetchEnriched(ids);
+      setSelected(new Set());
+      showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} verified!`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setVerifyingIds(new Set());
+    }
+  }, [actionModal, refetchEnriched, showToast]);
+
+  const handleReject = useCallback(async (comment) => {
+    const ids = rejectModal?.ids;
+    if (!ids?.length) return;
+    setRejectingIds(new Set(ids));
+    try {
+      await sbRejectTransactions(ids, comment);
+      await refetchEnriched(ids);
+      setSelected(new Set());
+      setRejectModal(null);
+      showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} rejected.`, "error");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setRejectingIds(new Set());
+    }
+  }, [rejectModal, refetchEnriched, showToast]);
+
+  const handleUnVerify = useCallback(async (id) => {
+    setUnverifyingIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    try {
+      const rows = await sbUnverifyTransaction(id);
+      if (!rows || rows.length === 0) throw new Error("Unverify failed.");
+      await refetchEnriched([id]);
+      showToast("Transaction unverified and returned to Pending.", "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setUnverifyingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, [refetchEnriched, showToast]);
+
+  const doBulkUnverify = useCallback(async () => {
+    const ids = bulkUnverifyModal?.ids;
+    if (!ids?.length) return;
+    setBulkUnverifyModal(null);
+    setUnverifyingIds(new Set(ids));
+    try {
+      const rows = await sbUnverifyTransactions(ids);
+      if (!rows || rows.length === 0) throw new Error("No verified transactions could be unverified.");
+      await refetchEnriched(ids);
+      setSelected(new Set());
+      showToast(`${rows.length} transaction${rows.length > 1 ? "s" : ""} unverified.`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setUnverifyingIds(new Set());
+    }
+  }, [bulkUnverifyModal, refetchEnriched, showToast]);
+
+  const handleDelete = useCallback(async () => {
+    const id = deleteModal?.id;
+    if (!id) return;
+    setDeleteModal(null);
+    setDeletingId(id);
+    try {
+      await sbDeleteTransaction(id);
+      if (!isMountedRef.current) return;
+      setTransactions(p => p.filter(t => t.id !== id));
+      setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
+      showToast("Transaction deleted.", "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setDeletingId(null);
+    }
+  }, [deleteModal, setTransactions, showToast]);
+
+  const doBulkDelete = useCallback(async () => {
+    const ids = bulkDeleteModal?.ids;
+    if (!ids?.length) return;
+    setBulkDeleteModal(null);
+    setBulkDeletingIds(new Set(ids));
+    try {
+      const BATCH = 10;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        await Promise.all(ids.slice(i, i + BATCH).map(id => sbDeleteTransaction(id)));
+      }
+      if (!isMountedRef.current) return;
+      const idSet = new Set(ids);
+      setTransactions(p => p.filter(t => !idSet.has(t.id)));
+      setSelected(new Set());
+      showToast(`${ids.length} transaction${ids.length > 1 ? "s" : ""} deleted.`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setBulkDeletingIds(new Set());
+    }
+  }, [bulkDeleteModal, setTransactions, showToast]);
+
+  const handleImport = useCallback(async (rows) => {
+    const BATCH = 20;
+    const inserted = [];
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const results = await Promise.all(rows.slice(i, i + BATCH).map(row => sbInsertTransaction({ ...row, cds_number: cdsNumber || null })));
+      results.forEach(r => inserted.push(r[0]));
+    }
+    inserted.sort((a, b) => (b.date || "") > (a.date || "") ? 1 : -1);
+    if (!isMountedRef.current) return;
+    setTransactions(p => [...inserted, ...p]);
+    setImportModal(false);
+    showToast(`Imported ${inserted.length} transaction${inserted.length !== 1 ? "s" : ""} successfully!`, "success");
+  }, [cdsNumber, setTransactions, showToast]);
+
+  const statCards = useMemo(() => {
+    if (isVR) return [
+      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant",                                                icon: "📋", color: "#1D4ED8" },
+      { label: "Verified",        value: stats.verified,  sub: "Approved transactions",                                                    icon: "✔️", color: C.green  },
+      { label: "Rejected",        value: stats.rejected,  sub: "Sent back for correction",                                                 icon: "✖",  color: C.red    },
+      { label: "Selected",        value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below",             icon: "☑️", color: C.gold  },
+    ];
+    if (isDE) return [
+      { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
+      { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation",                             icon: "🕐", color: C.gold  },
+    ];
+    if (isRO) return [
+      { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`,                             icon: "📋", color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
+      { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyGrand - stats.totalSellGrand))}`, sub: stats.totalBuyGrand >= stats.totalSellGrand ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
+    ];
+    return [
+      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,           icon: "📋", color: C.navy  },
+      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                        icon: "📥", color: C.green },
+      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                       icon: "📤", color: C.red   },
+      { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold  },
+    ];
+  }, [C, stats, selected.size, isVR, isDE, isRO]);
+
+  const mobileStatCards = useMemo(() => {
+    if (!isMobile) return statCards;
+    const preferred = statCards.filter(s => s.label === "Total Bought" || s.label === "Total Sold");
+    return preferred.length >= 2 ? preferred : statCards.slice(0, 2);
+  }, [isMobile, statCards]);
+
+  const showCheckbox = !isMobile;
+  const showActions  = !isRO;
+  const tableHeaders = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
+
+  const tfootLeftCols  = showCheckbox ? 7 : 6;
+  const tfootRightCols = 2 + (showActions ? 1 : 0);
+
+  const detailTransaction = useMemo(
+    () => detailModal ? (txById.get(detailModal) || null) : null,
+    [detailModal, txById]
+  );
+
+  const closeDelete       = useCallback(() => setDeleteModal(null),                            []);
+  const closeBulkDelete   = useCallback(() => setBulkDeleteModal(null),                        []);
+  const closeBulkUnverify = useCallback(() => setBulkUnverifyModal(null),                      []);
+  const closeForm         = useCallback(() => setFormModal({ open: false, transaction: null }), []);
+  const closeImport       = useCallback(() => setImportModal(false),                           []);
+  const closeAction       = useCallback(() => setActionModal(null),                            []);
+  const closeReject       = useCallback(() => setRejectModal(null),                            []);
+  const closeDetail       = useCallback(() => setDetailModal(null),                            []);
+
+  const hasActiveFilters = search || typeFilter !== "All" || statusFilter !== "All";
+
+  const pageHeight = "calc(100vh - 118px)";
 
   const pullReady = pullDistance >= 64;
+
+  const mobileInputAttrs = isMobile ? {
+    autoComplete: "off",
+    autoCorrect: "off",
+    autoCapitalize: "off",
+    spellCheck: false,
+    "data-form-type": "other",
+    "data-lpignore": "true",
+  } : {};
 
   return (
     <div
       ref={rootRef}
       onTouchStart={isMobile ? handleTouchStart : undefined}
-      onTouchMove={isMobile  ? handleTouchMove  : undefined}
-      onTouchEnd={isMobile   ? handleTouchEnd   : undefined}
-      onTouchCancel={isMobile ? handleTouchEnd  : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchCancel={isMobile ? handleTouchEnd : undefined}
       style={{
-        maxWidth: isMobile ? "none" : 1200,
-        margin: isMobile ? 0 : "0 auto",
-        position: "relative", overflow: "visible",
+        height: isMobile ? "auto" : pageHeight,
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
+        position: "relative",
         paddingBottom: isMobile ? 96 : 0,
       }}
     >
-      <style>{`
-        @keyframes spin         { to { transform: rotate(360deg); } }
-        @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Pull to refresh indicator */}
+      {/* ── Pull-to-refresh indicator ── */}
       {isMobile && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
           <div style={{
@@ -987,7 +1484,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`,
               animation: refreshing ? "spin 0.8s linear infinite" : "none",
               transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`,
-              transition: "transform 0.12s ease, border-color 0.12s ease", flexShrink: 0,
+              transition: "transform 0.12s ease, border-color 0.12s ease",
+              flexShrink: 0,
             }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace: "nowrap" }}>
               {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
@@ -996,553 +1494,315 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         </div>
       )}
 
-      {/* Transform wrapper (pull-to-refresh) */}
+      {/* ── Modals — OUTSIDE transform wrapper so position:fixed works correctly ── */}
+      {deleteModal && (
+        <Modal type="confirm" title="Delete Transaction"
+          message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
+          onConfirm={handleDelete} onClose={closeDelete} />
+      )}
+      {bulkDeleteModal && (
+        <SimpleConfirmModal title="Delete Transactions"
+          message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`}
+          count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0}
+          onConfirm={doBulkDelete} onClose={closeBulkDelete} />
+      )}
+      {bulkUnverifyModal && (
+        <SimpleConfirmModal title="Unverify Transactions"
+          message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`}
+          count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying}
+          onConfirm={doBulkUnverify} onClose={closeBulkUnverify} />
+      )}
+      {formModal.open && (
+        <TransactionFormModal
+          key={formModal.transaction?.id || "new"}
+          transaction={formModal.transaction}
+          companies={effectiveCompanies}
+          transactions={myTransactions}
+          brokers={brokers}
+          onConfirm={handleFormConfirm}
+          onClose={closeForm}
+        />
+      )}
+      {importModal && (
+        <ImportTransactionsModal
+          companies={effectiveCompanies}
+          brokers={brokers}
+          onImport={handleImport}
+          onClose={closeImport}
+        />
+      )}
+      {actionModal && (
+        <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company}
+          loading={isAnyConfirming || isAnyVerifying}
+          onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm}
+          onClose={closeAction} />
+      )}
+      {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={closeReject} />}
+      {detailTransaction && (
+        <TransactionDetailModal
+          transaction={detailTransaction}
+          transactions={myTransactions}
+          companies={effectiveCompanies}
+          onClose={closeDetail}
+        />
+      )}
+
+      {/* ── Transform wrapper ── */}
       <div style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
         willChange: isMobile ? "transform" : "auto",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
       }}>
 
-        {/* ═══════════════════ MOBILE VIEW ════════════════════════ */}
+        {/* ── Stat cards ── */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
+          {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        {/* ── Mobile toolbar ── */}
         {isMobile && (
-          <div>
-            {/* Hero card */}
-            <div style={{
-              background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
-              borderRadius: 16, padding: "18px 18px 20px", marginBottom: 10,
-              position: "relative", overflow: "hidden",
-            }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
-                    Shares Held
-                  </div>
-                  <div style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800 }}>
-                    {loading ? "—" : fmt(metrics.totalNetShares)}
-                  </div>
+          <div style={{ marginBottom: 10, flexShrink: 0 }}>
+            {(isDE || isSAAD) ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                  <input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); resetPage(); }}
+                    placeholder="Search company, date, status..."
+                    {...mobileInputAttrs}
+                    style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
+                    onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+                    onBlur={e => { e.target.style.borderColor = C.gray200; }}
+                  />
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 9, padding: "6px 12px", border: "1px solid rgba(255,255,255,0.45)", textAlign: "right" }}>
-                  <div style={{ fontSize: 10, color: "#ffffff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</div>
-                  <div style={{ fontSize: 13, color: "#ffffff", fontWeight: 750, whiteSpace: "nowrap" }}>{todayStr}</div>
-                </div>
+                <button
+                  onClick={() => openFormModal(null)}
+                  disabled={loadingCompanies}
+                  style={{ height: 40, padding: "0 16px", borderRadius: 9, border: "none", background: loadingCompanies ? C.gray200 : C.navy, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loadingCompanies ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                >
+                  + Record
+                </button>
               </div>
-
-              <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
-                  Portfolio Value
-                </div>
-                {(() => {
-                  let displayValue = "—";
-                  if (!loading) {
-                    if (metrics.hasFinancials)    displayValue = `TZS ${fmt(metrics.totalMarketValue)}`;
-                    else if (metrics.hasCostData) displayValue = `TZS ${fmt(metrics.investedCapital)}`;
-                  }
-                  const charCount = displayValue.length;
-                  let fontSize = "44px";
-                  if (charCount > 20)      fontSize = "26px";
-                  else if (charCount > 16) fontSize = "30px";
-                  else if (charCount > 12) fontSize = "36px";
-                  return (
-                    <div style={{ fontSize, fontWeight: 800, color: C.gold, lineHeight: 1.2, letterSpacing: "-0.01em", textAlign: "center", width: "100%", whiteSpace: "nowrap", overflow: "visible" }}>
-                      {loading ? <span style={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}>—</span> : displayValue}
-                    </div>
-                  );
-                })()}
+            ) : (
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                <input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); resetPage(); }}
+                  placeholder="Search company, date, status..."
+                  {...mobileInputAttrs}
+                  style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
+                  onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+                  onBlur={e => { e.target.style.borderColor = C.gray200; }}
+                />
               </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", zIndex: 1 }}>
-                {[
-                  { label: "Invested", value: metrics.hasCostData ? `TZS ${fmtShort(metrics.investedCapital)}` : "—", color: "rgba(255,255,255,0.85)" },
-                  {
-                    label: "Return",
-                    value: metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%` : "—",
-                    color: metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.greenLight : C.red) : "rgba(255,255,255,0.85)",
-                  },
-                  { label: "Holdings", value: loading ? "—" : String(metrics.totalCompanies), color: "rgba(255,255,255,0.85)" },
-                ].map((item, i) => (
-                  <div key={item.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none", padding: "0 0" }}>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{item.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Unrealized / Realized GL row */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <MobileMetricCard
-                label="Unrealized GL"
-                value={loading ? "—" : metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
-                sub={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}% return` : "Set portfolio prices"}
-                accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
-              />
-              <MobileMetricCard
-                label="Realized GL"
-                value={loading ? "—" : metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
-                sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions"}
-                accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
-                onClick={metrics.hasRealized ? onToggleRealized : undefined}
-                chevron={metrics.hasRealized ? (expanded === "realized" ? "open" : "closed") : undefined}
-              />
-            </div>
-
-            {expanded === "realized" && renderMobileRealizedPanel()}
-
-            {/* Holdings / Users / Pending pills */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <MobileStatPill icon="🏢" label="Holdings" value={loading ? "—" : metrics.totalCompanies}
-                onClick={onToggleCompanies} active={expanded === "companies"} accent="#3b6fc4" />
-              <MobileStatPill icon="👥" label="Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
-                onClick={onToggleUsers} active={expanded === "users"} accent="#2563eb" />
-              <MobileStatPill icon="🔔" label="Pending" value={loading ? "—" : metrics.pending}
-                onClick={onNavTransactions} accent="#f59e0b" navigates />
-            </div>
-
-            {expanded === "companies" && renderMobileCompaniesPanel()}
-            {expanded === "users"     && renderMobileUsersPanel()}
+            )}
           </div>
         )}
 
-        {/* ═══════════════════ DESKTOP VIEW ═══════════════════════ */}
+        {/* ── Desktop toolbar ── */}
         {!isMobile && (
-          <>
-            {/* Top snap cards */}
-            <div
-              ref={snapRef}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
-                gap: 14,
-                marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users") ? 14 : 20,
-              }}
-            >
-              <SnapCard
-                label="Market Value" loading={loading}
-                value={
-                  metrics.hasFinancials  ? fmtShort(metrics.totalMarketValue)
-                  : metrics.hasCostData  ? fmtShort(metrics.investedCapital)
-                  : metrics.total > 0    ? `${metrics.total} txns` : "—"
-                }
-                sub={
-                  metrics.hasFinancials  ? "Current market value (TZS)"
-                  : metrics.hasCostData  ? "Cost basis — set prices for market value"
-                  : "No verified transactions yet"
-                }
-              />
-              <SnapCard
-                label="Invested Capital" loading={loading}
-                value={metrics.hasCostData ? fmtShort(metrics.investedCapital) : "—"}
-                sub={metrics.hasCostData   ? `${fmt(metrics.totalNetShares)} shares held` : "No verified buy transactions"}
-              />
-              <SnapCard
-                label="Unrealized Gain / Loss" loading={loading}
-                value={metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
-                sub={metrics.hasFinancials   ? (metrics.avgFirstBuyDays ? `avg ${metrics.avgFirstBuyDays}d` : "open positions") : "Set prices in Portfolio to compute"}
-                accent={metrics.hasFinancials   ? (metrics.unrealizedGL >= 0    ? C.green : C.red) : C.gray200}
-                accentBg={metrics.hasFinancials ? (metrics.unrealizedGL >= 0    ? C.green : C.red) : undefined}
-              />
-              <SnapCard
-                label="Unrealized Return %" loading={loading}
-                value={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%` : "—"}
-                sub={metrics.hasFinancials   ? "Return on open positions" : "Set prices in Portfolio"}
-                accent={metrics.hasFinancials   ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : C.gray200}
-                accentBg={metrics.hasFinancials ? (metrics.unrealizedRetPct >= 0 ? C.green : C.red) : undefined}
-              />
-              <SnapCard
-                label="Realized Gain / Loss" loading={loading}
-                value={metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
-                sub={metrics.hasRealized   ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions yet"}
-                accent={metrics.hasRealized   ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : C.gray200}
-                accentBg={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
-                expandable={metrics.hasRealized} expanded={expanded === "realized"}
-                onToggle={onToggleRealized} hoverable
-              />
-            </div>
-
-            {/* Realized GL expand panel */}
-            {expanded === "realized" && (
-              <ExpandPanel
-                title="📤 Realized Gain / Loss — Closed Positions"
-                accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red}
-                onClose={onCloseExpand}
-              >
-                {loading ? <Spinner /> : metrics.realizedCompanies.length === 0 ? <Empty msg="No realized trades found." /> : (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr>
-                          <Th>Company</Th>
-                          <Th right>Shares Sold</Th>
-                          <Th right>Cost of Shares Sold</Th>
-                          <Th right>Net Proceeds</Th>
-                          <Th right>Realized Gain / Loss</Th>
-                          <Th right>Realized Return %</Th>
-                          <Th right>Days Held</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {metrics.realizedCompanies.map((c, i) => (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                            <Td bold>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                                {c.name}
-                              </div>
-                            </Td>
-                            <Td right>{fmt(c.totalSharesSold)}</Td>
-                            <Td right>{fmt(c.totalCostBasis)}</Td>
-                            <Td right>{fmt(c.totalSaleProceeds)}</Td>
-                            <Td right bold color={c.realizedGL >= 0 ? C.green : C.red}>
-                              {(c.realizedGL >= 0 ? "+" : "") + fmt(c.realizedGL)}
-                            </Td>
-                            <Td right>
-                              <Badge
-                                value={`${(c.totalCostBasis > 0 ? (c.realizedGL / c.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                                positive={c.realizedGL >= 0}
-                              />
-                            </Td>
-                            <Td right color={C.gray500} small>
-                              {c.realizedTrades.every((r) => r.daysHeld !== null)
-                                ? `${Math.round(c.realizedTrades.reduce((s, r) => s + (r.daysHeld || 0), 0) / c.realizedTrades.length)}d avg`
-                                : "—"}
-                            </Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      {metrics.realizedCompanies.length > 1 && (
-                        <tfoot>
-                          <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSharesSold)}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalCostBasis)}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalSaleProceeds)}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.totalRealizedGL >= 0 ? C.green : C.red, textAlign: "right" }}>
-                              {(metrics.totalRealizedGL >= 0 ? "+" : "") + fmt(metrics.totalRealizedGL)}
-                            </td>
-                            <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                              <Badge
-                                value={`${(metrics.totalCostBasis > 0 ? (metrics.totalRealizedGL / metrics.totalCostBasis) * 100 : 0).toFixed(2)}%`}
-                                positive={metrics.totalRealizedGL >= 0}
-                              />
-                            </td>
-                            <td style={{ padding: "9px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>—</td>
-                          </tr>
-                        </tfoot>
-                      )}
-                    </table>
-                  </div>
-                )}
-              </ExpandPanel>
-            )}
-
-            {/* Lower stat cards */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
-              marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
-            }}>
-              <StatCard icon="🏢" label="Companies"
-                value={loading ? "—" : metrics.totalCompanies}
-                subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
-                accent="#3b6fc4" accentBg="#3b6fc4"
-                onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
-              />
-              <StatCard icon="👥" label="Total Users"
-                value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
-                subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
-                accent="#2563eb" accentBg="#2563eb"
-                onClick={onToggleUsers} active={expanded === "users"} loading={loading}
-              />
-              <StatCard icon="🔔" label="Awaiting Action"
-                value={loading ? "—" : metrics.pending}
-                subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
-                accent="#f59e0b" accentBg="#f59e0b"
-                onClick={onNavTransactions} navigates loading={loading}
-              />
-            </div>
-
-            {/* Companies expand panel */}
-            {expanded === "companies" && (
-              <ExpandPanel title="🏢 Companies" accentColor="#3b6fc4" onClose={onCloseExpand}>
-                {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <colgroup>
-                        <col style={{ width: "20%" }} /><col style={{ width: "10%" }} />
-                        <col style={{ width: "13%" }} /><col style={{ width: "12%" }} />
-                        <col style={{ width: "13%" }} /><col style={{ width: "14%" }} />
-                        <col style={{ width: "8%"  }} />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <Th>Company</Th>
-                          <Th right>Shares Held</Th>
-                          <Th right>Current Invested Capital</Th>
-                          <Th right>Cost Allocation %</Th>
-                          <Th right>Market Value</Th>
-                          <Th right>Unrealized Gain / Loss</Th>
-                          <Th right>Status</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                            <Td bold>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                                {c.name}
-                              </div>
-                            </Td>
-                            <Td right>{fmt(c.netShares)}</Td>
-                            <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
-                            <Td right>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                                <div style={{ width: 44, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
-                                  <div style={{ width: `${Math.min(c.costWeight || 0, 100)}%`, height: "100%", background: c.color, borderRadius: 4, transition: "width 0.5s ease" }} />
-                                </div>
-                                <span style={{ fontSize: 11, color: C.gray500 }}>{(c.costWeight || 0).toFixed(1)}%</span>
-                              </div>
-                            </Td>
-                            <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
-                            <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                              {c.currentPrice > 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
-                            </Td>
-                            <Td right>
-                              <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>
-                                Active
-                              </span>
-                            </Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      {metrics.companyMetrics.length > 1 && (
-                        <tfoot>
-                          <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>
-                              {metrics.hasFinancials ? fmt(metrics.totalMarketValue) : "—"}
-                            </td>
-                            <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.unrealizedGL >= 0 ? C.green : C.red, textAlign: "right" }}>
-                              {metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmt(metrics.unrealizedGL)}` : "—"}
-                            </td>
-                            <td />
-                          </tr>
-                        </tfoot>
-                      )}
-                    </table>
-                  </div>
-                )}
-              </ExpandPanel>
-            )}
-
-            {/* Users expand panel */}
-            {expanded === "users" && (
-              <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
-                {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
-                  <>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr>
-                            <Th>User Name</Th>
-                            <Th>Role</Th>
-                            <Th>Phone Number</Th>
-                            <Th>Email</Th>
-                            <Th>Status</Th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {cdsUsers.map((u, i) => (
-                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                              <Td bold>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
-                                  <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
-                                    {u.avatar_url && (
-                                      <img
-                                        src={u.avatar_url} alt={u.full_name || "User"}
-                                        style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", display: "block", border: `1.5px solid ${C.gray200}` }}
-                                        onError={(e) => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
-                                      />
-                                    )}
-                                    <div style={{
-                                      width: 30, height: 30, borderRadius: 8,
-                                      background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
-                                      display: u.avatar_url ? "none" : "flex",
-                                      alignItems: "center", justifyContent: "center",
-                                      fontSize: 11, fontWeight: 800, color: "#ffffff",
-                                    }}>
-                                      {u._initials}
-                                    </div>
-                                    <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: u._isActive ? C.green : C.gray400 }} />
-                                  </div>
-                                  {u.full_name || "—"}
-                                </div>
-                              </Td>
-                              <Td>
-                                <span style={{
-                                  background: `${C.navy}18`,
-                                  color: C.navy,
-                                  borderRadius: 20, padding: "2px 10px",
-                                  fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-                                }}>
-                                  {u._roleName}
-                                </span>
-                              </Td>
-                              <Td color={C.gray500}>{u.phone || "—"}</Td>
-                              <Td color={C.gray500}>{u.email || "—"}</Td>
-                              <Td>
-                                <span style={{ background: u._isActive ? C.greenBg : C.redBg, color: u._isActive ? C.green : C.red, border: `1px solid ${u._isActive ? C.green : C.red}25`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                                  {u._isActive ? "Active" : "Inactive"}
-                                </span>
-                              </Td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {isSAAD && (
-                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          onClick={onNavUserMgmt}
-                          style={{
-                            background: "none",
-                            border: `1.5px solid ${C.navy}`,
-                            color: C.navy,
-                            borderRadius: 9, padding: "7px 18px",
-                            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                            display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = C.navy;
-                            e.currentTarget.style.color = "#ffffff";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "none";
-                            e.currentTarget.style.color = C.navy;
-                          }}
-                        >
-                          Go to User Management →
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </ExpandPanel>
-            )}
-
-            {/* Top 5 Holdings table */}
-            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
-                <div style={{ fontSize: 11, color: C.gray400 }}>
-                  {metrics.hasFinancials
-                    ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`
-                    : "Set prices in Portfolio to compute market values"}
-                </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
+              <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
+                <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
+                  placeholder="Search company, date, month, type, broker, status, remarks..."
+                  style={TOOLBAR_INPUT}
+                  onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.background = C.white; }}
+                  onBlur={e => { e.target.style.borderColor = C.gray200; }} />
               </div>
-              {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? (
-                <Empty msg="No holdings found. Add transactions in the Portfolio page." />
+              {["All", "Buy", "Sell"].map(t => (
+                <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
+                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? "#2563eb" : C.gray200}`, background: typeFilter === t ? "#2563eb" : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+                  {t}
+                </button>
+              ))}
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
+                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? "#2563eb" : C.gray200}`, color: statusFilter !== "All" ? "#2563eb" : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+                onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? "#2563eb" : C.gray200; }}>
+                {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
+              {hasSelection ? (
+                <>
+                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
+                  {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
+                </>
               ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <>
+                  <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
+                  {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Content area ── */}
+        <div style={{ flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
+          <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
+            {loadingTransactions ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
+                <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+                <div style={{ fontSize: 13 }}>Loading transactions...</div>
+              </div>
+            ) : pageError ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: C.red }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+                <div style={{ fontWeight: 600 }}>Failed to load transactions</div>
+                <div style={{ fontSize: 13, marginTop: 4, color: C.gray400 }}>{pageError}</div>
+                <button onClick={loadTransactions} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
+              </div>
+            ) : stats.total === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                <div style={{ fontWeight: 600, marginBottom: 4, color: C.text }}>No transactions yet</div>
+                <div style={{ fontSize: 13 }}>{isDE ? 'Tap "Record" to add your first buy or sell' : "Transactions will appear here once created"}</div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+                <div style={{ fontWeight: 600, color: C.text }}>No results found</div>
+                <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
+                <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
+              </div>
+            ) : isMobile ? (
+              <>
+                <div style={{ padding: "8px 12px" }}>
+                  {paginated.map(transaction => (
+                    <TransactionMobileCard
+                      key={transaction.id}
+                      transaction={transaction}
+                      onOpenFormModal={openFormModal}
+                      onOpenRejectModal={openRejectModal}
+                      onOpenDeleteModal={openDeleteModal}
+                      onHandleConfirm={handleConfirm}
+                      onHandleVerify={handleVerify}
+                      onHandleUnverify={handleUnVerify}
+                      confirmingIds={confirmingIds}
+                      verifyingIds={verifyingIds}
+                      rejectingIds={rejectingIds}
+                      unverifyingIds={unverifyingIds}
+                      deletingId={deletingId}
+                      bulkDeletingIds={bulkDeletingIds}
+                      isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                      showActions={showActions}
+                      onOpenDetail={setDetailModal}
+                    />
+                  ))}
+                </div>
+                <MobilePagination
+                  page={safePage} totalPages={totalPages}
+                  setPage={setPage} filtered={filtered.length} pageSize={pageSize}
+                />
+              </>
+            ) : (
+              <>
+                <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                    {showActions ? (
                     <colgroup>
-                      <col style={{ width: "16%" }} /><col style={{ width: "8%"  }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "9%"  }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "12%" }} />
-                      <col style={{ width: "10%" }} /><col style={{ width: "7%"  }} />
-                      <col style={{ width: "10%" }} />
+                      <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
+                      <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
+                      <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
+                      <col style={{ width: 100 }} /><col style={{ width: 96 }} /><col style={{ width: 80 }} />
                     </colgroup>
-                    <thead>
+                    ) : (
+                    <colgroup>
+                      <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 88 }} />
+                      <col style={{ width: 110 }} /><col style={{ width: 58 }} /><col style={{ width: 68 }} />
+                      <col style={{ width: 96 }} /><col style={{ width: 136 }} /><col style={{ width: 148 }} />
+                      <col style={{ width: 100 }} /><col style={{ width: 96 }} />
+                    </colgroup>
+                    )}
+                    <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
-                        <Th>Company</Th>
-                        <Th right>Shares Held</Th>
-                        <Th right>Invested Capital</Th>
-                        <Th right>Current Price</Th>
-                        <Th right>Market Value</Th>
-                        <Th right>Unrealized Gain / Loss</Th>
-                        <Th right>Unrealized Return %</Th>
-                        <Th right>Days Held</Th>
-                        <Th right>Portfolio Weight %</Th>
+                        {showCheckbox && (
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: C.gray50 }}>
+                            <input type="checkbox" checked={allSelected}
+                              ref={el => el && (el.indeterminate = someSelected && !allSelected)}
+                              onChange={toggleAll}
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#2563eb" }} />
+                          </th>
+                        )}
+                        {tableHeaders.map(h => (
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>
+                            {h.label}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {metrics.companyMetrics.slice(0, 5).map((c, i) => (
-                        <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                          <Td bold>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
-                              <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                              {c.name}
-                              {c.hasAnomaly && (
-                                <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: C.redBg, color: C.red, border: `1px solid ${C.red}25`, borderRadius: 6, padding: "1px 5px", whiteSpace: "nowrap" }}>
-                                  ⚠ oversold
-                                </span>
-                              )}
-                            </div>
-                          </Td>
-                          <Td right>{fmt(c.netShares)}</Td>
-                          <Td right>{c.openPositionCost > 0 ? fmt(c.openPositionCost) : "—"}</Td>
-                          <Td right bold color={c.currentPrice > 0 ? C.green : C.gray400}>{c.currentPrice > 0 ? fmt(c.currentPrice) : "—"}</Td>
-                          <Td right bold>{c.marketValue > 0 ? fmt(c.marketValue) : "—"}</Td>
-                          <Td right bold color={c.unrealizedGL >= 0 ? C.green : C.red}>
-                            {c.currentPrice > 0 && c.unrealizedGL !== 0 ? `${c.unrealizedGL >= 0 ? "+" : ""}${fmt(c.unrealizedGL)}` : "—"}
-                          </Td>
-                          <Td right>
-                            {c.currentPrice > 0 && c.unrealizedRetPct !== 0 ? (
-                              <Badge value={`${c.unrealizedRetPct >= 0 ? "+" : ""}${c.unrealizedRetPct.toFixed(2)}%`} positive={c.unrealizedRetPct >= 0} />
-                            ) : "—"}
-                          </Td>
-                          <Td right color={C.gray500} small>{c.firstBuyDays !== null ? `${c.firstBuyDays}d` : "—"}</Td>
-                          <Td right>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                              <div style={{ width: 50, height: 5, background: C.gray100, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
-                                <div style={{ width: `${Math.min(c.weight, 100)}%`, height: "100%", background: c.color, borderRadius: 4, transition: "width 0.5s ease" }} />
-                              </div>
-                              <span style={{ fontSize: 11, color: C.gray500 }}>{c.weight.toFixed(1)}%</span>
-                            </div>
-                          </Td>
-                        </tr>
+                      {paginated.map((transaction, i) => (
+                        <TransactionRow
+                          key={transaction.id}
+                          transaction={transaction}
+                          globalIdx={(safePage - 1) * pageSize + i + 1}
+                          selected={selected}
+                          onToggleOne={toggleOne}
+                          onOpenFormModal={openFormModal}
+                          onOpenRejectModal={openRejectModal}
+                          onOpenDeleteModal={openDeleteModal}
+                          onHandleConfirm={handleConfirm}
+                          onHandleVerify={handleVerify}
+                          onHandleUnverify={handleUnVerify}
+                          confirmingIds={confirmingIds}
+                          verifyingIds={verifyingIds}
+                          rejectingIds={rejectingIds}
+                          unverifyingIds={unverifyingIds}
+                          deletingId={deletingId}
+                          bulkDeletingIds={bulkDeletingIds}
+                          isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                          showCheckbox={showCheckbox} showActions={showActions}
+                          onOpenDetail={setDetailModal}
+                        />
                       ))}
                     </tbody>
-                    {metrics.companyMetrics.length > 1 && (
-                      <tfoot>
-                        <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
-                            TOTAL
-                            {metrics.companyMetrics.length > 5 && (
-                              <div style={{ fontSize: 10, fontWeight: 400, color: C.gray400, marginTop: 2 }}>all {metrics.companyMetrics.length} companies</div>
-                            )}
-                          </td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.gray400, textAlign: "right" }}>—</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalMarketValue)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: metrics.unrealizedGL >= 0 ? C.green : C.red, textAlign: "right" }}>
-                            {metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmt(metrics.unrealizedGL)}` : "—"}
-                          </td>
-                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <Badge
-                              value={`${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`}
-                              positive={metrics.unrealizedRetPct >= 0}
-                            />
-                          </td>
-                          <td style={{ padding: "9px 12px", fontSize: 11, color: C.gray400, textAlign: "right" }}>
-                            {metrics.avgFirstBuyDays !== null ? `avg ${metrics.avgFirstBuyDays}d` : "—"}
-                          </td>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.gray400, textAlign: "right" }}>100%</td>
-                        </tr>
-                      </tfoot>
+                    {filtered.length > 1 && (
+                    <tfoot>
+                      <tr style={{ background: `${C.navy}08`, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
+                        <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                        </td>
+                        <td colSpan={tfootRightCols} />
+                      </tr>
+                    </tfoot>
                     )}
                   </table>
                 </div>
-              )}
-            </div>
-          </>
-        )}
+                <Pagination
+                  page={safePage} totalPages={totalPages} pageSize={pageSize}
+                  setPage={setPage} setPageSize={setPageSize}
+                  total={stats.total} filtered={filtered.length}
+                />
+              </>
+            )}
+          </SectionCard>
+        </div>
+
       </div>
     </div>
   );
