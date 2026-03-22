@@ -95,8 +95,10 @@ const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
 
 // ── Spinner ───────────────────────────────────────────────────────
 const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} }) {
+  const { C } = useTheme();
+  const spinnerColor = color === "#fff" ? C.white : color;
   return (
-    <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
+    <span style={{ display: "inline-block", width: size, height: size, border: `2px solid ${spinnerColor}33`, borderTop: `2px solid ${spinnerColor}`, borderRadius: "50%", animation: "_txSpin 0.65s linear infinite", flexShrink: 0, ...style }} />
   );
 });
 
@@ -126,7 +128,7 @@ function RejectModal({ count, onConfirm, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20 }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: C.white, fontWeight: 700, fontSize: 15 }}>✖ Reject Transaction{count > 1 ? "s" : ""}</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{count > 1 ? `${count} transactions selected` : "1 transaction selected"}</div>
@@ -134,7 +136,7 @@ function RejectModal({ count, onConfirm, onClose }) {
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 14 }}>✕</button>
         </div>
         <div style={{ padding: "20px" }}>
-          {err && <div style={{ background: C.redBg, border: `1px solid #FECACA`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          {err && <div style={{ background: C.redBg, border: `1px solid ${C.red}40`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
           <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Rejection Reason <span style={{ color: C.red }}>*</span></label>
           <textarea value={comment} onChange={e => { setComment(e.target.value); setErr(""); }} placeholder="Explain why this transaction is being rejected..." rows={4}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, boxSizing: "border-box" }}
@@ -144,7 +146,7 @@ function RejectModal({ count, onConfirm, onClose }) {
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
           <button onClick={handleSubmit} disabled={saving || !comment.trim()} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: saving || !comment.trim() ? C.gray200 : C.red, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving || !comment.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-            {saving ? <><Spinner size={13} color="#fff" /> Rejecting...</> : `Reject ${count > 1 ? `${count} Transactions` : "Transaction"}`}
+            {saving ? <><Spinner size={13} color={C.white} /> Rejecting...</> : `Reject ${count > 1 ? `${count} Transactions` : "Transaction"}`}
           </button>
         </div>
       </div>
@@ -170,7 +172,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: C.white, fontWeight: 700, fontSize: 15 }}>{icon} {title}</div>
             <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{subtitle}</div>
@@ -188,7 +190,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
           <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
           <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : accentColor, color: C.white, fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
             {loading
-              ? <><Spinner size={13} color="#fff" />{isVerify ? "Verifying..." : "Confirming..."}</>
+              ? <><Spinner size={13} color={C.white} />{isVerify ? "Verifying..." : "Confirming..."}</>
               : <>{icon} {isVerify ? (count > 1 ? `Verify ${count}` : "Verify") : "Confirm"}</>}
           </button>
         </div>
@@ -202,7 +204,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: C.white, fontWeight: 700, fontSize: 15 }}>{title}</div>
             <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>{count} transaction{count > 1 ? "s" : ""} selected</div>
@@ -215,7 +217,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
           <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.red, color: C.white, fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : "Confirm"}
+            {loading ? <><Spinner size={13} color={C.white} /> Processing...</> : "Confirm"}
           </button>
         </div>
       </div>
@@ -225,6 +227,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
 
 // ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
+  const { C } = useTheme();
   return (
     <button onClick={onClick} disabled={disabled}
       style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? C.navy : C.gray200}`, background: active ? C.navy : disabled ? C.gray50 : C.white, color: active ? C.white : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -234,6 +237,7 @@ const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
 });
 
 const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPage, setPageSize, total, filtered }) {
+  const { C } = useTheme();
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, filtered);
 
@@ -279,6 +283,7 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
 
 // ── Mobile Pagination ─────────────────────────────────────────────
 const MobilePagination = memo(function MobilePagination({ page, totalPages, setPage, filtered, pageSize }) {
+  const { C } = useTheme();
   const from = filtered === 0 ? 0 : (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, filtered);
   if (totalPages <= 1 && filtered === 0) return null;
@@ -329,6 +334,7 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
 
 // ── Transaction Detail Modal ──────────────────────────────────────
 const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
+  const { C } = useTheme();
   const isMobile = useIsMobile();
 
   const [cdsAccountName, setCdsAccountName] = useState(null);
@@ -355,8 +361,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const totalFees  = fees || bd.total;
   const feePct     = tradeVal > 0 ? (totalFees / tradeVal * 100).toFixed(2) : "0.00";
   const qty        = Number(transaction.qty || 0);
-  const accentColor = isBuy ? C.green : "#EF4444";
-  const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
+  const accentColor = isBuy ? C.green : C.red;
+  const accentBg    = isBuy ? C.greenBg : C.redBg;
   const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
@@ -420,7 +426,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: "#EFF6FF" },
     { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
     ...(transaction.status === "rejected"
-      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: "#EF4444", activeBg: "#FEF2F2" }]
+      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
       : []
     ),
   ], [transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
@@ -466,9 +472,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const renderGLCard = (gl, type) => {
     if (!gl) return null;
     const isGain = gl.gain >= 0;
-    const glBg   = isGain ? C.greenBg : "#FEF2F2";
+    const glBg   = isGain ? C.greenBg : C.redBg;
     const glBdr  = isGain ? "#BBF7D0" : "#FECACA";
-    const glCol  = isGain ? C.green   : "#EF4444";
+    const glCol  = isGain ? C.green   : C.red;
     const rows   = type === "buy"
       ? [["Current Price × " + fmtInt(qty) + " shares", `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
       : [["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`], ["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`]];
@@ -510,9 +516,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           </div>
         ))}
         {transaction.status === "rejected" && transaction.rejection_comment && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA` }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
-            <div style={{ fontSize: 12, color: "#7F1D1D", lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${C.red}40` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.red, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
+            <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
           </div>
         )}
       </div>
@@ -581,7 +587,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         flexDirection: "column",
       }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -589,7 +595,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               <span style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBdr}`, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
               <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{st.icon} {st.label}</span>
             </div>
-            {/* ── FIX: date + cds always on one line, no internal wrapping ── */}
             <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
               <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>📅 {fmtDate(transaction.date)}</span>
               {transaction.cds_number && (
@@ -607,7 +612,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
-        {/* ── Summary row ── */}
+        {/* Summary row */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
@@ -634,7 +639,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
             renderRightPanel()
@@ -650,7 +655,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           )}
         </div>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
           <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
@@ -671,6 +676,7 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
   isDE, isVR, isSAAD, showActions,
   onOpenDetail,
 }) {
+  const { C } = useTheme();
   const isBuy    = transaction.type === "Buy";
   const tradeVal = Number(transaction.total || 0);
   const fees     = Number(transaction.fees  || 0);
@@ -699,10 +705,10 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
       transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
   const accentColor = isBuy ? C.green : C.red;
-  const accentBg    = isBuy ? C.greenBg : "#FEF2F2";
+  const accentBg    = isBuy ? C.greenBg : C.redBg;
   const accentBdr   = isBuy ? "#BBF7D0" : "#FECACA";
-  const cardBg      = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : C.white;
-  const cardBdr     = perms.isRejected ? "#FECACA" : perms.isVerified ? "#BBF7D0" : C.gray200;
+  const cardBg      = perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : C.white;
+  const cardBdr     = perms.isRejected ? C.red : perms.isVerified ? C.green : C.gray200;
 
   return (
     <div
@@ -758,7 +764,7 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
       </div>
 
       {perms.isRejected && transaction.rejection_comment && (
-        <div style={{ marginTop: 8, padding: "6px 10px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #FECACA`, fontSize: 11, color: "#7F1D1D", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, padding: "6px 10px", background: C.redBg, borderRadius: 8, border: `1px solid ${C.red}40`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
           💬 {transaction.rejection_comment}
         </div>
       )}
@@ -782,6 +788,7 @@ const TransactionRow = memo(function TransactionRow({
   isDE, isVR, isSAAD, showCheckbox, showActions,
   onOpenDetail,
 }) {
+  const { C } = useTheme();
   const isBuy    = transaction.type === "Buy";
   const tradeVal = Number(transaction.total || 0);
   const fees     = Number(transaction.fees  || 0);
@@ -810,12 +817,14 @@ const TransactionRow = memo(function TransactionRow({
   ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
       transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
+  const rowBg = perms.isRejected ? C.redBg : perms.isVerified ? C.greenBg : "transparent";
+
   return (
     <tr
-      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent", opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+      style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
       onClick={() => onOpenDetail(transaction.id)}
-      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? "#FFF0F0" : perms.isVerified ? "#F0FDF4" : C.gray50; }}
-      onMouseLeave={e => { e.currentTarget.style.background = perms.isRejected ? "#FFF5F5" : perms.isVerified ? "#F9FFFB" : "transparent"; }}
+      onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = perms.isRejected ? `${C.red}20` : perms.isVerified ? `${C.green}20` : C.gray50; }}
+      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
     >
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
@@ -853,7 +862,7 @@ const TransactionRow = memo(function TransactionRow({
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <StatusBadge status={transaction.status} />
         {perms.isRejected && transaction.rejection_comment && (
-          <div style={{ fontSize: 10, color: "#EF4444", marginTop: 3, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
+          <div style={{ fontSize: 10, color: C.red, marginTop: 3, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.rejection_comment}>
             💬 {transaction.rejection_comment}
           </div>
         )}
@@ -871,6 +880,7 @@ const TransactionRow = memo(function TransactionRow({
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage({ companies, transactions, setTransactions, showToast, role, cdsNumber }) {
+  const { C } = useTheme();
   const isDE   = role === "DE";
   const isVR   = role === "VR";
   const isRO   = role === "RO";
@@ -882,7 +892,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const txLoadRef      = useRef(0);
   const companyLoadRef = useRef(0);
 
-  // ── Pull-to-refresh refs ──────────────────────────────────────
+  // Pull-to-refresh refs
   const rootRef        = useRef(null);
   const touchStartYRef = useRef(null);
   const pullingRef     = useRef(false);
@@ -902,7 +912,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [pageSize, setPageSize]         = useState(50);
   const [selected, setSelected]         = useState(new Set());
 
-  // ── Pull-to-refresh state ─────────────────────────────────────
+  // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing]     = useState(false);
 
@@ -929,7 +939,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [companies, localCompanies]
   );
 
-  // ── loadTransactions — supports fromPull for pull-to-refresh ──
   const loadTransactions = useCallback(async ({ fromPull = false } = {}) => {
     const requestId = ++txLoadRef.current;
     if (!fromPull && isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
@@ -987,7 +996,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   }, [companies, loadCompanies]);
   useEffect(() => { loadBrokers(); }, [loadBrokers]);
 
-  // ── getScrollParent ───────────────────────────────────────────
   const getScrollParent = useCallback((el) => {
     let node = el?.parentElement;
     while (node) {
@@ -1001,7 +1009,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     return document.scrollingElement || document.documentElement;
   }, []);
 
-  // ── Pull-to-refresh touch handlers ───────────────────────────
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing || loadingTransactions) return;
     const host = getScrollParent(rootRef.current);
@@ -1420,10 +1427,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const pageHeight = "calc(100vh - 118px)";
 
-  // ── Pull-to-refresh indicator trigger ────────────────────────
   const pullReady = pullDistance >= 64;
 
-  // ── Mobile keyboard accessory bar suppression ─────────────────
   const mobileInputAttrs = isMobile ? {
     autoComplete: "off",
     autoCorrect: "off",
@@ -1451,7 +1456,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Pull-to-refresh indicator ── */}
+      {/* Pull-to-refresh indicator */}
       {isMobile && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 3 }}>
           <div style={{
@@ -1481,7 +1486,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         </div>
       )}
 
-      {/* ── Modals — OUTSIDE transform wrapper so position:fixed works correctly ── */}
+      {/* Modals — OUTSIDE transform wrapper */}
       {deleteModal && (
         <Modal type="confirm" title="Delete Transaction"
           message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`}
@@ -1534,7 +1539,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         />
       )}
 
-      {/* ── Transform wrapper — modals must never be inside here ── */}
+      {/* Transform wrapper */}
       <div style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
@@ -1546,12 +1551,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         overflow: isMobile ? "visible" : "hidden",
       }}>
 
-        {/* ── Stat cards ── */}
+        {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
           {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* ── Mobile toolbar ── */}
+        {/* Mobile toolbar */}
         {isMobile && (
           <div style={{ marginBottom: 10, flexShrink: 0 }}>
             {(isDE || isSAAD) ? (
@@ -1593,7 +1598,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           </div>
         )}
 
-        {/* ── Desktop toolbar ── */}
+        {/* Desktop toolbar */}
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
@@ -1624,9 +1629,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <>
                   {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: C.white, fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
                   {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: C.white, fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
                   {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>
               ) : (
@@ -1641,7 +1646,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           </div>
         )}
 
-        {/* ── Content area ── */}
+        {/* Content area */}
         <div style={{ flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
           <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
             {loadingTransactions ? (
@@ -1670,7 +1675,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
               </div>
             ) : isMobile ? (
-              /* ── Mobile cards — natural flow, no fixed-height scroll ── */
               <>
                 <div style={{ padding: "8px 12px" }}>
                   {paginated.map(transaction => (
@@ -1701,7 +1705,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 />
               </>
             ) : (
-              /* ── Desktop table ── */
               <>
                 <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
@@ -1723,7 +1726,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
-                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: "#f5f6fa" }}>
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: C.gray50 }}>
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
@@ -1731,7 +1734,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                           </th>
                         )}
                         {tableHeaders.map(h => (
-                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: "#f5f6fa" }}>
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>
                             {h.label}
                           </th>
                         ))}
@@ -1774,7 +1777,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         </td>
                         <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
                           <div style={{ fontSize: 13, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}><span style={{ fontSize: 10 }}>▲</span>{fmt(totals.buyGrand)}</div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: "#EF4444", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 10 }}>▼</span>{fmt(totals.sellGrand)}</div>
                         </td>
                         <td colSpan={tfootRightCols} />
                       </tr>
