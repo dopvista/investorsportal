@@ -247,7 +247,7 @@ const SnapCard = memo(function SnapCard({
                   ? "rgba(255,255,255,0.2)"
                   : isColored
                     ? "rgba(255,255,255,0.3)"
-                    : C.gray300,
+                    : C.gray400,
               }}
             >
               —
@@ -356,7 +356,7 @@ const StatCard = memo(function StatCard({
           )}
         </div>
         <div style={{ fontSize: 24, fontWeight: 800, color: hdrText, lineHeight: 1, transition: "color 0.2s" }}>
-          {loading ? <span style={{ fontSize: 14, color: isColored ? "rgba(255,255,255,0.3)" : C.gray300 }}>—</span> : value}
+          {loading ? <span style={{ fontSize: 14, color: isColored ? "rgba(255,255,255,0.3)" : C.gray400 }}>—</span> : value}
         </div>
         <div style={{ fontSize: 12, fontWeight: 600, color: hdrSub, marginTop: 5, transition: "color 0.2s" }}>{label}</div>
         {subLabel && <div style={{ fontSize: 11, color: hdrHint, marginTop: 2, transition: "color 0.2s" }}>{subLabel}</div>}
@@ -510,7 +510,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const [portfolio, setPortfolio] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [userCount, setUserCount] = useState(null);
@@ -1151,14 +1151,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         <button
           onClick={onCloseExpand}
           style={{
-            background: "rgba(255,255,255,0.12)",
+            background: isDark ? "rgba(255,255,255,0.12)" : C.gray100,
             border: "none",
             borderRadius: 8,
             width: 36,
             height: 36,
             cursor: "pointer",
             fontSize: 12,
-            color: "#ffffff",
+            color: isDark ? "#ffffff" : C.gray600,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1198,7 +1198,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         justifyContent: "center",
                         fontSize: 12,
                         fontWeight: 800,
-                        color: C.white,
+                        color: "#ffffff",
                       }}
                     >
                       {u._initials}
@@ -1212,7 +1212,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         height: 8,
                         borderRadius: "50%",
                         border: `2px solid ${C.white}`,
-                        background: u._isActive ? "#16a34a" : "#d1d5db",
+                        background: u._isActive ? C.green : C.gray400,
                       }}
                     />
                   </div>
@@ -1233,7 +1233,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                   </div>
                   <span
                     style={{
-                      background: u._isActive ? "#f0fdf4" : "#fef2f2",
+                      background: u._isActive ? C.greenBg : C.redBg,
                       color: u._isActive ? C.green : C.red,
                       border: `1px solid ${u._isActive ? C.green : C.red}25`,
                       borderRadius: 20,
@@ -1256,9 +1256,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       width: "100%",
                       padding: "10px",
                       borderRadius: 9,
-                      border: `1.5px solid ${C.navy}`,
+                      border: `1.5px solid ${isDark ? C.gray400 : C.navy}`,
                       background: "none",
-                      color: C.navy,
+                      color: isDark ? C.gray400 : C.navy,
                       fontWeight: 700,
                       fontSize: 12,
                       cursor: "pointer",
@@ -1473,7 +1473,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       style={{
                         fontSize: fontSize,
                         fontWeight: 800,
-                        color: "#FFD966",
+                        color: C.gold,
                         lineHeight: 1.2,
                         letterSpacing: "-0.01em",
                         textAlign: "center",
@@ -1503,7 +1503,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}%`
                       : "—",
                     color: metrics.hasFinancials
-                      ? (metrics.unrealizedRetPct >= 0 ? "#4ade80" : "#f87171")
+                      ? (metrics.unrealizedRetPct >= 0 ? C.greenLight : C.red)
                       : "rgba(255,255,255,0.85)",
                   },
                   {
@@ -1756,7 +1756,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 value={loading ? "—" : metrics.totalCompanies}
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
                 accent={C.navy}
-                accentBg="#0B1F3A"
+                accentBg={C.navy}
                 onClick={onToggleCompanies}
                 active={expanded === "companies"}
                 loading={loading}
@@ -1844,7 +1844,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                             <Td right>
                               <span
                                 style={{
-                                  background: "#f0fdf4",
+                                  background: C.greenBg,
                                   color: C.green,
                                   border: `1px solid ${C.green}25`,
                                   borderRadius: 20,
@@ -1940,7 +1940,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                         justifyContent: "center",
                                         fontSize: 11,
                                         fontWeight: 800,
-                                        color: C.white,
+                                        color: "#ffffff",
                                       }}
                                     >
                                       {u._initials}
@@ -1954,7 +1954,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                         height: 8,
                                         borderRadius: "50%",
                                         border: `2px solid ${C.white}`,
-                                        background: u._isActive ? "#16a34a" : "#d1d5db",
+                                        background: u._isActive ? C.green : C.gray400,
                                       }}
                                     />
                                   </div>
@@ -1964,8 +1964,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <Td>
                                 <span
                                   style={{
-                                    background: `${C.navy}12`,
-                                    color: C.navy,
+                                    background: isDark ? `${C.gray200}` : `${C.navy}12`,
+                                    color: isDark ? C.gray600 : C.navy,
                                     borderRadius: 20,
                                     padding: "2px 10px",
                                     fontSize: 11,
@@ -1981,7 +1981,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <Td>
                                 <span
                                   style={{
-                                    background: u._isActive ? "#f0fdf4" : "#fef2f2",
+                                    background: u._isActive ? C.greenBg : C.redBg,
                                     color: u._isActive ? C.green : C.red,
                                     border: `1px solid ${u._isActive ? C.green : C.red}25`,
                                     borderRadius: 20,
@@ -2005,8 +2005,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                           onClick={onNavUserMgmt}
                           style={{
                             background: "none",
-                            border: `1.5px solid ${C.navy}`,
-                            color: C.navy,
+                            border: `1.5px solid ${isDark ? C.gray400 : C.navy}`,
+                            color: isDark ? C.gray400 : C.navy,
                             borderRadius: 9,
                             padding: "7px 18px",
                             fontSize: 12,
@@ -2019,12 +2019,12 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                             transition: "all 0.15s",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = C.navy;
+                            e.currentTarget.style.background = isDark ? C.gray400 : C.navy;
                             e.currentTarget.style.color = C.white;
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = "none";
-                            e.currentTarget.style.color = C.navy;
+                            e.currentTarget.style.color = isDark ? C.gray400 : C.navy;
                           }}
                         >
                           Go to User Management →
@@ -2098,7 +2098,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                     marginLeft: 6,
                                     fontSize: 9,
                                     fontWeight: 700,
-                                    background: "#fef2f2",
+                                    background: C.redBg,
                                     color: C.red,
                                     border: `1px solid ${C.red}25`,
                                     borderRadius: 6,
