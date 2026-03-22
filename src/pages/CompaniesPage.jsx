@@ -36,7 +36,7 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" }}>
         <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
 
-        {/* ── Header — matches Price History / Update Price style ── */}
+        {/* Header — matches Price History / Update Price style */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", marginBottom: 3 }}>{company.name}</div>
@@ -47,24 +47,22 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
               {hasCdsPrice
                 ? <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.cds_price)}</div>
-                : <div style={{ fontSize: 13, color: "#F0B429", fontWeight: 700 }}>No price set</div>}
+                : <div style={{ fontSize: 13, color: C.gold, fontWeight: 700 }}>No price set</div>}
             </div>
             <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
           </div>
         </div>
 
-        {/* ── Action Buttons ── */}
+        {/* Action Buttons */}
         <div style={{ padding: "14px 16px 8px", display: "flex", flexDirection: "column", gap: 9 }}>
           <button onClick={() => { onClose(); onUpdatePrice(company); }}
             style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.green}44`, background: C.greenBg, color: C.green, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
             <span style={{ fontSize: 22 }}>💰</span>
             <div>
               <div style={{ fontWeight: 700 }}>{hasCdsPrice ? "Update Price" : "Set Price"}</div>
-              {/* Fix #3 — subtitle readable in both themes */}
               <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>{hasCdsPrice ? "Change your current analysis price" : "Add a price to track performance"}</div>
             </div>
           </button>
-          {/* Fix #2 — Price History button visible in dark mode */}
           <button onClick={() => { onClose(); onViewHistory(company); }}
             style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.gray100, color: C.text, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
             <span style={{ fontSize: 22 }}>📈</span>
@@ -75,7 +73,7 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
           </button>
         </div>
 
-        {/* Fix #4 — Cancel button with visible boundary */}
+        {/* Cancel button */}
         <div style={{ padding: "0 16px 12px" }}>
           <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray400}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         </div>
@@ -92,7 +90,7 @@ function PortfolioMobileCard({ company: c, onTap }) {
     ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
   const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
     ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
-  const accentColor = !hasCdsPrice ? "#D97706" : priceUp === false ? C.red : C.green;
+  const accentColor = !hasCdsPrice ? C.gold : priceUp === false ? C.red : C.green;
 
   return (
     <div onClick={() => onTap(c)} style={{
@@ -113,13 +111,13 @@ function PortfolioMobileCard({ company: c, onTap }) {
           <>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 3 }}>{fmt(c.cds_price)}</div>
             {changePct !== null
-              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}`, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+              ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, border: `1px solid ${priceUp ? C.green : C.red}40`, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                   {priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
                 </span>
               : <span style={{ fontSize: 10, color: C.gray400 }}>No prev.</span>}
           </>
         ) : (
-          <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>
+          <span style={{ background: `${C.gold}20`, color: C.gold, border: `1px solid ${C.gold}40`, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>
         )}
       </div>
       <div style={{ color: C.gray400, fontSize: 16, flexShrink: 0 }}>›</div>
@@ -136,7 +134,7 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   ];
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.navy + "0f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.navy}0f`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏢</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
         <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
@@ -565,9 +563,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                           { icon: "📈", label: loadingHistory === c.id ? "Loading..." : "Price History", onClick: () => viewHistory(c) },
                         ];
                         return (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? "#FFFBEB" : "transparent" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFF8DC" : C.gray50; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? "#FFFBEB" : "transparent"; }}>
+                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: !hasCdsPrice ? C.gray50 : i % 2 ? C.gray50 : "transparent" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = C.gray100; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = !hasCdsPrice ? C.gray50 : i % 2 ? C.gray50 : "transparent"; }}>
                             <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
                             <td style={{ padding: "10px 16px", minWidth: 140 }}>
                               <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
@@ -575,11 +573,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                               {hasCdsPrice ? <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{fmt(c.cds_price)}</span>
-                                : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
+                                : <span style={{ background: `${C.gold}20`, color: C.gold, border: `1px solid ${C.gold}40`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>💰 Set price</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                               {priceUp !== null && changePct !== null
-                                ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? "#BBF7D0" : "#FECACA"}` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
+                                ? <span style={{ background: priceUp ? C.greenBg : C.redBg, color: priceUp ? C.green : C.red, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${priceUp ? C.green : C.red}40` }}>{priceUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%</span>
                                 : <span style={{ color: C.gray400 }}>—</span>}
                             </td>
                             <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -661,9 +659,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                           { icon: "🗑️", label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                         ];
                         return (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: i % 2 ? C.gray50 : "transparent" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = C.gray100; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = i % 2 ? C.gray50 : "transparent"; }}>
                             <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
                             <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
                             <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
