@@ -292,6 +292,10 @@ export function ActionMenu({ actions }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ── MODAL SHELL ───────────────────────────────────────────────────
+// Single source of truth for all modal containers.
+// The border change here propagates to every modal in the app:
+// UpdatePriceModal, PriceHistoryModal, CompanyFormModal, Modal,
+// TransactionFormModal, ImportTransactionsModal — desktop & mobile.
 function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
@@ -301,8 +305,22 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, width: "100%", maxWidth: isMobile ? "100%" : maxWidth, display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxHeight: isMobile ? "92vh" : (maxHeight || undefined) }}>
-        {/* Header — navy gradient, consistent with ActionSheet */}
+      <div style={{
+        background: C.white,
+        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        // ── Border fix: matches the CDS accounts popup border style ──
+        // 1.5px solid C.gray200 on all sides; bottom omitted on mobile
+        // since the sheet slides in from the screen edge (no visible base).
+        border: `1.5px solid ${C.gray200}`,
+        borderBottom: isMobile ? "none" : undefined,
+        width: "100%",
+        maxWidth: isMobile ? "100%" : maxWidth,
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
+      }}>
+        {/* Header — navy gradient */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
