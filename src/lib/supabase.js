@@ -10,12 +10,80 @@ if (!BASE || !KEY) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// ── PERFORMANCE: IN-MEMORY SESSION CACHE
+// ══════════════════════════════════════════════════════════════════
+// getSession() previously parsed JSON from localStorage on every call.
+// This in-memory mirror is kept in sync by saveSession / clearSession
+// so localStorage is only touched when the value actually changes.
+
+let _sessionCache = undefined; // undefined = not yet loaded; null = no session
+
+export function getSession() {
+  if (_sessionCache !== undefined) return _sessionCache;
+  try {
+    _sessionCache = JSON.parse(localStorage.getItem("sb_session") || "null");
+    return _sessionCache;
+  } catch {
+    _sessionCache = null;
+    return null;
+  }
+}
+
+function saveSession(s) {
+  _sessionCache = s;
+  try { localStorage.setItem("sb_session", JSON.stringify(s)); } catch {}
+}
+
+function clearSession() {
+  _sessionCache = null;
+  // Also clear response cache on logout — prevents stale data leaking
+  // between sessions when a different user logs in on the same device.
+  _responseCache.clear();
+  try { localStorage.removeItem("sb_session"); } catch {}
+}
+
+function token() { return getSession()?.access_token || KEY; }
+
+// ══════════════════════════════════════════════════════════════════
+// ── PERFORMANCE: GET RESPONSE CACHE + IN-FLIGHT DEDUPLICATION
+// ══════════════════════════════════════════════════════════════════
+// _responseCache: short-lived TTL store for stable endpoints (roles,
+//   brokers, companies). Keyed by full URL.
+// _inFlight: if an identical GET URL is already in-flight, callers
+//   share that one promise instead of firing a duplicate request.
+//   Critical during app boot when multiple components mount at once.
+
+const _responseCache = new Map(); // url → { data, expires }
+const _inFlight      = new Map(); // url → Promise<data>
+
+// Periodic sweep — removes expired cache entries to prevent accumulation
+// over long-running sessions. Runs every 60 seconds.
+const _cacheCleanTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _responseCache) {
+    if (now > v.expires) _responseCache.delete(k);
+  }
+}, 60_000);
+
+// Allow the timer to be GC'd if the module is ever torn down (e.g. tests)
+if (typeof _cacheCleanTimer?.unref === "function") _cacheCleanTimer.unref();
+
+// Invalidate all cache entries whose URL starts with a given prefix.
+// Called automatically by mutation functions (insert/update/delete).
+function _invalidateCache(urlPrefix) {
+  for (const k of _responseCache.keys()) {
+    if (k.startsWith(urlPrefix)) _responseCache.delete(k);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 // ── SECURITY UTILITIES
 // ══════════════════════════════════════════════════════════════════
 
-// ── Request timeout — prevents hanging requests ────────────────────
 const DEFAULT_TIMEOUT_MS = 15_000;
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ── Request timeout wrapper ────────────────────────────────────────
 async function fetchWithTimeout(url, opts = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -29,16 +97,44 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = DEFAULT_TIMEOUT_MS) 
   }
 }
 
-// ── Safe JWT sub extraction — never throws ─────────────────────────
-// Handles URL-safe base64, padding issues, and malformed tokens.
+// ── Transient error retry — 429 / 503 / 502 / network blips ────────
+// Retries up to maxRetries times with linear backoff (300 ms, 600 ms).
+// Timeouts and permanent errors are NOT retried.
+async function _fetchWithTransientRetry(url, opts, timeoutMs = DEFAULT_TIMEOUT_MS, maxRetries = 2) {
+  let lastRes;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) await _sleep(300 * attempt);
+    try {
+      const res = await fetchWithTimeout(url, opts, timeoutMs);
+      // Retry only on truly transient status codes
+      if (res.status === 429 || res.status === 502 || res.status === 503) {
+        lastRes = res;
+        continue;
+      }
+      return res; // success or a permanent error — let the caller handle it
+    } catch (e) {
+      // Timeout: do not retry (user is already waiting)
+      if (e.message?.includes("timed out")) throw e;
+      lastRes = null;
+      if (attempt === maxRetries) throw e;
+    }
+  }
+  // All retries exhausted — return last transient response so caller can
+  // read the status/body and throw a useful error message.
+  if (lastRes) return lastRes;
+  throw new Error("Request failed after retries. Please check your connection.");
+}
+
+// ── Safe JWT sub extraction ────────────────────────────────────────
+// Handles URL-safe base64, padding, and malformed tokens without throwing.
 function safeDecodeJwtSub(tok) {
   try {
-    const payload = tok.split(".")[1];
+    const payload = tok?.split(".")[1];
     if (!payload) return null;
-    // URL-safe base64 → standard base64 + re-pad
-    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-      Math.ceil(payload.length / 4) * 4, "="
-    );
+    const b64 = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(payload.length / 4) * 4, "=");
     return JSON.parse(atob(b64))?.sub ?? null;
   } catch {
     return null;
@@ -46,34 +142,29 @@ function safeDecodeJwtSub(tok) {
 }
 
 // ── Client-side auth rate limiting ────────────────────────────────
-// Prevents rapid-fire sign-in / password-reset hammering from the UI.
-// Server-side rate limits are the real guard; this just adds a UX layer.
+// This is a UI-layer guard only — the real rate limit is server-side.
+// The Map has at most 3 keys (signup/signin/reset) — no memory leak.
 const _authAttempts = new Map();
 function enforceAuthRateLimit(key, windowMs = 800) {
   const now  = Date.now();
   const last = _authAttempts.get(key) ?? 0;
-  if (now - last < windowMs) {
-    throw new Error("Too many attempts. Please wait a moment and try again.");
-  }
+  if (now - last < windowMs) throw new Error("Too many attempts. Please wait a moment and try again.");
   _authAttempts.set(key, now);
 }
 
 // ── Sanitise error messages ────────────────────────────────────────
-// Strips raw DB internals (hints, details, column names) before
-// any message reaches the UI. Falls back to a safe generic string.
+// Strips raw DB internals before any message reaches the UI.
 const _SAFE_CODES = {
   "42501": "Permission denied by the database security policy.",
   "23505": "A record with that value already exists (duplicate).",
-  "23503": "This record is referenced by other data and cannot be deleted.",
+  "23503": "This record is linked to other data and cannot be deleted.",
   "22P02": "Invalid input format.",
 };
 
 function sanitiseError(j, fallback) {
   if (!j || typeof j !== "object") return fallback;
   if (j.code && _SAFE_CODES[j.code]) return _SAFE_CODES[j.code];
-  // Only expose the top-level message — never hint/details which leak schema
-  if (j.message) return j.message;
-  return fallback;
+  return j.message || fallback; // never expose hint/details/column names
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -83,11 +174,7 @@ function sanitiseError(j, fallback) {
 async function parseResponse(res, fallbackMsg) {
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); }
-  catch {
-    if (!res.ok) throw new Error(fallbackMsg);
-    throw new Error(fallbackMsg);
-  }
+  try { data = JSON.parse(text); } catch { throw new Error(fallbackMsg); }
   if (!res.ok) {
     const msg = (data.code ? humanizeCode(data.code) : null)
       || data.msg
@@ -119,25 +206,6 @@ function humanizeCode(code) {
   return map[code] || null;
 }
 
-async function extractError(res, rlsMessage) {
-  const errText = await res.text();
-  let msg = rlsMessage || "An error occurred.";
-  try {
-    const j = JSON.parse(errText);
-    if (j.code === "42501") {
-      msg = rlsMessage || "Permission denied: your role is not allowed to perform this action.";
-    } else if (j.code === "23505") {
-      msg = "A record with that value already exists (duplicate).";
-    } else if (j.code === "23503") {
-      msg = "This record is linked to other data and cannot be deleted.";
-    } else {
-      // Only expose message — never hint/details
-      msg = j.message || rlsMessage || "An error occurred.";
-    }
-  } catch { /* keep safe fallback */ }
-  return msg;
-}
-
 // ══════════════════════════════════════════════════════════════════
 // ── HEADERS
 // ══════════════════════════════════════════════════════════════════
@@ -150,44 +218,28 @@ const headers = (tok) => ({
 });
 
 // ══════════════════════════════════════════════════════════════════
-// ── SESSION HELPERS
+// ── TOKEN REFRESH — SINGLETON LOCK
 // ══════════════════════════════════════════════════════════════════
+// Multiple simultaneous 401 responses used to each fire their own
+// refresh, invalidating each other's new tokens. The singleton lock
+// ensures only one refresh runs at a time; all others wait on it.
 
-export function getSession() {
-  try { return JSON.parse(localStorage.getItem("sb_session") || "null"); }
-  catch { return null; }
-}
-function saveSession(s) { localStorage.setItem("sb_session", JSON.stringify(s)); }
-function clearSession() { localStorage.removeItem("sb_session"); }
-function token()        { return getSession()?.access_token || KEY; }
-
-// ── Auto-refresh expired token — with singleton lock ──────────────
-// FIX: Without this lock, multiple simultaneous 401 responses each
-// fired their own refresh, invalidating each other's new tokens.
 let _refreshPromise = null;
 
 async function refreshSession() {
-  // If a refresh is already in flight, wait for that one instead of
-  // sending a second request that would invalidate the first token.
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = _doRefreshSession().finally(() => { _refreshPromise = null; });
   return _refreshPromise;
 }
 
 async function _doRefreshSession() {
-  const session      = getSession();
-  const refreshToken = session?.refresh_token;
+  const refreshToken = getSession()?.refresh_token;
   if (!refreshToken) { clearSession(); return null; }
-
   try {
     const res = await fetchWithTimeout(
       `${BASE}/auth/v1/token?grant_type=refresh_token`,
-      {
-        method:  "POST",
-        headers: { "Content-Type": "application/json", "apikey": KEY },
-        body:    JSON.stringify({ refresh_token: refreshToken }),
-      },
-      10_000 // shorter timeout for auth ops
+      { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ refresh_token: refreshToken }) },
+      10_000
     );
     if (!res.ok) { clearSession(); return null; }
     const data = await res.json();
@@ -199,14 +251,19 @@ async function _doRefreshSession() {
   }
 }
 
-// ── Shared fetch with one auth retry + timeout ─────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ── CORE FETCH WRAPPERS
+// ══════════════════════════════════════════════════════════════════
+
+// ── fetchWithAuthRetry — for all mutating requests (POST/PATCH/DELETE)
+// Includes: transient retry, one auth retry on 401, error sanitisation.
 async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request failed") {
-  let res = await fetchWithTimeout(url, options);
+  let res = await _fetchWithTransientRetry(url, options);
 
   if (res.status === 401) {
     const newToken = await refreshSession();
     if (!newToken) throw new Error("Session expired. Please log in again.");
-    res = await fetchWithTimeout(url, {
+    res = await _fetchWithTransientRetry(url, {
       ...options,
       headers: { ...(options.headers || {}), apikey: KEY, Authorization: `Bearer ${newToken}` },
     });
@@ -215,14 +272,75 @@ async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request fail
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     let msg = fallbackMsg;
-    try {
-      const j = JSON.parse(text);
-      msg = sanitiseError(j, fallbackMsg);
-    } catch { /* use fallback — never expose raw server text */ }
+    try { msg = sanitiseError(JSON.parse(text), fallbackMsg); } catch {}
     throw new Error(msg);
   }
 
   return res;
+}
+
+// ── _fetchGET — for all read (GET) requests
+// Adds: TTL response cache + in-flight deduplication on top of
+// fetchWithAuthRetry. Returns parsed JSON directly.
+//
+// ttlMs = 0  → no cache (default — live data)
+// ttlMs > 0  → cache response for ttlMs milliseconds
+async function _fetchGET(url, fallbackMsg, ttlMs = 0) {
+  // 1. TTL cache hit
+  if (ttlMs > 0) {
+    const cached = _responseCache.get(url);
+    if (cached && Date.now() < cached.expires) return cached.data;
+  }
+
+  // 2. In-flight deduplication — join existing request if one is running
+  const existing = _inFlight.get(url);
+  if (existing) return existing;
+
+  // 3. Fire new request
+  const promise = (async () => {
+    const res  = await fetchWithAuthRetry(url, { headers: headers(token()) }, fallbackMsg);
+    const data = await res.json();
+    if (ttlMs > 0) _responseCache.set(url, { data, expires: Date.now() + ttlMs });
+    return data;
+  })().finally(() => _inFlight.delete(url));
+
+  _inFlight.set(url, promise);
+  return promise;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── PERFORMANCE: SHARED USER-NAME RESOLVER
+// ══════════════════════════════════════════════════════════════════
+// Previously copy-pasted verbatim inside sbGetTransactions AND
+// sbGetTransactionsByIds. Now a single function used by both.
+// Resolves an array of user UUIDs → { uuid: full_name } map.
+// Name lookups are themselves deduplicated via _fetchGET.
+
+async function resolveUserNames(uids) {
+  const unique = [...new Set(uids.filter(Boolean))];
+  if (!unique.length) return {};
+  const idList = `(${unique.map((id) => `"${id}"`).join(",")})`;
+  try {
+    const profiles = await _fetchGET(
+      `${BASE}/rest/v1/profiles?id=in.${idList}&select=id,full_name`,
+      "Failed to fetch profile names"
+      // No TTL — profiles can change, but failures are non-critical
+    );
+    return Object.fromEntries(profiles.map((p) => [p.id, p.full_name || null]));
+  } catch {
+    return {}; // names are non-critical — transactions still load without them
+  }
+}
+
+// Attach resolved names to a transaction row
+function _attachNames(row, nameMap) {
+  return {
+    ...row,
+    created_by_name:   nameMap[row.created_by]   || null,
+    confirmed_by_name: nameMap[row.confirmed_by] || null,
+    verified_by_name:  nameMap[row.verified_by]  || null,
+    rejected_by_name:  nameMap[row.rejected_by]  || null,
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -262,11 +380,11 @@ export async function sbSignOut() {
       8_000
     ).catch(() => {});
   }
-  clearSession();
+  clearSession(); // also clears _responseCache
 }
 
 export async function sbResetPassword(email) {
-  enforceAuthRateLimit("reset", 5_000); // 5-second cooldown between reset attempts
+  enforceAuthRateLimit("reset", 5_000);
   const res = await fetchWithTimeout(
     `${BASE}/auth/v1/recover`,
     { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email }) },
@@ -281,13 +399,11 @@ export async function sbResetPassword(email) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGet(table, params = {}) {
-  const q   = new URLSearchParams(params).toString();
-  const res = await fetchWithAuthRetry(
+  const q = new URLSearchParams(params).toString();
+  return _fetchGET(
     `${BASE}/rest/v1/${table}${q ? "?" + q : ""}`,
-    { headers: headers(token()) },
     `Failed to fetch ${table}`
   );
-  return res.json();
 }
 
 export async function sbInsert(table, data) {
@@ -323,13 +439,10 @@ export async function sbDelete(table, id) {
 
 export async function sbGetProfile(sessionToken) {
   const session = sessionToken ? null : getSession();
-  // FIX: use safe decode — never throws on malformed tokens
-  const uid = sessionToken
-    ? safeDecodeJwtSub(sessionToken)
-    : session?.user?.id;
+  const uid     = sessionToken ? safeDecodeJwtSub(sessionToken) : session?.user?.id;
   if (!uid) return null;
-
   const tok = sessionToken || token();
+  // No TTL — profile data is user-visible and should always be fresh
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/profiles?id=eq.${uid}`,
     { headers: headers(tok) },
@@ -341,7 +454,6 @@ export async function sbGetProfile(sessionToken) {
 
 export async function sbUpsertProfile(data) {
   const uid = getSession()?.user?.id;
-
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/profiles?id=eq.${uid}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(data) },
@@ -365,25 +477,24 @@ export async function sbUpsertProfile(data) {
 
 export async function sbGetMyRole(sessionToken) {
   const tok = sessionToken || token();
+  // No TTL — role is security-sensitive; always verify from server
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_my_role`,
     { method: "POST", headers: headers(tok), body: JSON.stringify({}) },
     "Failed to fetch role"
   );
-  const data = await res.json();
-  return data || null;
+  return (await res.json()) || null;
 }
 
 export async function sbGetRoles() {
-  const res = await fetchWithAuthRetry(
+  // Roles change very rarely — cache for 5 minutes
+  return _fetchGET(
     `${BASE}/rest/v1/roles?order=id.asc`,
-    { headers: headers(token()) },
-    "Failed to fetch roles"
+    "Failed to fetch roles",
+    5 * 60_000
   );
-  return res.json();
 }
 
-// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbGetAllUsers() {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_all_users`,
@@ -393,7 +504,6 @@ export async function sbGetAllUsers() {
   return res.json();
 }
 
-// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbAssignRole(userId, roleId) {
   await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/assign_user_role`,
@@ -403,7 +513,6 @@ export async function sbAssignRole(userId, roleId) {
   return true;
 }
 
-// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbDeactivateRole(userId) {
   await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/deactivate_user_role`,
@@ -413,7 +522,6 @@ export async function sbDeactivateRole(userId) {
   return true;
 }
 
-// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbAdminCreateUser(email, password, cdsNumber) {
   const res = await fetchWithAuthRetry(
     `${BASE}/functions/v1/create-user`,
@@ -433,12 +541,10 @@ export async function sbAdminCreateUser(email, password, cdsNumber) {
 
 export async function sbGetCdsAccount(cdsNumber) {
   if (!cdsNumber) return null;
-  const res = await fetchWithAuthRetry(
+  const rows = await _fetchGET(
     `${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,cds_number,cds_name,phone,email&limit=1`,
-    { headers: headers(token()) },
     "Failed to fetch CDS account"
   );
-  const rows = await res.json();
   return rows[0] || null;
 }
 
@@ -449,16 +555,11 @@ export async function sbInsertCdsAccount({ cds_number, cds_name, phone, email })
     {
       method:  "POST",
       headers: headers(token()),
-      body:    JSON.stringify({
-        cds_number: cds_number.trim(),
-        cds_name:   cds_name.trim(),
-        phone:      phone?.trim()  || null,
-        email:      email?.trim()  || null,
-        created_by: uid            || null,
-      }),
+      body:    JSON.stringify({ cds_number: cds_number.trim(), cds_name: cds_name.trim(), phone: phone?.trim() || null, email: email?.trim() || null, created_by: uid || null }),
     },
     "Failed to create CDS account. CDS number may already exist."
   );
+  _invalidateCache(`${BASE}/rest/v1/cds_accounts`);
   return res.json();
 }
 
@@ -468,28 +569,23 @@ export async function sbUpdateCdsAccount(id, { cds_name, phone, email }) {
     {
       method:  "PATCH",
       headers: headers(token()),
-      body:    JSON.stringify({
-        cds_name: cds_name.trim(),
-        phone:    phone?.trim()  || null,
-        email:    email?.trim()  || null,
-      }),
+      body:    JSON.stringify({ cds_name: cds_name.trim(), phone: phone?.trim() || null, email: email?.trim() || null }),
     },
     "Failed to update CDS account."
   );
+  _invalidateCache(`${BASE}/rest/v1/cds_accounts`);
   return res.json();
 }
 
 export async function sbSearchCdsAccounts(query = "") {
-  const q = query.trim();
-  const filter = q
-    ? `or=(cds_number.ilike.*${encodeURIComponent(q)}*,cds_name.ilike.*${encodeURIComponent(q)}*)&`
-    : "";
-  const res = await fetchWithAuthRetry(
+  const q      = query.trim();
+  const filter = q ? `or=(cds_number.ilike.*${encodeURIComponent(q)}*,cds_name.ilike.*${encodeURIComponent(q)}*)&` : "";
+  // Short TTL — search results are shown in an admin table, should be nearly live
+  return _fetchGET(
     `${BASE}/rest/v1/cds_accounts?${filter}order=cds_name.asc&select=id,cds_number,cds_name,phone,email,created_at`,
-    { headers: headers(token()) },
-    "Failed to search CDS accounts"
+    "Failed to search CDS accounts",
+    15_000
   );
-  return res.json();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -497,85 +593,35 @@ export async function sbSearchCdsAccounts(query = "") {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetTransactions() {
-  const res = await fetchWithAuthRetry(
+  const rows = await _fetchGET(
     `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`,
-    { headers: headers(token()) },
     "Failed to fetch transactions"
   );
-  const rows = await res.json();
   if (!rows.length) return rows;
-
-  const uids = [...new Set([
-    ...rows.map(t => t.created_by),
-    ...rows.map(t => t.confirmed_by),
-    ...rows.map(t => t.verified_by),
-    ...rows.map(t => t.rejected_by),
-  ].filter(Boolean))];
-
-  if (!uids.length) return rows;
-
-  const idList = `(${uids.map(id => `"${id}"`).join(",")})`;
-  let nameMap = {};
-  try {
-    const profileRes = await fetchWithAuthRetry(
-      `${BASE}/rest/v1/profiles?id=in.${idList}&select=id,full_name`,
-      { headers: headers(token()) },
-      "Failed to fetch profile names"
-    );
-    const profiles = await profileRes.json();
-    nameMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name || null]));
-  } catch {
-    // Names are non-critical — transactions still load without them
-  }
-
-  return rows.map(t => ({
-    ...t,
-    created_by_name:   nameMap[t.created_by]   || null,
-    confirmed_by_name: nameMap[t.confirmed_by] || null,
-    verified_by_name:  nameMap[t.verified_by]  || null,
-    rejected_by_name:  nameMap[t.rejected_by]  || null,
-  }));
+  const nameMap = await resolveUserNames([
+    ...rows.map((t) => t.created_by),
+    ...rows.map((t) => t.confirmed_by),
+    ...rows.map((t) => t.verified_by),
+    ...rows.map((t) => t.rejected_by),
+  ]);
+  return rows.map((t) => _attachNames(t, nameMap));
 }
 
 export async function sbGetTransactionsByIds(ids) {
   if (!ids?.length) return [];
-  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
-  const res = await fetchWithAuthRetry(
+  const idList = `(${ids.map((id) => `"${id}"`).join(",")})`;
+  const rows   = await _fetchGET(
     `${BASE}/rest/v1/transactions?id=in.${idList}`,
-    { headers: headers(token()) },
     "Failed to re-fetch transactions"
   );
-  const rows = await res.json();
   if (!rows.length) return rows;
-
-  const uids = [...new Set([
-    ...rows.map(t => t.created_by),
-    ...rows.map(t => t.confirmed_by),
-    ...rows.map(t => t.verified_by),
-    ...rows.map(t => t.rejected_by),
-  ].filter(Boolean))];
-
-  let nameMap = {};
-  if (uids.length) {
-    try {
-      const uidList = `(${uids.map(id => `"${id}"`).join(",")})`;
-      const profileRes = await fetchWithAuthRetry(
-        `${BASE}/rest/v1/profiles?id=in.${uidList}&select=id,full_name`,
-        { headers: headers(token()) },
-        ""
-      );
-      const profiles = await profileRes.json();
-      nameMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name || null]));
-    } catch { /* names non-critical */ }
-  }
-
-  return rows.map(t => ({
-    ...t,
-    created_by_name:   nameMap[t.created_by]   || null,
-    confirmed_by_name: nameMap[t.confirmed_by] || null,
-    verified_by_name:  nameMap[t.verified_by]  || null,
-    rejected_by_name:  nameMap[t.rejected_by]  || null,
-  }));
+  const nameMap = await resolveUserNames([
+    ...rows.map((t) => t.created_by),
+    ...rows.map((t) => t.confirmed_by),
+    ...rows.map((t) => t.verified_by),
+    ...rows.map((t) => t.rejected_by),
+  ]);
+  return rows.map((t) => _attachNames(t, nameMap));
 }
 
 export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
@@ -584,10 +630,7 @@ export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
     {
       method:  "POST",
       headers: headers(token()),
-      body:    JSON.stringify({
-        p_cds_number: cdsNumber,
-        ...(companyId ? { p_company_id: companyId } : {}),
-      }),
+      body:    JSON.stringify({ p_cds_number: cdsNumber, ...(companyId ? { p_company_id: companyId } : {}) }),
     },
     "Failed to fetch gain/loss data"
   );
@@ -598,13 +641,10 @@ export async function sbInsertTransaction(data) {
   const uid = getSession()?.user?.id;
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions`,
-    {
-      method:  "POST",
-      headers: headers(token()),
-      body:    JSON.stringify({ ...data, status: "pending", created_by: uid }),
-    },
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ ...data, status: "pending", created_by: uid }) },
     "Failed to create transaction"
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
@@ -614,6 +654,7 @@ export async function sbUpdateTransaction(id, data) {
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(data) },
     "Permission denied: your role is not allowed to update this transaction."
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
@@ -621,40 +662,40 @@ export async function sbConfirmTransaction(id) {
   const uid  = getSession()?.user?.id;
   const body = { status: "confirmed" };
   if (uid) { body.confirmed_by = uid; body.confirmed_at = new Date().toISOString(); }
-
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?id=eq.${id}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
     "Permission denied: only the Data Entrant who created this transaction can confirm it."
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
 export async function sbVerifyTransactions(ids) {
   const uid    = getSession()?.user?.id;
-  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  const idList = `(${ids.map((id) => `"${id}"`).join(",")})`;
   const body   = { status: "verified" };
   if (uid) { body.verified_by = uid; body.verified_at = new Date().toISOString(); }
-
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?id=in.${idList}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
     "Permission denied: only a Verifier, SA, or AD can verify transactions."
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
 export async function sbRejectTransactions(ids, comment) {
   const uid    = getSession()?.user?.id;
-  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  const idList = `(${ids.map((id) => `"${id}"`).join(",")})`;
   const body   = { status: "rejected", rejection_comment: comment };
   if (uid) { body.rejected_by = uid; body.rejected_at = new Date().toISOString(); }
-
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?id=in.${idList}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
     "Permission denied: only a Verifier, SA, or AD can reject transactions."
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
@@ -667,6 +708,7 @@ export async function sbDeleteTransaction(id) {
   const range    = res.headers.get("Content-Range") || "";
   const affected = parseInt(range.split("/")[1] ?? "0", 10);
   if (affected === 0) throw new Error("Delete was not permitted. You may not have permission to delete this transaction.");
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return true;
 }
 
@@ -676,6 +718,7 @@ export async function sbUnverifyTransaction(id) {
     { method: "POST", headers: headers(token()), body: JSON.stringify({ p_id: id }) },
     "Failed to unverify transaction"
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
@@ -685,6 +728,7 @@ export async function sbUnverifyTransactions(ids) {
     { method: "POST", headers: headers(token()), body: JSON.stringify({ p_ids: ids }) },
     "Failed to unverify transactions"
   );
+  _invalidateCache(`${BASE}/rest/v1/transactions`);
   return res.json();
 }
 
@@ -693,21 +737,21 @@ export async function sbUnverifyTransactions(ids) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetAllBrokers() {
-  const res = await fetchWithAuthRetry(
+  // Broker list is stable — cache for 2 minutes
+  return _fetchGET(
     `${BASE}/rest/v1/brokers?order=broker_name.asc`,
-    { headers: headers(token()) },
-    "Failed to fetch brokers"
+    "Failed to fetch brokers",
+    2 * 60_000
   );
-  return res.json();
 }
 
 export async function sbGetActiveBrokers() {
-  const res = await fetchWithAuthRetry(
+  // Active brokers used in transaction form dropdowns — cache for 2 minutes
+  return _fetchGET(
     `${BASE}/rest/v1/brokers?status=eq.Active&order=broker_name.asc&select=id,broker_name,broker_code,contact_phone,contact_email`,
-    { headers: headers(token()) },
-    "Failed to fetch active brokers"
+    "Failed to fetch active brokers",
+    2 * 60_000
   );
-  return res.json();
 }
 
 export async function sbInsertBroker({ broker_name, broker_code, contact_phone, contact_email, status = "Active", remarks, created_by }) {
@@ -716,18 +760,11 @@ export async function sbInsertBroker({ broker_name, broker_code, contact_phone, 
     {
       method:  "POST",
       headers: headers(token()),
-      body:    JSON.stringify({
-        broker_name:   broker_name.trim(),
-        broker_code:   broker_code.trim().toUpperCase(),
-        contact_phone: contact_phone?.trim() || null,
-        contact_email: contact_email?.trim() || null,
-        status,
-        remarks:       remarks?.trim()       || null,
-        created_by:    created_by            || null,
-      }),
+      body:    JSON.stringify({ broker_name: broker_name.trim(), broker_code: broker_code.trim().toUpperCase(), contact_phone: contact_phone?.trim() || null, contact_email: contact_email?.trim() || null, status, remarks: remarks?.trim() || null, created_by: created_by || null }),
     },
     "Failed to create broker. Name or code may already exist."
   );
+  _invalidateCache(`${BASE}/rest/v1/brokers`);
   return res.json();
 }
 
@@ -737,17 +774,11 @@ export async function sbUpdateBroker(id, { broker_name, broker_code, contact_pho
     {
       method:  "PATCH",
       headers: headers(token()),
-      body:    JSON.stringify({
-        broker_name:   broker_name.trim(),
-        broker_code:   broker_code.trim().toUpperCase(),
-        contact_phone: contact_phone?.trim() || null,
-        contact_email: contact_email?.trim() || null,
-        status,
-        remarks:       remarks?.trim()       || null,
-      }),
+      body:    JSON.stringify({ broker_name: broker_name.trim(), broker_code: broker_code.trim().toUpperCase(), contact_phone: contact_phone?.trim() || null, contact_email: contact_email?.trim() || null, status, remarks: remarks?.trim() || null }),
     },
     "Failed to update broker. Name or code may already exist."
   );
+  _invalidateCache(`${BASE}/rest/v1/brokers`);
   return res.json();
 }
 
@@ -757,25 +788,24 @@ export async function sbToggleBrokerStatus(id, newStatus) {
     { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status: newStatus }) },
     "Failed to update broker status."
   );
+  _invalidateCache(`${BASE}/rest/v1/brokers`);
   return res.json();
 }
 
 export async function sbDeleteBroker(id) {
-  const checkRes = await fetchWithAuthRetry(
+  // Preflight: friendly message before FK error fires
+  const rows = await _fetchGET(
     `${BASE}/rest/v1/transactions?broker_id=eq.${id}&select=id&limit=1`,
-    { headers: headers(token()) },
     "Failed to check broker usage"
   );
-  const rows = await checkRes.json();
-  if (rows.length > 0) {
-    throw new Error("Cannot delete: this broker is linked to existing transactions. Deactivate it instead.");
-  }
+  if (rows.length > 0) throw new Error("Cannot delete: this broker is linked to existing transactions. Deactivate it instead.");
 
-  const res = await fetchWithAuthRetry(
+  await fetchWithAuthRetry(
     `${BASE}/rest/v1/brokers?id=eq.${id}`,
     { method: "DELETE", headers: { ...headers(token()), "Prefer": "count=exact" } },
     "Failed to delete broker."
   );
+  _invalidateCache(`${BASE}/rest/v1/brokers`);
   return true;
 }
 
@@ -794,7 +824,7 @@ export async function sbGetPortfolio(cdsNumber) {
 
     if (rpcRes.ok) {
       const rows = await rpcRes.json();
-      return rows.map(r => ({
+      return rows.map((r) => ({
         id:                      r.id,
         name:                    r.name,
         remarks:                 r.remarks,
@@ -814,25 +844,22 @@ export async function sbGetPortfolio(cdsNumber) {
     }
   }
 
-  // Fallback
-  const txRes = await fetchWithAuthRetry(
+  // Fallback — parallel fetch of companies + prices
+  const txRows  = await _fetchGET(
     `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
-    { headers: headers(token()) },
     "Failed to fetch portfolio transactions"
   );
-  const txRows = await txRes.json();
-  const ids    = [...new Set(txRows.map(t => t.company_id).filter(Boolean))];
+  const ids = [...new Set(txRows.map((t) => t.company_id).filter(Boolean))];
   if (!ids.length) return [];
 
-  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
-  const [coRes, prRes] = await Promise.all([
-    fetchWithAuthRetry(`${BASE}/rest/v1/companies?id=in.${idList}&order=name.asc`, { headers: headers(token()) }, "Failed to fetch companies"),
-    fetchWithAuthRetry(`${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}`, { headers: headers(token()) }, "Failed to fetch CDS prices"),
+  const idList = `(${ids.map((id) => `"${id}"`).join(",")})`;
+  const [companies, prices] = await Promise.all([
+    _fetchGET(`${BASE}/rest/v1/companies?id=in.${idList}&order=name.asc`, "Failed to fetch companies"),
+    _fetchGET(`${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}`, "Failed to fetch CDS prices"),
   ]);
-  const [companies, prices] = await Promise.all([coRes.json(), prRes.json()]);
-  const priceMap = Object.fromEntries(prices.map(p => [p.company_id, p]));
 
-  return companies.map(c => ({
+  const priceMap = Object.fromEntries(prices.map((p) => [p.company_id, p]));
+  return companies.map((c) => ({
     ...c,
     cds_price:               priceMap[c.id]?.price          ?? null,
     cds_previous_price:      priceMap[c.id]?.previous_price ?? null,
@@ -849,56 +876,47 @@ export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newP
   const ts            = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
   const currentUserId = getSession()?.user?.id;
 
-  const upsertRes = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
-    {
-      method:  "POST",
-      headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
-      body:    JSON.stringify({
-        company_id: companyId, cds_number: cdsNumber, price: newPrice,
-        previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null,
-        updated_at: ts, created_by_id: currentUserId,
-      }),
-    },
-    "Failed to update CDS price"
-  );
+  const [upsertRes] = await Promise.all([
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
+      {
+        method:  "POST",
+        headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
+        body:    JSON.stringify({ company_id: companyId, cds_number: cdsNumber, price: newPrice, previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null, updated_at: ts, created_by_id: currentUserId }),
+      },
+      "Failed to update CDS price"
+    ),
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_price_history`,
+      {
+        method:  "POST",
+        headers: headers(token()),
+        body:    JSON.stringify({ company_id: companyId, company_name: companyName, cds_number: cdsNumber, old_price: oldPrice ?? null, new_price: newPrice, change_amount: changeAmount, change_percent: changePct, notes: reason || null, updated_by: updatedBy, created_at: ts }),
+      },
+      "Failed to save price history"
+    ),
+  ]);
+
+  _invalidateCache(`${BASE}/rest/v1/cds_prices`);
+  _invalidateCache(`${BASE}/rest/v1/cds_price_history`);
   const upserted = await upsertRes.json();
-
-  const histRes = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/cds_price_history`,
-    {
-      method:  "POST",
-      headers: headers(token()),
-      body:    JSON.stringify({
-        company_id: companyId, company_name: companyName, cds_number: cdsNumber,
-        old_price: oldPrice ?? null, new_price: newPrice,
-        change_amount: changeAmount, change_percent: changePct,
-        notes: reason || null, updated_by: updatedBy, created_at: ts,
-      }),
-    },
-    "Failed to save price history"
-  );
-  await histRes.json();
-
   return upserted[0] || upserted;
 }
 
 export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
-  const res = await fetchWithAuthRetry(
+  return _fetchGET(
     `${BASE}/rest/v1/cds_price_history?company_id=eq.${companyId}&cds_number=eq.${encodeURIComponent(cdsNumber)}&order=created_at.desc`,
-    { headers: headers(token()) },
     "Failed to fetch CDS price history"
   );
-  return res.json();
 }
 
 export async function sbGetAllCompanies() {
-  const res = await fetchWithAuthRetry(
+  // Companies change rarely — cache for 2 minutes
+  return _fetchGET(
     `${BASE}/rest/v1/companies?order=name.asc`,
-    { headers: headers(token()) },
-    "Failed to fetch companies"
+    "Failed to fetch companies",
+    2 * 60_000
   );
-  return res.json();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -906,13 +924,12 @@ export async function sbGetAllCompanies() {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetSiteSettings(key = "login_page") {
-  const res = await fetchWithTimeout(
+  // Use anon key (public settings) — short TTL so admin changes propagate quickly
+  const rows = await _fetchGET(
     `${BASE}/rest/v1/site_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
-    { headers: headers(KEY) },
-    10_000
+    "Failed to load site settings.",
+    30_000
   );
-  if (!res.ok) throw new Error("Failed to load site settings.");
-  const rows = await res.json();
   return rows[0]?.value ?? null;
 }
 
@@ -929,7 +946,7 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
   );
   if (!patchRes.ok) {
     let msg = "Failed to save settings.";
-    try { const j = await patchRes.json(); msg = sanitiseError(j, msg); } catch {}
+    try { msg = sanitiseError(await patchRes.json(), msg); } catch {}
     throw new Error(msg);
   }
 
@@ -945,25 +962,22 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
     );
     if (!insertRes.ok) {
       let msg = "Failed to save settings.";
-      try { const j = await insertRes.json(); msg = sanitiseError(j, msg); } catch {}
+      try { msg = sanitiseError(await insertRes.json(), msg); } catch {}
       throw new Error(msg);
     }
+    _invalidateCache(`${BASE}/rest/v1/site_settings`);
     return insertRes.json();
   }
+  _invalidateCache(`${BASE}/rest/v1/site_settings`);
   return patched;
 }
 
 export async function sbUploadSlideImage(blob, slideIndex, session) {
   const tok      = session?.access_token || KEY;
   const filename = `slide-${slideIndex}.jpg`;
-
   const uploadRes = await fetchWithTimeout(
     `${BASE}/storage/v1/object/login-slides/${filename}`,
-    {
-      method:  "POST",
-      headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
-      body:    blob,
-    },
+    { method: "POST", headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" }, body: blob },
     30_000 // longer timeout for image uploads
   );
   if (!uploadRes.ok) {
@@ -1009,12 +1023,10 @@ export async function sbSearchCDS(query) {
 export async function sbCreateCDS({ cdsNumber, cdsName, phone, email }) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/create_cds`,
-    {
-      method: "POST", headers: headers(token()),
-      body: JSON.stringify({ p_cds_number: cdsNumber, p_cds_name: cdsName, p_phone: phone || null, p_email: email || null }),
-    },
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber, p_cds_name: cdsName, p_phone: phone || null, p_email: email || null }) },
     "Failed to create CDS record"
   );
+  _invalidateCache(`${BASE}/rest/v1/cds_accounts`);
   return res.json();
 }
 
@@ -1048,10 +1060,7 @@ export async function sbRemoveCDS(userId, cdsId) {
 export async function sbRemoveCDSFromAdminCascade(adminId, cdsId, cascade = false) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/remove_cds_from_admin_cascade`,
-    {
-      method: "POST", headers: headers(token()),
-      body: JSON.stringify({ p_admin_id: adminId, p_cds_id: cdsId, p_cascade: cascade }),
-    },
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_admin_id: adminId, p_cds_id: cdsId, p_cascade: cascade }) },
     "Failed to remove CDS from admin"
   );
   const result = await res.json();
