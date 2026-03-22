@@ -3,14 +3,18 @@ import { sbSignIn, sbResetPassword } from "../lib/supabase";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
-// ── Mobile breakpoint (passive, no SSR issues) ────────────────────
+// ── Mobile breakpoint — 80ms debounce, consistent with all other pages ──
 const useIsMobile = () => {
   const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 
   useEffect(() => {
-    const h = () => setM(window.innerWidth < 768);
+    let t;
+    const h = () => {
+      clearTimeout(t);
+      t = setTimeout(() => setM(window.innerWidth < 768), 80);
+    };
     window.addEventListener("resize", h, { passive: true });
-    return () => window.removeEventListener("resize", h);
+    return () => { window.removeEventListener("resize", h); clearTimeout(t); };
   }, []);
 
   return m;
@@ -301,14 +305,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                onFocus={(e) => {
-                  e.target.style.borderColor = C.green;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = isMobile
-                    ? "rgba(255,255,255,0.15)"
-                    : C.gray200;
-                }}
+                onFocus={(e) => { e.target.style.borderColor = C.green; }}
+                onBlur={(e) => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
               />
             </div>
 
@@ -332,11 +330,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
                 </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setView("reset");
-                    setError("");
-                    setSuccess("");
-                  }}
+                  onClick={() => { setView("reset"); setError(""); setSuccess(""); }}
                   style={{
                     fontSize: isMobile ? 13 : 12,
                     color: C.green,
@@ -360,14 +354,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = C.green;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = isMobile
-                      ? "rgba(255,255,255,0.15)"
-                      : C.gray200;
-                  }}
+                  onFocus={(e) => { e.target.style.borderColor = C.green; }}
+                  onBlur={(e) => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
                 />
                 <button
                   type="button"
@@ -405,14 +393,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                onFocus={(e) => {
-                  e.target.style.borderColor = C.green;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = isMobile
-                    ? "rgba(255,255,255,0.15)"
-                    : C.gray200;
-                }}
+                onFocus={(e) => { e.target.style.borderColor = C.green; }}
+                onBlur={(e) => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
               />
             </div>
 
@@ -422,18 +404,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
             <button
               type="button"
-              onClick={() => {
-                setView("login");
-                setError("");
-                setSuccess("");
-              }}
+              onClick={() => { setView("login"); setError(""); setSuccess(""); }}
               style={{
                 width: "100%",
                 padding: isMobile ? "14px" : "12px",
                 borderRadius: isMobile ? 12 : 10,
-                border: isMobile
-                  ? "1.5px solid rgba(255,255,255,0.2)"
-                  : `1.5px solid ${C.gray200}`,
+                border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`,
                 background: "transparent",
                 color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400,
                 fontWeight: 600,
@@ -441,18 +417,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
                 cursor: "pointer",
                 fontFamily: "inherit",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = isMobile ? C.white : C.navy;
-                e.currentTarget.style.color = isMobile ? C.white : C.navy;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = isMobile
-                  ? "rgba(255,255,255,0.2)"
-                  : C.gray200;
-                e.currentTarget.style.color = isMobile
-                  ? "rgba(255,255,255,0.7)"
-                  : C.gray400;
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = isMobile ? C.white : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.2)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.7)" : C.gray400; }}
             >
               ← Back to Sign In
             </button>
@@ -461,49 +427,19 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
         {!isMobile && (
           <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                marginBottom: 6,
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
               <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>
                 Manage Your Investments Digitally
               </span>
             </div>
-            <div
-              style={{
-                textAlign: "center",
-                fontSize: 10,
-                color: C.gray400,
-                fontWeight: 500,
-                letterSpacing: "0.03em",
-              }}
-            >
+            <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
               © 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
             </div>
           </div>
         )}
       </div>
     ),
-    [
-      isMobile,
-      view,
-      email,
-      password,
-      showPw,
-      error,
-      success,
-      loading,
-      handleLogin,
-      handleReset,
-      Label,
-      SubmitBtn,
-      inpStyle,
-    ]
+    [isMobile, view, email, password, showPw, error, success, loading, handleLogin, handleReset, Label, SubmitBtn, inpStyle]
   );
 
   return (
@@ -526,81 +462,18 @@ export default function LoginPage({ onLogin, loginSettings }) {
         input::placeholder { color: ${isMobile ? "rgba(255,255,255,0.3)" : "#9ca3af"} !important; }
       `}</style>
 
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: "-80px",
-          right: "-80px",
-          width: 360,
-          height: 360,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "-100px",
-          left: "-60px",
-          width: 400,
-          height: 400,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "-80px", right: "-80px", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,132,61,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "-100px", left: "-60px", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       {isMobile && (
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "24px 20px",
-            boxSizing: "border-box",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
           {renderForm()}
-
-          <div
-            style={{
-              marginTop: 22,
-              textAlign: "center",
-              opacity: 0.72,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.42)",
-                fontWeight: 500,
-                letterSpacing: "0.01em",
-              }}
-            >
+          <div style={{ marginTop: 22, textAlign: "center", opacity: 0.72 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontWeight: 500, letterSpacing: "0.01em" }}>
               Manage Your Investments Digitally
             </div>
-            <div
-              style={{
-                marginTop: 5,
-                fontSize: 10,
-                color: "rgba(255,255,255,0.34)",
-                fontWeight: 500,
-                letterSpacing: "0.01em",
-              }}
-            >
+            <div style={{ marginTop: 5, fontSize: 10, color: "rgba(255,255,255,0.34)", fontWeight: 500, letterSpacing: "0.01em" }}>
               © 2026 Dopvista Creative Hub. All rights reserved.
             </div>
           </div>
@@ -608,154 +481,42 @@ export default function LoginPage({ onLogin, loginSettings }) {
       )}
 
       {!isMobile && (
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            style={{
-              width: "min(960px, 92vw)",
-              background: "white",
-              borderRadius: 28,
-              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-              display: "grid",
-              gridTemplateColumns: "1.68fr 0.85fr",
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: ADVERTS[activeAd].color,
-                transition: "background 1s ease",
-                overflow: "hidden",
-                aspectRatio: "4/3.07",
-                height: "auto",
-              }}
-            >
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+          <div style={{ width: "min(960px, 92vw)", background: "white", borderRadius: 28, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", display: "grid", gridTemplateColumns: "1.68fr 0.85fr", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "relative", background: ADVERTS[activeAd].color, transition: "background 1s ease", overflow: "hidden", aspectRatio: "4/3.07", height: "auto" }}>
               {ADVERTS.map((ad, i) => (
                 <div
                   key={ad.id}
                   className={ANIMATED ? "ad-bg" : ""}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    opacity: i === activeAd ? 1 : 0,
-                    backgroundImage: `url(${ad.image})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                    transition: "opacity 1.2s ease",
-                  }}
+                  style={{ position: "absolute", inset: 0, opacity: i === activeAd ? 1 : 0, backgroundImage: `url(${ad.image})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", transition: "opacity 1.2s ease" }}
                 />
               ))}
 
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(135deg, ${
-                    ADVERTS[activeAd]?.color || "#064e3b"
-                  }${Math.round(((ADVERTS[activeAd]?.overlay ?? 0.35)) * 255)
-                    .toString(16)
-                    .padStart(2, "0")} 0%, transparent 100%)`,
-                  pointerEvents: "none",
-                }}
-              />
+              <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${ADVERTS[activeAd]?.color || "#064e3b"}${Math.round(((ADVERTS[activeAd]?.overlay ?? 0.35)) * 255).toString(16).padStart(2, "0")} 0%, transparent 100%)`, pointerEvents: "none" }} />
 
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  padding: "0 28px",
-                  zIndex: 2,
-                }}
-              >
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px", zIndex: 2 }}>
                 {ADVERTS.map((ad, i) => (
-                  <div
-                    key={ad.id}
-                    style={{
-                      display: i === activeAd ? "block" : "none",
-                      animation: "fadeIn 0.8s ease-out",
-                    }}
-                  >
-                    <h2
-                      style={{
-                        fontSize: "clamp(22px, 3vw, 29px)",
-                        fontWeight: 800,
-                        color: "white",
-                        margin: "0 0 6px 0",
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {ad.title}
-                    </h2>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: "rgba(255,255,255,0.9)",
-                        lineHeight: 1.5,
-                        maxWidth: 270,
-                        margin: 0,
-                      }}
-                    >
-                      {ad.sub}
-                    </p>
+                  <div key={ad.id} style={{ display: i === activeAd ? "block" : "none", animation: "fadeIn 0.8s ease-out" }}>
+                    <h2 style={{ fontSize: "clamp(22px, 3vw, 29px)", fontWeight: 800, color: "white", margin: "0 0 6px 0", lineHeight: 1.2 }}>{ad.title}</h2>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, maxWidth: 270, margin: 0 }}>{ad.sub}</p>
                   </div>
                 ))}
               </div>
 
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 20,
-                  left: 28,
-                  zIndex: 2,
-                  display: "flex",
-                  gap: 8,
-                }}
-              >
+              <div style={{ position: "absolute", bottom: 20, left: 28, zIndex: 2, display: "flex", gap: 8 }}>
                 {ADVERTS.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveAd(i)}
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
-                    style={{
-                      width: i === activeAd ? 28 : 6,
-                      height: 4,
-                      borderRadius: 2,
-                      background: "white",
-                      opacity: i === activeAd ? 0.85 : 0.35,
-                      transition: "all 0.3s",
-                      cursor: "pointer",
-                      border: "none",
-                      padding: 0,
-                    }}
+                    style={{ width: i === activeAd ? 28 : 6, height: 4, borderRadius: 2, background: "white", opacity: i === activeAd ? 0.85 : 0.35, transition: "all 0.3s", cursor: "pointer", border: "none", padding: 0 }}
                   />
                 ))}
               </div>
             </div>
 
-            <div
-              style={{
-                background: "white",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                padding: "0 26px",
-              }}
-            >
+            <div style={{ background: "white", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 26px" }}>
               <style>{`input::placeholder { color: #9ca3af !important; }`}</style>
               {renderForm()}
             </div>
