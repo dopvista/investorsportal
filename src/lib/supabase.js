@@ -9,13 +9,83 @@ if (!BASE || !KEY) {
   console.log("✅ Supabase connected to:", BASE);
 }
 
-// ── Safe response parser ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ── SECURITY UTILITIES
+// ══════════════════════════════════════════════════════════════════
+
+// ── Request timeout — prevents hanging requests ────────────────────
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(url, opts = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Request timed out. Check your connection and try again.");
+    throw e;
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+// ── Safe JWT sub extraction — never throws ─────────────────────────
+// Handles URL-safe base64, padding issues, and malformed tokens.
+function safeDecodeJwtSub(tok) {
+  try {
+    const payload = tok.split(".")[1];
+    if (!payload) return null;
+    // URL-safe base64 → standard base64 + re-pad
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+      Math.ceil(payload.length / 4) * 4, "="
+    );
+    return JSON.parse(atob(b64))?.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Client-side auth rate limiting ────────────────────────────────
+// Prevents rapid-fire sign-in / password-reset hammering from the UI.
+// Server-side rate limits are the real guard; this just adds a UX layer.
+const _authAttempts = new Map();
+function enforceAuthRateLimit(key, windowMs = 800) {
+  const now  = Date.now();
+  const last = _authAttempts.get(key) ?? 0;
+  if (now - last < windowMs) {
+    throw new Error("Too many attempts. Please wait a moment and try again.");
+  }
+  _authAttempts.set(key, now);
+}
+
+// ── Sanitise error messages ────────────────────────────────────────
+// Strips raw DB internals (hints, details, column names) before
+// any message reaches the UI. Falls back to a safe generic string.
+const _SAFE_CODES = {
+  "42501": "Permission denied by the database security policy.",
+  "23505": "A record with that value already exists (duplicate).",
+  "23503": "This record is referenced by other data and cannot be deleted.",
+  "22P02": "Invalid input format.",
+};
+
+function sanitiseError(j, fallback) {
+  if (!j || typeof j !== "object") return fallback;
+  if (j.code && _SAFE_CODES[j.code]) return _SAFE_CODES[j.code];
+  // Only expose the top-level message — never hint/details which leak schema
+  if (j.message) return j.message;
+  return fallback;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── RESPONSE / ERROR HELPERS
+// ══════════════════════════════════════════════════════════════════
+
 async function parseResponse(res, fallbackMsg) {
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); }
   catch {
-    if (!res.ok) throw new Error(fallbackMsg + (text.length < 200 ? ": " + text : ""));
+    if (!res.ok) throw new Error(fallbackMsg);
     throw new Error(fallbackMsg);
   }
   if (!res.ok) {
@@ -30,7 +100,6 @@ async function parseResponse(res, fallbackMsg) {
   return data;
 }
 
-// ── Convert Supabase error codes to readable messages ──────────────
 function humanizeCode(code) {
   const map = {
     email_exists:               "Email already registered.",
@@ -50,24 +119,29 @@ function humanizeCode(code) {
   return map[code] || null;
 }
 
-// ── Shared error extractor ─────────────────────────────────────────
 async function extractError(res, rlsMessage) {
   const errText = await res.text();
-  let msg = errText;
+  let msg = rlsMessage || "An error occurred.";
   try {
     const j = JSON.parse(errText);
     if (j.code === "42501") {
       msg = rlsMessage || "Permission denied: your role is not allowed to perform this action.";
     } else if (j.code === "23505") {
       msg = "A record with that value already exists (duplicate).";
+    } else if (j.code === "23503") {
+      msg = "This record is linked to other data and cannot be deleted.";
     } else {
-      msg = j.message || j.hint || j.details || errText;
+      // Only expose message — never hint/details
+      msg = j.message || rlsMessage || "An error occurred.";
     }
-  } catch { /* keep raw text */ }
+  } catch { /* keep safe fallback */ }
   return msg;
 }
 
-// ── Headers ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ── HEADERS
+// ══════════════════════════════════════════════════════════════════
+
 const headers = (tok) => ({
   "Content-Type":  "application/json",
   "apikey":        KEY,
@@ -75,7 +149,10 @@ const headers = (tok) => ({
   "Prefer":        "return=representation",
 });
 
-// ── Session helpers ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ── SESSION HELPERS
+// ══════════════════════════════════════════════════════════════════
+
 export function getSession() {
   try { return JSON.parse(localStorage.getItem("sb_session") || "null"); }
   catch { return null; }
@@ -84,32 +161,52 @@ function saveSession(s) { localStorage.setItem("sb_session", JSON.stringify(s));
 function clearSession() { localStorage.removeItem("sb_session"); }
 function token()        { return getSession()?.access_token || KEY; }
 
-// ── Auto-refresh expired token ─────────────────────────────────────
+// ── Auto-refresh expired token — with singleton lock ──────────────
+// FIX: Without this lock, multiple simultaneous 401 responses each
+// fired their own refresh, invalidating each other's new tokens.
+let _refreshPromise = null;
+
 async function refreshSession() {
+  // If a refresh is already in flight, wait for that one instead of
+  // sending a second request that would invalidate the first token.
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = _doRefreshSession().finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
+}
+
+async function _doRefreshSession() {
   const session      = getSession();
   const refreshToken = session?.refresh_token;
   if (!refreshToken) { clearSession(); return null; }
 
-  const res = await fetch(`${BASE}/auth/v1/token?grant_type=refresh_token`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", "apikey": KEY },
-    body:    JSON.stringify({ refresh_token: refreshToken }),
-  });
-
-  if (!res.ok) { clearSession(); return null; }
-  const data = await res.json();
-  saveSession(data);
-  return data.access_token;
+  try {
+    const res = await fetchWithTimeout(
+      `${BASE}/auth/v1/token?grant_type=refresh_token`,
+      {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", "apikey": KEY },
+        body:    JSON.stringify({ refresh_token: refreshToken }),
+      },
+      10_000 // shorter timeout for auth ops
+    );
+    if (!res.ok) { clearSession(); return null; }
+    const data = await res.json();
+    saveSession(data);
+    return data.access_token;
+  } catch {
+    clearSession();
+    return null;
+  }
 }
 
-// ── Shared fetch with one auth retry ───────────────────────────────
+// ── Shared fetch with one auth retry + timeout ─────────────────────
 async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request failed") {
-  let res = await fetch(url, options);
+  let res = await fetchWithTimeout(url, options);
 
   if (res.status === 401) {
     const newToken = await refreshSession();
     if (!newToken) throw new Error("Session expired. Please log in again.");
-    res = await fetch(url, {
+    res = await fetchWithTimeout(url, {
       ...options,
       headers: { ...(options.headers || {}), apikey: KEY, Authorization: `Bearer ${newToken}` },
     });
@@ -117,12 +214,11 @@ async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request fail
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    let msg = text || fallbackMsg;
+    let msg = fallbackMsg;
     try {
       const j = JSON.parse(text);
-      if (j.code === "23505") msg = "A record with that value already exists (duplicate).";
-      else msg = j.message || j.hint || j.details || text || fallbackMsg;
-    } catch { /* use raw text */ }
+      msg = sanitiseError(j, fallbackMsg);
+    } catch { /* use fallback — never expose raw server text */ }
     throw new Error(msg);
   }
 
@@ -134,20 +230,24 @@ async function fetchWithAuthRetry(url, options = {}, fallbackMsg = "Request fail
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbSignUp(email, password) {
-  const res  = await fetch(`${BASE}/auth/v1/signup`, {
-    method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY },
-    body: JSON.stringify({ email, password }),
-  });
+  enforceAuthRateLimit("signup");
+  const res  = await fetchWithTimeout(
+    `${BASE}/auth/v1/signup`,
+    { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email, password }) },
+    10_000
+  );
   const data = await parseResponse(res, "Sign up failed");
   if (data.access_token) saveSession(data);
   return data;
 }
 
 export async function sbSignIn(email, password) {
-  const res  = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
-    method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY },
-    body: JSON.stringify({ email, password }),
-  });
+  enforceAuthRateLimit("signin");
+  const res  = await fetchWithTimeout(
+    `${BASE}/auth/v1/token?grant_type=password`,
+    { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email, password }) },
+    10_000
+  );
   const data = await parseResponse(res, "Invalid email or password");
   saveSession(data);
   return data;
@@ -156,19 +256,22 @@ export async function sbSignIn(email, password) {
 export async function sbSignOut() {
   const t = getSession()?.access_token;
   if (t) {
-    await fetch(`${BASE}/auth/v1/logout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${t}` },
-    }).catch(() => {});
+    await fetchWithTimeout(
+      `${BASE}/auth/v1/logout`,
+      { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${t}` } },
+      8_000
+    ).catch(() => {});
   }
   clearSession();
 }
 
 export async function sbResetPassword(email) {
-  const res = await fetch(`${BASE}/auth/v1/recover`, {
-    method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY },
-    body: JSON.stringify({ email }),
-  });
+  enforceAuthRateLimit("reset", 5_000); // 5-second cooldown between reset attempts
+  const res = await fetchWithTimeout(
+    `${BASE}/auth/v1/recover`,
+    { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ email }) },
+    10_000
+  );
   await parseResponse(res, "Password reset failed");
   return true;
 }
@@ -220,8 +323,9 @@ export async function sbDelete(table, id) {
 
 export async function sbGetProfile(sessionToken) {
   const session = sessionToken ? null : getSession();
-  const uid     = sessionToken
-    ? JSON.parse(atob(sessionToken.split(".")[1])).sub
+  // FIX: use safe decode — never throws on malformed tokens
+  const uid = sessionToken
+    ? safeDecodeJwtSub(sessionToken)
     : session?.user?.id;
   if (!uid) return null;
 
@@ -279,59 +383,54 @@ export async function sbGetRoles() {
   return res.json();
 }
 
+// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbGetAllUsers() {
-  const res = await fetch(`${BASE}/rest/v1/rpc/get_all_users`, {
-    method: "POST", headers: headers(token()), body: JSON.stringify({}),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to fetch users");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_all_users`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({}) },
+    "Failed to fetch users"
+  );
   return res.json();
 }
 
+// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbAssignRole(userId, roleId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/assign_user_role`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ target_user_id: userId, target_role_id: roleId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to assign role");
-  }
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/assign_user_role`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ target_user_id: userId, target_role_id: roleId }) },
+    "Failed to assign role"
+  );
   return true;
 }
 
+// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbDeactivateRole(userId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/deactivate_user_role`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ target_user_id: userId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to deactivate user");
-  }
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/deactivate_user_role`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ target_user_id: userId }) },
+    "Failed to deactivate user"
+  );
   return true;
 }
 
+// FIX: was using raw fetch — now uses fetchWithAuthRetry for 401 retry + timeout
 export async function sbAdminCreateUser(email, password, cdsNumber) {
-  const res = await fetch(`${BASE}/functions/v1/create-user`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token()}`, "apikey": KEY },
-    body: JSON.stringify({ email, password, cds_number: cdsNumber || null }),
-  });
-  const data = await parseResponse(res, "Failed to create user");
-  return data;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/functions/v1/create-user`,
+    {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token()}`, "apikey": KEY },
+      body:    JSON.stringify({ email, password, cds_number: cdsNumber || null }),
+    },
+    "Failed to create user"
+  );
+  return res.json();
 }
 
 // ══════════════════════════════════════════════════════════════════
 // ── CDS ACCOUNTS
 // ══════════════════════════════════════════════════════════════════
 
-// ── Fetch a single CDS account by CDS number ──────────────────────
-// Returns { id, cds_number, cds_name, phone, email } or null.
-// Used by TransactionDetailModal to show the account owner's name
-// next to the CDS number in the popup header.
 export async function sbGetCdsAccount(cdsNumber) {
   if (!cdsNumber) return null;
   const res = await fetchWithAuthRetry(
@@ -343,46 +442,43 @@ export async function sbGetCdsAccount(cdsNumber) {
   return rows[0] || null;
 }
 
-// ── Insert a new CDS account ───────────────────────────────────────
 export async function sbInsertCdsAccount({ cds_number, cds_name, phone, email }) {
   const uid = getSession()?.user?.id;
-  const res = await fetch(`${BASE}/rest/v1/cds_accounts`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      cds_number: cds_number.trim(),
-      cds_name:   cds_name.trim(),
-      phone:      phone?.trim()  || null,
-      email:      email?.trim()  || null,
-      created_by: uid            || null,
-    }),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to create CDS account. CDS number may already exist.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        cds_number: cds_number.trim(),
+        cds_name:   cds_name.trim(),
+        phone:      phone?.trim()  || null,
+        email:      email?.trim()  || null,
+        created_by: uid            || null,
+      }),
+    },
+    "Failed to create CDS account. CDS number may already exist."
+  );
   return res.json();
 }
 
-// ── Update an existing CDS account ────────────────────────────────
 export async function sbUpdateCdsAccount(id, { cds_name, phone, email }) {
-  const res = await fetch(`${BASE}/rest/v1/cds_accounts?id=eq.${id}`, {
-    method:  "PATCH",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      cds_name: cds_name.trim(),
-      phone:    phone?.trim()  || null,
-      email:    email?.trim()  || null,
-    }),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to update CDS account.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts?id=eq.${id}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        cds_name: cds_name.trim(),
+        phone:    phone?.trim()  || null,
+        email:    email?.trim()  || null,
+      }),
+    },
+    "Failed to update CDS account."
+  );
   return res.json();
 }
 
-// ── Search CDS accounts (for SA management table) ─────────────────
 export async function sbSearchCdsAccounts(query = "") {
   const q = query.trim();
   const filter = q
@@ -401,7 +497,6 @@ export async function sbSearchCdsAccounts(query = "") {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetTransactions() {
-  // Step 1 — fetch transactions as normal (no join needed)
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`,
     { headers: headers(token()) },
@@ -410,7 +505,6 @@ export async function sbGetTransactions() {
   const rows = await res.json();
   if (!rows.length) return rows;
 
-  // Step 2 — collect unique user UUIDs from all audit columns
   const uids = [...new Set([
     ...rows.map(t => t.created_by),
     ...rows.map(t => t.confirmed_by),
@@ -420,7 +514,6 @@ export async function sbGetTransactions() {
 
   if (!uids.length) return rows;
 
-  // Step 3 — fetch full_name for those UUIDs from profiles in one query
   const idList = `(${uids.map(id => `"${id}"`).join(",")})`;
   let nameMap = {};
   try {
@@ -435,7 +528,6 @@ export async function sbGetTransactions() {
     // Names are non-critical — transactions still load without them
   }
 
-  // Step 4 — merge names onto each transaction row
   return rows.map(t => ({
     ...t,
     created_by_name:   nameMap[t.created_by]   || null,
@@ -445,8 +537,6 @@ export async function sbGetTransactions() {
   }));
 }
 
-// ── Fetch specific transactions by IDs — enriched with user names ──
-// Used after every mutation to keep *_by_name fields fresh in state
 export async function sbGetTransactionsByIds(ids) {
   if (!ids?.length) return [];
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
@@ -458,7 +548,6 @@ export async function sbGetTransactionsByIds(ids) {
   const rows = await res.json();
   if (!rows.length) return rows;
 
-  // Collect unique user UUIDs and resolve names
   const uids = [...new Set([
     ...rows.map(t => t.created_by),
     ...rows.map(t => t.confirmed_by),
@@ -520,13 +609,11 @@ export async function sbInsertTransaction(data) {
 }
 
 export async function sbUpdateTransaction(id, data) {
-  const res = await fetch(`${BASE}/rest/v1/transactions?id=eq.${id}`, {
-    method: "PATCH", headers: headers(token()), body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Permission denied: your role is not allowed to update this transaction.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(data) },
+    "Permission denied: your role is not allowed to update this transaction."
+  );
   return res.json();
 }
 
@@ -535,13 +622,11 @@ export async function sbConfirmTransaction(id) {
   const body = { status: "confirmed" };
   if (uid) { body.confirmed_by = uid; body.confirmed_at = new Date().toISOString(); }
 
-  const res = await fetch(`${BASE}/rest/v1/transactions?id=eq.${id}`, {
-    method: "PATCH", headers: headers(token()), body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Permission denied: only the Data Entrant who created this transaction can confirm it.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
+    "Permission denied: only the Data Entrant who created this transaction can confirm it."
+  );
   return res.json();
 }
 
@@ -551,13 +636,11 @@ export async function sbVerifyTransactions(ids) {
   const body   = { status: "verified" };
   if (uid) { body.verified_by = uid; body.verified_at = new Date().toISOString(); }
 
-  const res = await fetch(`${BASE}/rest/v1/transactions?id=in.${idList}`, {
-    method: "PATCH", headers: headers(token()), body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Permission denied: only a Verifier, SA, or AD can verify transactions.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=in.${idList}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
+    "Permission denied: only a Verifier, SA, or AD can verify transactions."
+  );
   return res.json();
 }
 
@@ -567,22 +650,20 @@ export async function sbRejectTransactions(ids, comment) {
   const body   = { status: "rejected", rejection_comment: comment };
   if (uid) { body.rejected_by = uid; body.rejected_at = new Date().toISOString(); }
 
-  const res = await fetch(`${BASE}/rest/v1/transactions?id=in.${idList}`, {
-    method: "PATCH", headers: headers(token()), body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Permission denied: only a Verifier, SA, or AD can reject transactions.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=in.${idList}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
+    "Permission denied: only a Verifier, SA, or AD can reject transactions."
+  );
   return res.json();
 }
 
 export async function sbDeleteTransaction(id) {
-  const res = await fetch(`${BASE}/rest/v1/transactions?id=eq.${id}`, {
-    method: "DELETE", headers: { ...headers(token()), "Prefer": "count=exact" },
-  });
-  if (!res.ok) throw new Error(await res.text());
-
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/transactions?id=eq.${id}`,
+    { method: "DELETE", headers: { ...headers(token()), "Prefer": "count=exact" } },
+    "Failed to delete transaction."
+  );
   const range    = res.headers.get("Content-Range") || "";
   const affected = parseInt(range.split("/")[1] ?? "0", 10);
   if (affected === 0) throw new Error("Delete was not permitted. You may not have permission to delete this transaction.");
@@ -590,24 +671,20 @@ export async function sbDeleteTransaction(id) {
 }
 
 export async function sbUnverifyTransaction(id) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/unverify_transaction`, {
-    method: "POST", headers: headers(token()), body: JSON.stringify({ p_id: id }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || "Failed to unverify transaction");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/unverify_transaction`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_id: id }) },
+    "Failed to unverify transaction"
+  );
   return res.json();
 }
 
 export async function sbUnverifyTransactions(ids) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/unverify_transactions`, {
-    method: "POST", headers: headers(token()), body: JSON.stringify({ p_ids: ids }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || "Failed to unverify transactions");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/unverify_transactions`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_ids: ids }) },
+    "Failed to unverify transactions"
+  );
   return res.json();
 }
 
@@ -615,7 +692,6 @@ export async function sbUnverifyTransactions(ids) {
 // ── BROKERS
 // ══════════════════════════════════════════════════════════════════
 
-// ── All brokers — for SA settings table (active + inactive) ───────
 export async function sbGetAllBrokers() {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/brokers?order=broker_name.asc`,
@@ -625,7 +701,6 @@ export async function sbGetAllBrokers() {
   return res.json();
 }
 
-// ── Active brokers only — for transaction form dropdown ────────────
 export async function sbGetActiveBrokers() {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/brokers?status=eq.Active&order=broker_name.asc&select=id,broker_name,broker_code,contact_phone,contact_email`,
@@ -635,66 +710,57 @@ export async function sbGetActiveBrokers() {
   return res.json();
 }
 
-// ── Insert new broker (SA only — enforced at app level) ────────────
 export async function sbInsertBroker({ broker_name, broker_code, contact_phone, contact_email, status = "Active", remarks, created_by }) {
-  const res = await fetch(`${BASE}/rest/v1/brokers`, {
-    method:  "POST",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      broker_name:   broker_name.trim(),
-      broker_code:   broker_code.trim().toUpperCase(),
-      contact_phone: contact_phone?.trim() || null,
-      contact_email: contact_email?.trim() || null,
-      status,
-      remarks:       remarks?.trim()       || null,
-      created_by:    created_by            || null,
-    }),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to create broker. Name or code may already exist.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/brokers`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        broker_name:   broker_name.trim(),
+        broker_code:   broker_code.trim().toUpperCase(),
+        contact_phone: contact_phone?.trim() || null,
+        contact_email: contact_email?.trim() || null,
+        status,
+        remarks:       remarks?.trim()       || null,
+        created_by:    created_by            || null,
+      }),
+    },
+    "Failed to create broker. Name or code may already exist."
+  );
   return res.json();
 }
 
-// ── Update broker (SA only — enforced at app level) ────────────────
 export async function sbUpdateBroker(id, { broker_name, broker_code, contact_phone, contact_email, status, remarks }) {
-  const res = await fetch(`${BASE}/rest/v1/brokers?id=eq.${id}`, {
-    method:  "PATCH",
-    headers: headers(token()),
-    body:    JSON.stringify({
-      broker_name:   broker_name.trim(),
-      broker_code:   broker_code.trim().toUpperCase(),
-      contact_phone: contact_phone?.trim() || null,
-      contact_email: contact_email?.trim() || null,
-      status,
-      remarks:       remarks?.trim()       || null,
-    }),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to update broker. Name or code may already exist.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/brokers?id=eq.${id}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        broker_name:   broker_name.trim(),
+        broker_code:   broker_code.trim().toUpperCase(),
+        contact_phone: contact_phone?.trim() || null,
+        contact_email: contact_email?.trim() || null,
+        status,
+        remarks:       remarks?.trim()       || null,
+      }),
+    },
+    "Failed to update broker. Name or code may already exist."
+  );
   return res.json();
 }
 
-// ── Toggle broker Active ↔ Inactive ────────────────────────────────
 export async function sbToggleBrokerStatus(id, newStatus) {
-  const res = await fetch(`${BASE}/rest/v1/brokers?id=eq.${id}`, {
-    method:  "PATCH",
-    headers: headers(token()),
-    body:    JSON.stringify({ status: newStatus }),
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to update broker status.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/brokers?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status: newStatus }) },
+    "Failed to update broker status."
+  );
   return res.json();
 }
 
-// ── Delete broker — blocked at DB level if used in transactions ─────
 export async function sbDeleteBroker(id) {
-  // Check usage first — give a friendly message before the FK error fires
   const checkRes = await fetchWithAuthRetry(
     `${BASE}/rest/v1/transactions?broker_id=eq.${id}&select=id&limit=1`,
     { headers: headers(token()) },
@@ -705,14 +771,11 @@ export async function sbDeleteBroker(id) {
     throw new Error("Cannot delete: this broker is linked to existing transactions. Deactivate it instead.");
   }
 
-  const res = await fetch(`${BASE}/rest/v1/brokers?id=eq.${id}`, {
-    method:  "DELETE",
-    headers: { ...headers(token()), "Prefer": "count=exact" },
-  });
-  if (!res.ok) {
-    const msg = await extractError(res, "Failed to delete broker.");
-    throw new Error(msg);
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/brokers?id=eq.${id}`,
+    { method: "DELETE", headers: { ...headers(token()), "Prefer": "count=exact" } },
+    "Failed to delete broker."
+  );
   return true;
 }
 
@@ -724,10 +787,10 @@ export async function sbGetPortfolio(cdsNumber) {
   if (!cdsNumber) return [];
 
   try {
-    const rpcRes = await fetch(`${BASE}/rest/v1/rpc/get_cds_portfolio`, {
-      method: "POST", headers: headers(token()),
-      body: JSON.stringify({ p_cds_number: cdsNumber }),
-    });
+    const rpcRes = await fetchWithTimeout(
+      `${BASE}/rest/v1/rpc/get_cds_portfolio`,
+      { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) }
+    );
 
     if (rpcRes.ok) {
       const rows = await rpcRes.json();
@@ -786,29 +849,36 @@ export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newP
   const ts            = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
   const currentUserId = getSession()?.user?.id;
 
-  const upsertRes = await fetch(`${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`, {
-    method:  "POST",
-    headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
-    body: JSON.stringify({
-      company_id: companyId, cds_number: cdsNumber, price: newPrice,
-      previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null,
-      updated_at: ts, created_by_id: currentUserId,
-    }),
-  });
-  if (!upsertRes.ok) throw new Error(await upsertRes.text());
+  const upsertRes = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
+    {
+      method:  "POST",
+      headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
+      body:    JSON.stringify({
+        company_id: companyId, cds_number: cdsNumber, price: newPrice,
+        previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null,
+        updated_at: ts, created_by_id: currentUserId,
+      }),
+    },
+    "Failed to update CDS price"
+  );
   const upserted = await upsertRes.json();
 
-  const histRes = await fetch(`${BASE}/rest/v1/cds_price_history`, {
-    method:  "POST",
-    headers: headers(token()),
-    body: JSON.stringify({
-      company_id: companyId, company_name: companyName, cds_number: cdsNumber,
-      old_price: oldPrice ?? null, new_price: newPrice,
-      change_amount: changeAmount, change_percent: changePct,
-      notes: reason || null, updated_by: updatedBy, created_at: ts,
-    }),
-  });
-  if (!histRes.ok) throw new Error(await histRes.text());
+  const histRes = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_price_history`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        company_id: companyId, company_name: companyName, cds_number: cdsNumber,
+        old_price: oldPrice ?? null, new_price: newPrice,
+        change_amount: changeAmount, change_percent: changePct,
+        notes: reason || null, updated_by: updatedBy, created_at: ts,
+      }),
+    },
+    "Failed to save price history"
+  );
+  await histRes.json();
 
   return upserted[0] || upserted;
 }
@@ -836,11 +906,12 @@ export async function sbGetAllCompanies() {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetSiteSettings(key = "login_page") {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${BASE}/rest/v1/site_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
-    { headers: headers(KEY) }
+    { headers: headers(KEY) },
+    10_000
   );
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error("Failed to load site settings.");
   const rows = await res.json();
   return rows[0]?.value ?? null;
 }
@@ -848,7 +919,7 @@ export async function sbGetSiteSettings(key = "login_page") {
 export async function sbSaveSiteSettings(key = "login_page", value, accessToken) {
   const tok = accessToken || token();
 
-  const patchRes = await fetch(
+  const patchRes = await fetchWithTimeout(
     `${BASE}/rest/v1/site_settings?key=eq.${encodeURIComponent(key)}`,
     {
       method:  "PATCH",
@@ -857,15 +928,14 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
     }
   );
   if (!patchRes.ok) {
-    let msg = `PATCH failed HTTP ${patchRes.status}`;
-    try { const j = await patchRes.json(); msg = j.message || j.hint || JSON.stringify(j); }
-    catch { msg = await patchRes.text().catch(() => msg); }
+    let msg = "Failed to save settings.";
+    try { const j = await patchRes.json(); msg = sanitiseError(j, msg); } catch {}
     throw new Error(msg);
   }
 
   const patched = await patchRes.json();
   if (!patched || patched.length === 0) {
-    const insertRes = await fetch(
+    const insertRes = await fetchWithTimeout(
       `${BASE}/rest/v1/site_settings`,
       {
         method:  "POST",
@@ -874,9 +944,8 @@ export async function sbSaveSiteSettings(key = "login_page", value, accessToken)
       }
     );
     if (!insertRes.ok) {
-      let msg = `INSERT failed HTTP ${insertRes.status}`;
-      try { const j = await insertRes.json(); msg = j.message || j.hint || JSON.stringify(j); }
-      catch { msg = await insertRes.text().catch(() => msg); }
+      let msg = "Failed to save settings.";
+      try { const j = await insertRes.json(); msg = sanitiseError(j, msg); } catch {}
       throw new Error(msg);
     }
     return insertRes.json();
@@ -888,13 +957,14 @@ export async function sbUploadSlideImage(blob, slideIndex, session) {
   const tok      = session?.access_token || KEY;
   const filename = `slide-${slideIndex}.jpg`;
 
-  const uploadRes = await fetch(
+  const uploadRes = await fetchWithTimeout(
     `${BASE}/storage/v1/object/login-slides/${filename}`,
     {
       method:  "POST",
       headers: { "Authorization": `Bearer ${tok}`, "Content-Type": "image/jpeg", "x-upsert": "true" },
       body:    blob,
-    }
+    },
+    30_000 // longer timeout for image uploads
   );
   if (!uploadRes.ok) {
     const err = await uploadRes.json().catch(() => ({}));
@@ -928,38 +998,32 @@ export async function sbGetActiveCDS(userId) {
 
 export async function sbSearchCDS(query) {
   if (!query || query.trim().length < 1) return [];
-  const res = await fetch(`${BASE}/rest/v1/rpc/search_cds`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_query: query.trim() }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to search CDS");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/search_cds`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_query: query.trim() }) },
+    "Failed to search CDS"
+  );
   return res.json();
 }
 
 export async function sbCreateCDS({ cdsNumber, cdsName, phone, email }) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/create_cds`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_cds_number: cdsNumber, p_cds_name: cdsName, p_phone: phone || null, p_email: email || null }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to create CDS record");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/create_cds`,
+    {
+      method: "POST", headers: headers(token()),
+      body: JSON.stringify({ p_cds_number: cdsNumber, p_cds_name: cdsName, p_phone: phone || null, p_email: email || null }),
+    },
+    "Failed to create CDS record"
+  );
   return res.json();
 }
 
 export async function sbAssignCDS(userId, cdsId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/assign_cds_to_user`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_user_id: userId, p_cds_id: cdsId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to assign CDS");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/assign_cds_to_user`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_user_id: userId, p_cds_id: cdsId }) },
+    "Failed to assign CDS"
+  );
   return res.json();
 }
 
@@ -973,38 +1037,32 @@ export async function sbSwitchActiveCDS(userId, cdsId) {
 }
 
 export async function sbRemoveCDS(userId, cdsId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/remove_cds_from_user`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_user_id: userId, p_cds_id: cdsId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to remove CDS");
-  }
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/remove_cds_from_user`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_user_id: userId, p_cds_id: cdsId }) },
+    "Failed to remove CDS"
+  );
   return true;
 }
 
 export async function sbRemoveCDSFromAdminCascade(adminId, cdsId, cascade = false) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/remove_cds_from_admin_cascade`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_admin_id: adminId, p_cds_id: cdsId, p_cascade: cascade }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to remove CDS from admin");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/remove_cds_from_admin_cascade`,
+    {
+      method: "POST", headers: headers(token()),
+      body: JSON.stringify({ p_admin_id: adminId, p_cds_id: cdsId, p_cascade: cascade }),
+    },
+    "Failed to remove CDS from admin"
+  );
   const result = await res.json();
   return typeof result === "number" ? result : 0;
 }
 
 export async function sbGetCDSAssignedUsers(cdsId) {
-  const res = await fetch(`${BASE}/rest/v1/rpc/get_cds_assigned_users`, {
-    method: "POST", headers: headers(token()),
-    body: JSON.stringify({ p_cds_id: cdsId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to fetch CDS users");
-  }
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_cds_assigned_users`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_id: cdsId }) },
+    "Failed to fetch CDS users"
+  );
   return res.json();
 }
