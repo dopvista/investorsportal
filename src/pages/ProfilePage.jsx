@@ -662,7 +662,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         </div>
 
         {/* Footer — sticky on mobile */}
-        <div style={{ padding: isMobile ? "0 18px 16px" : "0 22px 20px", display: "flex", gap: 10, position: isMobile ? "sticky" : "static", bottom: 0, background: C.white, zIndex: 2 }}>
+        <div style={{ padding: isMobile ? "0 18px 16px" : "0 22px 20px", paddingBottom: isMobile ? "calc(76px + env(safe-area-inset-bottom, 0px))" : undefined, display: "flex", gap: 10, position: isMobile ? "sticky" : "static", bottom: 0, background: C.white, zIndex: 2 }}>
           <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching}
             style={{ flex: 1, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
           <button onClick={handleSwitchCDS} disabled={switching}
