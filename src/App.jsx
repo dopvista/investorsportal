@@ -21,6 +21,7 @@ import UserManagementPage from "./pages/UserManagementPage";
 import SystemSettingsPage from "./pages/SystemSettingsPage";
 import DashboardPage from "./pages/DashboardPage";
 import UserMenu from "./components/UserMenu";
+import ConnectionBanner from "./components/ConnectionBanner";
 import useIdleLogout from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
 
@@ -121,6 +122,11 @@ export default function App() {
   const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
   const [switchTarget, setSwitchTarget] = useState(null);
   const [switching, setSwitching] = useState(false);
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== "undefined" && !navigator.onLine
+  );
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
   const cdsChipRef = useRef(null);
   const toastTimerRef = useRef(null);
   const forceMobileDashboardOnNextLoginRef = useRef(false);
@@ -154,6 +160,45 @@ export default function App() {
   useEffect(() => {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
   }, []);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOffline(true);
+      showToast("You are offline. Live data may be unavailable.", "error");
+    };
+
+    const handleOnline = () => {
+      setIsOffline(false);
+      showToast("Back online.", "success");
+    };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [showToast]);
+
+  useEffect(() => {
+    const handleUpdateAvailable = () => {
+      setUpdateAvailable(true);
+      showToast("New app version available. Refresh to update.", "success");
+    };
+
+    const handleOfflineReady = () => {
+      showToast("App is ready for cached offline use.", "success");
+    };
+
+    window.addEventListener("pwa:update-available", handleUpdateAvailable);
+    window.addEventListener("pwa:offline-ready", handleOfflineReady);
+
+    return () => {
+      window.removeEventListener("pwa:update-available", handleUpdateAvailable);
+      window.removeEventListener("pwa:offline-ready", handleOfflineReady);
+    };
+  }, [showToast]);
 
   useEffect(() => {
     try { localStorage.setItem("app_active_tab", tab); } catch {}
@@ -366,6 +411,19 @@ export default function App() {
       try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
     }
   };
+
+  const handleAppRefresh = useCallback(async () => {
+    try {
+      const updater = window.__APP_UPDATE_SW__;
+      if (typeof updater === "function") {
+        await updater(true);
+      } else {
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
+  }, []);
 
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
   const activeProfile = profile && activeCdsNumber ? { ...profile, cds_number: activeCdsNumber } : profile;
@@ -619,6 +677,11 @@ export default function App() {
 
       {/* ── Main content area ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100vh", overflow: "hidden" }}>
+        <ConnectionBanner
+          offline={isOffline}
+          updateAvailable={updateAvailable}
+          onRefresh={handleAppRefresh}
+        />
 
         {/* ── Mobile Header ── */}
         {isMobile && (
