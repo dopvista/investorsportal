@@ -883,12 +883,31 @@ export default function App() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexShrink: 0, gap: 12,
           }}>
+            {/* Avatar button — taps open the drawer (mobile only).
+                Shows the user's photo if available, otherwise initials.
+                Title text unchanged: first name on dashboard, page title elsewhere. */}
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation"
-              style={{ width: 38, height: 38, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              style={{ width: 38, height: 38, borderRadius: "50%", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, overflow: "hidden", position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
             >
-              {NAV_ICONS["more"](C.text, 2)}
+              {activeProfile?.avatar_url ? (
+                <img
+                  src={activeProfile.avatar_url}
+                  alt="avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
+                />
+              ) : null}
+              <div style={{
+                width: "100%", height: "100%",
+                background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`,
+                display: activeProfile?.avatar_url ? "none" : "flex",
+                alignItems: "center", justifyContent: "center",
+                fontSize: 13, fontWeight: 800, color: "#ffffff",
+              }}>
+                {(activeProfile?.full_name || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+              </div>
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mobileHeaderTitle}</div>
