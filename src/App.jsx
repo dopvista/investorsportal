@@ -1,5 +1,8 @@
 // ── src/App.jsx ───────────────────────────────────────────────────
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect, useRef, useState, useCallback, useMemo,
+  lazy, Suspense, memo,
+} from "react";
 import {
   getSession,
   sbSignOut,
@@ -10,30 +13,45 @@ import {
   sbGetUserCDS,
   sbSwitchActiveCDS,
 } from "./lib/supabase";
-import { C, Toast, useTheme } from "./components/ui";
-import CompaniesPage from "./pages/CompaniesPage";
-import TransactionsPage from "./pages/TransactionsPage";
-import LoginPage from "./pages/LoginPage";
+import { C as CStatic, Toast, useTheme } from "./components/ui";
+import LoginPage        from "./pages/LoginPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
-import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import UserManagementPage from "./pages/UserManagementPage";
-import SystemSettingsPage from "./pages/SystemSettingsPage";
-import DashboardPage from "./pages/DashboardPage";
-import UserMenu from "./components/UserMenu";
-import ConnectionBanner from "./components/ConnectionBanner";
-import useIdleLogout from "./hooks/useIdleLogout";
+import UserMenu          from "./components/UserMenu";
+import ConnectionBanner  from "./components/ConnectionBanner";
+import useIdleLogout     from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
 
+// ── Lazy page imports ─────────────────────────────────────────────
+// Pages are only parsed + executed when first visited.
+// LoginPage / ProfileSetupPage / ResetPasswordPage stay eager because
+// they render before the main shell is mounted.
+const CompaniesPage      = lazy(() => import("./pages/CompaniesPage"));
+const TransactionsPage   = lazy(() => import("./pages/TransactionsPage"));
+const DashboardPage      = lazy(() => import("./pages/DashboardPage"));
+const ProfilePage        = lazy(() => import("./pages/ProfilePage"));
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
+const SystemSettingsPage = lazy(() => import("./pages/SystemSettingsPage"));
+
+// ── Static nav data (outside component — never recreated) ─────────
 const NAV = [
-  { id: "dashboard", label: "Dashboard", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "companies", label: "Portfolio", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "transactions", label: "Transactions", roles: ["SA", "AD", "DE", "VR", "RO"] },
-  { id: "user-management", label: "User Management", roles: ["SA", "AD"] },
-  { id: "system-settings", label: "System Settings", roles: ["SA"] },
+  { id: "dashboard",       label: "Dashboard",        roles: ["SA","AD","DE","VR","RO"] },
+  { id: "companies",       label: "Portfolio",         roles: ["SA","AD","DE","VR","RO"] },
+  { id: "transactions",    label: "Transactions",      roles: ["SA","AD","DE","VR","RO"] },
+  { id: "user-management", label: "User Management",   roles: ["SA","AD"] },
+  { id: "system-settings", label: "System Settings",   roles: ["SA"] },
 ];
 
-// ── SVG line icons — desktop sidebar & mobile bottom nav ──────────
+// BOTTOM_NAV is static — defined once outside the component.
+// Previously it was inside, causing a new array on every render.
+const BOTTOM_NAV = [
+  { id: "dashboard",       label: "Home",      roles: ["SA","AD","DE","VR","RO"] },
+  { id: "companies",       label: "Portfolio", roles: ["SA","AD","DE","VR","RO"] },
+  { id: "transactions",    label: "Trades",    roles: ["SA","AD","DE","VR","RO"] },
+  { id: "user-management", label: "Users",     roles: ["SA","AD"] },
+];
+
+// ── SVG line icons ─────────────────────────────────────────────────
 const NAV_ICONS = {
   "dashboard": (color, sw = 1.8, size = 20) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
@@ -73,14 +91,45 @@ const NAV_ICONS = {
   ),
   "more": (color, sw = 1.8, size = 20) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round">
-      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="6"  x2="21" y2="6"/>
       <line x1="3" y1="12" x2="21" y2="12"/>
       <line x1="3" y1="18" x2="21" y2="18"/>
     </svg>
   ),
 };
 
-// ── Mobile breakpoint hook ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ── CUSTOM HOOKS
+// ══════════════════════════════════════════════════════════════════
+
+// ── useClock ──────────────────────────────────────────────────────
+// Returns a stable, pre-formatted date+time string that updates
+// every 60 seconds. Replaces the `now = new Date()` pattern that
+// was previously inside the render body and broke useCallback.
+function useClock() {
+  const fmt = () => {
+    const d = new Date();
+    return (
+      d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }) +
+      " | " +
+      d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    );
+  };
+  const [clock, setClock] = useState(fmt);
+  useEffect(() => {
+    // Align to the next whole minute so the display ticks cleanly
+    const msUntilNextMinute = 60_000 - (Date.now() % 60_000);
+    const firstTick = setTimeout(() => {
+      setClock(fmt());
+      const interval = setInterval(() => setClock(fmt()), 60_000);
+      return () => clearInterval(interval);
+    }, msUntilNextMinute);
+    return () => clearTimeout(firstTick);
+  }, []);
+  return clock;
+}
+
+// ── useIsMobile ───────────────────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -92,456 +141,20 @@ const useIsMobile = () => {
       t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
     };
     window.addEventListener("resize", handler, { passive: true });
-    return () => {
-      window.removeEventListener("resize", handler);
-      clearTimeout(t);
-    };
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
 
-export default function App() {
-  const [session, setSession] = useState(undefined);
-  const [profile, setProfile] = useState(undefined);
-  const [role, setRole] = useState(null);
-  const [tab, setTab] = useState(() => {
-    try { return localStorage.getItem("app_active_tab") || "dashboard"; }
-    catch { return "dashboard"; }
-  });
-  const [loginSettings, setLoginSettings] = useState(null);
-  const [companies, setCompanies] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [appBootstrapping, setAppBootstrapping] = useState(true);
-  const [dbError, setDbError] = useState(null);
-  const [toast, setToast] = useState({ msg: "", type: "" });
-  const [recoveryMode, setRecoveryMode] = useState(false);
+// ══════════════════════════════════════════════════════════════════
+// ── SUB-COMPONENTS (memo — only re-render when their own props change)
+// ══════════════════════════════════════════════════════════════════
 
-  const [activeCds, setActiveCds] = useState(null);
-  const [cdsList, setCdsList] = useState([]);
-  const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
-  const [switchTarget, setSwitchTarget] = useState(null);
-  const [switching, setSwitching] = useState(false);
-  const [isOffline, setIsOffline] = useState(
-    () => typeof navigator !== "undefined" && !navigator.onLine
-  );
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-
-  const cdsChipRef = useRef(null);
-  const toastTimerRef = useRef(null);
-  const forceMobileDashboardOnNextLoginRef = useRef(false);
-
-  const isMobile = useIsMobile();
-  const { C } = useTheme();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    if (!loading && !appBootstrapping) return;
-    const timer = setTimeout(() => {
-      console.warn("Loading timeout – forcing loading/bootstrap false");
-      setLoading(false);
-      setAppBootstrapping(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [loading, appBootstrapping]);
-
-  useEffect(() => { setDrawerOpen(false); }, [tab]);
-  useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
-
-  const showToast = useCallback((msg, type = "success") => {
-    setToast({ msg, type });
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToast({ msg: "", type: "" });
-      toastTimerRef.current = null;
-    }, 3500);
-  }, []);
-
-  useEffect(() => {
-    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
-  }, []);
-
-  useEffect(() => {
-    const handleOffline = () => {
-      setIsOffline(true);
-      showToast("You are offline. Live data may be unavailable.", "error");
-    };
-
-    const handleOnline = () => {
-      setIsOffline(false);
-      showToast("Back online.", "success");
-    };
-
-    window.addEventListener("offline", handleOffline);
-    window.addEventListener("online", handleOnline);
-
-    return () => {
-      window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("online", handleOnline);
-    };
-  }, [showToast]);
-
-  useEffect(() => {
-    const handleUpdateAvailable = () => {
-      setUpdateAvailable(true);
-      showToast("New app version available. Refresh to update.", "success");
-    };
-
-    const handleOfflineReady = () => {
-      showToast("App is ready for cached offline use.", "success");
-    };
-
-    window.addEventListener("pwa:update-available", handleUpdateAvailable);
-    window.addEventListener("pwa:offline-ready", handleOfflineReady);
-
-    return () => {
-      window.removeEventListener("pwa:update-available", handleUpdateAvailable);
-      window.removeEventListener("pwa:offline-ready", handleOfflineReady);
-    };
-  }, [showToast]);
-
-  useEffect(() => {
-    try { localStorage.setItem("app_active_tab", tab); } catch {}
-  }, [tab]);
-
-  useEffect(() => {
-    if (session !== null) return;
-    if (!isMobile) return;
-    setTab((prev) => (prev === "dashboard" ? prev : "dashboard"));
-    try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
-  }, [session, isMobile]);
-
-  useEffect(() => {
-    if (!showCdsSwitcher) return;
-    const handleClickOutside = (e) => {
-      if (cdsChipRef.current && !cdsChipRef.current.contains(e.target)) setShowCdsSwitcher(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showCdsSwitcher]);
-
-  useIdleLogout({
-    enabled: !!session && !recoveryMode,
-    onLogout: () => {
-      setSession(null); setProfile(undefined); setRole(null);
-      setActiveCds(null); setCdsList([]); setCompanies([]); setTransactions([]);
-      setLoading(false); setAppBootstrapping(false); setDbError(null);
-      setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
-      forceMobileDashboardOnNextLoginRef.current = false;
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
-        setTab("dashboard");
-        try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
-      }
-      showToast("You were logged out after 5 minutes of inactivity.", "error");
-    },
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    const resolveSession = async () => {
-      const hash = window.location.hash;
-      const search = window.location.search;
-      if (hash.includes("type=recovery")) {
-        const params = new URLSearchParams(hash.replace("#", ""));
-        const accessToken = params.get("access_token");
-        if (accessToken) {
-          localStorage.setItem("sb_recovery_token", accessToken);
-          window.history.replaceState(null, "", window.location.pathname);
-          if (!cancelled) { setRecoveryMode(true); setSession(null); setLoading(false); setAppBootstrapping(false); }
-          return;
-        }
-      }
-      const qp = new URLSearchParams(search);
-      const code = qp.get("code");
-      const type = qp.get("type");
-      if (code && type === "recovery") {
-        window.history.replaceState(null, "", window.location.pathname);
-        const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-        const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        try {
-          const res = await fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
-            method: "POST", headers: { "Content-Type": "application/json", apikey: KEY },
-            body: JSON.stringify({ auth_code: code }),
-          });
-          const data = await res.json();
-          if (cancelled) return;
-          if (data?.access_token) {
-            localStorage.setItem("sb_recovery_token", data.access_token);
-            setRecoveryMode(true); setSession(null); setLoading(false); setAppBootstrapping(false);
-            return;
-          }
-        } catch {}
-      }
-      const s = await getSession();
-      if (!cancelled) setSession(s || null);
-    };
-    resolveSession();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    let bc;
-    const loadLoginSettings = async () => {
-      try {
-        const data = await sbGetSiteSettings("login_page");
-        if (!cancelled && data) setLoginSettings(data);
-      } catch {}
-    };
-    loadLoginSettings();
-    try {
-      const handleFocus = () => loadLoginSettings();
-      window.addEventListener("focus", handleFocus);
-      bc = new BroadcastChannel("dse_site_settings");
-      bc.onmessage = (e) => {
-        if (!cancelled && e.data?.key === "login_page" && e.data?.value) setLoginSettings(e.data.value);
-      };
-      return () => { cancelled = true; window.removeEventListener("focus", handleFocus); if (bc) bc.close(); };
-    } catch {
-      return () => { cancelled = true; };
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadAppCore = async () => {
-      if (session === undefined) return;
-      if (!session) {
-        if (!cancelled) {
-          setProfile(undefined); setRole(null); setActiveCds(null); setCdsList([]);
-          setCompanies([]); setTransactions([]); setDbError(null);
-          setLoading(false); setAppBootstrapping(false);
-        }
-        return;
-      }
-      if (!cancelled) {
-        setLoading(true); setAppBootstrapping(true); setDbError(null);
-        if (isMobile && forceMobileDashboardOnNextLoginRef.current) {
-          setTab("dashboard");
-          try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
-        }
-      }
-      try {
-        const freshToken = session?.access_token;
-        const uid = session?.user?.id;
-        const [p, r, activeCdsRow] = await Promise.all([
-          sbGetProfile(freshToken),
-          sbGetMyRole(freshToken),
-          uid ? sbGetActiveCDS(uid).catch(() => null) : Promise.resolve(null),
-        ]);
-        if (cancelled) return;
-        setProfile(p ?? null); setRole(r ?? null);
-        if (activeCdsRow) {
-          setActiveCds(activeCdsRow);
-        } else if (p?.cds_number) {
-          setActiveCds({ cds_number: p.cds_number, cds_name: p.full_name || p.cds_number, cds_id: null });
-        } else {
-          setActiveCds(null);
-        }
-        if (uid) {
-          sbGetUserCDS(uid).then((list) => { if (!cancelled) setCdsList(list || []); }).catch(() => { if (!cancelled) setCdsList([]); });
-        } else {
-          setCdsList([]);
-        }
-        setCompanies([]); setTransactions([]);
-      } catch (e) {
-        if (!cancelled) { console.error("loadAppCore error:", e); setDbError(e?.message || "Failed to load application data."); }
-      } finally {
-        if (!cancelled) { setLoading(false); setAppBootstrapping(false); forceMobileDashboardOnNextLoginRef.current = false; }
-      }
-    };
-    loadAppCore();
-    return () => { cancelled = true; };
-  }, [session, isMobile]);
-
-  useEffect(() => {
-    if (!role || !tab) return;
-    const visibleIds = NAV.filter((item) => item.roles.includes(role)).map((item) => item.id);
-    if (tab !== "profile" && !visibleIds.includes(tab)) setTab("dashboard");
-  }, [role, tab]);
-
-  const cdsSwitchReqRef = useRef(0);
-  const handleCdsSwitch = useCallback(async (target) => {
-    if (!target || !session?.user?.id || switching) return;
-    const reqId = ++cdsSwitchReqRef.current;
-    setSwitching(true);
-    try {
-      const uid = session.user.id;
-      const [freshActive, freshList] = await Promise.all([
-        sbSwitchActiveCDS(uid, target.cds_id),
-        sbGetUserCDS(uid).catch(() => cdsList),
-      ]);
-      if (reqId !== cdsSwitchReqRef.current) return;
-      setActiveCds(freshActive || target); setCdsList(freshList || []);
-      setCompanies([]); setTransactions([]);
-      setShowCdsSwitcher(false); setSwitchTarget(null);
-      showToast(`Switched to ${(freshActive || target).cds_number}`, "success");
-    } catch (e) {
-      if (reqId !== cdsSwitchReqRef.current) return;
-      showToast(e.message || "Failed to switch CDS", "error");
-    } finally {
-      if (reqId === cdsSwitchReqRef.current) setSwitching(false);
-    }
-  }, [session, switching, cdsList, showToast]);
-
-  const handleLogin = useCallback((s) => {
-    setDbError(null); setLoading(true); setAppBootstrapping(true);
-    setProfile(undefined); setRole(null); setActiveCds(null); setCdsList([]);
-    setCompanies([]); setTransactions([]); setDrawerOpen(false);
-    setShowCdsSwitcher(false); setSwitchTarget(null);
-    forceMobileDashboardOnNextLoginRef.current = typeof window !== "undefined" && window.innerWidth < 768;
-    if (forceMobileDashboardOnNextLoginRef.current) {
-      setTab("dashboard");
-      try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
-    }
-    setSession(s);
-  }, []);
-
-  const handleProfileDone = (p) => setProfile(p);
-
-  const handleSignOut = async () => {
-    await sbSignOut();
-    setSession(null); setProfile(undefined); setRole(null);
-    setActiveCds(null); setCdsList([]); setCompanies([]); setTransactions([]);
-    setLoading(false); setAppBootstrapping(false); setDbError(null);
-    setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
-    forceMobileDashboardOnNextLoginRef.current = false;
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setTab("dashboard");
-      try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
-    }
-  };
-
-  const handleAppRefresh = useCallback(async () => {
-    try {
-      const updater = window.__APP_UPDATE_SW__;
-      if (typeof updater === "function") {
-        await updater(true);
-      } else {
-        window.location.reload();
-      }
-    } catch {
-      window.location.reload();
-    }
-  }, []);
-
-  const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
-  const activeProfile = profile && activeCdsNumber ? { ...profile, cds_number: activeCdsNumber } : profile;
-  const filteredTransactions = transactions.filter((t) => t.cds_number === activeCdsNumber);
-  const visibleNav = NAV.filter((item) => !role || item.roles.includes(role));
-  const cdsCompanyCount = new Set(filteredTransactions.map((t) => t.company_id)).size;
-  const counts = { companies: cdsCompanyCount, transactions: filteredTransactions.length };
-  const now = new Date();
-
-  const TAB_META = {
-    dashboard: { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"} 👋`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
-    companies: { title: "Portfolio", sub: "Your CDS portfolio holdings" },
-    transactions: { title: "Transactions", sub: "Record and view all buy/sell activity" },
-    profile: { title: "My Profile", sub: "Manage your personal information" },
-    "user-management": { title: "User Management", sub: "Manage system users and assign roles" },
-    "system-settings": { title: "System Settings", sub: "Configure portal appearance and behaviour" },
-  };
-
-  const currentMeta = TAB_META[tab] || { title: NAV.find((n) => n.id === tab)?.label || tab, sub: "" };
-
-  const BOTTOM_NAV = [
-    { id: "dashboard", label: "Home", roles: ["SA", "AD", "DE", "VR", "RO"] },
-    { id: "companies", label: "Portfolio", roles: ["SA", "AD", "DE", "VR", "RO"] },
-    { id: "transactions", label: "Trades", roles: ["SA", "AD", "DE", "VR", "RO"] },
-    { id: "user-management", label: "Users", roles: ["SA", "AD"] },
-  ];
-
-  const filteredBottomNav = BOTTOM_NAV.filter((item) => visibleNav.some((n) => n.id === item.id));
-  const mobileHeaderTitle = tab === "dashboard" ? profile?.full_name?.split(" ")[0] || "Investor" : currentMeta.title;
-  const moreIsActive = !filteredBottomNav.some((n) => n.id === tab);
-
-  const renderSidebarInner = useCallback(() => (
-    <>
-      <div style={{ padding: "24px 20px 20px", position: "relative" }}>
-        {isMobile && (
-          <button
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Close navigation"
-            style={{
-              position: "absolute", top: 14, right: 14, width: 40, height: 40,
-              borderRadius: "50%", background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.1)", color: "#ffffff",
-              cursor: "pointer", fontSize: 15, display: "flex",
-              alignItems: "center", justifyContent: "center", zIndex: 2, flexShrink: 0,
-            }}
-          >✕</button>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img src={logo} alt="DI" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }} />
-          <div>
-            <div style={{ fontSize: 17, lineHeight: 1.2, fontWeight: 800 }}>
-              <span style={{ color: "#ffffff" }}>Investors</span>{" "}
-              <span style={{ color: C.gold }}>Portal</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
-              <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 500 }}>
-                {now.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
-                {" | "}
-                {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ margin: "0 16px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}>
-        <div style={{ width: 7, height: 7, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Supabase connected</span>
-      </div>
-
-      <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
-
-      <nav style={{ padding: "16px 12px", flex: 1 }}>
-        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 12px", marginBottom: 8 }}>
-          Navigation
-        </div>
-        {visibleNav
-          .filter((item) => !isMobile || item.id !== "system-settings")
-          .map((item) => {
-            const active = tab === item.id;
-            const iconColor = active ? "#ffffff" : "rgba(255,255,255,0.55)";
-            const iconSw = active ? 2.4 : 1.8;
-            return (
-              <button
-                key={item.id}
-                onClick={() => { setTab(item.id); if (isMobile) setDrawerOpen(false); }}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 12,
-                  padding: "11px 14px", borderRadius: 10, border: "none", cursor: "pointer",
-                  marginBottom: 4, background: active ? `${C.green}35` : "transparent",
-                  borderLeft: `3px solid ${active ? C.green : "transparent"}`,
-                  transition: "all 0.2s",
-                }}
-              >
-                {NAV_ICONS[item.id]?.(iconColor, iconSw)}
-                <span style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.55)", fontWeight: active ? 700 : 500, fontSize: 14, flex: 1, textAlign: "left" }}>
-                  {item.label}
-                </span>
-                {counts[item.id] !== undefined && (
-                  <span style={{ background: active ? C.green : "rgba(255,255,255,0.1)", color: active ? "#ffffff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
-                    {counts[item.id]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-      </nav>
-
-      <UserMenu
-        profile={activeProfile} session={session} role={role}
-        onSignOut={handleSignOut}
-        onOpenProfile={() => { setTab("profile"); if (isMobile) setDrawerOpen(false); }}
-      />
-    </>
-  ), [isMobile, tab, visibleNav, counts, activeProfile, session, role, handleSignOut, now, C]);
-
-  const renderCdsSwitcherPopover = useCallback(() => (
+// ── CdsSwitcherPopover ────────────────────────────────────────────
+const CdsSwitcherPopover = memo(function CdsSwitcherPopover({
+  cdsList, activeCdsNumber, onSwitchRequest, C,
+}) {
+  return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.gray200}`, borderRadius: 14, minWidth: 280, maxWidth: 340, boxShadow: "0 12px 40px rgba(0,0,0,0.18)", animation: "cdsPopIn 0.18s ease", overflow: "hidden" }}>
       <div style={{ padding: "12px 16px 10px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Your CDS Accounts</div>
@@ -561,7 +174,7 @@ export default function App() {
                 <span style={{ fontSize: 10, fontWeight: 700, background: C.greenBg, color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
               ) : (
                 <button
-                  onClick={() => { setSwitchTarget(c); setShowCdsSwitcher(false); }}
+                  onClick={() => onSwitchRequest(c)}
                   style={{ fontSize: 11, fontWeight: 700, background: C.navy, color: "#ffffff", border: "1.5px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, transition: "opacity 0.15s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -572,11 +185,562 @@ export default function App() {
         })}
       </div>
     </div>
-  ), [cdsList, activeCdsNumber, C]);
+  );
+});
+
+// ── SidebarInner ──────────────────────────────────────────────────
+// Previously was a useCallback render-function in App, which meant
+// its `now` dependency (new Date() every render) caused it to
+// re-create on every render, defeating the purpose of useCallback.
+// As a memo component it only re-renders when its own props change,
+// and owns the clock via useClock().
+const SidebarInner = memo(function SidebarInner({
+  isMobile, tab, visibleNav, counts,
+  activeProfile, session, role,
+  onSignOut, onNavigate, onClose, C,
+}) {
+  const clock = useClock();
+
+  return (
+    <>
+      <div style={{ padding: "24px 20px 20px", position: "relative" }}>
+        {isMobile && (
+          <button
+            onClick={onClose}
+            aria-label="Close navigation"
+            style={{ position: "absolute", top: 14, right: 14, width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.1)", color: "#ffffff", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, flexShrink: 0 }}
+          >✕</button>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src={logo} alt="DI" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }} />
+          <div>
+            <div style={{ fontSize: 17, lineHeight: 1.2, fontWeight: 800 }}>
+              <span style={{ color: "#ffffff" }}>Investors</span>{" "}
+              <span style={{ color: C.gold }}>Portal</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
+              <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 500 }}>{clock}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: "0 16px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}>
+        <div style={{ width: 7, height: 7, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Supabase connected</span>
+      </div>
+
+      <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 16px" }} />
+
+      <nav style={{ padding: "16px 12px", flex: 1 }}>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 12px", marginBottom: 8 }}>
+          Navigation
+        </div>
+        {visibleNav
+          .filter((item) => !isMobile || item.id !== "system-settings")
+          .map((item) => {
+            const active   = tab === item.id;
+            const iconColor = active ? "#ffffff" : "rgba(255,255,255,0.55)";
+            const iconSw   = active ? 2.4 : 1.8;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 4, background: active ? `${C.green}35` : "transparent", borderLeft: `3px solid ${active ? C.green : "transparent"}`, transition: "all 0.2s" }}
+              >
+                {NAV_ICONS[item.id]?.(iconColor, iconSw)}
+                <span style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.55)", fontWeight: active ? 700 : 500, fontSize: 14, flex: 1, textAlign: "left" }}>
+                  {item.label}
+                </span>
+                {counts[item.id] !== undefined && (
+                  <span style={{ background: active ? C.green : "rgba(255,255,255,0.1)", color: active ? "#ffffff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
+                    {counts[item.id]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+      </nav>
+
+      <UserMenu
+        profile={activeProfile}
+        session={session}
+        role={role}
+        onSignOut={onSignOut}
+        onOpenProfile={() => onNavigate("profile")}
+      />
+    </>
+  );
+});
+
+// ── Page lazy-load fallback ───────────────────────────────────────
+function PageFallback() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", padding: 40 }}>
+      <div style={{ width: 20, height: 20, border: "2px solid rgba(0,0,0,0.08)", borderTop: "2px solid #00843D", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── APP
+// ══════════════════════════════════════════════════════════════════
+export default function App() {
+  const [session,         setSession]         = useState(undefined);
+  const [profile,         setProfile]         = useState(undefined);
+  const [role,            setRole]            = useState(null);
+  const [tab,             setTab]             = useState(() => {
+    try { return localStorage.getItem("app_active_tab") || "dashboard"; }
+    catch { return "dashboard"; }
+  });
+  const [loginSettings,   setLoginSettings]   = useState(null);
+  const [companies,       setCompanies]       = useState([]);
+  const [transactions,    setTransactions]    = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [appBootstrapping,setAppBootstrapping]= useState(true);
+  const [dbError,         setDbError]         = useState(null);
+  const [toast,           setToast]           = useState({ msg: "", type: "" });
+  const [recoveryMode,    setRecoveryMode]    = useState(false);
+  const [activeCds,       setActiveCds]       = useState(null);
+  const [cdsList,         setCdsList]         = useState([]);
+  const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
+  const [switchTarget,    setSwitchTarget]    = useState(null);
+  const [switching,       setSwitching]       = useState(false);
+  const [isOffline,       setIsOffline]       = useState(
+    () => typeof navigator !== "undefined" && !navigator.onLine
+  );
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [drawerOpen,      setDrawerOpen]      = useState(false);
+
+  const cdsChipRef                    = useRef(null);
+  const toastTimerRef                 = useRef(null);
+  const forceMobileDashboardOnNextLoginRef = useRef(false);
+  const cdsSwitchReqRef               = useRef(0);
+  const loadingStartRef               = useRef(null); // for timeout anchor
+
+  const isMobile    = useIsMobile();
+  const { C }       = useTheme();
+
+  // ── isMobileRef — stable ref always reflecting current isMobile ──
+  // Use this inside callbacks/effects to avoid stale closures.
+  // Replaces all previous window.innerWidth < 768 reads.
+  const isMobileRef = useRef(isMobile);
+  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
+  // ── Persist active tab ────────────────────────────────────────────
+  useEffect(() => {
+    try { localStorage.setItem("app_active_tab", tab); } catch {}
+  }, [tab]);
+
+  // ── Close drawer on tab change or screen resize to desktop ───────
+  useEffect(() => { setDrawerOpen(false); }, [tab]);
+  useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
+
+  // ── Loading timeout — anchored to when loading started ───────────
+  // Previously re-started on every state change; now uses a stable
+  // start timestamp so a 9.9-second boot still triggers the guard.
+  useEffect(() => {
+    if (!loading && !appBootstrapping) {
+      loadingStartRef.current = null;
+      return;
+    }
+    if (!loadingStartRef.current) loadingStartRef.current = Date.now();
+    const elapsed   = Date.now() - loadingStartRef.current;
+    const remaining = Math.max(0, 10_000 - elapsed);
+    const timer = setTimeout(() => {
+      console.warn("Loading timeout – forcing loading/bootstrap false");
+      setLoading(false);
+      setAppBootstrapping(false);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [loading, appBootstrapping]);
+
+  // ── Toast ─────────────────────────────────────────────────────────
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToast({ msg: "", type: "" });
+      toastTimerRef.current = null;
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+  }, []);
+
+  // ── Online / offline ──────────────────────────────────────────────
+  useEffect(() => {
+    const handleOffline = () => { setIsOffline(true);  showToast("You are offline. Live data may be unavailable.", "error"); };
+    const handleOnline  = () => { setIsOffline(false); showToast("Back online.", "success"); };
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online",  handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online",  handleOnline);
+    };
+  }, [showToast]);
+
+  // ── PWA update events ─────────────────────────────────────────────
+  useEffect(() => {
+    const onUpdate = () => { setUpdateAvailable(true); showToast("New app version available. Refresh to update.", "success"); };
+    const onReady  = () => showToast("App is ready for cached offline use.", "success");
+    window.addEventListener("pwa:update-available", onUpdate);
+    window.addEventListener("pwa:offline-ready",    onReady);
+    return () => {
+      window.removeEventListener("pwa:update-available", onUpdate);
+      window.removeEventListener("pwa:offline-ready",    onReady);
+    };
+  }, [showToast]);
+
+  // ── Mobile → dashboard on session clear ──────────────────────────
+  useEffect(() => {
+    if (session !== null) return;
+    if (!isMobile) return;
+    setTab("dashboard");
+    try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
+  }, [session, isMobile]);
+
+  // ── CDS switcher click-outside ───────────────────────────────────
+  useEffect(() => {
+    if (!showCdsSwitcher) return;
+    const handle = (e) => {
+      if (cdsChipRef.current && !cdsChipRef.current.contains(e.target))
+        setShowCdsSwitcher(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showCdsSwitcher]);
+
+  // ── Handlers ─────────────────────────────────────────────────────
+
+  // Extracted idle-logout callback — stable (no deps that change).
+  // Previously defined inline inside useIdleLogout call, which
+  // caused a new function reference on every render.
+  const handleIdleLogout = useCallback(() => {
+    setSession(null); setProfile(undefined); setRole(null);
+    setActiveCds(null); setCdsList([]); setCompanies([]); setTransactions([]);
+    setLoading(false); setAppBootstrapping(false); setDbError(null);
+    setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
+    forceMobileDashboardOnNextLoginRef.current = false;
+    if (isMobileRef.current) {
+      setTab("dashboard");
+      try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
+    }
+    showToast("You were logged out after 5 minutes of inactivity.", "error");
+  }, [showToast]); // showToast is stable
+
+  useIdleLogout({
+    enabled:  !!session && !recoveryMode,
+    onLogout: handleIdleLogout,
+  });
+
+  // ── Session recovery (password reset links) ───────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const resolveSession = async () => {
+      const hash   = window.location.hash;
+      const search = window.location.search;
+
+      if (hash.includes("type=recovery")) {
+        const params      = new URLSearchParams(hash.replace("#", ""));
+        const accessToken = params.get("access_token");
+        if (accessToken) {
+          // FIX: sessionStorage clears when the tab closes — safer for
+          // a one-time recovery token than localStorage which persists.
+          sessionStorage.setItem("sb_recovery_token", accessToken);
+          window.history.replaceState(null, "", window.location.pathname);
+          if (!cancelled) {
+            setRecoveryMode(true); setSession(null);
+            setLoading(false); setAppBootstrapping(false);
+          }
+          return;
+        }
+      }
+
+      const qp   = new URLSearchParams(search);
+      const code = qp.get("code");
+      const type = qp.get("type");
+      if (code && type === "recovery") {
+        window.history.replaceState(null, "", window.location.pathname);
+        const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+        const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        try {
+          const res  = await fetch(`${BASE}/auth/v1/token?grant_type=pkce`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: KEY },
+            body: JSON.stringify({ auth_code: code }),
+          });
+          const data = await res.json();
+          if (cancelled) return;
+          if (data?.access_token) {
+            // FIX: sessionStorage instead of localStorage
+            sessionStorage.setItem("sb_recovery_token", data.access_token);
+            setRecoveryMode(true); setSession(null);
+            setLoading(false); setAppBootstrapping(false);
+            return;
+          }
+        } catch {}
+      }
+
+      const s = await getSession();
+      if (!cancelled) setSession(s || null);
+    };
+    resolveSession();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Login settings (for login page UI) ───────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    let bc;
+    const load = async () => {
+      try {
+        const data = await sbGetSiteSettings("login_page");
+        if (!cancelled && data) setLoginSettings(data);
+      } catch {}
+    };
+    load();
+    try {
+      window.addEventListener("focus", load);
+      bc = new BroadcastChannel("dse_site_settings");
+      bc.onmessage = (e) => {
+        if (!cancelled && e.data?.key === "login_page" && e.data?.value)
+          setLoginSettings(e.data.value);
+      };
+      return () => { cancelled = true; window.removeEventListener("focus", load); if (bc) bc.close(); };
+    } catch {
+      return () => { cancelled = true; };
+    }
+  }, []);
+
+  // ── App core data load ────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const loadAppCore = async () => {
+      if (session === undefined) return;
+      if (!session) {
+        if (!cancelled) {
+          setProfile(undefined); setRole(null); setActiveCds(null); setCdsList([]);
+          setCompanies([]); setTransactions([]); setDbError(null);
+          setLoading(false); setAppBootstrapping(false);
+        }
+        return;
+      }
+      if (!cancelled) {
+        setLoading(true); setAppBootstrapping(true); setDbError(null);
+        // Use isMobileRef.current — avoids isMobile being a dep of this
+        // effect (we don't want to re-run loadAppCore on screen resize).
+        if (isMobileRef.current && forceMobileDashboardOnNextLoginRef.current) {
+          setTab("dashboard");
+          try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
+        }
+      }
+      try {
+        const freshToken = session?.access_token;
+        const uid        = session?.user?.id;
+        const [p, r, activeCdsRow] = await Promise.all([
+          sbGetProfile(freshToken),
+          sbGetMyRole(freshToken),
+          uid ? sbGetActiveCDS(uid).catch(() => null) : Promise.resolve(null),
+        ]);
+        if (cancelled) return;
+        setProfile(p ?? null);
+        setRole(r ?? null);
+        if (activeCdsRow) {
+          setActiveCds(activeCdsRow);
+        } else if (p?.cds_number) {
+          setActiveCds({ cds_number: p.cds_number, cds_name: p.full_name || p.cds_number, cds_id: null });
+        } else {
+          setActiveCds(null);
+        }
+        if (uid) {
+          sbGetUserCDS(uid)
+            .then((list) => { if (!cancelled) setCdsList(list || []); })
+            .catch(() => { if (!cancelled) setCdsList([]); });
+        } else {
+          setCdsList([]);
+        }
+        setCompanies([]); setTransactions([]);
+      } catch (e) {
+        if (!cancelled) {
+          console.error("loadAppCore error:", e);
+          setDbError(e?.message || "Failed to load application data.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setAppBootstrapping(false);
+          forceMobileDashboardOnNextLoginRef.current = false;
+        }
+      }
+    };
+    loadAppCore();
+    return () => { cancelled = true; };
+  }, [session]); // removed isMobile — use isMobileRef.current inside
+
+  // ── Guard invisible tabs ──────────────────────────────────────────
+  useEffect(() => {
+    if (!role || !tab) return;
+    const visibleIds = NAV.filter((item) => item.roles.includes(role)).map((item) => item.id);
+    if (tab !== "profile" && !visibleIds.includes(tab)) setTab("dashboard");
+  }, [role, tab]);
+
+  // ── CDS switch ────────────────────────────────────────────────────
+  const handleCdsSwitch = useCallback(async (target) => {
+    if (!target || !session?.user?.id || switching) return;
+    const reqId = ++cdsSwitchReqRef.current;
+    setSwitching(true);
+    try {
+      const uid = session.user.id;
+      const [freshActive, freshList] = await Promise.all([
+        sbSwitchActiveCDS(uid, target.cds_id),
+        sbGetUserCDS(uid).catch(() => cdsList),
+      ]);
+      if (reqId !== cdsSwitchReqRef.current) return;
+      setActiveCds(freshActive || target);
+      setCdsList(freshList || []);
+      setCompanies([]); setTransactions([]);
+      setShowCdsSwitcher(false); setSwitchTarget(null);
+      showToast(`Switched to ${(freshActive || target).cds_number}`, "success");
+    } catch (e) {
+      if (reqId !== cdsSwitchReqRef.current) return;
+      showToast(e.message || "Failed to switch CDS", "error");
+    } finally {
+      if (reqId === cdsSwitchReqRef.current) setSwitching(false);
+    }
+  }, [session, switching, cdsList, showToast]);
+
+  const handleLogin = useCallback((s) => {
+    setDbError(null); setLoading(true); setAppBootstrapping(true);
+    setProfile(undefined); setRole(null); setActiveCds(null); setCdsList([]);
+    setCompanies([]); setTransactions([]); setDrawerOpen(false);
+    setShowCdsSwitcher(false); setSwitchTarget(null);
+    // isMobileRef.current is always current — no stale closure risk
+    forceMobileDashboardOnNextLoginRef.current = isMobileRef.current;
+    if (isMobileRef.current) {
+      setTab("dashboard");
+      try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
+    }
+    setSession(s);
+  }, []); // all deps are stable (setters + refs)
+
+  const handleSignOut = useCallback(async () => {
+    await sbSignOut();
+    setSession(null); setProfile(undefined); setRole(null);
+    setActiveCds(null); setCdsList([]); setCompanies([]); setTransactions([]);
+    setLoading(false); setAppBootstrapping(false); setDbError(null);
+    setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
+    forceMobileDashboardOnNextLoginRef.current = false;
+    if (isMobileRef.current) {
+      setTab("dashboard");
+      try { localStorage.setItem("app_active_tab", "dashboard"); } catch {}
+    }
+  }, []); // all deps are stable (setters + refs)
+
+  const handleProfileDone = useCallback((p) => setProfile(p), []);
+
+  const handleAppRefresh = useCallback(async () => {
+    try {
+      const updater = window.__APP_UPDATE_SW__;
+      if (typeof updater === "function") await updater(true);
+      else window.location.reload();
+    } catch {
+      window.location.reload();
+    }
+  }, []);
+
+  // ── SidebarInner navigate handler — stable, shared by both mounts ─
+  const handleSidebarNavigate = useCallback((id) => {
+    setTab(id);
+    setDrawerOpen(false);
+  }, []);
+
+  // ── CDS switcher popover request ──────────────────────────────────
+  const handleCdsSwitchRequest = useCallback((c) => {
+    setSwitchTarget(c);
+    setShowCdsSwitcher(false);
+  }, []);
+
+  // ══════════════════════════════════════════════════════════════════
+  // ── DERIVED VALUES — all memoised
+  // Previously computed as plain consts on every render, including
+  // Set construction, array filter/map, and object spreads.
+  // ══════════════════════════════════════════════════════════════════
+
+  const activeCdsNumber = useMemo(
+    () => activeCds?.cds_number || profile?.cds_number,
+    [activeCds, profile]
+  );
+
+  // Object spread — new reference only when inputs actually change
+  const activeProfile = useMemo(
+    () => (profile && activeCdsNumber ? { ...profile, cds_number: activeCdsNumber } : profile),
+    [profile, activeCdsNumber]
+  );
+
+  const filteredTransactions = useMemo(
+    () => transactions.filter((t) => t.cds_number === activeCdsNumber),
+    [transactions, activeCdsNumber]
+  );
+
+  const visibleNav = useMemo(
+    () => NAV.filter((item) => !role || item.roles.includes(role)),
+    [role]
+  );
+
+  const cdsCompanyCount = useMemo(
+    () => new Set(filteredTransactions.map((t) => t.company_id)).size,
+    [filteredTransactions]
+  );
+
+  const counts = useMemo(
+    () => ({ companies: cdsCompanyCount, transactions: filteredTransactions.length }),
+    [cdsCompanyCount, filteredTransactions.length]
+  );
+
+  // TAB_META references profile name — only recompute when name changes
+  const tabMeta = useMemo(() => ({
+    dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"} 👋`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
+    companies:        { title: "Portfolio",        sub: "Your CDS portfolio holdings" },
+    transactions:     { title: "Transactions",     sub: "Record and view all buy/sell activity" },
+    profile:          { title: "My Profile",       sub: "Manage your personal information" },
+    "user-management":{ title: "User Management",  sub: "Manage system users and assign roles" },
+    "system-settings":{ title: "System Settings",  sub: "Configure portal appearance and behaviour" },
+  }), [profile?.full_name]);
+
+  const currentMeta = useMemo(
+    () => tabMeta[tab] || { title: NAV.find((n) => n.id === tab)?.label || tab, sub: "" },
+    [tabMeta, tab]
+  );
+
+  const filteredBottomNav = useMemo(
+    () => BOTTOM_NAV.filter((item) => visibleNav.some((n) => n.id === item.id)),
+    [visibleNav]
+  );
+
+  const moreIsActive = useMemo(
+    () => !filteredBottomNav.some((n) => n.id === tab),
+    [filteredBottomNav, tab]
+  );
+
+  const mobileHeaderTitle = useMemo(
+    () => tab === "dashboard" ? profile?.full_name?.split(" ")[0] || "Investor" : currentMeta.title,
+    [tab, profile?.full_name, currentMeta.title]
+  );
 
   // ── Render guards ────────────────────────────────────────────────
   if (recoveryMode) {
-    return <ResetPasswordPage onDone={() => { setRecoveryMode(false); localStorage.removeItem("sb_recovery_token"); }} />;
+    return (
+      <ResetPasswordPage
+        onDone={() => {
+          setRecoveryMode(false);
+          // FIX: sessionStorage — matches the write in resolveSession
+          sessionStorage.removeItem("sb_recovery_token");
+        }}
+      />
+    );
   }
 
   if (session === undefined) {
@@ -593,7 +757,7 @@ export default function App() {
           <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "0.01em" }}>Investors Portal</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>Checking your session...</div>
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            {[0, 1, 2].map((i) => (<div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
+            {[0,1,2].map((i) => (<div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
           </div>
         </div>
       </div>
@@ -622,7 +786,7 @@ export default function App() {
             Loading your portfolio...
           </div>
           <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-            {[0, 1, 2].map((i) => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
+            {[0,1,2].map((i) => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
           </div>
         </div>
       </div>
@@ -642,13 +806,24 @@ export default function App() {
   }
 
   const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
-  if (profileIncomplete) return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
+  if (profileIncomplete)
+    return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
+
+  // ── Shared sidebar props (both desktop + mobile drawer) ───────────
+  const sidebarProps = {
+    isMobile, tab, visibleNav, counts, activeProfile,
+    session, role,
+    onSignOut:  handleSignOut,
+    onNavigate: handleSidebarNavigate,
+    onClose:    () => setDrawerOpen(false),
+    C,
+  };
 
   // ── Main render ───────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'Inter',system-ui,sans-serif", background: C.gray50, overflow: "hidden" }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin     { to { transform: rotate(360deg); } }
         @keyframes cdsPopIn { from { opacity:0; transform:translateY(-8px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
       `}</style>
 
@@ -657,7 +832,7 @@ export default function App() {
         <div style={{ width: 240, display: "flex", flexDirection: "column", flexShrink: 0, height: "100vh", overflowY: "auto", position: "relative", background: "radial-gradient(ellipse at 60% 40%,#0c2548 0%,#0B1F3A 50%,#080f1e 100%)" }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.04) 1px,transparent 1px)", backgroundSize: "24px 24px", pointerEvents: "none", zIndex: 0 }} />
           <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflowY: "auto" }}>
-            {renderSidebarInner()}
+            <SidebarInner {...sidebarProps} />
           </div>
         </div>
       )}
@@ -665,11 +840,14 @@ export default function App() {
       {/* ── Mobile: backdrop + slide-out drawer ── */}
       {isMobile && (
         <>
-          <div onClick={() => setDrawerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? "auto" : "none", transition: "opacity 0.28s" }} />
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? "auto" : "none", transition: "opacity 0.28s" }}
+          />
           <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 280, zIndex: 301, transform: drawerOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", background: "radial-gradient(ellipse at 60% 40%,#0c2548 0%,#0B1F3A 50%,#080f1e 100%)", display: "flex", flexDirection: "column", overflowY: "auto", willChange: "transform", boxShadow: drawerOpen ? "4px 0 32px rgba(0,0,0,0.35)" : "none" }}>
             <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.04) 1px,transparent 1px)", backgroundSize: "24px 24px", pointerEvents: "none", zIndex: 0 }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-              {renderSidebarInner()}
+              <SidebarInner {...sidebarProps} />
             </div>
           </div>
         </>
@@ -710,7 +888,14 @@ export default function App() {
                   <span style={{ fontSize: 10, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", marginLeft: 2, lineHeight: 1 }}>▾</span>
                 )}
               </div>
-              {showCdsSwitcher && cdsList.length > 1 && renderCdsSwitcherPopover()}
+              {showCdsSwitcher && cdsList.length > 1 && (
+                <CdsSwitcherPopover
+                  cdsList={cdsList}
+                  activeCdsNumber={activeCdsNumber}
+                  onSwitchRequest={handleCdsSwitchRequest}
+                  C={C}
+                />
+              )}
             </div>
           </div>
         )}
@@ -756,20 +941,29 @@ export default function App() {
                   </div>
                   {cdsList.length > 1 && <span style={{ fontSize: 11, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", marginLeft: 2, lineHeight: 1 }}>▾</span>}
                 </div>
-                {showCdsSwitcher && cdsList.length > 1 && renderCdsSwitcherPopover()}
+                {showCdsSwitcher && cdsList.length > 1 && (
+                  <CdsSwitcherPopover
+                    cdsList={cdsList}
+                    activeCdsNumber={activeCdsNumber}
+                    onSwitchRequest={handleCdsSwitchRequest}
+                    C={C}
+                  />
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Pages ── */}
+        {/* ── Pages — wrapped in Suspense for lazy loading ── */}
         <div style={{ flex: 1, padding: isMobile ? "16px" : "28px 32px", overflowY: "auto", paddingBottom: isMobile ? 76 : undefined }}>
-          {tab === "dashboard" && <DashboardPage key={`dashboard-${activeCdsNumber || "none"}`} profile={activeProfile} role={role} session={session} showToast={showToast} onNavigate={setTab} activeCds={activeCds} />}
-          {tab === "companies" && <CompaniesPage key={`companies-${activeCdsNumber || "none"}`} companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile} />}
-          {tab === "transactions" && <TransactionsPage key={`transactions-${activeCdsNumber || "none"}`} companies={companies} transactions={transactions} setTransactions={setTransactions} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
-          {tab === "profile" && <ProfilePage profile={profile} setProfile={setProfile} session={session} role={role} email={session?.user?.email || session?.email || ""} showToast={showToast} activeCds={activeCds} cdsList={cdsList} onSwitchCds={handleCdsSwitch} />}
-          {tab === "user-management" && <UserManagementPage role={role} showToast={showToast} profile={activeProfile} />}
-          {tab === "system-settings" && <SystemSettingsPage role={role} showToast={showToast} session={session} setLoginSettings={setLoginSettings} companies={companies} setCompanies={setCompanies} transactions={transactions} />}
+          <Suspense fallback={<PageFallback />}>
+            {tab === "dashboard"        && <DashboardPage      key={`dashboard-${activeCdsNumber || "none"}`}    profile={activeProfile} role={role} session={session} showToast={showToast} onNavigate={setTab} activeCds={activeCds} />}
+            {tab === "companies"        && <CompaniesPage       key={`companies-${activeCdsNumber || "none"}`}    companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile} />}
+            {tab === "transactions"     && <TransactionsPage    key={`transactions-${activeCdsNumber || "none"}`} companies={companies} transactions={transactions} setTransactions={setTransactions} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
+            {tab === "profile"          && <ProfilePage         profile={profile} setProfile={setProfile} session={session} role={role} email={session?.user?.email || session?.email || ""} showToast={showToast} activeCds={activeCds} cdsList={cdsList} onSwitchCds={handleCdsSwitch} />}
+            {tab === "user-management"  && <UserManagementPage  role={role} showToast={showToast} profile={activeProfile} />}
+            {tab === "system-settings"  && <SystemSettingsPage  role={role} showToast={showToast} session={session} setLoginSettings={setLoginSettings} companies={companies} setCompanies={setCompanies} transactions={transactions} />}
+          </Suspense>
         </div>
       </div>
 
@@ -777,9 +971,9 @@ export default function App() {
       {isMobile && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 60, background: C.white, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "stretch", zIndex: 200, boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
           {filteredBottomNav.map((item) => {
-            const active = tab === item.id;
+            const active    = tab === item.id;
             const iconColor = active ? C.green : C.gray400;
-            const iconSw = active ? 2.6 : 1.8;
+            const iconSw    = active ? 2.6 : 1.8;
             return (
               <button
                 key={item.id}
