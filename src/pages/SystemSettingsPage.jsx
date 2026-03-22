@@ -39,9 +39,9 @@ const Field = memo(function Field({ label, children, hint }) {
   const { C, isDark } = useTheme();
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</label>
+      <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</label>
       {children}
-      {hint && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 4 }}>{hint}</div>}
     </div>
   );
 });
@@ -133,7 +133,7 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
                 Broker Name <span style={{ color: C.red }}>*</span>
               </label>
               <input value={form.broker_name} onChange={e => set("broker_name", e.target.value)}
@@ -141,16 +141,16 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
             </div>
 
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
                 Broker Code <span style={{ color: C.red }}>*</span>
               </label>
               <input value={form.broker_code} onChange={e => set("broker_code", e.target.value.toUpperCase().slice(0, 10))}
                 placeholder="e.g. WCF" style={{ ...fieldStyle, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }} onFocus={onFocus} onBlur={onBlur} />
-              <div style={{ fontSize: 10, color: C.gray400, marginTop: 3 }}>Short unique code — max 10 chars</div>
+              <div style={{ fontSize: 10, color: isDark ? C.gray300 : C.gray400, marginTop: 3 }}>Short unique code — max 10 chars</div>
             </div>
 
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Status</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Status</label>
               <select value={form.status} onChange={e => set("status", e.target.value)}
                 style={{ ...fieldStyle, cursor: "pointer" }} onFocus={onFocus} onBlur={onBlur}>
                 <option value="Active">✅ Active</option>
@@ -159,19 +159,19 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
             </div>
 
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Phone</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Phone</label>
               <input value={form.contact_phone} onChange={e => set("contact_phone", e.target.value)}
                 placeholder="e.g. +255 22 123 4567" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
             </div>
 
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Email</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Contact Email</label>
               <input value={form.contact_email} onChange={e => set("contact_email", e.target.value)}
                 placeholder="e.g. info@broker.co.tz" type="email" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
             </div>
 
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray500 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Remarks</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Remarks</label>
               <textarea value={form.remarks} onChange={e => set("remarks", e.target.value)}
                 placeholder="Optional notes..."
                 style={{ ...fieldStyle, resize: "vertical", minHeight: 60, lineHeight: 1.5 }}
@@ -370,7 +370,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                       {h}
                     </th>
                   ))}
-                </tr>
+                 </tr>
               </thead>
               <tbody>
                 {filtered.map((b, i) => {
@@ -393,7 +393,12 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                       <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 12 }}>{b.contact_email || <span style={{ color: C.gray400 }}>—</span>}</td>
                       <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 11, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                        <span style={{ background: isActive ? C.greenBg : C.redBg, color: isActive ? C.green : C.red, border: `1px solid ${isActive ? activeBdr : inactiveBdr}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                        <span style={{
+                          background: isActive ? C.greenBg : C.redBg,
+                          color: isDark ? "#ffffff" : (isActive ? C.green : C.red),
+                          border: `1px solid ${isActive ? activeBdr : inactiveBdr}`,
+                          padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700
+                        }}>
                           {isActive ? "✅ Active" : "⛔ Inactive"}
                         </span>
                       </td>
@@ -404,7 +409,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                             ✏️
                           </button>
                           <button onClick={() => handleToggleStatus(b)} disabled={isBusy} title={isActive ? "Deactivate" : "Activate"}
-                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? inactiveBdr : activeBdr}`, background: isActive ? C.redBg : C.greenBg, color: isActive ? C.red : C.green, fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? inactiveBdr : activeBdr}`, background: isActive ? C.redBg : C.greenBg, color: isDark ? "#ffffff" : (isActive ? C.red : C.green), fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
                             {isToggling
                               ? <div style={{ width: 11, height: 11, border: "2px solid rgba(0,0,0,0.15)", borderTop: `2px solid ${isActive ? C.red : C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                               : isActive ? "⛔" : "✅"}
@@ -679,7 +684,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
         )}
 
         {/* ════════════════════════════════════════════════════════
-            LOGIN PAGE — UNTOUCHED (preserved character-for-character)
+            LOGIN PAGE — colors adjusted for dark theme
             ════════════════════════════════════════════════════════ */}
         {activeMenu === "login_page" && (
           <>
@@ -691,29 +696,29 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "18px 20px", flexShrink: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gray300 : C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>2s</span>
+                <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>2s</span>
                 <input type="range" min="2000" max="10000" step="500" value={settings.interval} className="speed-slider"
                   onChange={e => setSettings(prev => ({ ...prev, interval: parseInt(e.target.value, 10) }))} />
-                <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>10s</span>
+                <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>10s</span>
                 <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}40`, borderRadius: 8, padding: "4px 12px", minWidth: 52, textAlign: "center" }}>
                   <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{intervalSec}s</span>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: C.gray400, marginTop: 8 }}>Each slide stays visible for {intervalSec} seconds before rotating</div>
+              <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 8 }}>Each slide stays visible for {intervalSec} seconds before rotating</div>
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.gray100}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>🎬 Image Animation</div>
-                    <div style={{ fontSize: 11, color: C.gray400, marginTop: 3 }}>{animated ? "Ken Burns — images slowly zoom in/out" : "Static — images stay fixed"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gray300 : C.navy }}>🎬 Image Animation</div>
+                    <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 3 }}>{animated ? "Ken Burns — images slowly zoom in/out" : "Static — images stay fixed"}</div>
                   </div>
                   <div onClick={handleToggleAnimated}
                     style={{ width: 44, height: 24, borderRadius: 12, cursor: "pointer", background: animated ? C.green : C.gray200, position: "relative", transition: "background 0.25s", flexShrink: 0 }}>
                     <div style={{ position: "absolute", top: 3, left: animated ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left 0.25s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
                   </div>
                 </div>
-                <div style={{ marginTop: 6, fontSize: 11, color: animated ? C.green : C.gray400, fontWeight: 600 }}>
+                <div style={{ marginTop: 6, fontSize: 11, color: animated ? C.green : (isDark ? C.gray300 : C.gray400), fontWeight: 600 }}>
                   {animated ? "✓ Animated (Ken Burns on)" : "✗ Static (Ken Burns off)"}
                 </div>
               </div>
@@ -723,7 +728,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
               <div style={{ display: "flex", borderBottom: `1px solid ${C.gray200}` }}>
                 {settings.slides.map((s, i) => (
                   <button key={i} onClick={() => setActiveSlide(i)}
-                    style={{ flex: 1, padding: "12px 8px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: activeSlide === i ? 700 : 500, color: activeSlide === i ? C.navy : C.gray400, background: activeSlide === i ? C.white : C.gray50, borderBottom: activeSlide === i ? `2px solid ${C.navy}` : "2px solid transparent", transition: "all 0.15s" }}>
+                    style={{ flex: 1, padding: "12px 8px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: activeSlide === i ? 700 : 500, color: activeSlide === i ? (isDark ? C.gray300 : C.navy) : C.gray400, background: activeSlide === i ? C.white : C.gray50, borderBottom: activeSlide === i ? `2px solid ${isDark ? C.gray300 : C.navy}` : "2px solid transparent", transition: "all 0.15s" }}>
                     Slide {i + 1}
                     {s.title && <div style={{ fontSize: 9, marginTop: 2, color: activeSlide === i ? C.green : C.gray400, fontWeight: 500 }}>{s.title}</div>}
                   </button>
@@ -733,7 +738,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                 <div key={idx} style={{ padding: "20px", animation: "fadeIn 0.2s ease" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Image</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Image</div>
                       <div onClick={() => uploading == null && fileRefs[idx].current?.click()}
                         style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "4/3", background: slide.color || "#064e3b", border: `2px dashed ${C.gray200}`, cursor: uploading === idx ? "wait" : "pointer" }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; }}
@@ -748,9 +753,9 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                         </div>
                       </div>
                       <input ref={fileRefs[idx]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFileSelect(e, idx)} />
-                      <div style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}>Click to upload. Will be cropped to 4:3 (1280×960px).</div>
+                      <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 6 }}>Click to upload. Will be cropped to 4:3 (1280×960px).</div>
                       <div style={{ marginTop: 16 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Overlay Color</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Overlay Color</div>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           {COLOR_PRESETS.map(p => (
                             <button key={p.value} onClick={() => setSlideField(idx, "color", p.value)} title={p.label}
@@ -765,34 +770,34 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                       </div>
                       <div style={{ marginTop: 16 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em" }}>Overlay Intensity</div>
-                          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: (slide.overlay ?? 0.35) === 0 ? C.green : C.gray400, fontWeight: (slide.overlay ?? 0.35) === 0 ? 700 : 500 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em" }}>Overlay Intensity</div>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: (slide.overlay ?? 0.35) === 0 ? C.green : (isDark ? C.gray300 : C.gray400), fontWeight: (slide.overlay ?? 0.35) === 0 ? 700 : 500 }}>
                             <input type="checkbox" className="no-overlay-check" checked={(slide.overlay ?? 0.35) === 0} onChange={e => setSlideField(idx, "overlay", e.target.checked ? 0 : 0.35)} />
                             No overlay
                           </label>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: (slide.overlay ?? 0.35) === 0 ? 0.35 : 1, transition: "opacity 0.2s" }}>
-                          <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>0%</span>
+                          <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>0%</span>
                           <input type="range" min="0.05" max="1" step="0.05" value={slide.overlay ?? 0.35} disabled={(slide.overlay ?? 0.35) === 0} className="speed-slider" onChange={e => setSlideField(idx, "overlay", parseFloat(e.target.value))} />
-                          <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>100%</span>
+                          <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>100%</span>
                           <div style={{ background: `${C.navy}10`, border: `1px solid ${C.navy}20`, borderRadius: 8, padding: "4px 8px", minWidth: 42, textAlign: "center" }}>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: (slide.overlay ?? 0.35) === 0 ? C.gray400 : C.navy }}>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: (slide.overlay ?? 0.35) === 0 ? C.gray400 : (isDark ? C.gray300 : C.navy) }}>
                               {(slide.overlay ?? 0.35) === 0 ? "Off" : `${Math.round((slide.overlay ?? 0.35) * 100)}%`}
                             </span>
                           </div>
                         </div>
-                        <div style={{ fontSize: 11, color: C.gray400, marginTop: 5 }}>
+                        <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 5 }}>
                           {(slide.overlay ?? 0.35) === 0 ? "No overlay — photo shows fully." : "Color tint over the photo. Reduce for clearer images."}
                         </div>
                       </div>
                       <div style={{ marginTop: 16 }}>
                         <button onClick={() => { const def = settings.defaults?.[idx] || DEFAULT_SLIDES[idx]; if (def) setSettings(prev => ({ ...prev, slides: prev.slides.map((s, i) => i === idx ? { ...def } : s) })); }}
                           style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = isDark ? C.gray300 : C.navy; e.currentTarget.style.color = isDark ? C.gray300 : C.navy; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray400; }}>
                           🔄 Use Default Image
                         </button>
-                        <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>Restore this slide&apos;s saved default image</div>
+                        <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 4 }}>Restore this slide&apos;s saved default image</div>
                         <div style={{ marginTop: 8 }}>
                           <button onClick={() => handleSetAsDefault(idx)}
                             style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${C.green}40`, background: `${C.green}08`, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
@@ -800,12 +805,12 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                             onMouseLeave={e => { e.currentTarget.style.background = `${C.green}08`; e.currentTarget.style.borderColor = `${C.green}40`; }}>
                             ⭐ Set as Default Image
                           </button>
-                          <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>Save current image as default — used when resetting this slide</div>
+                          <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 4 }}>Save current image as default — used when resetting this slide</div>
                         </div>
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Text</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Slide Text</div>
                       <Field label="Label (small gold text)">
                         <input style={inp(C)} placeholder="e.g. Investors Portal" value={slide.label || ""} onChange={e => setSlideField(idx, "label", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                       </Field>
@@ -815,7 +820,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                       <Field label="Subtitle">
                         <textarea style={{ ...inp(C), resize: "vertical", minHeight: 64, lineHeight: 1.5 }} placeholder="e.g. Your assets are protected with us." value={slide.sub || ""} onChange={e => setSlideField(idx, "sub", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                       </Field>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Live Preview</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Live Preview</div>
                       <SlidePreview slide={slide} allSlides={settings.slides} activeIdx={idx} animated={animated} />
                     </div>
                   </div>
@@ -827,7 +832,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingBottom: 16, flexShrink: 0 }}>
               <button onClick={handleReset}
                 style={{ padding: "10px 20px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray400, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = isDark ? C.gray300 : C.navy; e.currentTarget.style.color = isDark ? C.gray300 : C.navy; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray400; }}>
                 Reset to Defaults
               </button>
