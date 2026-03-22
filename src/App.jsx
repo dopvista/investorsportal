@@ -203,7 +203,14 @@ const SidebarInner = memo(function SidebarInner({
 
   return (
     <>
-      <div style={{ padding: "24px 20px 20px", position: "relative" }}>
+      <div style={{
+        // On mobile (drawer), push content below the camera cutout/notch.
+        // On desktop the sidebar is not behind any safe area zone.
+        padding: isMobile
+          ? `calc(24px + env(safe-area-inset-top, 0px)) 20px 20px`
+          : "24px 20px 20px",
+        position: "relative",
+      }}>
         {isMobile && (
           <button
             onClick={onClose}
@@ -821,7 +828,7 @@ export default function App() {
 
   // ── Main render ───────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'Inter',system-ui,sans-serif", background: C.gray50, overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100%", width: "100%", fontFamily: "'Inter',system-ui,sans-serif", background: C.gray50, overflow: "hidden" }}>
       <style>{`
         @keyframes spin     { to { transform: rotate(360deg); } }
         @keyframes cdsPopIn { from { opacity:0; transform:translateY(-8px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
@@ -829,7 +836,7 @@ export default function App() {
 
       {/* ── Desktop Sidebar ── */}
       {!isMobile && (
-        <div style={{ width: 240, display: "flex", flexDirection: "column", flexShrink: 0, height: "100vh", overflowY: "auto", position: "relative", background: "radial-gradient(ellipse at 60% 40%,#0c2548 0%,#0B1F3A 50%,#080f1e 100%)" }}>
+        <div style={{ width: 240, display: "flex", flexDirection: "column", flexShrink: 0, height: "100%", overflowY: "auto", position: "relative", background: "radial-gradient(ellipse at 60% 40%,#0c2548 0%,#0B1F3A 50%,#080f1e 100%)", paddingLeft: "env(safe-area-inset-left,0px)" }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.04) 1px,transparent 1px)", backgroundSize: "24px 24px", pointerEvents: "none", zIndex: 0 }} />
           <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflowY: "auto" }}>
             <SidebarInner {...sidebarProps} />
@@ -854,7 +861,7 @@ export default function App() {
       )}
 
       {/* ── Main content area ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100vh", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", overflow: "hidden" }}>
         <ConnectionBanner
           offline={isOffline}
           updateAvailable={updateAvailable}
@@ -863,7 +870,19 @@ export default function App() {
 
         {/* ── Mobile Header ── */}
         {isMobile && (
-          <div style={{ background: C.white, borderBottom: `1px solid ${C.gray200}`, padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 12 }}>
+          <div style={{
+            background: C.white,
+            borderBottom: `1px solid ${C.gray200}`,
+            // Height grows to fill the safe area so the white background
+            // covers the camera / notch zone on iOS and Android.
+            height: "calc(56px + env(safe-area-inset-top, 0px))",
+            // Push the content (buttons, title) below the camera cutout.
+            paddingTop: "env(safe-area-inset-top, 0px)",
+            paddingLeft: "calc(16px + env(safe-area-inset-left, 0px))",
+            paddingRight: "calc(16px + env(safe-area-inset-right, 0px))",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexShrink: 0, gap: 12,
+          }}>
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation"
@@ -955,7 +974,16 @@ export default function App() {
         )}
 
         {/* ── Pages — wrapped in Suspense for lazy loading ── */}
-        <div style={{ flex: 1, padding: isMobile ? "16px" : "28px 32px", overflowY: "auto", paddingBottom: isMobile ? 76 : undefined }}>
+        <div style={{
+          flex: 1,
+          padding: isMobile ? "16px" : "28px 32px",
+          overflowY: "auto",
+          // On mobile: clear the bottom nav (60px) + home indicator safe area.
+          // On desktop: normal bottom padding.
+          paddingBottom: isMobile
+            ? "calc(76px + env(safe-area-inset-bottom, 0px))"
+            : "28px",
+        }}>
           <Suspense fallback={<PageFallback />}>
             {tab === "dashboard"        && <DashboardPage      key={`dashboard-${activeCdsNumber || "none"}`}    profile={activeProfile} role={role} session={session} showToast={showToast} onNavigate={setTab} activeCds={activeCds} />}
             {tab === "companies"        && <CompaniesPage       key={`companies-${activeCdsNumber || "none"}`}    companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile} />}
@@ -969,7 +997,20 @@ export default function App() {
 
       {/* ── Mobile Bottom Navigation ── */}
       {isMobile && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 60, background: C.white, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "stretch", zIndex: 200, boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          // Height grows to fill the home indicator zone so the white
+          // background covers it — the buttons stay above it via paddingBottom.
+          height: "calc(60px + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+          background: C.white,
+          borderTop: `1px solid ${C.gray200}`,
+          display: "flex", alignItems: "stretch",
+          zIndex: 200,
+          boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
+        }}>
           {filteredBottomNav.map((item) => {
             const active    = tab === item.id;
             const iconColor = active ? C.green : C.gray400;
