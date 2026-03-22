@@ -259,6 +259,12 @@ const StatCard = memo(function StatCard({
         e.currentTarget.style.transform   = "none";
       }}
     >
+      {/* Colored top accent bar — visible when active, invisible otherwise */}
+      <div style={{
+        height: active ? 3 : 0,
+        background: `linear-gradient(90deg, ${accent}, ${accent}80)`,
+        transition: "height 0.18s ease",
+      }} />
       <div style={{
         padding: "16px 18px 14px",
         background: isColored ? `linear-gradient(135deg, ${accentBg}ee, ${accentBg}bb)` : "transparent",
@@ -301,36 +307,54 @@ const StatCard = memo(function StatCard({
 // ── ExpandPanel ────────────────────────────────────────────────────
 const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, children }) {
   const { C } = useTheme();
+  const acc = accentColor || C.gray400;
   return (
     <div style={{
       background: C.white,
-      border: `1.5px solid ${accentColor || C.gray200}`,
+      border: `1.5px solid ${acc}40`,
       borderRadius: 14,
-      padding: "20px 24px",
+      overflow: "hidden",
       marginBottom: 20,
       animation: "dashFadeDown 0.2s ease",
-      boxShadow: accentColor ? `0 4px 20px ${accentColor}18` : "none",
+      boxShadow: `0 6px 28px ${acc}14`,
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{title}</div>
+      {/* Colored accent top-bar — ties panel to the stat card that opened it */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${acc}, ${acc}80)` }} />
+
+      {/* Panel header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 20px",
+        borderBottom: `1px solid ${C.gray100}`,
+        background: `${acc}08`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 3, height: 18, borderRadius: 2, background: acc, flexShrink: 0 }} />
+          <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{title}</div>
+        </div>
         <button
           onClick={onClose}
           style={{
-            background: accentColor ? `${accentColor}18` : C.gray100,
-            border: "none", borderRadius: "50%",
-            width: 40, height: 40,
-            cursor: "pointer", fontSize: 13,
-            // FIX 5: accentColor for the Companies panel is C.navy (#0B1F3A in both
-            // themes). On a dark card surface that icon is invisible. C.gray500 is always
-            // legible in both themes and still clearly signals a dismiss action.
-            color: C.gray500,
+            background: `${acc}14`,
+            border: `1px solid ${acc}30`,
+            borderRadius: "50%",
+            width: 32, height: 32,
+            cursor: "pointer", fontSize: 12,
+            color: acc,
             display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background 0.15s",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = `${acc}28`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = `${acc}14`; }}
         >
           ✕
         </button>
       </div>
-      {children}
+
+      {/* Panel body */}
+      <div style={{ padding: "16px 20px 20px" }}>
+        {children}
+      </div>
     </div>
   );
 });
@@ -1453,9 +1477,14 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             )}
 
             {/* Top 5 Holdings table */}
-            <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
+            <div style={{ background: C.white, border: `1.5px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
+              {/* Accent top-bar consistent with ExpandPanels */}
+              <div style={{ height: 3, background: `linear-gradient(90deg, ${C.green}, ${C.green}60)` }} />
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: `${C.green}08`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 3, height: 18, borderRadius: 2, background: C.green, flexShrink: 0 }} />
+                  <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
+                </div>
                 <div style={{ fontSize: 11, color: C.gray400 }}>
                   {metrics.hasFinancials
                     ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`
