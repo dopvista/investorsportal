@@ -407,7 +407,7 @@ export default function App() {
             style={{
               position: "absolute", top: 14, right: 14, width: 40, height: 40,
               borderRadius: "50%", background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.1)", color: C.white,
+              border: "1px solid rgba(255,255,255,0.1)", color: "#ffffff",
               cursor: "pointer", fontSize: 15, display: "flex",
               alignItems: "center", justifyContent: "center", zIndex: 2, flexShrink: 0,
             }}
@@ -500,7 +500,7 @@ export default function App() {
                 <div style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
               </div>
               {isActive ? (
-                <span style={{ fontSize: 10, fontWeight: 700, background: "#f0fdf4", color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+                <span style={{ fontSize: 10, fontWeight: 700, background: C.greenBg, color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
               ) : (
                 <button
                   onClick={() => { setSwitchTarget(c); setShowCdsSwitcher(false); }}
@@ -689,7 +689,7 @@ export default function App() {
                   <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔒</div>
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>CDS Account</div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: C.white, letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>
                   </div>
                   {cdsList.length > 1 && <span style={{ fontSize: 11, color: showCdsSwitcher ? C.gold : "rgba(255,255,255,0.45)", transform: showCdsSwitcher ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", marginLeft: 2, lineHeight: 1 }}>▾</span>}
                 </div>
@@ -744,10 +744,10 @@ export default function App() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: C.white, borderRadius: 18, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "cdsPopIn 0.2s ease" }}>
             <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
+                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
                 <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 600 }}>Confirm account change</div>
               </div>
-              <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.1)", color: C.white, width: 40, height: 40, borderRadius: "50%", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#ffffff", width: 40, height: 40, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
             </div>
             <div style={{ padding: "22px 24px" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -758,20 +758,20 @@ export default function App() {
                   All portfolio data will update to reflect this CDS account.
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.gray50, borderRadius: 10, marginBottom: 20, fontSize: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 10, marginBottom: 20, fontSize: 12 }}>
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
+                  <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
                   <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
                 </div>
-                <div style={{ fontSize: 16, color: C.gray400 }}>→</div>
+                <div style={{ fontSize: 16, color: C.gray500 }}>→</div>
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
-                  <div style={{ fontWeight: 800, color: C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
+                  <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
+                  <div style={{ fontWeight: 800, color: C.green, marginTop: 2 }}>{switchTarget.cds_number}</div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
-                <button onClick={() => handleCdsSwitch(switchTarget)} disabled={switching} style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: C.white, fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <button onClick={() => handleCdsSwitch(switchTarget)} disabled={switching} style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   {switching ? (
                     <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</>
                   ) : "Yes, Switch Account"}
