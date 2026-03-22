@@ -132,10 +132,9 @@ function RejectModal({ count, onConfirm, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20 }}>
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            {/* "#ffffff" not C.white — C.white in dark mode is a surface colour, not white */}
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>✖ Reject Transaction{count > 1 ? "s" : ""}</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{count > 1 ? `${count} transactions selected` : "1 transaction selected"}</div>
           </div>
@@ -178,7 +177,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{icon} {title}</div>
@@ -211,7 +210,7 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
   const { C } = useTheme();
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
-      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>{title}</div>
@@ -589,39 +588,49 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       <div style={{
         background: C.white,
         borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        border: `1.5px solid ${C.gray200}`,
+        borderBottom: isMobile ? "none" : undefined,
         width: "100%",
         maxWidth: isMobile ? "100%" : 720,
         maxHeight: isMobile ? "92vh" : "95vh",
         boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
         overflow: "hidden",
-        border: isMobile ? "none" : `1px solid ${C.gray200}`,
         display: "flex",
         flexDirection: "column",
       }}>
 
-        {/* ── Header ── */}
-        <div style={{ padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderBottom: `1px solid ${C.gray200}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+        {/* ── Header — navy gradient matching ModalShell ── */}
+        <div style={{
+          background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
+          padding: isMobile ? "16px 18px 14px" : "18px 24px 16px",
+          borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0",
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
           <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Company name + Buy/Sell + Status badges */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: C.text }}>{transaction.company_name}</span>
-              <span style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBdr}`, padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
+              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#ffffff" }}>{transaction.company_name}</span>
+              <span style={{ background: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)", padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
               <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{st.icon} {st.label}</span>
             </div>
-            <div style={{ fontSize: 12, color: C.gray400, display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
+            {/* Date + CDS number */}
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
               <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>📅 {fmtDate(transaction.date)}</span>
               {transaction.cds_number && (
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
                   🪪 {transaction.cds_number}
                   {cdsAccountName === null
-                    ? <span style={{ color: C.gray400 }}> — …</span>
+                    ? <span style={{ color: "rgba(255,255,255,0.4)" }}> — …</span>
                     : cdsAccountName
-                      ? <span style={{ color: C.gray600, fontWeight: 600 }}> — {cdsAccountName}</span>
+                      ? <span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 600 }}> — {cdsAccountName}</span>
                       : null}
                 </span>
               )}
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.gray50, cursor: "pointer", fontSize: 15, color: C.gray600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16 }}>✕</button>
+          {/* Close button — matches ModalShell close */}
+          <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0, marginLeft: 16 }}>✕</button>
         </div>
 
         {/* ── Summary row ── */}
