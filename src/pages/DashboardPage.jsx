@@ -133,7 +133,9 @@ const SnapCard = memo(function SnapCard({
   const { C } = useTheme();
   const isColored = expanded && accentBg && !dark;
   const labelClr = dark ? "rgba(255,255,255,0.4)"   : isColored ? "rgba(255,255,255,0.6)"  : C.gray400;
-  const valueClr = dark ? C.white                   : isColored ? C.white                  : C.text;
+  // FIX 1: was `C.white` — in dark mode C.white is a dark surface colour (#1D2E42),
+  // not actually white. Use literal "#ffffff" for text on any coloured/dark background.
+  const valueClr = dark ? "#ffffff" : isColored ? "#ffffff" : C.text;
   const subClr   = dark ? "rgba(255,255,255,0.3)"   : isColored ? "rgba(255,255,255,0.55)" : C.gray400;
   const chevClr  = isColored
     ? "rgba(255,255,255,0.9)"
@@ -226,7 +228,9 @@ const StatCard = memo(function StatCard({
 }) {
   const { C } = useTheme();
   const isColored = active && accentBg;
-  const hdrText = isColored ? C.white      : C.text;
+  // FIX 2: was `C.white` — same issue as SnapCard. C.white is a surface colour in dark
+  // mode, not white. Use "#ffffff" for text that must show on a coloured/dark gradient.
+  const hdrText = isColored ? "#ffffff" : C.text;
   const hdrSub  = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
   const hdrHint = isColored ? "rgba(255,255,255,0.45)" : C.gray400;
 
@@ -316,7 +320,10 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
             border: "none", borderRadius: "50%",
             width: 40, height: 40,
             cursor: "pointer", fontSize: 13,
-            color: accentColor || C.gray500,
+            // FIX 5: accentColor for the Companies panel is C.navy (#0B1F3A in both
+            // themes). On a dark card surface that icon is invisible. C.gray500 is always
+            // legible in both themes and still clearly signals a dismiss action.
+            color: C.gray500,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
@@ -413,7 +420,9 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
-  const { C } = useTheme();
+  // FIX 3 & 4: destructure isDark so we can make navy-as-text/border theme-aware
+  // below (role badge + "Go to User Management" button).
+  const { C, isDark } = useTheme();
   const [portfolio,     setPortfolio]     = useState([]);
   const [transactions,  setTransactions]  = useState([]);
   const [userCount,     setUserCount]     = useState(null);
@@ -1264,7 +1273,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Companies expand panel */}
             {expanded === "companies" && (
-              <ExpandPanel title="🏢 Companies" accentColor={C.navy} onClose={onCloseExpand}>
+              // FIX 5 (part 2): accentColor was C.navy — dark in both themes,
+              // making the close button × icon invisible in dark mode. Using a
+              // theme-aware blue keeps the panel on-brand while staying legible.
+              <ExpandPanel title="🏢 Companies" accentColor={isDark ? "#3b6fc4" : C.navy} onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1383,7 +1395,19 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                                 </div>
                               </Td>
                               <Td>
-                                <span style={{ background: `${C.navy}12`, color: C.navy, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                {/*
+                                  FIX 3: was `background: ${C.navy}12, color: C.navy`.
+                                  C.navy (#0B1F3A) is near-black in both themes, so on a
+                                  dark card surface (C.white = #1D2E42) it is completely
+                                  invisible. Using a theme-aware blue keeps the role badge
+                                  visually distinct and legible in both light and dark modes.
+                                */}
+                                <span style={{
+                                  background: isDark ? `#2563eb20` : `${C.navy}12`,
+                                  color: isDark ? "#60a5fa" : C.navy,
+                                  borderRadius: 20, padding: "2px 10px",
+                                  fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+                                }}>
                                   {u._roleName}
                                 </span>
                               </Td>
@@ -1401,18 +1425,29 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     </div>
                     {isSAAD && (
                       <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                        {/*
+                          FIX 4: was `border/color: C.navy` (#0B1F3A) — invisible on dark
+                          card surface. Using a theme-aware blue keeps it on-brand and
+                          clearly legible in dark mode. Hover also updated to match.
+                        */}
                         <button
                           onClick={onNavUserMgmt}
                           style={{
                             background: "none",
-                            border: `1.5px solid ${C.navy}`,
-                            color: C.navy,
+                            border: `1.5px solid ${isDark ? "#3b82f6" : C.navy}`,
+                            color: isDark ? "#3b82f6" : C.navy,
                             borderRadius: 9, padding: "7px 18px",
                             fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                             display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
                           }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = C.navy; e.currentTarget.style.color = C.white; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.navy; }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = isDark ? "#3b82f6" : C.navy;
+                            e.currentTarget.style.color = "#ffffff";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "none";
+                            e.currentTarget.style.color = isDark ? "#3b82f6" : C.navy;
+                          }}
                         >
                           Go to User Management →
                         </button>
