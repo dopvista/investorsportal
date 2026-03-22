@@ -1016,7 +1016,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, position: "relative", zIndex: 1 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
                     Shares Held
                   </div>
                   <div style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", fontWeight: 800 }}>
@@ -1030,7 +1030,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
 
               <div style={{ position: "relative", zIndex: 1, marginBottom: 16 }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
                   Portfolio Value
                 </div>
                 {(() => {
