@@ -236,10 +236,10 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
 // ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   const { C } = useTheme();
-  // Active state uses #2563eb (matches Users/dashboard accent) — always visible in both themes
+  // Navy brand active state — white text on dark bg works in both light and dark themes
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? "#2563eb" : C.gray200}`, background: active ? "#2563eb" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? "#0B1F3A" : C.gray200}`, background: active ? "#0B1F3A" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {label}
     </button>
   );
@@ -847,7 +847,7 @@ const TransactionRow = memo(function TransactionRow({
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: "#2563eb" }} />
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
@@ -874,7 +874,7 @@ const TransactionRow = memo(function TransactionRow({
       </td>
       <td style={{ padding: "7px 10px", maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {transaction.broker_name
-          ? <span style={{ fontWeight: 600, color: C.text }} title={transaction.broker_name}>{transaction.broker_name}</span>
+          ? <span style={{ fontSize: 11, fontWeight: 600, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 8px", display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={transaction.broker_name}>{transaction.broker_name}</span>
           : <span style={{ color: C.gray400 }}>—</span>}
       </td>
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
@@ -1592,7 +1592,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     placeholder="Search company, date, status..."
                     {...mobileInputAttrs}
                     style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
-                    onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+                    onFocus={e => { e.target.style.borderColor = C.green; }}
                     onBlur={e => { e.target.style.borderColor = C.gray200; }}
                   />
                 </div>
@@ -1613,7 +1613,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   placeholder="Search company, date, status..."
                   {...mobileInputAttrs}
                   style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
-                  onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+                  onFocus={e => { e.target.style.borderColor = C.green; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }}
                 />
               </div>
@@ -1630,19 +1630,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
                   placeholder="Search company, date, month, type, broker, status, remarks..."
                   style={TOOLBAR_INPUT}
-                  onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.background = C.white; }}
+                  onFocus={e => { e.target.style.borderColor = C.green; e.target.style.background = C.white; }}
                   onBlur={e => { e.target.style.borderColor = C.gray200; }} />
               </div>
               {["All", "Buy", "Sell"].map(t => (
                 <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? "#2563eb" : C.gray200}`, background: typeFilter === t ? "#2563eb" : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? "#0B1F3A" : C.gray200}`, background: typeFilter === t ? "#0B1F3A" : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
                   {t}
                 </button>
               ))}
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPage(); }}
-                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? "#2563eb" : C.gray200}`, color: statusFilter !== "All" ? "#2563eb" : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
-                onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
-                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? "#2563eb" : C.gray200; }}>
+                style={{ ...TOOLBAR_SELECT, border: `1.5px solid ${statusFilter !== "All" ? "#0B1F3A" : C.gray200}`, color: statusFilter !== "All" ? (isDark ? C.gray800 : "#0B1F3A") : C.gray600, fontWeight: statusFilter !== "All" ? 700 : 400 }}
+                onFocus={e => { e.target.style.borderColor = C.green; }}
+                onBlur={e => { e.target.style.borderColor = statusFilter !== "All" ? "#0B1F3A" : C.gray200; }}>
                 {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -1652,9 +1652,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <>
                   {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
                   {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)} disabled={isAnyVerifying} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying ? "not-allowed" : "pointer" }}>{isAnyVerifying ? <><Spinner size={12} color="#888" /> Verifying...</> : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
                   {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })} disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #FECACA`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>
               ) : (
@@ -1749,15 +1749,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
-                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: C.gray50 }}>
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
-                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#2563eb" }} />
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
                           </th>
                         )}
                         {tableHeaders.map(h => (
-                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
                             {h.label}
                           </th>
                         ))}
