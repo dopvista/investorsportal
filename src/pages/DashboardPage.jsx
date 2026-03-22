@@ -931,7 +931,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.gray100}` }}>
                   <button onClick={onNavUserMgmt} style={{
                     width: "100%", padding: "10px", borderRadius: 9,
-                    border: "none", background: "rgba(255,255,255,0.22)", color: "#ffffff",
+                    border: "none", background: C.greenLight, color: "#ffffff",
                     fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
                   }}>
                     Go to User Management →
