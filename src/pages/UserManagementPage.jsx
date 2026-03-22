@@ -656,15 +656,15 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
           const m = ROLE_META[r.code];
           const checked = String(sel) === String(r.id);
           return (
-            <button key={r.id} onClick={() => setSel(r.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${checked ? m.text : C.gray200}`, background:checked ? m.bg : C.white, transition:"all 0.15s" }}>
-              <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${checked ? m.text : C.gray200}`, background:checked ? m.text : "transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <button key={r.id} onClick={() => setSel(r.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${checked ? (isDark ? m.darkText : m.text) : C.gray200}`, background:checked ? (isDark ? m.darkBg : m.bg) : C.white, transition:"all 0.15s" }}>
+              <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${checked ? (isDark ? m.darkText : m.text) : C.gray200}`, background:checked ? (isDark ? m.darkText : m.text) : "transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 {checked && <div style={{ width:6, height:6, borderRadius:"50%", background:"#ffffff" }}/>}
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{r.name}</div>
                 {r.description && <div style={{ fontSize:11, color:C.gray400, marginTop:1 }}>{r.description}</div>}
               </div>
-              <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6, background:m.bg, border:`1px solid ${m.border}`, color:m.text }}>{r.code}</span>
+              <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6, background:isDark ? m.darkBg : m.bg, border:`1px solid ${isDark ? m.darkBorder : m.border}`, color:isDark ? m.darkText : m.text }}>{r.code}</span>
             </button>
           );
         })}
@@ -904,23 +904,29 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
 
       <div style={{ display:"flex", gap:6 }}>
         <button onClick={() => onChangeRole(user)}
-          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor=C.gray200; e.currentTarget.style.color=C.text; }}
-        >✏️ Role</button>
+          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; e.currentTarget.style.background=`${C.green}10`; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor=C.gray200; e.currentTarget.style.color=C.text; e.currentTarget.style.background=C.white; }}>
+          <span style={{ fontSize:16 }}>✏️</span>
+          <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>Role</span>
+        </button>
 
         <button onClick={() => onManageCDS(user)}
-          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1px solid ${C.navy}25`, background:C.navy+"08", color:C.navy, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}
-          onMouseEnter={e => { e.currentTarget.style.background=C.navy; e.currentTarget.style.color="#ffffff"; }}
-          onMouseLeave={e => { e.currentTarget.style.background=C.navy+"08"; e.currentTarget.style.color=C.navy; }}
-        >🏦 CDS</button>
+          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
+          onMouseEnter={e => { e.currentTarget.style.background=C.navy; e.currentTarget.style.color="#ffffff"; e.currentTarget.style.borderColor=C.navy; }}
+          onMouseLeave={e => { e.currentTarget.style.background=isDark?`${C.navy}20`:C.navy+"0d"; e.currentTarget.style.color=isDark?"#93C5FD":C.navy; e.currentTarget.style.borderColor=isDark?`${C.navy}60`:`${C.navy}40`; }}>
+          <span style={{ fontSize:16 }}>🏦</span>
+          <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>CDS</span>
+        </button>
 
         {user.role_code && (
           <button onClick={() => onToggleStatus(user)}
-            style={{ flex:1, padding:"8px 6px", borderRadius:9, border:"none", background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}
+            style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
             onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
-            onMouseLeave={e => e.currentTarget.style.opacity="1"}
-          >{user.is_active ? "🚫 Deactivate" : "✅ Activate"}</button>
+            onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+            <span style={{ fontSize:16 }}>{user.is_active ? "🚫" : "✅"}</span>
+            <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>{user.is_active ? "Deactivate" : "Activate"}</span>
+          </button>
         )}
       </div>
     </div>
