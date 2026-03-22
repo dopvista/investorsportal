@@ -696,12 +696,12 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "18px 20px", flexShrink: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gold : C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.green : C.navy, marginBottom: 14 }}>⏱ Slide Rotation Speed</div>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>2s</span>
+                <span style={{ fontSize: 11, color: isDark ? C.green : C.gray400, whiteSpace: "nowrap" }}>2s</span>
                 <input type="range" min="2000" max="10000" step="500" value={settings.interval} className="speed-slider"
                   onChange={e => setSettings(prev => ({ ...prev, interval: parseInt(e.target.value, 10) }))} />
-                <span style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, whiteSpace: "nowrap" }}>10s</span>
+                <span style={{ fontSize: 11, color: isDark ? C.green : C.gray400, whiteSpace: "nowrap" }}>10s</span>
                 <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}40`, borderRadius: 8, padding: "4px 12px", minWidth: 52, textAlign: "center" }}>
                   <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{intervalSec}s</span>
                 </div>
@@ -710,11 +710,11 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.gray100}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gray300 : C.navy }}>🎬 Image Animation</div>
-                    <div style={{ fontSize: 11, color: isDark ? C.gray300 : C.gray400, marginTop: 3 }}>{animated ? "Ken Burns — images slowly zoom in/out" : "Static — images stay fixed"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? C.gold : C.navy }}>🎬 Image Animation</div>
+                    <div style={{ fontSize: 11, color: isDark ? C.gray500 : C.gray400, marginTop: 3 }}>{animated ? "Ken Burns — images slowly zoom in/out" : "Static — images stay fixed"}</div>
                   </div>
                   <div onClick={handleToggleAnimated}
-                    style={{ width: 44, height: 24, borderRadius: 12, cursor: "pointer", background: animated ? C.green : C.gray200, position: "relative", transition: "background 0.25s", flexShrink: 0 }}>
+                    style={{ width: 44, height: 24, borderRadius: 12, cursor: "pointer", background: animated ? C.green : C.gray500, position: "relative", transition: "background 0.25s", flexShrink: 0 }}>
                     <div style={{ position: "absolute", top: 3, left: animated ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left 0.25s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
                   </div>
                 </div>
