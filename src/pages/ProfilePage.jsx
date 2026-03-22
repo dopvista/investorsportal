@@ -5,14 +5,21 @@ import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
+// FIX A: added 80ms debounce — consistent with every other page in
+// the project. Without it every resize pixel triggers a setState and
+// re-renders the entire page tree.
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    let t;
+    const handler = () => {
+      clearTimeout(t);
+      t = setTimeout(() => setIsMobile(window.innerWidth < 768), 80);
+    };
     window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
+    return () => { window.removeEventListener("resize", handler); clearTimeout(t); };
   }, []);
   return isMobile;
 };
@@ -80,7 +87,6 @@ const profileToForm = (profile) => ({
   gender: profile?.gender || "",
 });
 
-// ── inp(C, extra) — must receive live C from useTheme() ───────────
 function inp(C, extra = {}) {
   return {
     width: "100%", padding: "8px 11px", borderRadius: 8, fontSize: 13,
@@ -89,11 +95,9 @@ function inp(C, extra = {}) {
     boxSizing: "border-box", ...extra,
   };
 }
-// ── Focus/blur factory — bound to live C ──────────────────────────
 const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
 
-// ── Desktop helpers ───────────────────────────────────────────────
 function Section({ title, icon, children }) {
   const { C } = useTheme();
   return (
@@ -161,7 +165,6 @@ function CountrySelect({ value, onChange }) {
   );
 }
 
-// ── Modal Shell ───────────────────────────────────────────────────
 function ModalShell({ title, subtitle, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
@@ -247,21 +250,44 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
     if (remainingPwChanges(uid) <= 0) return setError("Daily limit reached");
     setLoading(true);
     try {
-      const verifyRes = await fetch(`${BASE}/auth/v1/verify`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: JSON.stringify({ email, token: otp, type: "email" }) });
+      const verifyRes  = await fetch(`${BASE}/auth/v1/verify`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: JSON.stringify({ email, token: otp, type: "email" }) });
       const verifyText = await verifyRes.text();
-      if (!verifyRes.ok) { let d = {}; try { d = JSON.parse(verifyText); } catch {} throw new Error(d.error_description || d.message || "Invalid or expired code"); }
-      const tok = session?.access_token;
-      if (!tok) throw new Error("Session expired. Please sign in again.");
-      const updateRes = await fetch(`${BASE}/auth/v1/user`, { method: "PUT", headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}` }, body: JSON.stringify({ password: newPw }) });
-      if (!updateRes.ok) { const d = await updateRes.json().catch(() => ({})); throw new Error(d.error_description || d.message || "Failed to update password"); }
-      incrementPwChanges(uid); setStep("done");
+      if (!verifyRes.ok) {
+        let d = {};
+        try { d = JSON.parse(verifyText); } catch {}
+        throw new Error(d.error_description || d.message || "Invalid or expired code");
+      }
+
+      // FIX C: Supabase rotates the session token when OTP verify succeeds.
+      // The verify response body contains a new access_token. If we use
+      // the old session.access_token for the subsequent PUT, Supabase may
+      // return 401 because the old token was invalidated by the rotation.
+      // Parse the verify response and prefer the fresh token.
+      let freshToken = session?.access_token;
+      try {
+        const verifyData = JSON.parse(verifyText);
+        if (verifyData?.access_token) freshToken = verifyData.access_token;
+      } catch { /* keep fallback */ }
+
+      if (!freshToken) throw new Error("Session expired. Please sign in again.");
+
+      const updateRes = await fetch(`${BASE}/auth/v1/user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${freshToken}` },
+        body: JSON.stringify({ password: newPw }),
+      });
+      if (!updateRes.ok) {
+        const d = await updateRes.json().catch(() => ({}));
+        throw new Error(d.error_description || d.message || "Failed to update password");
+      }
+      incrementPwChanges(uid);
+      setStep("done");
       showToast(`Password updated! ${remainingPwChanges(uid)} change${remainingPwChanges(uid) !== 1 ? "s" : ""} remaining today.`, "success");
       setTimeout(() => onClose(), 2500);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
 
-  // Theme-aware error box — reused in both steps
   const errorBox = error ? (
     <div style={{ background: C.redBg, border: `1px solid ${isDark ? `${C.red}55` : "#fecaca"}`, borderRadius: 8, padding: "10px 14px", color: C.red, fontSize: 13, marginBottom: 16 }}>{error}</div>
   ) : null;
@@ -374,9 +400,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
 
   useEffect(() => () => { isMountedRef.current = false; }, []);
+
+  // FIX B: depend on the whole `profile` object instead of 8 individual
+  // field deps. Previously if a new column was added to the profiles table
+  // and returned by the API, the form would not sync because the new field
+  // wasn't listed. With [profile], any reference change (which always
+  // happens when setProfile is called with a new rows[0]) triggers the sync.
   useEffect(() => {
-    setForm(profileToForm(profile)); setAvatarPreview(profile?.avatar_url || null);
-  }, [profile?.full_name, profile?.phone, profile?.nationality, profile?.postal_address, profile?.national_id, profile?.date_of_birth, profile?.gender, profile?.avatar_url]);
+    setForm(profileToForm(profile));
+    setAvatarPreview(profile?.avatar_url || null);
+  }, [profile]);
+
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
   const fetchCdsUserCount = useCallback(async () => {
@@ -412,12 +446,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const completion      = useMemo(() => calcCompletion(form, avatarPreview), [form, avatarPreview]);
   const completionColor = completion >= 80 ? C.green : completion >= 50 ? "#f59e0b" : C.red;
   const roleMeta        = ROLE_META[role] || { label: role || "User", color: C.gray400 };
-  // Dark-mode readable text colors — same palette as UserManagementPage's darkText variants.
-  // roleColor values (e.g. #0A2540 for SA) are too dark to read on dark card surfaces.
-  const ROLE_DARK_TEXT = { SA: "#7EB3FF", AD: "#8BBFE8", DE: "#93C5FD", VR: "#6EE7B7", RO: "#D1D5DB" };
-  const roleColor = isDark ? (ROLE_DARK_TEXT[role] || C.gray400) : roleMeta.color;
+  const ROLE_DARK_TEXT  = { SA: "#7EB3FF", AD: "#8BBFE8", DE: "#93C5FD", VR: "#6EE7B7", RO: "#D1D5DB" };
+  const roleColor       = isDark ? (ROLE_DARK_TEXT[role] || C.gray400) : roleMeta.color;
   const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const lastSaved = profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const lastSaved       = profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
   const handleSwitchCDS = useCallback(async () => {
     if (!switchTarget || !onSwitchCds) return;
@@ -493,7 +525,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     if (shouldRefresh) { setPullDistance(56); setRefreshing(true); refreshProfileView(); } else setPullDistance(0);
   }, [isMobile, refreshing, saving, uploadingAvatar, switching, pullDistance, refreshProfileView]);
 
-  // ── Avatar element ────────────────────────────────────────────
   const renderAvatarEl = (size = 56) => {
     const mobileMode = isMobile && size >= 60;
     return (
@@ -520,7 +551,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     );
   };
 
-  // ── CDS accordion — theme-aware tints ────────────────────────
   const cdsAccordionBg  = isDark ? `${C.green}14` : "#f0fdf4";
   const cdsAccordionBdr = isDark ? `${C.green}55` : "#bbf7d0";
   const cdsActiveBg     = isDark ? `${C.green}18` : "#f0fdf4";
@@ -572,7 +602,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     </button>
   );
 
-  // ── CDS switch confirmation modal ─────────────────────────────
   const renderSwitchModal = () => switchTarget ? (
     <>
       <div onClick={() => !switching && setSwitchTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.55)", zIndex: 200, backdropFilter: "blur(2px)" }} />
@@ -658,7 +687,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         {/* ══════════ MOBILE ══════════ */}
         {isMobile && (
           <div>
-            {/* Profile header card */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ height: 56, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
               <div style={{ padding: "0 16px 16px", marginTop: -32 }}>
@@ -682,7 +710,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             </div>
 
-            {/* Account type */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
                 <span style={{ fontSize: 14 }}>🏦</span>
@@ -703,7 +730,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             </div>
 
-            {/* Security */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
                 <span style={{ fontSize: 14 }}>🔐</span>
@@ -723,7 +749,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             </div>
 
-            {/* Tab switcher */}
             <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4 }}>
               {[{ key: "personal", label: "Personal", icon: "👤" }, { key: "more", label: "More Info", icon: "📋" }].map(tab => (
                 <button key={tab.key} onClick={() => setMobileTab(tab.key)}
@@ -791,7 +816,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               <div style={{ fontSize: 12, color: C.gray400 }}>Manage your personal information and security settings{lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
-              {/* Left sidebar */}
               <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8 }}>
                 <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
                   <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
@@ -853,7 +877,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </Section>
               </div>
 
-              {/* Right content */}
               <div className="pcol" style={{ overflowY: "auto", overflowX: "clip", paddingRight: 3, paddingBottom: 8, height: "100%", display: "flex", flexDirection: "column" }}>
                 <Section title="Account Information" icon="👤">
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -879,7 +902,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   </div>
                 </Section>
 
-                {/* Photo tip — theme-aware amber tint */}
                 <div style={{ background: isDark ? `${C.gold}14` : `${C.gold}10`, border: `1px solid ${isDark ? `${C.gold}44` : `${C.gold}30`}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 14, flexShrink: 0 }}>📷</span>
                   <div>
