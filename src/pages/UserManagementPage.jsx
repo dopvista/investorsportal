@@ -7,6 +7,7 @@ import {
   sbRemoveCDSFromAdminCascade, sbGetCDSAssignedUsers,
 } from "../lib/supabase";
 import { useTheme } from "../components/ui";
+import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -878,13 +879,10 @@ const RoleBadge = memo(function RoleBadge({ code }) {
 
 const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34 }) {
   const { C } = useTheme();
-  const initials = useMemo(() => (name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(), [name]);
-  const color    = useMemo(() => AVATAR_COLORS[(name||"").charCodeAt(0) % AVATAR_COLORS.length], [name]);
-  const radius   = Math.round(size * 0.28);
   return (
     <div style={{ position:"relative", flexShrink:0, width:size, height:size }}>
-      {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:radius, objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}` }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="flex"; }}/> : null}
-      <div style={{ width:size, height:size, borderRadius:radius, background:`linear-gradient(135deg, ${color}, ${color}99)`, display:avatarUrl ? "none" : "flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:Math.round(size*0.35), color:"#fff" }}>{initials}</div>
+      {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}` }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="block"; }}/> : null}
+      <img src={logo} alt="logo" style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:avatarUrl ? "none" : "block", border:`1.5px solid ${C.gray200}` }}/>
       <div style={{ position:"absolute", bottom:-1, right:-1, width:9, height:9, borderRadius:"50%", border:`2px solid ${C.white}`, background:isActive ? C.green : C.gray200 }}/>
     </div>
   );
