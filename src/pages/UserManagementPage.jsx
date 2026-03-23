@@ -904,16 +904,24 @@ const StatCard = memo(function StatCard({ label, value, color, icon }) {
 // ── Mobile User Card ──────────────────────────────────────────────
 const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onManageCDS, onToggleStatus }) {
   const { C, isDark } = useTheme();
+  const hasCds      = !!user.cds_number;
+  const extraCount  = (user.cds_count && user.cds_count > 1) ? user.cds_count - 1 : 0;
   const inactiveBorder = isDark ? `${C.red}55` : "#fecaca";
+
+  // shared label style
+  const LBL = { fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", color:C.gray400, marginBottom:2 };
+
   return (
-    <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:12, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", opacity:user.is_active?1:0.75 }}>
+    <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:12, padding:"12px 14px", marginBottom:8, opacity:user.is_active ? 1 : 0.75 }}>
+
+      {/* ── Row 1: Avatar + name + badges ── */}
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
         <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={38}/>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:700, fontSize:14, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginBottom:2 }}>
+          <div style={{ fontWeight:700, fontSize:14, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginBottom:4 }}>
             {user.full_name || "New User"}
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
             <span style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`, color:user.is_active ? C.green : C.red }}>
               {user.is_active ? "Active" : "Inactive"}
             </span>
@@ -922,43 +930,80 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      <div style={{ background:C.gray50, borderRadius:9, padding:"7px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:7 }}>
-        <span style={{ fontSize:13 }}>🔒</span>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:9, color:C.gray400, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>Active CDS</div>
-          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>
-            {user.cds_number || <span style={{ color:C.gray400, fontWeight:400, fontSize:12 }}>No CDS assigned</span>}
+      {/* ── Row 2: CDS (left, tappable) + Phone (right) ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:6 }}>
+        <div
+          onClick={() => onManageCDS(user)}
+          style={{
+            background: hasCds ? (isDark ? `${C.navy}22` : "#EEF4FB") : C.gray50,
+            border: `1px solid ${hasCds ? (isDark ? `${C.navy}55` : "#B5D4F4") : C.gray200}`,
+            borderRadius:9, padding:"7px 10px", cursor:"pointer",
+          }}
+        >
+          <div style={{ ...LBL, color: hasCds ? (isDark ? "#93C5FD" : "#185FA5") : C.gray400 }}>CDS</div>
+          <div style={{ display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
+            {hasCds ? (
+              <>
+                <span style={{ fontSize:12, fontWeight:700, color: isDark ? "#93C5FD" : "#185FA5", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {user.cds_number}
+                </span>
+                {extraCount > 0 && (
+                  <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, background:"#185FA5", color:"#fff", flexShrink:0 }}>
+                    +{extraCount}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span style={{ fontSize:11, color:C.gray400, fontStyle:"italic" }}>Not assigned</span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:9, padding:"7px 10px" }}>
+          <div style={LBL}>Phone</div>
+          <div style={{ fontSize:12, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+            {user.phone || <span style={{ color:C.gray400, fontWeight:400, fontStyle:"italic" }}>—</span>}
           </div>
         </div>
       </div>
 
-      <div style={{ display:"flex", gap:6 }}>
-        <button onClick={() => onChangeRole(user)}
-          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
+      {/* ── Row 3: Email full width ── */}
+      <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:9, padding:"7px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
+        <span style={{ fontSize:13, flexShrink:0 }}>✉️</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={LBL}>Email</div>
+          <div style={{ fontSize:12, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+            {user.email || <span style={{ color:C.gray400, fontWeight:400, fontStyle:"italic" }}>—</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 4: Change Role + Deactivate/Activate ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+        <button
+          onClick={() => onChangeRole(user)}
+          style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
           onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; e.currentTarget.style.background=`${C.green}10`; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor=C.gray200; e.currentTarget.style.color=C.text; e.currentTarget.style.background=C.white; }}>
-          <span style={{ fontSize:16 }}>✏️</span>
-          <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>Role</span>
+          <span style={{ fontSize:14 }}>✏️</span> Change Role
         </button>
 
-        <button onClick={() => onManageCDS(user)}
-          style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
-          onMouseEnter={e => { e.currentTarget.style.background=C.navy; e.currentTarget.style.color="#ffffff"; e.currentTarget.style.borderColor=C.navy; }}
-          onMouseLeave={e => { e.currentTarget.style.background=isDark?`${C.navy}20`:C.navy+"0d"; e.currentTarget.style.color=isDark?"#93C5FD":C.navy; e.currentTarget.style.borderColor=isDark?`${C.navy}60`:`${C.navy}40`; }}>
-          <span style={{ fontSize:16 }}>🏦</span>
-          <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>CDS</span>
-        </button>
-
-        {user.role_code && (
-          <button onClick={() => onToggleStatus(user)}
-            style={{ flex:1, padding:"8px 6px", borderRadius:9, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}
+        {user.role_code ? (
+          <button
+            onClick={() => onToggleStatus(user)}
+            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
             onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
             onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-            <span style={{ fontSize:16 }}>{user.is_active ? "🚫" : "✅"}</span>
-            <span style={{ fontSize:10, fontWeight:700, lineHeight:1 }}>{user.is_active ? "Deactivate" : "Activate"}</span>
+            <span style={{ fontSize:14 }}>{user.is_active ? "🚫" : "✅"}</span>
+            {user.is_active ? "Deactivate" : "Activate"}
           </button>
+        ) : (
+          <div style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.gray50, color:C.gray400, fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            No Role Set
+          </div>
         )}
       </div>
+
     </div>
   );
 });
@@ -1346,7 +1391,16 @@ export default function UserManagementPage({ role, showToast, profile }) {
                           </div>
                         </div>
                       </div>
-                      <div style={{ fontSize:11, fontWeight:600, color:C.text }}>{user.cds_number||<span style={{ color:C.gray400 }}>—</span>}</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
+                        <span style={{ fontSize:11, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                          {user.cds_number || <span style={{ color:C.gray400 }}>—</span>}
+                        </span>
+                        {(user.cds_count && user.cds_count > 1) && (
+                          <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, background:"#185FA5", color:"#fff", flexShrink:0 }}>
+                            +{user.cds_count - 1}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize:11, color:C.text }}>{user.account_type||<span style={{ color:C.gray400 }}>—</span>}</div>
                       <div><RoleBadge code={user.role_code}/></div>
                       <div style={{ fontSize:11, color:C.text }}>{user.phone||<span style={{ color:C.gray400 }}>—</span>}</div>
