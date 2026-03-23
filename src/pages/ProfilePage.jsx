@@ -390,7 +390,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [pullDistance, setPullDistance]       = useState(0);
   const [refreshing, setRefreshing]           = useState(false);
 
+  const [showAvatarSheet, setShowAvatarSheet] = useState(false);
+
   const fileRef        = useRef();
+  const cameraBackRef  = useRef();
+  const cameraFrontRef = useRef();
   const rootRef        = useRef(null);
   const touchStartYRef = useRef(null);
   const pullingRef     = useRef(false);
@@ -528,11 +532,15 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   const renderAvatarEl = (size = 56) => {
     const mobileMode = isMobile && size >= 60;
+    const handleAvatarClick = () => {
+      if (uploadingAvatar) return;
+      if (isMobile) { setShowAvatarSheet(true); } else { fileRef.current?.click(); }
+    };
     return (
       <div style={{ display: mobileMode ? "flex" : "inline-block", flexDirection: mobileMode ? "column" : undefined, alignItems: mobileMode ? "center" : undefined, gap: mobileMode ? 8 : undefined }}>
         <div style={{ position: "relative", display: "inline-block" }}>
           <div style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: "#ffffff", position: "relative" }}
-            onClick={() => !uploadingAvatar && fileRef.current?.click()}>
+            onClick={handleAvatarClick}>
             {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }} /> : null}
             <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: avatarPreview ? "none" : "block" }} />
             {mobileMode && !uploadingAvatar && (
@@ -546,8 +554,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             )}
           </div>
-          <div onClick={() => !uploadingAvatar && fileRef.current?.click()} style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}>📷</div>
+          <div onClick={handleAvatarClick} style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}>📷</div>
+          {/* Gallery picker — desktop + mobile gallery option */}
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
+          {/* Camera inputs — mobile only, rendered always so refs are stable */}
+          <input ref={cameraBackRef}  type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileSelect} />
+          <input ref={cameraFrontRef} type="file" accept="image/*" capture="user"        style={{ display: "none" }} onChange={handleFileSelect} />
         </div>
       </div>
     );
@@ -602,6 +614,60 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 14px ${C.green}44`, marginTop: 6 }}>
       {saving ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <>💾 Save Changes</>}
     </button>
+  );
+
+  const renderAvatarSheet = () => !showAvatarSheet ? null : (
+    <div
+      onClick={() => setShowAvatarSheet(false)}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: "100%", background: C.white, borderRadius: "18px 18px 0 0", overflow: "hidden", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.26s cubic-bezier(0.4,0,0.2,1)" }}
+      >
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: "16px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "18px 18px 0 0" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#ffffff" }}>Update Profile Picture</div>
+          <button onClick={() => setShowAvatarSheet(false)} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 14, color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
+
+        {/* Options */}
+        <div style={{ padding: "12px 16px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            { label: "Choose from Gallery",  icon: "🖼️",  ref: fileRef,        desc: "Pick an existing photo" },
+            { label: "Back Camera",          icon: "📷",  ref: cameraBackRef,  desc: "Take a photo with rear camera" },
+            { label: "Front Camera (Selfie)",icon: "🤳",  ref: cameraFrontRef, desc: "Take a selfie with front camera" },
+          ].map(({ label, icon, ref, desc }) => (
+            <button
+              key={label}
+              onClick={() => { setShowAvatarSheet(false); setTimeout(() => ref.current?.click(), 80); }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "13px 14px", borderRadius: 12, border: `1px solid ${C.gray200}`, background: C.white, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+              onTouchStart={e => e.currentTarget.style.background = C.gray50}
+              onTouchEnd={e => e.currentTarget.style.background = C.white}
+            >
+              <span style={{ fontSize: 24, flexShrink: 0, width: 36, textAlign: "center" }}>{icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{label}</div>
+                <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{desc}</div>
+              </div>
+              <span style={{ fontSize: 12, color: C.gray300, flexShrink: 0 }}>›</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Cancel */}
+        <div style={{ padding: "4px 16px 12px" }}>
+          <button
+            onClick={() => setShowAvatarSheet(false)}
+            style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1px solid ${C.gray200}`, background: C.gray50, color: C.gray400, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
+            onTouchStart={e => e.currentTarget.style.background = C.gray100}
+            onTouchEnd={e => e.currentTarget.style.background = C.gray50}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   const renderSwitchModal = () => switchTarget ? (
@@ -709,6 +775,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {/* Modals — OUTSIDE transform wrapper */}
       {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
       {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
+      {renderAvatarSheet()}
       {renderSwitchModal()}
 
       {/* Pull-to-refresh transform wrapper */}
