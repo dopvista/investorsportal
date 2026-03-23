@@ -19,6 +19,7 @@ import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UserMenu          from "./components/UserMenu";
 import ConnectionBanner  from "./components/ConnectionBanner";
+import InstallBanner     from "./components/InstallBanner";
 import useIdleLogout     from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
 
@@ -867,6 +868,8 @@ export default function App() {
           updateAvailable={updateAvailable}
           onRefresh={handleAppRefresh}
         />
+
+        {!isOffline && !updateAvailable && <InstallBanner />}
 
         {/* ── Mobile Header ── */}
         {isMobile && (
