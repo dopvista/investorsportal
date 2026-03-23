@@ -3,6 +3,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
+import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -532,7 +533,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         <div style={{ position: "relative", display: "inline-block" }}>
           <div style={{ width: size, height: size, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: Math.round(size * 0.28), fontWeight: 800, color: "#ffffff", position: "relative" }}
             onClick={() => !uploadingAvatar && fileRef.current?.click()}>
-            {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+            {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }} /> : null}
+            <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: avatarPreview ? "none" : "block" }} />
             {mobileMode && !uploadingAvatar && (
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", opacity: 0, transition: "opacity 0.2s" }} onTouchStart={e => e.currentTarget.style.opacity = "1"} onTouchEnd={e => e.currentTarget.style.opacity = "0"}>
                 <span style={{ fontSize: 22 }}>📷</span>
@@ -851,7 +853,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <div style={{ position: "relative", display: "inline-block", marginBottom: 6 }}>
                       <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${C.white}`, boxShadow: "0 3px 10px rgba(0,0,0,0.15)", background: avatarPreview ? "transparent" : C.navy, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", fontSize: 16, fontWeight: 800, color: "#ffffff", position: "relative" }}
                         onClick={() => !uploadingAvatar && fileRef.current?.click()}>
-                        {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+                        {avatarPreview ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }} /> : null}
+                        <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: avatarPreview ? "none" : "block" }} />
                         {uploadingAvatar && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /></div>}
                       </div>
                       <div onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 17, height: 17, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 8 }}>📷</div>
