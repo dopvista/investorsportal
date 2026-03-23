@@ -1,4 +1,4 @@
-// ── src/pages/ProfilePage.jsx ─────────────────────────────────────
+// ── src/pages/ProfilePage.jsx ───────────────────────────────────── 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
