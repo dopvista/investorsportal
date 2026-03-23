@@ -9,11 +9,10 @@ import {
 import { useTheme } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
+// ── Helpers ───────────────────────────────────────────────────────
+const alpha = (hex, value) => `${hex}${value}`;
+
 // ── Mobile breakpoint hook ────────────────────────────────────────
-// FIX A: added 80ms debounce — consistent with every other page in
-// the app (CompaniesPage, TransactionsPage, DashboardPage, etc.).
-// Without debounce every resize pixel fires a setState, causing
-// unnecessary re-renders of the entire page tree.
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -31,11 +30,11 @@ const useIsMobile = () => {
 };
 
 const ROLE_META = {
-  SA: { label: "Super Admin",  bg: "#0A254015", border: "#0A254040", text: "#0A2540", darkBg: "#4B8FFF22", darkBorder: "#4B8FFF55", darkText: "#7EB3FF" },
-  AD: { label: "Admin",        bg: "#1E3A5F15", border: "#1E3A5F40", text: "#1E3A5F", darkBg: "#5B9BD522", darkBorder: "#5B9BD555", darkText: "#8BBFE8" },
-  DE: { label: "Data Entrant", bg: "#1D4ED815", border: "#1D4ED840", text: "#1D4ED8", darkBg: "#60A5FA22", darkBorder: "#60A5FA55", darkText: "#93C5FD" },
-  VR: { label: "Verifier",     bg: "#065F4615", border: "#065F4640", text: "#065F46", darkBg: "#34D39922", darkBorder: "#34D39955", darkText: "#6EE7B7" },
-  RO: { label: "Read Only",    bg: "#37415115", border: "#37415140", text: "#374151", darkBg: "#9CA3AF22", darkBorder: "#9CA3AF55", darkText: "#D1D5DB" },
+  SA: { label: "Super Admin",  bg: "#EEF4FB", border: "#CFE0F4", text: "#0B1F3A", darkBg: "#173252", darkBorder: "#31547D", darkText: "#D6E7FF" },
+  AD: { label: "Admin",        bg: "#EDF6FF", border: "#C8DCF5", text: "#185FA5", darkBg: "#173A56", darkBorder: "#30607F", darkText: "#B9DBFF" },
+  DE: { label: "Data Entrant", bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8", darkBg: "#172F63", darkBorder: "#3458A7", darkText: "#BFD7FF" },
+  VR: { label: "Verifier",     bg: "#ECFDF3", border: "#BBF7D0", text: "#0F7A4A", darkBg: "#123A31", darkBorder: "#2B6C59", darkText: "#9DE7C0" },
+  RO: { label: "Read Only",    bg: "#F4F6F8", border: "#D7DDE3", text: "#4B5565", darkBg: "#2B313A", darkBorder: "#4A5563", darkText: "#D7DEE7" },
 };
 
 const AVATAR_COLORS = ["#0A2540","#1E3A5F","#1D4ED8","#065F46","#374151","#7C3AED","#B45309","#0369A1"];
@@ -43,15 +42,30 @@ const GRID = "28px 1.5fr 0.9fr 0.8fr 0.8fr 1.1fr 1.3fr 90px 145px";
 
 function inp(C, extra = {}) {
   return {
-    width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
-    border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit",
-    background: C.white, color: C.text, transition: "border 0.2s",
-    boxSizing: "border-box", ...extra,
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 9,
+    fontSize: 13,
+    border: `1.5px solid ${C.gray200}`,
+    outline: "none",
+    fontFamily: "inherit",
+    background: C.white,
+    color: C.text,
+    transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s",
+    boxSizing: "border-box",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    ...extra,
   };
 }
 
-const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
-const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
+const focusGreen = (C) => (e) => {
+  e.target.style.borderColor = C.green;
+  e.target.style.boxShadow = `0 0 0 3px ${alpha(C.green, "14")}`;
+};
+const blurGray = (C) => (e) => {
+  e.target.style.borderColor = C.gray200;
+  e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)";
+};
 
 const MOBILE_INPUT_ATTRS = {
   autoComplete: "off",
@@ -69,19 +83,29 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
   return createPortal(
     <div
       onClick={closeOnBackdrop ? onClose : undefined}
-      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(10,37,64,0.6)", backdropFilter:"blur(3px)", display:"flex", alignItems: isMobile ? "flex-end" : "center", justifyContent:"center", padding: isMobile ? 0 : 20 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(11,31,58,0.52)",
+        backdropFilter: "blur(5px)",
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 20,
+      }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
           background: C.white,
-          borderRadius: isMobile ? "16px 16px 0 0" : 20,
+          borderRadius: isMobile ? "18px 18px 0 0" : 20,
           border: `1.5px solid ${C.gray200}`,
           borderBottom: isMobile ? "none" : undefined,
           width: "100%",
           maxWidth: isMobile ? "100%" : maxWidth,
           maxHeight: isMobile ? "92vh" : undefined,
-          boxShadow: "0 32px 80px rgba(0,0,0,0.35)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -89,16 +113,23 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
-        <div style={{ background:"linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding:"18px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+        <div style={{
+          background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
+          padding: "18px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
           <div>
-            <div style={{ color:"#ffffff", fontWeight:800, fontSize:16 }}>{title}</div>
-            {subtitle && <div style={{ color:C.gold, fontSize:11, marginTop:3, fontWeight:600, letterSpacing:"0.02em" }}>{subtitle}</div>}
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>{title}</div>
+            {subtitle && <div style={{ color: "rgba(255,255,255,0.62)", fontSize: 12, marginTop: 3, fontWeight: 600, letterSpacing: "0.01em" }}>{subtitle}</div>}
           </div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)", color:"#ffffff", width:30, height:30, borderRadius:"50%", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.14)", color: "#ffffff", width: 34, height: 34, borderRadius: 10, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
-        <div style={{ padding:"20px 24px 4px", overflowY:"auto", flex:1 }}>{children}</div>
+        <div style={{ padding: "20px 24px 4px", overflowY: "auto", flex: 1 }}>{children}</div>
         {footer && (
-          <div style={{ display:"flex", gap:8, padding:"16px 24px", flexShrink:0, background:C.gray50, borderTop:`1px solid ${C.gray200}`, position:"sticky", bottom:0 }}>
+          <div style={{ display: "flex", gap: 8, padding: "16px 24px", flexShrink: 0, background: C.gray50, borderTop: `1px solid ${C.gray200}`, position: "sticky", bottom: 0 }}>
             {footer}
           </div>
         )}
@@ -111,8 +142,21 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
 const CancelBtn = memo(function CancelBtn({ onClose }) {
   const { C } = useTheme();
   return (
-    <button onClick={onClose}
-      style={{ flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}
+    <button
+      onClick={onClose}
+      style={{
+        flex: 1,
+        padding: "10px",
+        borderRadius: 10,
+        border: `1.5px solid ${C.gray200}`,
+        background: C.white,
+        color: C.text,
+        fontWeight: 600,
+        fontSize: 13,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}
     >Cancel</button>
@@ -122,22 +166,37 @@ const CancelBtn = memo(function CancelBtn({ onClose }) {
 const ConfirmBtn = memo(function ConfirmBtn({ onClick, label, color, loading, disabled }) {
   const { C } = useTheme();
   const off = loading || disabled;
+  const bg = color || C.green;
   return (
-    <button onClick={onClick} disabled={off}
-      style={{ flex:2, padding:"10px", borderRadius:10, border:"none", background:off ? C.gray200 : (color || C.green), color:"#ffffff", fontWeight:700, fontSize:13, cursor:off ? "not-allowed" : "pointer", fontFamily:"inherit", boxShadow:off ? "none" : `0 2px 10px ${(color||C.green)}44` }}
+    <button
+      onClick={onClick}
+      disabled={off}
+      style={{
+        flex: 2,
+        padding: "10px",
+        borderRadius: 10,
+        border: "none",
+        background: off ? C.gray200 : `linear-gradient(135deg, ${bg}, ${bg})`,
+        color: "#ffffff",
+        fontWeight: 700,
+        fontSize: 13,
+        cursor: off ? "not-allowed" : "pointer",
+        fontFamily: "inherit",
+        boxShadow: off ? "none" : `0 4px 12px ${alpha(bg, "33")}`,
+      }}
     >{loading ? "Saving..." : label}</button>
   );
 });
 
 const Field = memo(function Field({ label, required, hint, children }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   return (
-    <div style={{ marginBottom:14 }}>
-      <label style={{ fontSize:11, fontWeight:700, color: isDark ? C.gray500 : C.navy, display:"block", marginBottom:5, letterSpacing:"0.04em", textTransform:"uppercase" }}>
-        {label}{required && <span style={{ color:C.red, marginLeft:2 }}>*</span>}
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ fontSize: 11, fontWeight: 700, color: C.gray600, display: "block", marginBottom: 6, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        {label}{required && <span style={{ color: C.red, marginLeft: 2 }}>*</span>}
       </label>
       {children}
-      {hint && <div style={{ fontSize:11, color:C.gray400, marginTop:4, lineHeight:1.4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4, lineHeight: 1.4 }}>{hint}</div>}
     </div>
   );
 });
@@ -231,25 +290,38 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
     }
   }, [createForm, handleSelect]);
 
-  const createPanelBg  = isDark ? `${C.gold}18` : "#fffbeb";
-  const createPanelBdr = isDark ? `${C.gold}55` : `${C.gold}40`;
-  const createTitleCol = isDark ? C.gold : "#92400e";
+  const createPanelBg  = isDark ? alpha(C.gold, "18") : "#FFF8E6";
+  const createPanelBdr = isDark ? alpha(C.gold, "55") : "#F4D48A";
+  const createTitleCol = isDark ? C.gold : "#9A6700";
 
   return (
     <div>
       <div style={{ position:"relative" }}>
         <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:C.gray400, pointerEvents:"none" }}>🔍</span>
-        <input style={{ ...inp(C), paddingLeft:32 }} type="text" placeholder={placeholder} value={query}
+        <input
+          style={{ ...inp(C), paddingLeft:32 }}
+          type="text"
+          placeholder={placeholder}
+          value={query}
           onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); }}
-          onFocus={focusGreen(C)} onBlur={blurGray(C)} autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} name="cds_lookup" data-lpignore="true" data-form-type="other" />
+          onFocus={focusGreen(C)}
+          onBlur={blurGray(C)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="cds_lookup"
+          data-lpignore="true"
+          data-form-type="other"
+        />
         {searching && <span style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", fontSize:11, color:C.gray400 }}>...</span>}
       </div>
 
       {displayResults.length > 0 && !selected && (
-        <div style={{ border:`1.5px solid ${C.green}`, borderRadius:9, marginTop:4, overflow:"hidden", maxHeight:200, overflowY:"auto", background:C.white, boxShadow:"0 4px 16px rgba(0,0,0,0.1)" }}>
+        <div style={{ border:`1.5px solid ${C.gray200}`, borderRadius:10, marginTop:6, overflow:"hidden", maxHeight:220, overflowY:"auto", background:C.white, boxShadow:"0 10px 24px rgba(0,0,0,0.12)" }}>
           {displayResults.map(c => (
             <div key={c.id||c.cds_id||c.cds_number} onClick={() => handleSelect(c)}
-              style={{ padding:"10px 14px", cursor:"pointer", borderBottom:`1px solid ${C.gray100}`, transition:"background 0.1s" }}
+              style={{ padding:"11px 14px", cursor:"pointer", borderBottom:`1px solid ${C.gray100}`, transition:"background 0.1s" }}
               onMouseEnter={e => e.currentTarget.style.background=C.gray50}
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
               <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
@@ -260,17 +332,17 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
       )}
 
       {isAD && !selected && query.trim().length > 1 && adFiltered.length === 0 && (
-        <div style={{ marginTop:5, padding:"8px 11px", borderRadius:8, background:C.gray50, border:`1px solid ${C.gray200}`, fontSize:11, color:C.gray400 }}>🔍 No matching CDS in your pool</div>
+        <div style={{ marginTop:6, padding:"9px 11px", borderRadius:9, background:C.gray50, border:`1px solid ${C.gray200}`, fontSize:11, color:C.gray400 }}>🔍 No matching CDS in your pool</div>
       )}
 
       {(foundButExcluded || queryMatchesExcluded) && !selected && (
-        <div style={{ marginTop:5, padding:"8px 11px", borderRadius:8, background:C.greenBg, border:`1px solid ${isDark ? `${C.green}55` : "#bbf7d0"}`, fontSize:11, color:C.green, display:"flex", alignItems:"center", gap:6 }}>
+        <div style={{ marginTop:6, padding:"9px 11px", borderRadius:9, background:C.greenBg, border:`1px solid ${isDark ? alpha(C.green, "55") : "#BBF7D0"}`, fontSize:11, color:C.green, display:"flex", alignItems:"center", gap:6 }}>
           <span>✅</span> Already assigned to this user
         </div>
       )}
 
       {selected && (
-        <div style={{ marginTop:6, padding:"8px 12px", borderRadius:9, background:`${C.green}0d`, border:`1.5px solid ${C.green}30`, display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ marginTop:8, padding:"9px 12px", borderRadius:10, background:alpha(C.green, "0d"), border:`1.5px solid ${alpha(C.green, "30")}`, display:"flex", alignItems:"center", gap:10 }}>
           <span style={{ fontSize:16 }}>✅</span>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{selected.cds_number}</div>
@@ -281,20 +353,20 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
       )}
 
       {showCreate && !isAD && !queryMatchesExcluded && query.trim().length > 2 && !selected && (
-        <div style={{ marginTop:6, padding:"10px 12px", borderRadius:9, background:createPanelBg, border:`1.5px solid ${createPanelBdr}` }}>
+        <div style={{ marginTop:8, padding:"11px 12px", borderRadius:10, background:createPanelBg, border:`1.5px solid ${createPanelBdr}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
           <div style={{ fontSize:11, fontWeight:700, color:createTitleCol, marginBottom:8, display:"flex", alignItems:"center", gap:5 }}>
             <span>✨</span> Not found — create new CDS record
           </div>
           {createError && (
-            <div style={{ fontSize:11, color:C.red, marginBottom:6, background:C.redBg, padding:"5px 9px", borderRadius:6, border:`1px solid ${isDark ? `${C.red}55` : "#fecaca"}` }}>
+            <div style={{ fontSize:11, color:C.red, marginBottom:6, background:C.redBg, padding:"6px 9px", borderRadius:7, border:`1px solid ${isDark ? alpha(C.red, "55") : "#FECACA"}` }}>
               ⚠️ {createError}
             </div>
           )}
           <div style={{ display:"flex", gap:6, marginBottom:6 }}>
             <div style={{ flex:"0 0 auto" }}>
               <div style={{ fontSize:9, fontWeight:700, color:C.gray400, marginBottom:2, textTransform:"uppercase", letterSpacing:"0.04em" }}>Number *</div>
-              <div style={{ display:"flex", alignItems:"center", border:`1.5px solid ${C.gray200}`, borderRadius:8, overflow:"hidden", background:C.white }}>
-                <span style={{ padding:"6px 6px 6px 9px", fontSize:12, fontWeight:700, color:isDark ? C.gray500 : C.navy, background:C.navy+"0a", borderRight:`1px solid ${C.gray200}`, whiteSpace:"nowrap", userSelect:"none" }}>CDS-</span>
+              <div style={{ display:"flex", alignItems:"center", border:`1.5px solid ${C.gray200}`, borderRadius:8, overflow:"hidden", background:C.white, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+                <span style={{ padding:"6px 6px 6px 9px", fontSize:12, fontWeight:700, color:C.navy, background:alpha(C.navy, "0a"), borderRight:`1px solid ${C.gray200}`, whiteSpace:"nowrap", userSelect:"none" }}>CDS-</span>
                 <input style={{ border:"none", outline:"none", padding:"6px 9px", fontSize:12, fontFamily:"inherit", width:80, background:"transparent", color:C.text }} placeholder="647305" value={createForm.cdsNumber.replace(/^CDS-/i,"")} onChange={e => setCreateForm(f => ({ ...f, cdsNumber:"CDS-"+e.target.value.replace(/[^0-9A-Za-z]/g,"").toUpperCase() }))} autoComplete="off" />
               </div>
             </div>
@@ -313,7 +385,7 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
               <input style={inp(C, { fontSize:12, padding:"6px 9px" })} placeholder="owner@email.com" value={createForm.email} onChange={e => setCreateForm(f => ({ ...f, email:e.target.value }))} onFocus={focusGreen(C)} onBlur={blurGray(C)} autoComplete="off" />
             </div>
           </div>
-          <button onClick={handleCreate} disabled={creating} style={{ width:"100%", padding:"7px", borderRadius:8, border:"none", background:creating?C.gray200:C.navy, color:"#ffffff", fontWeight:700, fontSize:12, cursor:creating?"not-allowed":"pointer", fontFamily:"inherit" }}>
+          <button onClick={handleCreate} disabled={creating} style={{ width:"100%", padding:"8px", borderRadius:8, border:"none", background:creating?C.gray200:`linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color:"#ffffff", fontWeight:700, fontSize:12, cursor:creating?"not-allowed":"pointer", fontFamily:"inherit", boxShadow:creating?"none":"0 4px 12px rgba(11,31,58,0.22)" }}>
             {creating ? "Creating..." : "✚ Create & Select CDS"}
           </button>
         </div>
@@ -346,7 +418,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
         onSelectMulti?.(next); return next;
       });
     }
-  }, [mode, onSelect, onSelectMulti]);
+  }, [mode, onSelect, onSelectMulti, selected]);
 
   const label = selected.length === 0
     ? `Select CDS account${mode==="multi"?"s":""} ▾`
@@ -359,15 +431,15 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
         <span style={{ fontSize:10, color:C.gray400, transform:open?"rotate(180deg)":"none", transition:"transform 0.2s" }}>▼</span>
       </div>
       {open && (
-        <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:999, border:`1.5px solid ${C.green}`, borderTop:"none", borderRadius:"0 0 9px 9px", background:C.white, overflow:"hidden", boxShadow:"0 8px 24px rgba(0,0,0,0.15)", maxHeight:220, overflowY:"auto" }}>
+        <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:999, border:`1.5px solid ${C.gray200}`, borderTop:"none", borderRadius:"0 0 9px 9px", background:C.white, overflow:"hidden", boxShadow:"0 12px 28px rgba(0,0,0,0.14)", maxHeight:220, overflowY:"auto" }}>
           {available.length===0 ? <div style={{ padding:"10px 14px", fontSize:12, color:C.gray400 }}>No available CDS in your pool</div>
           : available.map((c,i) => {
             const isSel=selected.some(s=>s.cds_number===c.cds_number);
             return (
               <div key={c.id||c.cds_id||c.cds_number} onClick={() => toggle(c)}
-                style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", background:isSel?`${C.green}09`:"transparent", borderBottom:i<available.length-1?`1px solid ${C.gray100}`:"none", transition:"background 0.1s" }}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", background:isSel?alpha(C.green,"09"):"transparent", borderBottom:i<available.length-1?`1px solid ${C.gray100}`:"none", transition:"background 0.1s" }}
                 onMouseEnter={e => { if(!isSel)e.currentTarget.style.background=C.gray50; }}
-                onMouseLeave={e => { e.currentTarget.style.background=isSel?`${C.green}09`:"transparent"; }}>
+                onMouseLeave={e => { e.currentTarget.style.background=isSel?alpha(C.green,"09"):"transparent"; }}>
                 <div style={{ width:16, height:16, borderRadius:mode==="single"?"50%":4, border:`2px solid ${isSel?C.green:C.gray200}`, background:isSel?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
                   {isSel&&<span style={{ color:"#ffffff", fontSize:9, fontWeight:900, lineHeight:1 }}>✓</span>}
                 </div>
@@ -380,7 +452,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
           })}
           {mode==="multi" && selected.length>0 && (
             <div style={{ padding:"7px 14px", borderTop:`1px solid ${C.gray100}`, background:C.gray50, display:"flex", justifyContent:"flex-end" }}>
-              <button onClick={() => setOpen(false)} style={{ padding:"4px 12px", borderRadius:7, border:"none", background:C.green, color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Done</button>
+              <button onClick={() => setOpen(false)} style={{ padding:"4px 12px", borderRadius:7, border:"none", background:`linear-gradient(135deg, ${C.green}, ${C.greenLight || C.green})`, color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", boxShadow:`0 4px 10px ${alpha(C.green,"33")}` }}>Done</button>
             </div>
           )}
         </div>
@@ -388,7 +460,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
       {mode==="multi" && selected.length>0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:6 }}>
           {selected.map(c => (
-            <span key={c.cds_number} style={{ display:"inline-flex", alignItems:"center", gap:4, background:`${C.green}12`, border:`1px solid ${C.green}30`, borderRadius:20, padding:"2px 8px", fontSize:11, fontWeight:700, color:C.green }}>
+            <span key={c.cds_number} style={{ display:"inline-flex", alignItems:"center", gap:4, background:alpha(C.green,"12"), border:`1px solid ${alpha(C.green,"30")}`, borderRadius:20, padding:"2px 8px", fontSize:11, fontWeight:700, color:C.green }}>
               🔒 {c.cds_number}
               <button onClick={() => toggle(c)} style={{ background:"none", border:"none", cursor:"pointer", color:C.green, fontSize:11, padding:0, lineHeight:1 }}>✕</button>
             </span>
@@ -473,24 +545,24 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
         title="Manage CDS Accounts"
         subtitle={`${user.full_name||"User"} · ${userCdsList.length} account${userCdsList.length!==1?"s":""}`}
         onClose={onClose} maxWidth={520}
-        footer={<button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Close</button>}
+        footer={<button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>Close</button>}
       >
         <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.navy, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assigned CDS</div>
+          <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assigned CDS</div>
           {loadingList
             ? <div style={{ textAlign:"center", padding:"16px 0", color:C.gray400, fontSize:12 }}>Loading...</div>
             : userCdsList.length===0
-              ? <div style={{ textAlign:"center", padding:"16px 0", color:C.gray400, fontSize:12, background:C.gray50, borderRadius:9, border:`1px dashed ${C.gray200}` }}>No CDS accounts assigned yet</div>
+              ? <div style={{ textAlign:"center", padding:"16px 0", color:C.gray400, fontSize:12, background:C.gray50, borderRadius:10, border:`1px dashed ${C.gray200}` }}>No CDS accounts assigned yet</div>
               : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {userCdsList.map(c => (
-                    <div key={c.cds_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderRadius:9, background:c.is_active?`${C.green}09`:C.gray50, border:`1.5px solid ${c.is_active?C.green+"30":C.gray200}` }}>
-                      <div style={{ width:30, height:30, borderRadius:8, background:c.is_active?C.green+"18":C.navy+"10", border:`1px solid ${c.is_active?C.green+"30":C.navy+"15"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}>🔒</div>
+                    <div key={c.cds_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:c.is_active?alpha(C.green,"09"):C.gray50, border:`1.5px solid ${c.is_active?alpha(C.green,"30"):C.gray200}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+                      <div style={{ width:30, height:30, borderRadius:8, background:c.is_active?alpha(C.green,"18"):alpha(C.navy,"10"), border:`1px solid ${c.is_active?alpha(C.green,"30"):alpha(C.navy,"15")}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}>🔒</div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
                         <div style={{ fontSize:11, color:C.gray400 }}>{c.cds_name||"—"}</div>
                       </div>
-                      {c.is_active && <span style={{ fontSize:10, fontWeight:700, background:C.greenBg, color:C.green, border:`1px solid ${isDark ? `${C.green}40` : `${C.green}25`}`, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap", flexShrink:0 }}>Active</span>}
-                      <button onClick={() => handleRemove(c)} style={{ fontSize:11, fontWeight:600, background:C.redBg, color:C.red, border:"none", borderRadius:7, padding:"4px 10px", cursor:"pointer", fontFamily:"inherit", flexShrink:0 }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>Remove</button>
+                      {c.is_active && <span style={{ fontSize:10, fontWeight:700, background:C.greenBg, color:C.green, border:`1px solid ${isDark ? alpha(C.green,"40") : alpha(C.green,"25")}`, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap", flexShrink:0 }}>Active</span>}
+                      <button onClick={() => handleRemove(c)} style={{ fontSize:11, fontWeight:600, background:C.redBg, color:C.red, border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontFamily:"inherit", flexShrink:0 }} onMouseEnter={e=>e.currentTarget.style.opacity="0.75"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>Remove</button>
                     </div>
                   ))}
                 </div>
@@ -500,10 +572,10 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
           <>
             <div style={{ height:1, background:C.gray100, margin:"4px 0 14px" }}/>
             <div>
-              <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.navy, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assign CDS</div>
+              <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assign CDS</div>
               <CDSSearchBox key={searchBoxKey} callerRole={callerRole} adCdsList={[]} excludeCdsIds={userCdsList.map(c=>c.cds_id)} excludeCdsNumbers={userCdsList.map(c=>c.cds_number)} onSelect={setSelectedCds} placeholder="Search CDS number or owner name..." />
               {selectedCds && (
-                <button onClick={handleAssign} disabled={assigning} style={{ marginTop:10, width:"100%", padding:"9px", borderRadius:9, border:"none", background:assigning?C.gray200:C.green, color:"#ffffff", fontWeight:700, fontSize:13, cursor:assigning?"not-allowed":"pointer", fontFamily:"inherit", boxShadow:assigning?"none":`0 2px 10px ${C.green}44`, display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
+                <button onClick={handleAssign} disabled={assigning} style={{ marginTop:10, width:"100%", padding:"10px", borderRadius:9, border:"none", background:assigning?C.gray200:`linear-gradient(135deg, ${C.green}, ${C.greenLight || C.green})`, color:"#ffffff", fontWeight:700, fontSize:13, cursor:assigning?"not-allowed":"pointer", fontFamily:"inherit", boxShadow:assigning?"none":`0 4px 12px ${alpha(C.green,"33")}`, display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
                   {assigning ? <><div style={{ width:12, height:12, border:"2px solid rgba(255,255,255,0.3)", borderTop:"2px solid #fff", borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>Assigning...</> : `Assign ${selectedCds.cds_number}`}
                 </button>
               )}
@@ -585,10 +657,10 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
           </div>
         ) : (
           <div>
-            <div style={{ padding:"10px 14px", borderRadius:9, background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#fecaca"}`, marginBottom:14, fontSize:13, color:C.red }}>
+            <div style={{ padding:"10px 14px", borderRadius:10, background:C.redBg, border:`1px solid ${isDark ? alpha(C.red,"55") : "#FECACA"}`, marginBottom:14, fontSize:13, color:C.red }}>
               ⚠️ <strong>{affectedUsers.length} user{affectedUsers.length>1?"s":""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
             </div>
-            <div style={{ maxHeight:140, overflowY:"auto", marginBottom:14, border:`1px solid ${C.gray200}`, borderRadius:9, overflow:"hidden" }}>
+            <div style={{ maxHeight:140, overflowY:"auto", marginBottom:14, border:`1px solid ${C.gray200}`, borderRadius:10, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
               {affectedUsers.map((u,i) => (
                 <div key={u.user_id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:i%2?C.gray50:C.white, borderBottom:i<affectedUsers.length-1?`1px solid ${C.gray100}`:"none" }}>
                   <div style={{ width:24, height:24, borderRadius:6, background:C.gray100, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:C.text, flexShrink:0 }}>{(u.full_name||"?")[0]?.toUpperCase()}</div>
@@ -597,13 +669,13 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
                 </div>
               ))}
             </div>
-            <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.navy, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>What to do with their access?</div>
+            <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>What to do with their access?</div>
             <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:4 }}>
               {[
                 { val:false, icon:"🔒", label:"Remove from admin only", desc:"Users keep their CDS access" },
                 { val:true,  icon:"🗑️", label:"Remove from all users too", desc:"All listed users lose this CDS" }
               ].map(opt => (
-                <button key={String(opt.val)} onClick={() => setCascade(opt.val)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${cascade===opt.val ? (opt.val ? C.red : C.navy) : C.gray200}`, background:cascade===opt.val ? (opt.val ? C.redBg : C.navy+"08") : C.white, transition:"all 0.15s" }}>
+                <button key={String(opt.val)} onClick={() => setCascade(opt.val)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${cascade===opt.val ? (opt.val ? C.red : C.navy) : C.gray200}`, background:cascade===opt.val ? (opt.val ? C.redBg : alpha(C.navy,"08")) : C.white, transition:"all 0.15s", boxShadow:cascade===opt.val?"0 4px 12px rgba(0,0,0,0.05)":"none" }}>
                   <span style={{ fontSize:18, flexShrink:0 }}>{opt.icon}</span>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{opt.label}</div>
@@ -641,7 +713,7 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
 
   return (
     <Modal title="Change Role" subtitle={`Assigning to ${user.full_name||"user"}`} onClose={onClose} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSave} label="✓  Save Role" loading={saving}/></>}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:C.gray50, border:`1px solid ${C.gray200}`, marginBottom:14 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:C.gray50, border:`1px solid ${C.gray200}`, marginBottom:14, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
         <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={34}/>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{user.full_name||"User"}</div>
@@ -649,13 +721,13 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
         </div>
         {user.role_code && <RoleBadge code={user.role_code}/>}
       </div>
-      <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.navy, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Select New Role</div>
+      <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Select New Role</div>
       <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:4 }}>
         {available.map(r => {
           const m = ROLE_META[r.code];
           const checked = String(sel) === String(r.id);
           return (
-            <button key={r.id} onClick={() => setSel(r.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${checked ? (isDark ? m.darkText : m.text) : C.gray200}`, background:checked ? (isDark ? m.darkBg : m.bg) : C.white, transition:"all 0.15s" }}>
+            <button key={r.id} onClick={() => setSel(r.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${checked ? (isDark ? m.darkText : m.text) : C.gray200}`, background:checked ? (isDark ? m.darkBg : m.bg) : C.white, transition:"all 0.15s", boxShadow:checked?"0 4px 12px rgba(0,0,0,0.05)":"none" }}>
               <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${checked ? (isDark ? m.darkText : m.text) : C.gray200}`, background:checked ? (isDark ? m.darkText : m.text) : "transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 {checked && <div style={{ width:6, height:6, borderRadius:"50%", background:"#ffffff" }}/>}
               </div>
@@ -754,14 +826,6 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
 
       if (!uid) throw new Error("User created but no ID returned — contact support.");
 
-      // FIX D: separate account creation from role/CDS assignment.
-      // If sbAdminCreateUser succeeds but sbAssignRole or sbAssignCDS
-      // throws, the previous code re-threw into the outer catch, showed
-      // an error, and let the user retry — which called sbAdminCreateUser
-      // AGAIN, creating a duplicate account. Now we catch role/CDS
-      // failures independently: the new account is always surfaced in
-      // the table via onSuccess(), and a specific toast explains what
-      // still needs to be done manually.
       let roleAssigned = false;
       let cdsFailCount = 0;
 
@@ -769,7 +833,6 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
         await sbAssignRole(uid, parseInt(form.role_id, 10));
         roleAssigned = true;
       } catch (roleErr) {
-        // Role failed — account exists, surface it in the table
         showToast(
           `User account created but role assignment failed: ${roleErr.message}. Find the user and set their role manually.`,
           "error"
@@ -798,8 +861,6 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
       onSuccess();
       onClose();
     } catch(err) {
-      // Only sbAdminCreateUser failures land here — safe to show error
-      // and let user retry (no duplicate account risk).
       setError(err.message);
     } finally {
       setSaving(false);
@@ -809,7 +870,7 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
   return (
     <Modal title="Invite New User" subtitle="Create an account and assign a role" onClose={onClose} closeOnBackdrop={false} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSubmit} label="Create & Invite" loading={saving}/></>}>
       {error && (
-        <div style={{ background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#fecaca"}`, color:C.red, borderRadius:10, padding:"10px 14px", fontSize:13, marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ background:C.redBg, border:`1px solid ${isDark ? alpha(C.red,"55") : "#FECACA"}`, color:C.red, borderRadius:10, padding:"10px 14px", fontSize:13, marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
           <span>⚠️</span> {error}
         </div>
       )}
@@ -818,7 +879,7 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
       </Field>
       <Field label="CDS Account" required hint={isAD ? (callerCdsList?.length===1 ? "Auto-assigned from your account" : "Select one or more CDS from your pool") : "Search existing CDS or create a new one"}>
         {isAD && callerCdsList?.length === 1 && selectedCds ? (
-          <div style={{ padding:"9px 12px", borderRadius:9, background:`${C.green}08`, border:`1.5px solid ${C.green}30`, display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ padding:"10px 12px", borderRadius:10, background:alpha(C.green,"08"), border:`1.5px solid ${alpha(C.green,"30")}`, display:"flex", alignItems:"center", gap:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <span style={{ fontSize:13 }}>🔒</span>
             <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:C.green }}>{selectedCds.cds_number}</div><div style={{ fontSize:11, color:C.gray400 }}>{selectedCds.cds_name}</div></div>
             <span style={{ fontSize:10, fontWeight:700, color:C.green }}>Auto-selected</span>
@@ -838,9 +899,9 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
               <span key={c.label} style={{
                 flex:"1 1 0", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                 textAlign:"center", fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:999,
-                background: c.ok ? (isDark ? `${C.green}22` : "#dcfce7") : (isDark ? `${C.red}22` : "#fee2e2"),
-                color:       c.ok ? (isDark ? C.green : "#166534")        : (isDark ? C.red  : "#991b1b"),
-                border:     `1px solid ${c.ok ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`,
+                background: c.ok ? (isDark ? alpha(C.green,"22") : "#DCFCE7") : (isDark ? alpha(C.red,"22") : "#FEE2E2"),
+                color:       c.ok ? (isDark ? C.green : "#166534")        : (isDark ? C.red  : "#991B1B"),
+                border:     `1px solid ${c.ok ? (isDark ? alpha(C.green,"55") : "#BBF7D0") : (isDark ? alpha(C.red,"55") : "#FECACA")}`,
               }}>
                 {c.ok ? "✓" : "✗"} {c.label}
               </span>
@@ -864,8 +925,8 @@ const RoleBadge = memo(function RoleBadge({ code }) {
   const m = ROLE_META[code];
   if (!m) return (
     <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20,
-      background: isDark ? `${C.gold}22` : "#fffbeb",
-      border: `1px solid ${isDark ? `${C.gold}55` : "#fde68a"}`,
+      background: isDark ? alpha(C.gold,"22") : "#FFF8E6",
+      border: `1px solid ${isDark ? alpha(C.gold,"55") : "#F4D48A"}`,
       color: C.gold, whiteSpace:"nowrap" }}>No Role</span>
   );
   return (
@@ -881,8 +942,8 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
   const { C } = useTheme();
   return (
     <div style={{ position:"relative", flexShrink:0, width:size, height:size }}>
-      {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}` }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="block"; }}/> : null}
-      <img src={logo} alt="logo" style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:avatarUrl ? "none" : "block", border:`1.5px solid ${C.gray200}` }}/>
+      {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="block"; }}/> : null}
+      <img src={logo} alt="logo" style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:avatarUrl ? "none" : "block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}/>
       <div style={{ position:"absolute", bottom:-1, right:-1, width:9, height:9, borderRadius:"50%", border:`2px solid ${C.white}`, background:isActive ? C.green : C.gray200 }}/>
     </div>
   );
@@ -891,8 +952,8 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
 const StatCard = memo(function StatCard({ label, value, color, icon }) {
   const { C } = useTheme();
   return (
-    <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"10px 12px", display:"flex", alignItems:"center", gap:10, flex:1, minWidth:90 }}>
-      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:`${color}18`, border:`1px solid ${color}28`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15 }}>{icon}</div>
+    <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"10px 12px", display:"flex", alignItems:"center", gap:10, flex:1, minWidth:90, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:alpha(color,"18"), border:`1px solid ${alpha(color,"28")}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15 }}>{icon}</div>
       <div>
         <div style={{ fontSize:18, fontWeight:800, color:C.text, lineHeight:1 }}>{value}</div>
         <div style={{ fontSize:10, color:C.gray400, marginTop:2 }}>{label}</div>
@@ -906,15 +967,11 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
   const { C, isDark } = useTheme();
   const hasCds      = !!user.cds_number;
   const extraCount  = (user.cds_count && user.cds_count > 1) ? user.cds_count - 1 : 0;
-  const inactiveBorder = isDark ? `${C.red}55` : "#fecaca";
-
-  // shared label style
+  const inactiveBorder = isDark ? alpha(C.red,"55") : "#FECACA";
   const LBL = { fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", color:C.gray400, marginBottom:2 };
 
   return (
-    <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:12, padding:"12px 14px", marginBottom:8, opacity:user.is_active ? 1 : 0.75 }}>
-
-      {/* ── Row 1: Avatar + name + badges ── */}
+    <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:14, padding:"12px 14px", marginBottom:8, opacity:user.is_active ? 1 : 0.82, boxShadow:"0 1px 5px rgba(0,0,0,0.05)" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
         <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={38}/>
         <div style={{ flex:1, minWidth:0 }}>
@@ -922,7 +979,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
             {user.full_name || "New User"}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
-            <span style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`, color:user.is_active ? C.green : C.red }}>
+            <span style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? alpha(C.green,"55") : "#BBF7D0") : (isDark ? alpha(C.red,"55") : "#FECACA")}`, color:user.is_active ? C.green : C.red }}>
               {user.is_active ? "Active" : "Inactive"}
             </span>
             <RoleBadge code={user.role_code}/>
@@ -930,14 +987,13 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      {/* ── Row 2: CDS (left, tappable) + Phone (right) ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:6 }}>
         <div
           onClick={() => onManageCDS(user)}
           style={{
-            background: hasCds ? (isDark ? `${C.navy}22` : "#EEF4FB") : C.gray50,
-            border: `1px solid ${hasCds ? (isDark ? `${C.navy}55` : "#B5D4F4") : C.gray200}`,
-            borderRadius:9, padding:"7px 10px", cursor:"pointer",
+            background: hasCds ? (isDark ? alpha(C.navy,"22") : "#F3F8FE") : C.gray50,
+            border: `1px solid ${hasCds ? (isDark ? alpha(C.navy,"55") : "#C8DCF5") : C.gray200}`,
+            borderRadius:10, padding:"8px 10px", cursor:"pointer",
           }}
         >
           <div style={{ ...LBL, color: hasCds ? (isDark ? "#93C5FD" : "#185FA5") : C.gray400 }}>CDS</div>
@@ -959,7 +1015,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
           </div>
         </div>
 
-        <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:9, padding:"7px 10px" }}>
+        <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:10, padding:"8px 10px" }}>
           <div style={LBL}>Phone</div>
           <div style={{ fontSize:12, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             {user.phone || <span style={{ color:C.gray400, fontWeight:400, fontStyle:"italic" }}>—</span>}
@@ -967,8 +1023,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      {/* ── Row 3: Email full width ── */}
-      <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:9, padding:"7px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
+      <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:10, padding:"8px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
         <span style={{ fontSize:13, flexShrink:0 }}>✉️</span>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={LBL}>Email</div>
@@ -978,12 +1033,11 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      {/* ── Row 4: Change Role + Deactivate/Activate ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
         <button
           onClick={() => onChangeRole(user)}
-          style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; e.currentTarget.style.background=`${C.green}10`; }}
+          style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 1px 3px rgba(0,0,0,0.03)" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; e.currentTarget.style.background=alpha(C.green,"10"); }}
           onMouseLeave={e => { e.currentTarget.style.borderColor=C.gray200; e.currentTarget.style.color=C.text; e.currentTarget.style.background=C.white; }}>
           <span style={{ fontSize:14 }}>✏️</span> Change Role
         </button>
@@ -991,8 +1045,8 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         {user.role_code ? (
           <button
             onClick={() => onToggleStatus(user)}
-            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
-            onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
+            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? alpha(C.red,"55") : "#FECACA") : (isDark ? alpha(C.green,"55") : "#BBF7D0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+            onMouseEnter={e => e.currentTarget.style.opacity="0.8"}
             onMouseLeave={e => e.currentTarget.style.opacity="1"}>
             <span style={{ fontSize:14 }}>{user.is_active ? "🚫" : "✅"}</span>
             {user.is_active ? "Deactivate" : "Activate"}
@@ -1003,7 +1057,6 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
           </div>
         )}
       </div>
-
     </div>
   );
 });
@@ -1014,22 +1067,16 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
 export default function UserManagementPage({ role, showToast, profile }) {
   const { C, isDark } = useTheme();
 
-  // FIX C: memoize style objects that depend on C — previously recreated
-  // as fresh object literals on every render. useMemo([C]) ensures they
-  // only rebuild when the theme changes (light ↔ dark switch).
   const SEARCH_INPUT_STYLE = useMemo(() => inp(C, { paddingLeft: 28 }), [C]);
   const SELECT_STYLE       = useMemo(() => ({ ...inp(C), width: "auto", cursor: "pointer" }), [C]);
   const INVITE_BTN_STYLE   = useMemo(() => ({
     display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
-    borderRadius: 9, border: "none", background: C.green, color: "#ffffff",
+    borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${C.green}, ${C.greenLight || C.green})`, color: "#ffffff",
     fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-    boxShadow: `0 2px 10px ${C.green}44`, whiteSpace: "nowrap",
+    boxShadow: `0 4px 12px ${alpha(C.green,"33")}`, whiteSpace: "nowrap",
   }), [C]);
 
-  const theadBg = useMemo(
-    () => isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`,
-    [isDark, C]
-  );
+  const theadBg = useMemo(() => C.gray50, [C]);
 
   const [users, setUsers]                   = useState([]);
   const [roles, setRoles]                   = useState([]);
@@ -1052,8 +1099,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
   const isMobile     = useIsMobile();
   const isMountedRef = useRef(true);
   const loadReqRef   = useRef(0);
-  // FIX E: request ID guard for loadCallerCds — consistent with every
-  // other data-loading function in the app.
   const cdsLoadRef   = useRef(0);
   const isAllowed    = ["SA","AD"].includes(role);
 
@@ -1096,8 +1141,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   const loadCallerCds = useCallback(async () => {
     if (!isAllowed || !profile?.id) return;
-    // FIX E: stamp the request so a superseded call (e.g. profile.id
-    // changes during a CDS switch) cannot overwrite fresh scope data.
     const reqId = ++cdsLoadRef.current;
     try {
       const list = await sbGetUserCDS(profile.id);
@@ -1116,14 +1159,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
       }
     } catch {
       if (!isMountedRef.current || reqId !== cdsLoadRef.current) return;
-      // FIX B: always mark scope as ready even on failure — previously
-      // adScopeReady stayed false permanently if this threw, leaving AD
-      // users with a blank table and no error message and no way to
-      // recover without refreshing the whole page.
       if (role === "AD") setAdScopeUserIds(new Set());
     } finally {
-      // FIX B: set adScopeReady in finally so it runs regardless of
-      // success or failure, and respects the request ID guard.
       if (isMountedRef.current && reqId === cdsLoadRef.current) setAdScopeReady(true);
     }
   }, [isAllowed, profile?.id, role]);
@@ -1249,7 +1286,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
   if (error) {
     return (
-      <div style={{ background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#fecaca"}`, color:C.red, borderRadius:12, padding:14, fontSize:12 }}>
+      <div style={{ background:C.redBg, border:`1px solid ${isDark ? alpha(C.red,"55") : "#FECACA"}`, color:C.red, borderRadius:12, padding:14, fontSize:12 }}>
         ⚠️ {error}
       </div>
     );
@@ -1275,11 +1312,10 @@ export default function UserManagementPage({ role, showToast, profile }) {
         select option { font-weight: 500; }
       `}</style>
 
-      {/* Pull-to-refresh indicator */}
       {isMobile && (
         <div style={{ position:"absolute", top:0, left:0, right:0, height:0, pointerEvents:"none", zIndex:3 }}>
           <div style={{ position:"absolute", left:"50%", top:0, transform:`translate(-50%, ${Math.max(8, pullDistance - 34)}px)`, opacity: refreshing || pullDistance > 6 ? 1 : 0, transition: refreshing ? "none" : "transform 0.12s ease, opacity 0.12s ease", background: C.white, border: `1.5px solid ${pullReady || refreshing ? C.green : C.gray200}`, borderRadius: 999, padding:"7px 12px", boxShadow:"0 8px 24px rgba(0,0,0,0.08)", display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ width:14, height:14, borderRadius:"50%", border: `2px solid ${refreshing ? `${C.green}33` : C.gray200}`, borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`, animation: refreshing ? "spin 0.8s linear infinite" : "none", transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`, transition:"transform 0.12s ease, border-color 0.12s ease", flexShrink:0 }}/>
+            <div style={{ width:14, height:14, borderRadius:"50%", border: `2px solid ${refreshing ? alpha(C.green,"33") : C.gray200}`, borderTop: `2px solid ${pullReady || refreshing ? C.green : C.gray400}`, animation: refreshing ? "spin 0.8s linear infinite" : "none", transform: refreshing ? "none" : `rotate(${Math.min(180, pullDistance * 3)}deg)`, transition:"transform 0.12s ease, border-color 0.12s ease", flexShrink:0 }}/>
             <span style={{ fontSize:11, fontWeight:700, color: refreshing ? C.green : (pullReady ? C.text : C.gray500), whiteSpace:"nowrap" }}>
               {refreshing ? "Refreshing..." : pullReady ? "Release to refresh" : "Pull to refresh"}
             </span>
@@ -1287,10 +1323,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
         </div>
       )}
 
-      {/* Transform wrapper */}
       <div style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
 
-        {/* ══════════ MOBILE LAYOUT ══════════ */}
         {isMobile && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
@@ -1303,19 +1337,19 @@ export default function UserManagementPage({ role, showToast, profile }) {
               <div style={{ flex:1, position:"relative" }}>
                 <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
                 <input placeholder="Search name, CDS, role, status..." value={search} onChange={e => setSearch(e.target.value)} {...MOBILE_INPUT_ATTRS}
-                  style={{ width:"100%", height:40, borderRadius:9, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, paddingLeft:28, fontSize:13, outline:"none", boxSizing:"border-box" }}
+                  style={{ width:"100%", height:40, borderRadius:9, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, paddingLeft:28, fontSize:13, outline:"none", boxSizing:"border-box", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}
                   onFocus={focusGreen(C)} onBlur={blurGray(C)}
                 />
               </div>
               <button onClick={handleOpenInvite}
-                style={{ height:40, padding:"0 14px", borderRadius:9, border:"none", background:C.green, color:"#ffffff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:`0 2px 10px ${C.green}44`, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}>
+                style={{ height:40, padding:"0 14px", borderRadius:9, border:"none", background:`linear-gradient(135deg, ${C.green}, ${C.greenLight || C.green})`, color:"#ffffff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:`0 4px 12px ${alpha(C.green,"33")}`, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}>
                 + Invite
               </button>
             </div>
 
             <div style={{ fontSize:11, color:C.gray400, marginBottom:8, fontWeight:600 }}>
               {filtered.length} of {stats.total} user{stats.total!==1?"s":""}
-              {search && <button onClick={() => setSearch("")} style={{ marginLeft:10, fontSize:11, color:isDark ? C.gray500 : C.navy, fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Clear</button>}
+              {search && <button onClick={() => setSearch("")} style={{ marginLeft:10, fontSize:11, color:C.navy, fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Clear</button>}
             </div>
 
             {filtered.length === 0 ? (
@@ -1331,7 +1365,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
           </div>
         )}
 
-        {/* ══════════ DESKTOP LAYOUT ══════════ */}
         {!isMobile && (
           <>
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
@@ -1340,7 +1373,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
               <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon="⚠️"/>
               <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon="🔑"/>
               <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0}        color="#1D4ED8"  icon="✏️"/>
-              <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0}        color="#065F46"  icon="✔️"/>
+              <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0}        color="#0F7A4A"  icon="✔️"/>
             </div>
 
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, alignItems:"center", flexWrap:"wrap" }}>
@@ -1358,13 +1391,13 @@ export default function UserManagementPage({ role, showToast, profile }) {
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
-              <span style={{ fontSize:11, color:C.gray400, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:8, padding:"5px 10px", whiteSpace:"nowrap" }}>{filtered.length}/{stats.total}</span>
+              <span style={{ fontSize:11, color:C.gray400, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:8, padding:"5px 10px", whiteSpace:"nowrap", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>{filtered.length}/{stats.total}</span>
               <button onClick={handleOpenInvite} style={INVITE_BTN_STYLE} onMouseEnter={e=>e.currentTarget.style.opacity="0.9"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>+ Invite User</button>
             </div>
 
-            <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0 }}>
+            <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-                <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"8px 14px", minWidth:940, borderBottom:`2px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
+                <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`1px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
                   {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
                     <div key={i} style={{ fontSize:9, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
                   ))}
@@ -1377,7 +1410,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                     </div>
                   ) : filtered.map((user,idx)=>(
                     <div key={user.id}
-                      style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.5 }}
+                      style={{ display:"grid", gridTemplateColumns:GRID, padding:"10px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.62 }}
                       onMouseEnter={e=>e.currentTarget.style.background=C.gray50}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}
                     >
@@ -1387,7 +1420,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                         <div style={{ minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                             <span style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.full_name||"New User"}</span>
-                            <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, flexShrink:0, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? `${C.green}55` : "#bbf7d0") : (isDark ? `${C.red}55` : "#fecaca")}`, color:user.is_active ? C.green : C.red }}>{user.is_active?"Active":"Inactive"}</span>
+                            <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:20, flexShrink:0, background:user.is_active ? C.greenBg : C.redBg, border:`1px solid ${user.is_active ? (isDark ? alpha(C.green,"55") : "#BBF7D0") : (isDark ? alpha(C.red,"55") : "#FECACA")}`, color:user.is_active ? C.green : C.red }}>{user.is_active?"Active":"Inactive"}</span>
                           </div>
                         </div>
                       </div>
@@ -1408,23 +1441,23 @@ export default function UserManagementPage({ role, showToast, profile }) {
                       <div style={{ fontSize:10, color:C.gray400 }}>{user.assigned_at?new Date(user.assigned_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}):"—"}</div>
                       <div style={{ display:"flex", gap:4 }}>
                         <button onClick={() => setChangeRoleUser(user)}
-                          style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
-                          onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;e.currentTarget.style.background=`${C.green}10`;}}
+                          style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36, boxShadow:"0 1px 3px rgba(0,0,0,0.03)" }}
+                          onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;e.currentTarget.style.background=alpha(C.green,"10");}}
                           onMouseLeave={e=>{e.currentTarget.style.borderColor=C.gray200;e.currentTarget.style.color=C.text;e.currentTarget.style.background=C.white;}}>
                           <span style={{ fontSize:13 }}>✏️</span>
                           <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>Role</span>
                         </button>
                         <button onClick={() => setManageCdsUser(user)}
-                          style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${isDark ? `${C.navy}60` : `${C.navy}40`}`, background:isDark ? `${C.navy}20` : C.navy+"0d", color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
+                          style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${isDark ? alpha(C.navy,"60") : alpha(C.navy,"40")}`, background:isDark ? alpha(C.navy,"20") : alpha(C.navy,"0d"), color:isDark ? "#93C5FD" : C.navy, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                           onMouseEnter={e=>{e.currentTarget.style.background=C.navy;e.currentTarget.style.color="#ffffff";e.currentTarget.style.borderColor=C.navy;}}
-                          onMouseLeave={e=>{e.currentTarget.style.background=isDark?`${C.navy}20`:C.navy+"0d";e.currentTarget.style.color=isDark?"#93C5FD":C.navy;e.currentTarget.style.borderColor=isDark?`${C.navy}60`:`${C.navy}40`;}}>
+                          onMouseLeave={e=>{e.currentTarget.style.background=isDark?alpha(C.navy,"20"):alpha(C.navy,"0d");e.currentTarget.style.color=isDark?"#93C5FD":C.navy;e.currentTarget.style.borderColor=isDark?alpha(C.navy,"60"):alpha(C.navy,"40");}}>
                           <span style={{ fontSize:13 }}>🏦</span>
                           <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>CDS</span>
                         </button>
                         {user.role_code && (
                           <button onClick={() => setToggleUser(user)}
-                            style={{ padding:"4px 7px", borderRadius:7, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#fecaca") : (isDark ? `${C.green}55` : "#bbf7d0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
-                            onMouseEnter={e=>e.currentTarget.style.opacity="0.75"}
+                            style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${user.is_active ? (isDark ? alpha(C.red,"55") : "#FECACA") : (isDark ? alpha(C.green,"55") : "#BBF7D0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
+                            onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
                             onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
                             <span style={{ fontSize:13 }}>{user.is_active ? "🚫" : "✅"}</span>
                             <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>{user.is_active ? "Off" : "On"}</span>
@@ -1441,7 +1474,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
       </div>
 
-      {/* Modals */}
       {inviteOpen && <InviteModal roles={roles} callerRole={role} callerCdsList={callerCdsList} onClose={handleCloseInvite} onSuccess={() => { loadData(); loadCallerCds(); }} showToast={showToast}/>}
       {changeRoleUser && <ChangeRoleModal user={changeRoleUser} roles={roles} callerRole={role} onClose={handleCloseChangeRole} onSave={async (uid, rid) => { await handleAssignRole(uid, rid); if (isMountedRef.current) setChangeRoleUser(null); }} showToast={showToast}/>}
       {toggleUser && <ToggleStatusModal user={toggleUser} onClose={handleCloseToggle} onConfirm={handleToggleActive} showToast={showToast}/>}
