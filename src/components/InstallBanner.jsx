@@ -12,21 +12,62 @@ function isStandalone() {
   );
 }
 
+function getUA() {
+  if (typeof window === "undefined") return "";
+  return window.navigator.userAgent.toLowerCase();
+}
+
 function isAndroid() {
-  if (typeof window === "undefined") return false;
-  return /android/i.test(window.navigator.userAgent);
+  return /android/i.test(getUA());
 }
 
 function isIos() {
-  if (typeof window === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  return /iphone|ipad|ipod/i.test(getUA());
 }
 
 function isSafari() {
-  if (typeof window === "undefined") return false;
-
-  const ua = window.navigator.userAgent.toLowerCase();
+  const ua = getUA();
   return ua.includes("safari") && !ua.includes("chrome") && !ua.includes("android");
+}
+
+function isSamsungInternet() {
+  return getUA().includes("samsungbrowser");
+}
+
+function isFirefoxAndroid() {
+  const ua = getUA();
+  return ua.includes("android") && ua.includes("firefox");
+}
+
+function isOperaAndroid() {
+  const ua = getUA();
+  return ua.includes("android") && ua.includes("opr");
+}
+
+function isEdgeAndroid() {
+  const ua = getUA();
+  return ua.includes("android") && ua.includes("edg");
+}
+
+function isChromeAndroid() {
+  const ua = getUA();
+  return (
+    ua.includes("android") &&
+    ua.includes("chrome") &&
+    !ua.includes("edg") &&
+    !ua.includes("opr") &&
+    !ua.includes("samsungbrowser") &&
+    !ua.includes("firefox")
+  );
+}
+
+function getAndroidBrowserLabel() {
+  if (isSamsungInternet()) return "Samsung Internet";
+  if (isFirefoxAndroid()) return "Firefox";
+  if (isOperaAndroid()) return "Opera";
+  if (isEdgeAndroid()) return "Edge";
+  if (isChromeAndroid()) return "Chrome";
+  return "your browser";
 }
 
 function getDismissedRecently() {
@@ -191,16 +232,23 @@ export default function InstallBanner() {
     if (showIosHint) {
       return {
         title: "Install this app",
-        text: 'Install Investors Portal on your device for quicker access.',
+        text: "Install Investors Portal on your device for quicker access.",
         mode: "ios",
       };
     }
 
     if (showAndroidHint) {
+      const browserLabel = getAndroidBrowserLabel();
+      const browserText =
+        browserLabel === "Chrome"
+          ? "Install Investors Portal on your Android device for faster access and a full-screen app experience."
+          : `Install Investors Portal from ${browserLabel} for faster access and a more app-like experience.`;
+
       return {
         title: "Install this app",
-        text: "Install Investors Portal on your Android device for faster access and a full-screen app experience.",
+        text: browserText,
         mode: "android",
+        browserLabel,
       };
     }
 
@@ -293,6 +341,56 @@ export default function InstallBanner() {
 
   if (installed || dismissed || !variant) return null;
 
+  const androidInstructions = (() => {
+    const browserLabel = getAndroidBrowserLabel();
+
+    if (browserLabel === "Chrome") {
+      return [
+        'Tap the browser menu icon `⋮` in the top-right corner.',
+        'Tap `Install app` or `Add to Home screen`.',
+        "Confirm the install when the browser asks.",
+      ];
+    }
+
+    if (browserLabel === "Samsung Internet") {
+      return [
+        "Open the browser menu.",
+        'Look for `Add page to`, `Add to Home screen`, or an install option.',
+        "Confirm the action if the browser asks.",
+      ];
+    }
+
+    if (browserLabel === "Firefox") {
+      return [
+        "Open the browser menu.",
+        'Look for `Install`, `Add to Home screen`, or a similar shortcut option.',
+        "Confirm the action if prompted.",
+      ];
+    }
+
+    if (browserLabel === "Edge") {
+      return [
+        "Open the browser menu.",
+        'Look for `Install this site as an app` or `Add to phone`.',
+        "Confirm the install if prompted.",
+      ];
+    }
+
+    if (browserLabel === "Opera") {
+      return [
+        "Open the browser menu.",
+        'Look for `Add to Home screen` or an install option.',
+        "Confirm the action if prompted.",
+      ];
+    }
+
+    return [
+      "Open your browser menu.",
+      'Look for `Install app`, `Install`, or `Add to Home screen`.',
+      "Confirm the action if prompted.",
+    ];
+  })();
+
   return (
     <div
       role="status"
@@ -337,10 +435,14 @@ export default function InstallBanner() {
 
         {showHowToInstall && variant.mode === "android" && (
           <div style={{ ...baseStyles.helperPanel, ...theme.helperPanel }}>
-            <div style={baseStyles.helperTitle}>Install on Android Chrome</div>
-            <div style={baseStyles.helperStep}>1. Tap the Chrome menu icon `⋮` in the top-right corner.</div>
-            <div style={baseStyles.helperStep}>2. Tap `Install app` or `Add to Home screen`.</div>
-            <div style={baseStyles.helperStep}>3. Confirm the install when Chrome asks.</div>
+            <div style={baseStyles.helperTitle}>
+              Install from {getAndroidBrowserLabel()}
+            </div>
+            {androidInstructions.map((step, index) => (
+              <div key={index} style={baseStyles.helperStep}>
+                {index + 1}. {step}
+              </div>
+            ))}
           </div>
         )}
 
