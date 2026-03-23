@@ -632,12 +632,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         <style>{`@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
         {/* Header */}
-        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)`, padding: isMobile ? "18px 20px 14px" : "16px 22px", borderRadius: isMobile ? "18px 18px 0 0" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: isMobile ? "18px 20px 14px" : "16px 22px", borderRadius: isMobile ? "18px 18px 0 0" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
             <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
           </div>
-          <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 36, height: 36, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#ffffff", width: 40, height: 40, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
 
         {/* Body */}
@@ -648,7 +648,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
               <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
@@ -656,7 +656,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <div style={{ fontSize: 14, color: C.gray400 }}>→</div>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
-              <div style={{ fontWeight: 800, color: isDark ? "#93C5FD" : C.navy, marginTop: 2 }}>{switchTarget.cds_number}</div>
+              <div style={{ fontWeight: 800, color: C.green, marginTop: 2 }}>{switchTarget.cds_number}</div>
             </div>
           </div>
         </div>
@@ -666,7 +666,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
           <button onClick={() => !switching && setSwitchTarget(null)} disabled={switching}
             style={{ flex: 1, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
           <button onClick={handleSwitchCDS} disabled={switching}
-            style={{ flex: 2, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.navy, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            style={{ flex: 2, padding: isMobile ? "13px" : "10px", borderRadius: 10, border: "none", background: switching ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: switching ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
             {switching ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Switching...</> : "Yes, Switch Account"}
           </button>
         </div>
