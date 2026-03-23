@@ -393,8 +393,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [showAvatarSheet, setShowAvatarSheet] = useState(false);
 
   const fileRef        = useRef();
-  const cameraBackRef  = useRef();
-  const cameraFrontRef = useRef();
+  const cameraRef      = useRef();
   const rootRef        = useRef(null);
   const touchStartYRef = useRef(null);
   const pullingRef     = useRef(false);
@@ -557,9 +556,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
           <div onClick={handleAvatarClick} style={{ position: "absolute", bottom: 1, right: 1, width: mobileMode ? 24 : 20, height: mobileMode ? 24 : 20, borderRadius: "50%", background: C.green, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: mobileMode ? 11 : 9 }}>📷</div>
           {/* Gallery picker — desktop + mobile gallery option */}
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileSelect} />
-          {/* Camera inputs — mobile only, rendered always so refs are stable */}
-          <input ref={cameraBackRef}  type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileSelect} />
-          <input ref={cameraFrontRef} type="file" accept="image/*" capture="user"        style={{ display: "none" }} onChange={handleFileSelect} />
+          {/* Camera input — lets the OS open the camera; user flips within native UI */}
+          <input ref={cameraRef} type="file" accept="image/*" capture style={{ display: "none" }} onChange={handleFileSelect} />
         </div>
       </div>
     );
@@ -634,9 +632,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         {/* Options */}
         <div style={{ padding: "12px 16px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
           {[
-            { label: "Choose from Gallery",  icon: "🖼️",  ref: fileRef,        desc: "Pick an existing photo" },
-            { label: "Back Camera",          icon: "📷",  ref: cameraBackRef,  desc: "Take a photo with rear camera" },
-            { label: "Front Camera (Selfie)",icon: "🤳",  ref: cameraFrontRef, desc: "Take a selfie with front camera" },
+            { label: "Choose from Gallery", icon: "🖼️", ref: fileRef,    desc: "Pick an existing photo" },
+            { label: "Take a Photo",        icon: "📷", ref: cameraRef,  desc: "Use your phone camera" },
           ].map(({ label, icon, ref, desc }) => (
             <button
               key={label}
