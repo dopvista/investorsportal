@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { useTheme } from "../components/ui";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
+import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint hook ─────────────────────────────────────────
 const useIsMobile = () => {
@@ -901,8 +902,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               {cdsUsers.map((u, i) => (
                 <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: i < cdsUsers.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#ffffff" }}>
-                      {u._initials}
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", border: `1.5px solid ${C.gray200}` }}>
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt={u.full_name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }} />
+                      ) : null}
+                      <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: u.avatar_url ? "none" : "block" }} />
                     </div>
                     <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: u._isActive ? C.green : C.gray400 }} />
                   </div>
@@ -1339,21 +1343,15 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <Td bold>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
                                   <div style={{ position: "relative", flexShrink: 0, width: 30, height: 30 }}>
-                                    {u.avatar_url && (
-                                      <img
-                                        src={u.avatar_url} alt={u.full_name || "User"}
-                                        style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", display: "block", border: `1.5px solid ${C.gray200}` }}
-                                        onError={(e) => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
-                                      />
-                                    )}
-                                    <div style={{
-                                      width: 30, height: 30, borderRadius: 8,
-                                      background: `linear-gradient(135deg, ${u._avatarColor}, ${u._avatarColor}99)`,
-                                      display: u.avatar_url ? "none" : "flex",
-                                      alignItems: "center", justifyContent: "center",
-                                      fontSize: 11, fontWeight: 800, color: "#ffffff",
-                                    }}>
-                                      {u._initials}
+                                    <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", border: `1.5px solid ${C.gray200}` }}>
+                                      {u.avatar_url ? (
+                                        <img
+                                          src={u.avatar_url} alt={u.full_name || "User"}
+                                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                          onError={(e) => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }}
+                                        />
+                                      ) : null}
+                                      <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: u.avatar_url ? "none" : "block" }} />
                                     </div>
                                     <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", border: `2px solid ${C.white}`, background: u._isActive ? C.green : C.gray400 }} />
                                   </div>
