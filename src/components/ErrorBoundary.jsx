@@ -1,132 +1,212 @@
 import React from "react";
 
-// Detect stale-chunk / failed dynamic import errors.
-// These happen when a new deploy invalidates old cached JS chunks on
-// an installed PWA. The right action is always a reload — not a crash report.
-const isChunkError = (error) => {
-  const msg = error?.message || "";
+// Detect stale chunk / dynamic import failures after a deploy.
+// These are usually fixed by loading a fresh copy of the app.
+const CHUNK_ERROR_PATTERNS = [
+  "failed to fetch dynamically imported module",
+  "error loading dynamically imported module",
+  "importing a module script failed",
+  "loading chunk",
+  "loading css chunk",
+  "chunkloaderror",
+];
+
+function isChunkError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const name = String(error?.name || "").toLowerCase();
+
   return (
-    msg.toLowerCase().includes("failed to fetch dynamically imported module") ||
-    msg.toLowerCase().includes("error loading dynamically imported module") ||
-    msg.toLowerCase().includes("importing a module script failed") ||
-    msg.toLowerCase().includes("loading chunk") ||
-    msg.toLowerCase().includes("loading css chunk")
+    CHUNK_ERROR_PATTERNS.some((pattern) => message.includes(pattern)) ||
+    CHUNK_ERROR_PATTERNS.some((pattern) => name.includes(pattern))
   );
-};
+}
+
+function getErrorDetails(error) {
+  const updateError = isChunkError(error);
+
+  if (updateError) {
+    return {
+      tone: "update",
+      icon: "↻",
+      heading: "A new version is available",
+      body: "This app has been updated. Reload to get the latest version and continue safely.",
+      buttonLabel: "Reload App",
+      buttonBackground: "#0f766e",
+      buttonShadow: "0 6px 18px rgba(15, 118, 110, 0.28)",
+      panelBorder: "rgba(15, 118, 110, 0.18)",
+      helpText: "This can happen when the app updates while an older version is still open.",
+    };
+  }
+
+  return {
+    tone: "error",
+    icon: "!",
+    heading: "Something went wrong",
+    body: "The app hit an unexpected problem. Reloading usually fixes it, and your saved data should still be intact.",
+    buttonLabel: "Reload App",
+    buttonBackground: "#b42318",
+    buttonShadow: "0 6px 18px rgba(180, 35, 24, 0.28)",
+    panelBorder: "rgba(180, 35, 24, 0.16)",
+    helpText: "If this keeps happening, the error details have been logged for debugging.",
+  };
+}
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = {
+      hasError: false,
+      error: null,
+    };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return {
+      hasError: true,
+      error,
+    };
   }
 
   componentDidCatch(error, errorInfo) {
-    // Keep the full technical detail in the console for developers
     console.error("App crashed:", error, errorInfo);
+
+    if (typeof this.props.onError === "function") {
+      try {
+        this.props.onError(error, errorInfo);
+      } catch (reportingError) {
+        console.error("ErrorBoundary onError handler failed:", reportingError);
+      }
+    }
   }
 
   handleReload = () => {
-    window.location.reload();
+    if (typeof window === "undefined") return;
+
+    // Using assign gives a clean navigation path that is often more reliable
+    // for stale deployed assets than a soft in-place reload alone.
+    window.location.assign(window.location.href);
   };
 
   render() {
-    if (!this.state.hasError) return this.props.children;
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
 
-    const isUpdate = isChunkError(this.state.error);
-
-    const icon      = isUpdate ? "🎉" : "⚠️";
-    const heading   = isUpdate ? "App updated!" : "Something went wrong";
-    const body      = isUpdate
-      ? "We've just released new features and improvements. Tap the button below to load the latest version."
-      : "The app ran into an unexpected problem. Reloading usually fixes it — your data is safe.";
-    const btnLabel  = isUpdate ? "Load New Version" : "Reload App";
-    const btnBg     = isUpdate ? "#00843D" : "#00843D";
+    const {
+      icon,
+      heading,
+      body,
+      buttonLabel,
+      buttonBackground,
+      buttonShadow,
+      panelBorder,
+      helpText,
+    } = getErrorDetails(this.state.error);
 
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          background:
-            "radial-gradient(ellipse at 60% 40%,#0c2548 0%,#0B1F3A 50%,#080f1e 100%)",
-          fontFamily: "'Inter',system-ui,sans-serif",
-        }}
-      >
+      <div style={styles.page}>
         <div
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
           style={{
-            width: "100%",
-            maxWidth: 480,
-            background: "#ffffff",
-            borderRadius: 18,
-            padding: 28,
-            boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
-            textAlign: "center",
+            ...styles.card,
+            border: `1px solid ${panelBorder}`,
           }}
         >
-          <div style={{ fontSize: 48, marginBottom: 12 }}>{icon}</div>
-
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#0B1F3A",
-              marginBottom: 10,
-            }}
-          >
-            {heading}
+          <div aria-hidden="true" style={styles.iconWrap}>
+            <div style={styles.icon}>{icon}</div>
           </div>
 
-          <div
-            style={{
-              fontSize: 14,
-              color: "#5b6472",
-              lineHeight: 1.7,
-              marginBottom: 24,
-            }}
-          >
-            {body}
-          </div>
+          <h1 style={styles.heading}>{heading}</h1>
+
+          <p style={styles.body}>{body}</p>
 
           <button
+            type="button"
             onClick={this.handleReload}
             style={{
-              border: "none",
-              background: btnBg,
-              color: "#ffffff",
-              fontWeight: 700,
-              fontSize: 15,
-              padding: "13px 28px",
-              borderRadius: 12,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              minWidth: 200,
-              boxShadow: "0 4px 14px rgba(0,132,61,0.35)",
+              ...styles.button,
+              background: buttonBackground,
+              boxShadow: buttonShadow,
             }}
           >
-            {btnLabel}
+            {buttonLabel}
           </button>
 
-          {/* Version hint — only for the update case, still friendly */}
-          {isUpdate && (
-            <div
-              style={{
-                marginTop: 16,
-                fontSize: 12,
-                color: "#9ca3af",
-              }}
-            >
-              This happens automatically when we ship improvements to the app.
-            </div>
-          )}
+          <p style={styles.helpText}>{helpText}</p>
         </div>
       </div>
     );
   }
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    background:
+      "radial-gradient(circle at top, #18345a 0%, #0b1f3a 45%, #08111f 100%)",
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 520,
+    background: "#ffffff",
+    borderRadius: 20,
+    padding: 32,
+    boxShadow: "0 22px 60px rgba(0, 0, 0, 0.28)",
+    textAlign: "center",
+  },
+  iconWrap: {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  icon: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#eef2f7",
+    color: "#0b1f3a",
+    fontSize: 28,
+    fontWeight: 800,
+    lineHeight: 1,
+  },
+  heading: {
+    margin: 0,
+    fontSize: 24,
+    lineHeight: 1.2,
+    fontWeight: 800,
+    color: "#0b1f3a",
+  },
+  body: {
+    margin: "12px 0 24px",
+    fontSize: 15,
+    lineHeight: 1.65,
+    color: "#4b5565",
+  },
+  button: {
+    border: "none",
+    color: "#ffffff",
+    fontWeight: 700,
+    fontSize: 15,
+    padding: "13px 24px",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    minWidth: 200,
+  },
+  helpText: {
+    margin: "16px 0 0",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "#7a8394",
+  },
+};
