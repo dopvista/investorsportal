@@ -1,22 +1,52 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-const DISMISS_KEY = "pwa-install-banner-dismissed";
+const DISMISS_KEY = "pwa-install-banner-dismissed-at";
+const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 
 function isStandalone() {
+  if (typeof window === "undefined") return false;
+
   return (
     window.matchMedia?.("(display-mode: standalone)")?.matches ||
     window.navigator.standalone === true
   );
 }
 
+function isAndroid() {
+  if (typeof window === "undefined") return false;
+  return /android/i.test(window.navigator.userAgent);
+}
+
 function isIos() {
-  const ua = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test(ua);
+  if (typeof window === "undefined") return false;
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
 function isSafari() {
+  if (typeof window === "undefined") return false;
+
   const ua = window.navigator.userAgent.toLowerCase();
   return ua.includes("safari") && !ua.includes("chrome") && !ua.includes("android");
+}
+
+function getDismissedRecently() {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+
+    const ts = Number(raw);
+    if (!Number.isFinite(ts)) return false;
+
+    return Date.now() - ts < DISMISS_COOLDOWN_MS;
+  } catch {
+    return false;
+  }
+}
+
+function storeDismissedNow() {
+  try {
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  } catch {}
 }
 
 const styles = {
@@ -89,28 +119,46 @@ export default function InstallBanner() {
   const [dismissed, setDismissed] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
+  const [showAndroidHint, setShowAndroidHint] = useState(false);
 
   useEffect(() => {
-    const wasDismissed = localStorage.getItem(DISMISS_KEY) === "true";
     const standalone = isStandalone();
+    const dismissedRecently = getDismissedRecently();
+    const ios = isIos();
+    const safari = isSafari();
+    const android = isAndroid();
 
-    setDismissed(wasDismissed);
     setInstalled(standalone);
+    setDismissed(dismissedRecently);
+    setShowIosHint(!standalone && ios && safari);
+    setShowAndroidHint(!standalone && android);
 
-    if (!standalone && isIos() && isSafari()) {
-      setShowIosHint(true);
-    }
+    console.log("[InstallBanner] init", {
+      standalone,
+      dismissedRecently,
+      ios,
+      safari,
+      android,
+      userAgent: window.navigator.userAgent,
+    });
 
     const handleBeforeInstallPrompt = (event) => {
+      console.log("[InstallBanner] beforeinstallprompt fired", event);
       event.preventDefault();
       setDeferredPrompt(event);
+      setShowAndroidHint(false);
     };
 
     const handleAppInstalled = () => {
+      console.log("[InstallBanner] appinstalled fired");
       setInstalled(true);
       setDeferredPrompt(null);
       setShowIosHint(false);
-      localStorage.removeItem(DISMISS_KEY);
+      setShowAndroidHint(false);
+
+      try {
+        localStorage.removeItem(DISMISS_KEY);
+      } catch {}
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -122,39 +170,74 @@ export default function InstallBanner() {
     };
   }, []);
 
+  const variant = useMemo(() => {
+    if (deferredPrompt) {
+      return {
+        title: "Install this app",
+        text: "Add Investors Portal to your device for faster access and a more app-like experience.",
+        actionLabel: "Install",
+        mode: "prompt",
+      };
+    }
+
+    if (showIosHint) {
+      return {
+        title: "Install this app",
+        text: 'On iPhone or iPad, tap Share and then "Add to Home Screen" to install this app.',
+        actionLabel: null,
+        mode: "ios",
+      };
+    }
+
+    if (showAndroidHint) {
+      return {
+        title: "Install this app",
+        text: 'If the install prompt does not appear automatically, open Chrome menu (⋮) and tap "Install app" or "Add to Home screen".',
+        actionLabel: null,
+        mode: "android",
+      };
+    }
+
+    return null;
+  }, [deferredPrompt, showIosHint, showAndroidHint]);
+
   const handleInstall = async () => {
     if (!deferredPrompt) return;
 
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    try {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      console.log("[InstallBanner] userChoice", choice);
+    } catch (error) {
+      console.log("[InstallBanner] prompt failed", error);
+    } finally {
+      setDeferredPrompt(null);
+      if (isAndroid() && !isStandalone()) {
+        setShowAndroidHint(true);
+      }
+    }
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, "true");
+    storeDismissedNow();
     setDismissed(true);
+    console.log("[InstallBanner] dismissed");
   };
 
-  if (installed || dismissed) return null;
-  if (!deferredPrompt && !showIosHint) return null;
-
-  const title = "Install this app";
-  const text = deferredPrompt
-    ? "Add Investors Portal to your device for faster access and a more app-like experience."
-    : 'On iPhone or iPad, tap Share and then "Add to Home Screen" to install this app.';
+  if (installed || dismissed || !variant) return null;
 
   return (
     <div role="status" aria-live="polite" style={styles.banner}>
       <div style={styles.content}>
         <div style={styles.message}>
-          <div style={styles.title}>{title}</div>
-          <div style={styles.text}>{text}</div>
+          <div style={styles.title}>{variant.title}</div>
+          <div style={styles.text}>{variant.text}</div>
         </div>
 
         <div style={styles.actions}>
-          {deferredPrompt && (
+          {variant.mode === "prompt" && (
             <button type="button" onClick={handleInstall} style={styles.primaryButton}>
-              Install
+              {variant.actionLabel}
             </button>
           )}
 
