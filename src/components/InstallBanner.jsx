@@ -49,13 +49,11 @@ function storeDismissedNow() {
   } catch {}
 }
 
-const styles = {
+const baseStyles = {
   banner: {
     position: "sticky",
     top: 0,
     zIndex: 1190,
-    background: "linear-gradient(135deg, #0b1f3a, #163564)",
-    color: "#ffffff",
     padding: "10px 14px",
     boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
   },
@@ -78,7 +76,6 @@ const styles = {
   },
   text: {
     fontSize: 12,
-    opacity: 0.92,
     lineHeight: 1.45,
     marginTop: 2,
   },
@@ -90,8 +87,6 @@ const styles = {
   },
   primaryButton: {
     border: "none",
-    background: "#D4AF37",
-    color: "#0B1F3A",
     fontWeight: 800,
     fontSize: 12,
     padding: "10px 14px",
@@ -101,9 +96,6 @@ const styles = {
     whiteSpace: "nowrap",
   },
   secondaryButton: {
-    border: "1px solid rgba(255,255,255,0.24)",
-    background: "transparent",
-    color: "#ffffff",
     fontWeight: 700,
     fontSize: 12,
     padding: "10px 14px",
@@ -120,6 +112,15 @@ export default function InstallBanner() {
   const [installed, setInstalled] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
   const [showAndroidHint, setShowAndroidHint] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const standalone = isStandalone();
@@ -133,24 +134,13 @@ export default function InstallBanner() {
     setShowIosHint(!standalone && ios && safari);
     setShowAndroidHint(!standalone && android);
 
-    console.log("[InstallBanner] init", {
-      standalone,
-      dismissedRecently,
-      ios,
-      safari,
-      android,
-      userAgent: window.navigator.userAgent,
-    });
-
     const handleBeforeInstallPrompt = (event) => {
-      console.log("[InstallBanner] beforeinstallprompt fired", event);
       event.preventDefault();
       setDeferredPrompt(event);
       setShowAndroidHint(false);
     };
 
     const handleAppInstalled = () => {
-      console.log("[InstallBanner] appinstalled fired");
       setInstalled(true);
       setDeferredPrompt(null);
       setShowIosHint(false);
@@ -201,15 +191,56 @@ export default function InstallBanner() {
     return null;
   }, [deferredPrompt, showIosHint, showAndroidHint]);
 
+  const theme = isMobileView
+    ? {
+        banner: {
+          background: "#FFF6BF",
+          color: "#5C4400",
+        },
+        title: {
+          color: "#5C4400",
+        },
+        text: {
+          color: "#6B5300",
+        },
+        primaryButton: {
+          background: "#D4AF37",
+          color: "#0B1F3A",
+        },
+        secondaryButton: {
+          background: "transparent",
+          color: "#5C4400",
+          border: "1px solid rgba(92,68,0,0.24)",
+        },
+      }
+    : {
+        banner: {
+          background: "linear-gradient(135deg, #0b1f3a, #163564)",
+          color: "#ffffff",
+        },
+        title: {
+          color: "#ffffff",
+        },
+        text: {
+          color: "rgba(255,255,255,0.92)",
+        },
+        primaryButton: {
+          background: "#D4AF37",
+          color: "#0B1F3A",
+        },
+        secondaryButton: {
+          background: "transparent",
+          color: "#ffffff",
+          border: "1px solid rgba(255,255,255,0.24)",
+        },
+      };
+
   const handleInstall = async () => {
     if (!deferredPrompt) return;
 
     try {
       deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      console.log("[InstallBanner] userChoice", choice);
-    } catch (error) {
-      console.log("[InstallBanner] prompt failed", error);
+      await deferredPrompt.userChoice;
     } finally {
       setDeferredPrompt(null);
       if (isAndroid() && !isStandalone()) {
@@ -221,27 +252,38 @@ export default function InstallBanner() {
   const handleDismiss = () => {
     storeDismissedNow();
     setDismissed(true);
-    console.log("[InstallBanner] dismissed");
   };
 
   if (installed || dismissed || !variant) return null;
 
   return (
-    <div role="status" aria-live="polite" style={styles.banner}>
-      <div style={styles.content}>
-        <div style={styles.message}>
-          <div style={styles.title}>{variant.title}</div>
-          <div style={styles.text}>{variant.text}</div>
+    <div
+      role="status"
+      aria-live="polite"
+      style={{ ...baseStyles.banner, ...theme.banner }}
+    >
+      <div style={baseStyles.content}>
+        <div style={baseStyles.message}>
+          <div style={{ ...baseStyles.title, ...theme.title }}>{variant.title}</div>
+          <div style={{ ...baseStyles.text, ...theme.text }}>{variant.text}</div>
         </div>
 
-        <div style={styles.actions}>
+        <div style={baseStyles.actions}>
           {variant.mode === "prompt" && (
-            <button type="button" onClick={handleInstall} style={styles.primaryButton}>
+            <button
+              type="button"
+              onClick={handleInstall}
+              style={{ ...baseStyles.primaryButton, ...theme.primaryButton }}
+            >
               {variant.actionLabel}
             </button>
           )}
 
-          <button type="button" onClick={handleDismiss} style={styles.secondaryButton}>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            style={{ ...baseStyles.secondaryButton, ...theme.secondaryButton }}
+          >
             Dismiss
           </button>
         </div>
