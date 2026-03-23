@@ -896,18 +896,14 @@ export default function App() {
                   src={activeProfile.avatar_url}
                   alt="avatar"
                   style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"; }}
+                  onError={e => { e.target.style.display = "none"; if (e.target.nextSibling) e.target.nextSibling.style.display = "block"; }}
                 />
               ) : null}
-              <div style={{
-                width: "100%", height: "100%",
-                background: `linear-gradient(135deg, ${C.navy}, #1e3a5f)`,
-                display: activeProfile?.avatar_url ? "none" : "flex",
-                alignItems: "center", justifyContent: "center",
-                fontSize: 13, fontWeight: 800, color: "#ffffff",
-              }}>
-                {(activeProfile?.full_name || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
-              </div>
+              <img
+                src={logo}
+                alt="logo"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: activeProfile?.avatar_url ? "none" : "block" }}
+              />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mobileHeaderTitle}</div>
