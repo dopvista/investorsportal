@@ -403,7 +403,6 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const uid             = session?.user?.id || profile?.id;
   const activeCdsNumber = activeCds?.cds_number || profile?.cds_number;
 
-  useEffect(() => () => { isMountedRef.current = false; }, []);
 
   // FIX B: depend on the whole `profile` object instead of 8 individual
   // field deps. Previously if a new column was added to the profiles table
@@ -429,7 +428,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } catch { if (!isMountedRef.current || reqId !== cdsCountReqRef.current) return; setCdsUserCount(1); }
   }, [activeCdsNumber, session?.access_token]);
 
-  useEffect(() => { fetchCdsUserCount(); }, [fetchCdsUserCount]);
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchCdsUserCount();
+    return () => { isMountedRef.current = false; };
+  }, [fetchCdsUserCount]);
 
   const getScrollParent = useCallback((el) => {
     let node = el?.parentElement;

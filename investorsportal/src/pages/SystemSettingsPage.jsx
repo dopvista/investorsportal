@@ -215,7 +215,6 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
   const [search,        setSearch]        = useState("");
 
   const isMounted = useRef(true);
-  useEffect(() => () => { isMounted.current = false; }, []);
 
   const loadBrokers = useCallback(async () => {
     if (isMounted.current) setLoading(true);
@@ -231,7 +230,11 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
     }
   }, [showToast]);
 
-  useEffect(() => { loadBrokers(); }, [loadBrokers]);
+  useEffect(() => {
+    isMounted.current = true;
+    loadBrokers();
+    return () => { isMounted.current = false; };
+  }, [loadBrokers]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -498,7 +501,6 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     return DEFAULT_SLIDES.map((s, i) => userDefaults?.[i] ? { ...userDefaults[i] } : { ...s });
   }, [settings.defaults]);
 
-  useEffect(() => () => { isMountedRef.current = false; }, []);
   useEffect(() => { try { localStorage.setItem(ACTIVE_MENU_KEY, activeMenu); } catch {} }, [activeMenu]);
   useEffect(() => { if (activeMenu !== "login_page") setActiveSlide(0); }, [activeMenu]);
 
@@ -521,7 +523,12 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     }
   }, [showToast]);
 
-  useEffect(() => { if (!isSA) return; loadSettings(); }, [isSA, loadSettings]);
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (!isSA) return;
+    loadSettings();
+    return () => { isMountedRef.current = false; };
+  }, [isSA, loadSettings]);
 
   const setSlideField = useCallback((idx, field, value) => {
     setSettings(prev => ({ ...prev, slides: prev.slides.map((s, i) => i === idx ? { ...s, [field]: value } : s) }));
