@@ -315,7 +315,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {view === "login" ? loginForm : resetForm}
       {!isMobile && (
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
-          <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Manage Your Investments Digitally</div>
+          <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             © 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
           </div>
@@ -337,7 +337,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
           {formPanel}
           <div style={{ marginTop: 22, textAlign: "center", opacity: 0.72 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontWeight: 500, letterSpacing: "0.01em" }}>Manage Your Investments Digitally</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontWeight: 500, letterSpacing: "0.01em" }}>Powered by Claude AI</div>
             <div style={{ marginTop: 5, fontSize: 10, color: "rgba(255,255,255,0.34)", fontWeight: 500, letterSpacing: "0.01em" }}>© 2026 Dopvista Creative Hub. All rights reserved.</div>
           </div>
         </div>
