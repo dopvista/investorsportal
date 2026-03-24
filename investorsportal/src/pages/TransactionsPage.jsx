@@ -850,7 +850,6 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [rejectModal,       setRejectModal]       = useState(null);
   const [detailModal,       setDetailModal]       = useState(null);
 
-  useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const effectiveCompanies = useMemo(
     () => (companies?.length ? companies : localCompanies),
@@ -917,6 +916,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   // from the supabase.js TTL cache on subsequent page visits (2 min TTL),
   // so only transactions always go to the network on first visit.
   useEffect(() => {
+    isMountedRef.current = true;
     const companiesNeeded = !companies?.length;
     Promise.all([
       loadTransactions(),
@@ -926,6 +926,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       loadBrokers(),
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { isMountedRef.current = false; };
   }, []); // intentionally run once on mount
 
   // When parent passes companies directly, skip local load
