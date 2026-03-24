@@ -1,7 +1,5 @@
 {
-  "buildCommand": "npm install && npm run build",
+  "buildCommand": "cd investorsportal && npm install && npm run build",
   "outputDirectory": "investorsportal/dist",
-  "installCommand": "cd investorsportal && npm install",
-  "framework": "vite",
-  "rootDirectory": "investorsportal"
+  "framework": null
 }
