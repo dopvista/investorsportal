@@ -48,6 +48,8 @@ export default defineConfig(({ mode }) => {
           orientation: "portrait",
           prefer_related_applications: false,
           scope: "/",
+          categories: ["finance", "business", "productivity"],
+          dir: "ltr",
           start_url: "/",
           icons: [
             {
@@ -69,6 +71,8 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
           cleanupOutdatedCaches: true,
           globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}"],
           navigateFallback: "/index.html",

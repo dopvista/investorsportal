@@ -49,6 +49,31 @@ function isEdgeAndroid() {
   return ua.includes("android") && ua.includes("edg");
 }
 
+function isDesktopChrome() {
+  const ua = getUA();
+  return !isAndroid() && !isIos() && ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr") && !ua.includes("samsungbrowser");
+}
+
+function isDesktopEdge() {
+  const ua = getUA();
+  return !isAndroid() && !isIos() && ua.includes("edg");
+}
+
+function isDesktopOpera() {
+  const ua = getUA();
+  return !isAndroid() && !isIos() && ua.includes("opr");
+}
+
+function isDesktopInstallSupported() {
+  return isDesktopChrome() || isDesktopEdge() || isDesktopOpera();
+}
+
+function getDesktopBrowserLabel() {
+  if (isDesktopEdge()) return "Edge";
+  if (isDesktopOpera()) return "Opera";
+  return "Chrome";
+}
+
 function isChromeAndroid() {
   const ua = getUA();
   return (
@@ -170,6 +195,7 @@ export default function InstallBanner() {
   const [showIosHint, setShowIosHint] = useState(false);
   const [showAndroidHint, setShowAndroidHint] = useState(false);
   const [showHowToInstall, setShowHowToInstall] = useState(false);
+  const [showDesktopHint, setShowDesktopHint] = useState(false);
   const [isMobileView, setIsMobileView] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
@@ -191,12 +217,14 @@ export default function InstallBanner() {
     setDismissed(dismissedRecently);
     setShowIosHint(!standalone && ios && safari);
     setShowAndroidHint(!standalone && android);
+    setShowDesktopHint(!standalone && !ios && !android && isDesktopInstallSupported());
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setDeferredPrompt(event);
       setShowAndroidHint(false);
       setShowHowToInstall(false);
+      setShowDesktopHint(false);
     };
 
     const handleAppInstalled = () => {
@@ -205,6 +233,7 @@ export default function InstallBanner() {
       setShowIosHint(false);
       setShowAndroidHint(false);
       setShowHowToInstall(false);
+      setShowDesktopHint(false);
 
       try {
         localStorage.removeItem(DISMISS_KEY);
@@ -252,8 +281,18 @@ export default function InstallBanner() {
       };
     }
 
+    if (showDesktopHint) {
+      const label = getDesktopBrowserLabel();
+      return {
+        title: "Install this app",
+        text: `Install Investors Portal on your computer for a dedicated app window and faster access.`,
+        mode: "desktop",
+        browserLabel: label,
+      };
+    }
+
     return null;
-  }, [deferredPrompt, showIosHint, showAndroidHint]);
+  }, [deferredPrompt, showIosHint, showAndroidHint, showDesktopHint]);
 
   const theme = isMobileView
     ? {
@@ -414,7 +453,7 @@ export default function InstallBanner() {
             </button>
           )}
 
-          {(variant.mode === "android" || variant.mode === "ios") && (
+          {(variant.mode === "android" || variant.mode === "ios" || variant.mode === "desktop") && (
             <button
               type="button"
               onClick={handleHowToInstall}
@@ -452,6 +491,20 @@ export default function InstallBanner() {
             <div style={baseStyles.helperStep}>1. Tap the `Share` button in Safari.</div>
             <div style={baseStyles.helperStep}>2. Scroll down and tap `Add to Home Screen`.</div>
             <div style={baseStyles.helperStep}>3. Tap `Add` to finish installing the app.</div>
+            <div style={{ ...baseStyles.helperStep, marginTop: 10, opacity: 0.75, fontSize: 11 }}>
+              Note: On iOS, push notifications and background data sync are not supported by Safari.
+            </div>
+          </div>
+        )}
+
+        {showHowToInstall && variant.mode === "desktop" && (
+          <div style={{ ...baseStyles.helperPanel, ...theme.helperPanel }}>
+            <div style={baseStyles.helperTitle}>
+              Install from {getDesktopBrowserLabel()}
+            </div>
+            <div style={baseStyles.helperStep}>1. Look for the install icon (⊕) in the address bar on the right side.</div>
+            <div style={baseStyles.helperStep}>2. Click it and select `Install`.</div>
+            <div style={baseStyles.helperStep}>3. The app will open in its own window — pin it to your taskbar for quick access.</div>
           </div>
         )}
       </div>

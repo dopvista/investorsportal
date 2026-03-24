@@ -67,7 +67,9 @@ export default function ConnectionBanner({
 
   const title = showOffline ? "You are offline" : "New version available";
   const text = showOffline
-    ? "Live data and saving may not work until your internet connection returns."
+    ? offline && updateAvailable
+      ? "Cached data is available to view. An update is also pending and will apply when you reconnect."
+      : "Cached data is available to view. Saving changes will resume when connection returns."
     : "Refresh now to get the latest app updates.";
 
   const handleRefresh = () => {
