@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      viewport-fit=cover — extends the layout viewport to the physical
+      screen edges, allowing content to render behind the camera cutout,
+      notch, and rounded corners. CSS env(safe-area-inset-*) variables
+      are then used to push interactive elements away from those zones.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Investors Portal</title>
+
+    <!--
+      Content Security Policy
+      ───────────────────────
+      Restricts what the browser is allowed to load and execute.
+      This is a defence-in-depth measure — your real security is
+      Supabase RLS + authenticated endpoints.
+
+      default-src 'self'
+        → everything defaults to same-origin only
+
+      script-src 'self' 'unsafe-inline'
+        → inline scripts are needed by Vite dev + React hydration.
+          In production, Vite injects hashed inline bootstrap code,
+          so 'unsafe-inline' is a pragmatic allowance here.
+          Remove it only if you adopt a strict nonce/hash strategy.
+
+      style-src 'self' 'unsafe-inline'
+        → inline styles are used extensively for component styling.
+
+      connect-src 'self' https://*.supabase.co
+        → restricts fetch/XHR/WebSocket to same-origin and Supabase.
+          Prevents exfiltration of data to unknown third-party servers.
+
+      img-src 'self' data: blob: https://*.supabase.co
+        → data: and blob: are needed for canvas exports and
+          image previews. Supabase storage for avatar/slide images.
+
+      frame-ancestors 'none'
+        → prevents this app from being embedded in an iframe
+          (clickjacking protection).
+
+      base-uri 'self'
+        → prevents <base> tag injection attacks.
+
+      form-action 'self'
+        → prevents form submissions to external URLs.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self' https://*.supabase.co;
+        img-src 'self' data: blob: https://*.supabase.co;
+        font-src 'self' data:;
+        frame-ancestors 'none';
+        base-uri 'self';
+        form-action 'self';
+      "
+    />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="theme-color" content="#0B1F3A" />
+    <!--
+      black-translucent — iOS PWA only.
+      Allows the app to paint its own content behind the iOS status bar
+      and camera notch area. Without this, iOS reserves a solid opaque
+      bar at the top regardless of viewport-fit=cover.
+      Works together with viewport-fit=cover and env(safe-area-inset-top).
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Investors Portal" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      /*
+        Safe area CSS variables
+        ───────────────────────
+        env(safe-area-inset-*) values come from the OS and describe the
+        zones occupied by the camera cutout, notch, rounded corners, and
+        home indicator. We expose them as custom properties so any
+        component can consume them without repeating the env() call.
+
+        On Android / desktop these all resolve to 0px — no visual change.
+        On iPhone with notch/Dynamic Island they are non-zero at the top.
+        On iPhone with home indicator the bottom inset is non-zero.
+        On foldables / landscape the left/right insets may be non-zero.
+      */
+      :root {
+        --sat: env(safe-area-inset-top,    0px);
+        --sar: env(safe-area-inset-right,  0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+        --sal: env(safe-area-inset-left,   0px);
+      }
+
+      /*
+        html, body — height only, no overflow:hidden.
+        When the virtual keyboard opens on iOS/Android the browser
+        resizes the viewport; overflow:hidden on root elements blocks
+        scrolling to content pushed under the keyboard.
+
+        #root — position:fixed + inset:0 fills the full physical screen
+        (including safe area zones) without fighting keyboard behaviour.
+        This is the standard pattern for full-screen PWA/SPA apps.
+      */
+      html, body {
+        height: 100%;
+        width: 100%;
+        background: #0B1F3A;
+      }
+
+      #root {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
