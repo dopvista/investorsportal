@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /e/PROJECTS/REPOS/InvestorsPortal/investorsportal -name .env* -o -name *.env)",
+      "Bash(npm run:*)",
+      "Bash(command -v node npm npx)",
+      "Bash(powershell.exe -Command \"cd 'E:\\\\PROJECTS\\\\REPOS\\\\InvestorsPortal\\\\investorsportal'; npm run dev\")",
+      "Bash(powershell.exe -Command \"Get-Command npm -ErrorAction SilentlyContinue; Get-Command node -ErrorAction SilentlyContinue; ls 'C:\\\\Program Files\\\\nodejs\\\\' -ErrorAction SilentlyContinue; ls $env:APPDATA\\\\npm -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd'' run dev\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd'' install\")",
+      "Bash(cmd.exe /d /s /c \"SET PATH=C:\\\\Program Files\\\\nodejs;%PATH% && cd /d E:\\\\PROJECTS\\\\REPOS\\\\InvestorsPortal\\\\investorsportal && npm install\")",
+      "Bash(cmd.exe /d /s /c 'SET \"PATH=C:\\\\Program Files\\\\nodejs;%PATH%\" && cd /d \"E:\\\\PROJECTS\\\\REPOS\\\\InvestorsPortal\\\\investorsportal\" && npm install')",
+      "Bash(cmd.exe /c \"E:\\\\PROJECTS\\\\REPOS\\\\InvestorsPortal\\\\run_dev.bat\")",
+      "Bash(cmd.exe /c E:PROJECTSREPOSInvestorsPortalrun_dev.bat)",
+      "Bash(cmd.exe /c \"echo test && dir E:\\\\\\\\PROJECTS\\\\\\\\REPOS\\\\\\\\InvestorsPortal\\\\\\\\investorsportal\\\\\\\\package.json\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" \"/c/Program Files/nodejs/node_modules/npm/bin/npm-cli.js\" run dev)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" node_modules/vite/bin/vite.js)",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "mcp__claude_ai_Supabase__list_tables"
+    ]
+  }
+}
