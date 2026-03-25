@@ -1,6 +1,7 @@
 // ── src/pages/LoginPage.jsx ───────────────────────────────────────
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { sbSignIn, sbResetPassword } from "../lib/supabase";
+import { loginWithPasskey, isWebAuthnSupported } from "../lib/webauthn";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
@@ -158,15 +159,20 @@ export default function LoginPage({ onLogin, loginSettings }) {
   const INTERVAL = loginSettings?.interval || 5000;
   const ANIMATED = loginSettings?.animated ?? true;
 
-  const [view,       setView]       = useState("login");
-  const [email,      setEmail]      = useState("");
-  const [password,   setPassword]   = useState("");
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState("");
-  const [success,    setSuccess]    = useState("");
-  const [activeAd,   setActiveAd]   = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
-  const [showPw,     setShowPw]     = useState(false);
+  const [view,            setView]           = useState("login");
+  const [email,           setEmail]          = useState("");
+  const [password,        setPassword]       = useState("");
+  const [loading,         setLoading]        = useState(false);
+  const [biometricLoading,setBiometricLoading] = useState(false);
+  const [error,           setError]          = useState("");
+  const [success,         setSuccess]        = useState("");
+  const [activeAd,        setActiveAd]       = useState(0);
+  const [isHovering,      setIsHovering]     = useState(false);
+  const [showPw,          setShowPw]         = useState(false);
+  const [webAuthnSupported, setWebAuthnSupported] = useState(false);
+
+  // Detect WebAuthn support on mount (requires browser environment)
+  useEffect(() => { setWebAuthnSupported(isWebAuthnSupported()); }, []);
 
   // Guard: reset activeAd when loginSettings loads asynchronously and
   // the new slide array has fewer items than the current activeAd index.
@@ -206,6 +212,26 @@ export default function LoginPage({ onLogin, loginSettings }) {
       setLoading(false);
     }
   }, [email, password, onLogin]);
+
+  const handleBiometricLogin = useCallback(async () => {
+    if (!email.trim()) return setError("Enter your email address first, then tap Sign in with Biometrics");
+    setError(""); setSuccess("");
+    setBiometricLoading(true);
+    try {
+      const session = await loginWithPasskey(email.trim());
+      onLogin(session);
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("no passkeys") || msg.toLowerCase().includes("not found")) {
+        setError("No passkey registered for this account. Sign in with your password first, then add a passkey from your profile.");
+      } else if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+        setError("Biometric sign-in was cancelled.");
+      } else {
+        setError(msg || "Biometric sign-in failed. Please try again.");
+      }
+      setBiometricLoading(false);
+    }
+  }, [email, onLogin]);
 
   const handleReset = useCallback(async (e) => {
     e.preventDefault();
@@ -291,6 +317,51 @@ export default function LoginPage({ onLogin, loginSettings }) {
       </div>
 
       <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
+
+      {webAuthnSupported && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 10px" }}>
+            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.15)" : C.gray200 }} />
+            <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400, fontWeight: 500, whiteSpace: "nowrap" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.15)" : C.gray200 }} />
+          </div>
+          <button
+            type="button"
+            onClick={handleBiometricLogin}
+            disabled={biometricLoading || loading}
+            style={{
+              width: "100%",
+              padding: isMobile ? "13px" : "11px",
+              borderRadius: isMobile ? 12 : 10,
+              border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`,
+              background: "transparent",
+              color: isMobile ? "rgba(255,255,255,0.85)" : C.text,
+              fontWeight: 600,
+              fontSize: isMobile ? 15 : 14,
+              cursor: (biometricLoading || loading) ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              opacity: (biometricLoading || loading) ? 0.7 : 1,
+              transition: "border-color 0.2s, opacity 0.2s",
+            }}
+          >
+            {biometricLoading ? (
+              <>
+                <div style={{ width: 16, height: 16, border: "2px solid rgba(128,128,128,0.3)", borderTopColor: isMobile ? "#fff" : C.text, borderRadius: "50%", animation: "lp-spin 0.8s linear infinite", flexShrink: 0 }} />
+                Verifying...
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 20, lineHeight: 1 }}>🔏</span>
+                Sign in with Face / Fingerprint
+              </>
+            )}
+          </button>
+        </>
+      )}
     </form>
   );
 

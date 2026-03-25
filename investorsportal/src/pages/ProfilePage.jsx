@@ -4,6 +4,8 @@ import { useTheme } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
+import { registerPasskey, isWebAuthnSupported } from "../lib/webauthn";
+import { sbGetPasskeys, sbDeletePasskey } from "../lib/supabase";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -392,6 +394,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   const [showAvatarSheet, setShowAvatarSheet] = useState(false);
 
+  // ── Passkeys state ────────────────────────────────────────────────
+  const [passkeys,      setPasskeys]      = useState([]);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [addingPasskey, setAddingPasskey] = useState(false);
+  const [webAuthnOk,    setWebAuthnOk]    = useState(false);
+
   const fileRef        = useRef();
   const cameraRef      = useRef();
   const rootRef        = useRef(null);
@@ -415,6 +423,44 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   }, [profile]);
 
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
+
+  // ── Load passkeys + detect WebAuthn support on mount ─────────────
+  useEffect(() => {
+    setWebAuthnOk(isWebAuthnSupported());
+    sbGetPasskeys().then(setPasskeys).catch(() => {});
+  }, []);
+
+  const handleAddPasskey = useCallback(async () => {
+    const nickname = `${navigator.platform || "Device"} — ${new Date().toLocaleDateString()}`;
+    setAddingPasskey(true);
+    try {
+      await registerPasskey(session?.access_token, nickname);
+      showToast("Passkey added! You can now sign in with biometrics.", "success");
+      sbGetPasskeys().then(setPasskeys).catch(() => {});
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+        showToast("Passkey registration cancelled.", "error");
+      } else {
+        showToast(msg || "Failed to add passkey.", "error");
+      }
+    } finally {
+      setAddingPasskey(false);
+    }
+  }, [session?.access_token, showToast]);
+
+  const handleDeletePasskey = useCallback(async (id) => {
+    setPasskeyLoading(true);
+    try {
+      await sbDeletePasskey(id);
+      setPasskeys(prev => prev.filter(p => p.id !== id));
+      showToast("Passkey removed.", "success");
+    } catch {
+      showToast("Failed to remove passkey.", "error");
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }, [showToast]);
 
   const fetchCdsUserCount = useCallback(async () => {
     const reqId = ++cdsCountReqRef.current;
@@ -843,6 +889,31 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
                   <span style={{ fontSize: 10, color: C.gray400, marginLeft: 5, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
                 </div>
+
+                {webAuthnOk && (
+                  <div style={{ marginTop: 14, borderTop: `1px solid ${C.gray100}`, paddingTop: 12 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>🔏 Biometric Login (Passkeys)</div>
+                    {passkeys.map(pk => (
+                      <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: C.gray50, borderRadius: 9, marginBottom: 6, border: `1px solid ${C.gray100}` }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
+                          <div style={{ fontSize: 10, color: C.gray400 }}>
+                            Added {new Date(pk.created_at).toLocaleDateString()}
+                            {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
+                          style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 16, color: C.red, padding: "4px 6px", flexShrink: 0 }}>
+                          🗑
+                        </button>
+                      </div>
+                    ))}
+                    <button onClick={handleAddPasskey} disabled={addingPasskey}
+                      style={{ width: "100%", marginTop: 4, padding: "10px", borderRadius: 10, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 13, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -972,6 +1043,31 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray100 }} />)}
                     <span style={{ fontSize: 9, color: C.gray400, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
                   </div>
+
+                  {webAuthnOk && (
+                    <div style={{ marginTop: 10, borderTop: `1px solid ${C.gray100}`, paddingTop: 10 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 7 }}>🔏 Biometric Login (Passkeys)</div>
+                      {passkeys.map(pk => (
+                        <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: C.gray50, borderRadius: 7, marginBottom: 5, border: `1px solid ${C.gray100}` }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
+                            <div style={{ fontSize: 9, color: C.gray400 }}>
+                              Added {new Date(pk.created_at).toLocaleDateString()}
+                              {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
+                            </div>
+                          </div>
+                          <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
+                            style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 14, color: C.red, padding: "2px 4px", flexShrink: 0 }}>
+                            🗑
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={handleAddPasskey} disabled={addingPasskey}
+                        style={{ width: "100%", marginTop: 4, padding: "7px", borderRadius: 8, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 11, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                        {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                      </button>
+                    </div>
+                  )}
                 </Section>
               </div>
 

@@ -1075,3 +1075,22 @@ export async function sbGetCDSAssignedUsers(cdsId) {
   );
   return res.json();
 }
+
+// ── Passkeys (WebAuthn / Biometric login) ─────────────────────────
+
+export async function sbGetPasskeys() {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/passkeys?select=id,nickname,device_type,backed_up,created_at,last_used_at&order=created_at.asc`,
+    { method: "GET", headers: headers(token()) },
+    "Failed to fetch passkeys"
+  );
+  return res.json();
+}
+
+export async function sbDeletePasskey(id) {
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/passkeys?id=eq.${encodeURIComponent(id)}`,
+    { method: "DELETE", headers: headers(token()) },
+    "Failed to delete passkey"
+  );
+}
