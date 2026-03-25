@@ -1,512 +1,410 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import logo from "../assets/logo.jpg";
 
-const DISMISS_KEY = "pwa-install-banner-dismissed-at";
-const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+// ── Storage keys ──────────────────────────────────────────────────
+const LATER_KEY  = "pwa-install-later-at";
+const NEVER_KEY  = "pwa-install-never";
+const VISITS_KEY = "pwa-install-visits";
+const LATER_MS   = 24 * 60 * 60 * 1000; // 24 hours
 
+// ── Inject animation CSS once ─────────────────────────────────────
+if (typeof document !== "undefined" && !document.getElementById("ib-styles")) {
+  const el = document.createElement("style");
+  el.id = "ib-styles";
+  el.textContent = `
+    @keyframes ib-overlay { from { opacity:0 } to { opacity:1 } }
+    @keyframes ib-sheet   { from { transform:translateY(100%) } to { transform:translateY(0) } }
+    @keyframes ib-banner  { from { transform:translateY(-100%); opacity:0 } to { transform:translateY(0); opacity:1 } }
+    .ib-overlay { animation: ib-overlay 0.25s ease forwards; }
+    .ib-sheet   { animation: ib-sheet   0.35s cubic-bezier(0.32,0.72,0,1) forwards; }
+    .ib-banner  { animation: ib-banner  0.3s ease forwards; }
+  `;
+  document.head.appendChild(el);
+}
+
+// ── Platform helpers ──────────────────────────────────────────────
+function getUA() {
+  return typeof window !== "undefined" ? window.navigator.userAgent.toLowerCase() : "";
+}
 function isStandalone() {
   if (typeof window === "undefined") return false;
-
   return (
     window.matchMedia?.("(display-mode: standalone)")?.matches ||
     window.navigator.standalone === true
   );
 }
+function isIos()    { return /iphone|ipad|ipod/i.test(getUA()); }
+function isAndroid(){ return /android/i.test(getUA()); }
+function isSafari() { const ua = getUA(); return ua.includes("safari") && !ua.includes("chrome") && !ua.includes("android"); }
 
-function getUA() {
-  if (typeof window === "undefined") return "";
-  return window.navigator.userAgent.toLowerCase();
-}
-
-function isAndroid() {
-  return /android/i.test(getUA());
-}
-
-function isIos() {
-  return /iphone|ipad|ipod/i.test(getUA());
-}
-
-function isSafari() {
+function getAndroidBrowserLabel() {
   const ua = getUA();
-  return ua.includes("safari") && !ua.includes("chrome") && !ua.includes("android");
-}
-
-function isSamsungInternet() {
-  return getUA().includes("samsungbrowser");
-}
-
-function isFirefoxAndroid() {
-  const ua = getUA();
-  return ua.includes("android") && ua.includes("firefox");
-}
-
-function isOperaAndroid() {
-  const ua = getUA();
-  return ua.includes("android") && ua.includes("opr");
-}
-
-function isEdgeAndroid() {
-  const ua = getUA();
-  return ua.includes("android") && ua.includes("edg");
-}
-
-function isDesktopChrome() {
-  const ua = getUA();
-  return !isAndroid() && !isIos() && ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr") && !ua.includes("samsungbrowser");
-}
-
-function isDesktopEdge() {
-  const ua = getUA();
-  return !isAndroid() && !isIos() && ua.includes("edg");
-}
-
-function isDesktopOpera() {
-  const ua = getUA();
-  return !isAndroid() && !isIos() && ua.includes("opr");
-}
-
-function isDesktopInstallSupported() {
-  return isDesktopChrome() || isDesktopEdge() || isDesktopOpera();
-}
-
-function getDesktopBrowserLabel() {
-  if (isDesktopEdge()) return "Edge";
-  if (isDesktopOpera()) return "Opera";
+  if (ua.includes("samsungbrowser")) return "Samsung Internet";
+  if (ua.includes("android") && ua.includes("firefox")) return "Firefox";
+  if (ua.includes("android") && ua.includes("opr"))     return "Opera";
+  if (ua.includes("android") && ua.includes("edg"))     return "Edge";
   return "Chrome";
 }
 
-function isChromeAndroid() {
+function isDesktopInstallSupported() {
   const ua = getUA();
-  return (
-    ua.includes("android") &&
-    ua.includes("chrome") &&
-    !ua.includes("edg") &&
-    !ua.includes("opr") &&
-    !ua.includes("samsungbrowser") &&
-    !ua.includes("firefox")
-  );
+  if (isAndroid() || isIos()) return false;
+  return ua.includes("chrome") || ua.includes("edg") || ua.includes("opr");
 }
 
-function getAndroidBrowserLabel() {
-  if (isSamsungInternet()) return "Samsung Internet";
-  if (isFirefoxAndroid()) return "Firefox";
-  if (isOperaAndroid()) return "Opera";
-  if (isEdgeAndroid()) return "Edge";
-  if (isChromeAndroid()) return "Chrome";
-  return "your browser";
+function getDesktopBrowserLabel() {
+  const ua = getUA();
+  if (ua.includes("edg")) return "Edge";
+  if (ua.includes("opr")) return "Opera";
+  return "Chrome";
 }
 
-function getDismissedRecently() {
+// ── Storage helpers ───────────────────────────────────────────────
+function isNeverShow()   { try { return localStorage.getItem(NEVER_KEY) === "1"; } catch { return false; } }
+function isLaterActive() {
   try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
+    const ts = Number(localStorage.getItem(LATER_KEY));
+    return Number.isFinite(ts) && Date.now() - ts < LATER_MS;
+  } catch { return false; }
+}
+function getVisits()  { try { return parseInt(localStorage.getItem(VISITS_KEY) || "0", 10); } catch { return 0; } }
+function bumpVisits() { try { localStorage.setItem(VISITS_KEY, String(getVisits() + 1)); } catch {} }
+function saveLater()  { try { localStorage.setItem(LATER_KEY, String(Date.now())); } catch {} }
+function saveNever()  { try { localStorage.setItem(NEVER_KEY, "1"); } catch {} }
 
-    const ts = Number(raw);
-    if (!Number.isFinite(ts)) return false;
-
-    return Date.now() - ts < DISMISS_COOLDOWN_MS;
-  } catch {
-    return false;
-  }
+// ── Android manual install steps ─────────────────────────────────
+function getAndroidSteps(label) {
+  if (label === "Samsung Internet") return [
+    ["📋", "Open the browser menu", "Tap the three-line icon at the bottom"],
+    ["➕", "Tap Add page to", "Then choose Add to Home screen"],
+    ["✅", "Confirm", "Tap Add when prompted"],
+  ];
+  if (label === "Firefox") return [
+    ["📋", "Open the browser menu", "Tap the three-dot icon"],
+    ["➕", "Tap Install", "Or Add to Home screen"],
+    ["✅", "Confirm", "Tap Add when prompted"],
+  ];
+  if (label === "Edge") return [
+    ["📋", "Open the browser menu", "Tap the three-dot icon"],
+    ["➕", "Tap Add to phone", "Or Install this site as an app"],
+    ["✅", "Confirm", "Tap Add when prompted"],
+  ];
+  if (label === "Opera") return [
+    ["📋", "Open the browser menu", "Tap the Opera icon or three-dot icon"],
+    ["➕", "Tap Add to Home screen", ""],
+    ["✅", "Confirm", "Tap Add when prompted"],
+  ];
+  // Chrome (default)
+  return [
+    ["📋", "Open the browser menu", "Tap ⋮ in the top-right corner"],
+    ["➕", "Tap Install app", "Or Add to Home screen"],
+    ["✅", "Confirm the install", "Tap Install when the dialog appears"],
+  ];
 }
 
-function storeDismissedNow() {
-  try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
-  } catch {}
-}
-
-const baseStyles = {
-  banner: {
-    position: "sticky",
-    top: 0,
-    zIndex: 1190,
-    padding: "10px 14px",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
-  },
-  content: {
-    maxWidth: 1400,
-    margin: "0 auto",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  message: {
-    minWidth: 0,
-    flex: "1 1 260px",
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: 800,
-  },
-  text: {
-    fontSize: 12,
-    lineHeight: 1.45,
-    marginTop: 2,
-  },
-  actions: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  primaryButton: {
-    border: "none",
-    fontWeight: 800,
-    fontSize: 12,
-    padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    whiteSpace: "nowrap",
-  },
-  secondaryButton: {
-    fontWeight: 700,
-    fontSize: 12,
-    padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    whiteSpace: "nowrap",
-  },
-  helperPanel: {
-    width: "100%",
-    marginTop: 10,
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontSize: 12,
-    lineHeight: 1.55,
-  },
-  helperTitle: {
-    fontSize: 12,
-    fontWeight: 800,
-    marginBottom: 6,
-  },
-  helperStep: {
-    marginTop: 4,
-  },
-};
-
+// ── Component ─────────────────────────────────────────────────────
 export default function InstallBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [prompt,    setPrompt]    = useState(null);
+  const [visible,   setVisible]   = useState(false);
   const [installed, setInstalled] = useState(false);
-  const [showIosHint, setShowIosHint] = useState(false);
-  const [showAndroidHint, setShowAndroidHint] = useState(false);
-  const [showHowToInstall, setShowHowToInstall] = useState(false);
-  const [showDesktopHint, setShowDesktopHint] = useState(false);
-  const [isMobileView, setIsMobileView] = useState(
+  const [hidden,    setHidden]    = useState(false);
+  const [isMobile,  setIsMobile]  = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    const handleResize = () => setIsMobileView(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize, { passive: true });
-    return () => window.removeEventListener("resize", handleResize);
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
-    const standalone = isStandalone();
-    const dismissedRecently = getDismissedRecently();
-    const ios = isIos();
-    const safari = isSafari();
-    const android = isAndroid();
+    if (isStandalone()) { setInstalled(true); return; }
+    if (isNeverShow())  { setHidden(true); return; }
+    if (isLaterActive()) { setHidden(true); return; }
 
-    setInstalled(standalone);
-    setDismissed(dismissedRecently);
-    setShowIosHint(!standalone && ios && safari);
-    setShowAndroidHint(!standalone && android);
-    setShowDesktopHint(!standalone && !ios && !android && isDesktopInstallSupported());
+    bumpVisits();
+    const visits = getVisits();
+    // Show faster on repeat visits — they're engaged users
+    const delay = visits <= 1 ? 4000 : visits <= 3 ? 2500 : 1500;
 
-    const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-      setShowAndroidHint(false);
-      setShowHowToInstall(false);
-      setShowDesktopHint(false);
+    // Pick up prompt captured early in main.jsx
+    if (window.__installPrompt) setPrompt(window.__installPrompt);
+
+    const onPromptReady = () => {
+      if (window.__installPrompt) setPrompt(window.__installPrompt);
     };
-
-    const handleAppInstalled = () => {
+    const onInstalled = () => {
       setInstalled(true);
-      setDeferredPrompt(null);
-      setShowIosHint(false);
-      setShowAndroidHint(false);
-      setShowHowToInstall(false);
-      setShowDesktopHint(false);
-
+      setVisible(false);
       try {
-        localStorage.removeItem(DISMISS_KEY);
+        localStorage.removeItem(LATER_KEY);
+        localStorage.removeItem(NEVER_KEY);
+        localStorage.removeItem(VISITS_KEY);
       } catch {}
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener("installprompt:ready", onPromptReady);
+    window.addEventListener("appinstalled", onInstalled);
+
+    timerRef.current = setTimeout(() => setVisible(true), delay);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
+      clearTimeout(timerRef.current);
+      window.removeEventListener("installprompt:ready", onPromptReady);
+      window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
 
-  const variant = useMemo(() => {
-    if (deferredPrompt) {
-      return {
-        title: "Install this app",
-        text: "Add Investors Portal to your device for faster access and a more app-like experience.",
-        mode: "prompt",
-      };
-    }
-
-    if (showIosHint) {
-      return {
-        title: "Install this app",
-        text: "Install Investors Portal on your device for quicker access.",
-        mode: "ios",
-      };
-    }
-
-    if (showAndroidHint) {
-      const browserLabel = getAndroidBrowserLabel();
-      const browserText =
-        browserLabel === "Chrome"
-          ? "Install Investors Portal on your Android device for faster access and a full-screen app experience."
-          : `Install Investors Portal from ${browserLabel} for faster access and a more app-like experience.`;
-
-      return {
-        title: "Install this app",
-        text: browserText,
-        mode: "android",
-        browserLabel,
-      };
-    }
-
-    if (showDesktopHint) {
-      const label = getDesktopBrowserLabel();
-      return {
-        title: "Install this app",
-        text: `Install Investors Portal on your computer for a dedicated app window and faster access.`,
-        mode: "desktop",
-        browserLabel: label,
-      };
-    }
-
+  // Determine install mode
+  const mode = (() => {
+    if (prompt)                    return "prompt";
+    if (isIos() && isSafari())     return "ios";
+    if (isAndroid())               return "android";
+    if (isDesktopInstallSupported()) return "desktop";
     return null;
-  }, [deferredPrompt, showIosHint, showAndroidHint, showDesktopHint]);
-
-  const theme = isMobileView
-    ? {
-        banner: {
-          background: "#FFF6BF",
-          color: "#5C4400",
-        },
-        title: {
-          color: "#5C4400",
-        },
-        text: {
-          color: "#6B5300",
-        },
-        primaryButton: {
-          background: "#D4AF37",
-          color: "#0B1F3A",
-        },
-        secondaryButton: {
-          background: "transparent",
-          color: "#5C4400",
-          border: "1px solid rgba(92,68,0,0.24)",
-        },
-        helperPanel: {
-          background: "rgba(255,255,255,0.45)",
-          color: "#5C4400",
-          border: "1px solid rgba(92,68,0,0.12)",
-        },
-      }
-    : {
-        banner: {
-          background: "linear-gradient(135deg, #0b1f3a, #163564)",
-          color: "#ffffff",
-        },
-        title: {
-          color: "#ffffff",
-        },
-        text: {
-          color: "rgba(255,255,255,0.92)",
-        },
-        primaryButton: {
-          background: "#D4AF37",
-          color: "#0B1F3A",
-        },
-        secondaryButton: {
-          background: "transparent",
-          color: "#ffffff",
-          border: "1px solid rgba(255,255,255,0.24)",
-        },
-        helperPanel: {
-          background: "rgba(255,255,255,0.08)",
-          color: "#ffffff",
-          border: "1px solid rgba(255,255,255,0.12)",
-        },
-      };
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-
-    try {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-
-      if (choice?.outcome !== "accepted") {
-        setDeferredPrompt(null);
-        if (isAndroid() && !isStandalone()) {
-          setShowAndroidHint(true);
-        }
-      }
-    } catch {
-      setDeferredPrompt(null);
-      if (isAndroid() && !isStandalone()) {
-        setShowAndroidHint(true);
-      }
-    }
-  };
-
-  const handleDismiss = () => {
-    storeDismissedNow();
-    setDismissed(true);
-  };
-
-  const handleHowToInstall = () => {
-    setShowHowToInstall((prev) => !prev);
-  };
-
-  if (installed || dismissed || !variant) return null;
-
-  const androidInstructions = (() => {
-    const browserLabel = getAndroidBrowserLabel();
-
-    if (browserLabel === "Chrome") {
-      return [
-        'Tap the browser menu icon `⋮` in the top-right corner.',
-        'Tap `Install app` or `Add to Home screen`.',
-        "Confirm the install when the browser asks.",
-      ];
-    }
-
-    if (browserLabel === "Samsung Internet") {
-      return [
-        "Open the browser menu.",
-        'Look for `Add page to`, `Add to Home screen`, or an install option.',
-        "Confirm the action if the browser asks.",
-      ];
-    }
-
-    if (browserLabel === "Firefox") {
-      return [
-        "Open the browser menu.",
-        'Look for `Install`, `Add to Home screen`, or a similar shortcut option.',
-        "Confirm the action if prompted.",
-      ];
-    }
-
-    if (browserLabel === "Edge") {
-      return [
-        "Open the browser menu.",
-        'Look for `Install this site as an app` or `Add to phone`.',
-        "Confirm the install if prompted.",
-      ];
-    }
-
-    if (browserLabel === "Opera") {
-      return [
-        "Open the browser menu.",
-        'Look for `Add to Home screen` or an install option.',
-        "Confirm the action if prompted.",
-      ];
-    }
-
-    return [
-      "Open your browser menu.",
-      'Look for `Install app`, `Install`, or `Add to Home screen`.',
-      "Confirm the action if prompted.",
-    ];
   })();
 
+  const handleInstall = async () => {
+    if (!prompt) return;
+    try {
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === "accepted") {
+        setInstalled(true);
+        setVisible(false);
+      } else {
+        // User declined native dialog — fall through to manual Android steps
+        setPrompt(null);
+      }
+    } catch {
+      setPrompt(null);
+    }
+  };
+
+  const handleLater = () => {
+    saveLater();
+    setVisible(false);
+    setTimeout(() => setHidden(true), 400);
+  };
+
+  const handleNever = () => {
+    saveNever();
+    setVisible(false);
+    setTimeout(() => setHidden(true), 400);
+  };
+
+  if (installed || hidden || !visible || !mode) return null;
+
+  // ── Mobile: bottom sheet ────────────────────────────────────────
+  if (isMobile) {
+    const androidLabel = getAndroidBrowserLabel();
+    const androidSteps = getAndroidSteps(androidLabel);
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="ib-overlay"
+          onClick={handleLater}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9998,
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(3px)",
+          }}
+        />
+
+        {/* Sheet */}
+        <div
+          className="ib-sheet"
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            zIndex: 9999,
+            background: "#ffffff",
+            borderRadius: "22px 22px 0 0",
+            padding: "12px 22px 40px",
+            boxShadow: "0 -10px 48px rgba(0,0,0,0.22)",
+          }}
+        >
+          {/* Handle */}
+          <div style={{ width: 44, height: 4, borderRadius: 2, background: "#D1D5DB", margin: "0 auto 20px" }} />
+
+          {/* ── iOS instructions ── */}
+          {mode === "ios" && (
+            <>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0B1F3A", marginBottom: 4 }}>
+                Add to Home Screen
+              </div>
+              <div style={{ fontSize: 13, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>
+                Install Investors Portal for instant access from your home screen — no browser bar.
+              </div>
+
+              <div style={{ background: "#F0F4F8", borderRadius: 16, padding: "14px 16px", marginBottom: 22 }}>
+                {[
+                  ["📤", "Tap the Share button", "At the bottom of Safari (the box with an arrow)"],
+                  ["➕", "Tap Add to Home Screen", "Scroll down in the share sheet to find it"],
+                  ["✅", "Tap Add", "In the top-right corner to confirm"],
+                ].map(([icon, bold, sub], i, arr) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: i < arr.length - 1 ? 16 : 0 }}>
+                    <span style={{ fontSize: 22, lineHeight: 1.2, flexShrink: 0 }}>{icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1F3A" }}>{bold}</div>
+                      <div style={{ fontSize: 12, color: "#64748B", marginTop: 1 }}>{sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleLater}
+                style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: "#0B1F3A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(11,31,58,0.28)" }}
+              >
+                Got it
+              </button>
+            </>
+          )}
+
+          {/* ── Android manual steps (no prompt available) ── */}
+          {mode === "android" && (
+            <>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0B1F3A", marginBottom: 4 }}>
+                Install from {androidLabel}
+              </div>
+              <div style={{ fontSize: 13, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>
+                Add Investors Portal to your home screen for quick, full-screen access.
+              </div>
+
+              <div style={{ background: "#F0F4F8", borderRadius: 16, padding: "14px 16px", marginBottom: 22 }}>
+                {androidSteps.map(([icon, bold, sub], i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: i < androidSteps.length - 1 ? 16 : 0 }}>
+                    <span style={{ fontSize: 22, lineHeight: 1.2, flexShrink: 0 }}>{icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1F3A" }}>{bold}</div>
+                      {sub && <div style={{ fontSize: 12, color: "#64748B", marginTop: 1 }}>{sub}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleLater}
+                style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: "#0B1F3A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(11,31,58,0.28)" }}
+              >
+                Got it
+              </button>
+            </>
+          )}
+
+          {/* ── Native prompt (Chrome/Edge on Android) ── */}
+          {mode === "prompt" && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+                <img
+                  src={logo}
+                  alt="Investors Portal"
+                  style={{ width: 64, height: 64, borderRadius: 16, boxShadow: "0 4px 14px rgba(0,0,0,0.16)", flexShrink: 0 }}
+                />
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0B1F3A" }}>Investors Portal</div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>Finance & investments</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 5 }}>
+                    {[1,2,3,4,5].map(i => (
+                      <span key={i} style={{ fontSize: 13, color: "#F59E0B" }}>★</span>
+                    ))}
+                    <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: 4 }}>Free</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ background: "#F0F4F8", borderRadius: 12, padding: "12px 14px", marginBottom: 20 }}>
+                {[
+                  "⚡  Launches instantly from home screen",
+                  "📵  Works offline — no internet needed",
+                  "🔔  Get notified of important updates",
+                ].map((f, i) => (
+                  <div key={i} style={{ fontSize: 13, color: "#334155", fontWeight: 500, marginBottom: i < 2 ? 8 : 0 }}>{f}</div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleInstall}
+                style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: "#0B1F3A", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 18px rgba(11,31,58,0.32)" }}
+              >
+                Install App
+              </button>
+            </>
+          )}
+
+          {/* Dismiss options — shown for all modes */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 28, marginTop: 14 }}>
+            <button
+              onClick={handleLater}
+              style={{ background: "none", border: "none", fontSize: 13, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "inherit", padding: "4px 8px" }}
+            >
+              Not now
+            </button>
+            <button
+              onClick={handleNever}
+              style={{ background: "none", border: "none", fontSize: 13, color: "#94A3B8", cursor: "pointer", fontFamily: "inherit", padding: "4px 8px" }}
+            >
+              Don't ask again
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── Desktop: top banner ─────────────────────────────────────────
+  const desktopLabel = getDesktopBrowserLabel();
   return (
     <div
-      role="status"
-      aria-live="polite"
-      style={{ ...baseStyles.banner, ...theme.banner }}
+      className="ib-banner"
+      style={{
+        position: "sticky", top: 0, zIndex: 1190,
+        background: "linear-gradient(135deg, #0b1f3a, #163564)",
+        padding: "10px 16px",
+        boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
+      }}
     >
-      <div style={baseStyles.content}>
-        <div style={baseStyles.message}>
-          <div style={{ ...baseStyles.title, ...theme.title }}>{variant.title}</div>
-          <div style={{ ...baseStyles.text, ...theme.text }}>{variant.text}</div>
+      <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 260px", minWidth: 0 }}>
+          <img src={logo} alt="" style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Install Investors Portal</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.80)", marginTop: 1 }}>
+              {mode === "prompt"
+                ? "Get a dedicated app window with faster access and offline support."
+                : `Look for the install icon (⊕) in your ${desktopLabel} address bar.`}
+            </div>
+          </div>
         </div>
 
-        <div style={baseStyles.actions}>
-          {variant.mode === "prompt" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {mode === "prompt" && (
             <button
-              type="button"
               onClick={handleInstall}
-              style={{ ...baseStyles.primaryButton, ...theme.primaryButton }}
+              style={{ background: "#D4AF37", color: "#0B1F3A", border: "none", fontWeight: 800, fontSize: 12, padding: "9px 18px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit" }}
             >
               Install
             </button>
           )}
-
-          {(variant.mode === "android" || variant.mode === "ios" || variant.mode === "desktop") && (
-            <button
-              type="button"
-              onClick={handleHowToInstall}
-              style={{ ...baseStyles.primaryButton, ...theme.primaryButton }}
-            >
-              {showHowToInstall ? "Hide Steps" : "How to Install"}
-            </button>
-          )}
-
           <button
-            type="button"
-            onClick={handleDismiss}
-            style={{ ...baseStyles.secondaryButton, ...theme.secondaryButton }}
+            onClick={handleLater}
+            style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", fontWeight: 600, fontSize: 12, padding: "9px 14px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit" }}
           >
-            Dismiss
+            Later
+          </button>
+          <button
+            onClick={handleNever}
+            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: "2px 6px", fontFamily: "inherit" }}
+            title="Don't show again"
+          >
+            ✕
           </button>
         </div>
-
-        {showHowToInstall && variant.mode === "android" && (
-          <div style={{ ...baseStyles.helperPanel, ...theme.helperPanel }}>
-            <div style={baseStyles.helperTitle}>
-              Install from {getAndroidBrowserLabel()}
-            </div>
-            {androidInstructions.map((step, index) => (
-              <div key={index} style={baseStyles.helperStep}>
-                {index + 1}. {step}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {showHowToInstall && variant.mode === "ios" && (
-          <div style={{ ...baseStyles.helperPanel, ...theme.helperPanel }}>
-            <div style={baseStyles.helperTitle}>Install on iPhone or iPad</div>
-            <div style={baseStyles.helperStep}>1. Tap the `Share` button in Safari.</div>
-            <div style={baseStyles.helperStep}>2. Scroll down and tap `Add to Home Screen`.</div>
-            <div style={baseStyles.helperStep}>3. Tap `Add` to finish installing the app.</div>
-            <div style={{ ...baseStyles.helperStep, marginTop: 10, opacity: 0.75, fontSize: 11 }}>
-              Note: On iOS, push notifications and background data sync are not supported by Safari.
-            </div>
-          </div>
-        )}
-
-        {showHowToInstall && variant.mode === "desktop" && (
-          <div style={{ ...baseStyles.helperPanel, ...theme.helperPanel }}>
-            <div style={baseStyles.helperTitle}>
-              Install from {getDesktopBrowserLabel()}
-            </div>
-            <div style={baseStyles.helperStep}>1. Look for the install icon (⊕) in the address bar on the right side.</div>
-            <div style={baseStyles.helperStep}>2. Click it and select `Install`.</div>
-            <div style={baseStyles.helperStep}>3. The app will open in its own window — pin it to your taskbar for quick access.</div>
-          </div>
-        )}
       </div>
     </div>
   );

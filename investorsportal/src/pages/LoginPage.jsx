@@ -20,6 +20,14 @@ if (typeof document !== "undefined" && !document.getElementById("lp-styles")) {
     @keyframes lp-spin     { to { transform:rotate(360deg); } }
     .lp-kb { animation: lp-kenBurns 12s ease-in-out infinite alternate; }
     input:focus { border-color: ${C.green} !important; }
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0px 1000px ${C.gray50} inset !important;
+      -webkit-text-fill-color: ${C.text} !important;
+      caret-color: ${C.text};
+      transition: background-color 5000s ease-in-out 0s;
+    }
   `;
   document.head.appendChild(el);
 }

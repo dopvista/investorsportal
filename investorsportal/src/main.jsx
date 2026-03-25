@@ -59,6 +59,15 @@ window.addEventListener("error", (event) => {
   );
 });
 
+// ── Capture install prompt as early as possible ───────────────────
+// beforeinstallprompt fires very early — often before React mounts.
+// We capture it here at module level so InstallBanner can always read it.
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.__installPrompt = e;
+  window.dispatchEvent(new Event("installprompt:ready"));
+}, { once: true });
+
 // ── Register PWA service worker ───────────────────────────────────
 const updateSW = registerSW({
   immediate: true,

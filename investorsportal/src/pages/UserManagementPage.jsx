@@ -910,7 +910,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
           onClick={() => onManageCDS(user)}
           style={{
             background: hasCds ? (isDark ? `${C.navy}22` : "#F3F8FE") : C.gray50,
-            border: `1px solid ${hasCds ? (isDark ? `${C.navy}55` : "#C8DCF5") : C.gray200}`,
+            border: `1px solid ${hasCds ? (isDark ? "#2a5c8a" : "#C8DCF5") : (isDark ? "#3a5068" : C.gray200)}`,
             borderRadius:10, padding:"8px 10px", cursor:"pointer",
           }}
         >
@@ -933,7 +933,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
           </div>
         </div>
 
-        <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:10, padding:"8px 10px" }}>
+        <div style={{ background:C.gray50, border:`1px solid ${isDark ? "#3a5068" : C.gray200}`, borderRadius:10, padding:"8px 10px" }}>
           <div style={LBL}>Phone</div>
           <div style={{ fontSize:12, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             {user.phone || <span style={{ color:C.gray400, fontWeight:400, fontStyle:"italic" }}>—</span>}
@@ -941,7 +941,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         </div>
       </div>
 
-      <div style={{ background:C.gray50, border:`1px solid ${C.gray200}`, borderRadius:10, padding:"8px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
+      <div style={{ background:C.gray50, border:`1px solid ${isDark ? "#3a5068" : C.gray200}`, borderRadius:10, padding:"8px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
         <span style={{ fontSize:13, flexShrink:0 }}>✉️</span>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={LBL}>Email</div>
@@ -963,7 +963,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         {user.role_code ? (
           <button
             onClick={() => onToggleStatus(user)}
-            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? `${C.red}55` : "#FECACA") : (isDark ? `${C.green}55` : "#BBF7D0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? "#7a2020" : "#FECACA") : (isDark ? `${C.green}55` : "#BBF7D0")}`, background:user.is_active ? (isDark ? "#3d1212" : C.redBg) : C.greenBg, color:user.is_active ? (isDark ? "#e07070" : C.red) : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
             onMouseEnter={e => e.currentTarget.style.opacity="0.8"}
             onMouseLeave={e => e.currentTarget.style.opacity="1"}>
             <span style={{ fontSize:14 }}>{user.is_active ? "🚫" : "✅"}</span>

@@ -51,6 +51,15 @@ export default defineConfig(({ mode }) => {
           categories: ["finance", "business", "productivity"],
           dir: "ltr",
           start_url: "/",
+          shortcuts: [
+            {
+              name: "Dashboard",
+              short_name: "Dashboard",
+              description: "Go to your investment dashboard",
+              url: "/",
+              icons: [{ src: "/pwa-192x192.png", sizes: "192x192" }],
+            },
+          ],
           icons: [
             {
               src: "/pwa-192x192.png",
@@ -116,6 +125,10 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+
+    server: {
+      allowedHosts: ["luciano-ichthyological-sherron.ngrok-free.dev"],
+    },
 
     build: {
       target: ["es2020", "chrome80", "safari13", "firefox78"],
