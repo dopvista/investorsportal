@@ -11,12 +11,13 @@ import {
 } from "@simplewebauthn/browser";
 
 const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+const KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const FUNCTIONS_URL = `${BASE}/functions/v1`;
 
 export { browserSupportsWebAuthn };
 
 async function callEdgeFunction(name, body, accessToken = null) {
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", "apikey": KEY };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
