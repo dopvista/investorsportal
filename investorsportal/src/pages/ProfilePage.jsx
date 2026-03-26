@@ -445,7 +445,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } catch (err) {
       const msg = err.message || "";
       if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
-        showToast("Passkey registration cancelled.", "info");
+        showToast("Passkey registration cancelled.", "error");
       } else {
         showToast(msg || "Failed to add passkey.", "error");
       }
