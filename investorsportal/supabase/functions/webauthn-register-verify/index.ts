@@ -6,14 +6,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyRegistrationResponse } from "npm:@simplewebauthn/server@9";
 import { corsHeaders, json, encodeBase64URL } from "../_shared/cors.ts";
 
-const RP_ID   = Deno.env.get("WEBAUTHN_RP_ID")   ?? "localhost";
-// WEBAUTHN_ORIGIN can be comma-separated list for multi-origin setups (e.g. "https://app.com,http://localhost:5173")
-const ORIGINS = (Deno.env.get("WEBAUTHN_ORIGIN") ?? `https://${RP_ID}`)
-  .split(",")
-  .map((s) => s.trim());
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Derive RP_ID + expectedOrigin from the request so both localhost (dev) and
+  // production work without re-deploying or changing secrets.
+  const requestOrigin = req.headers.get("origin") ?? "";
+  const RP_ID = requestOrigin
+    ? new URL(requestOrigin).hostname
+    : (Deno.env.get("WEBAUTHN_RP_ID") ?? "localhost");
+  const ORIGINS = requestOrigin
+    ? [requestOrigin]
+    : (Deno.env.get("WEBAUTHN_ORIGIN") ?? `https://${RP_ID}`).split(",").map((s) => s.trim());
 
   try {
     // ── 1. Authenticate the caller ─────────────────────────────────

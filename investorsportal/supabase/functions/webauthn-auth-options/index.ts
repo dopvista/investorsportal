@@ -6,10 +6,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateAuthenticationOptions } from "npm:@simplewebauthn/server@9";
 import { corsHeaders, json } from "../_shared/cors.ts";
 
-const RP_ID = Deno.env.get("WEBAUTHN_RP_ID") ?? "localhost";
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Derive RP_ID from the request's Origin header so both localhost (dev) and
+  // the production domain work without separate deployments.
+  const requestOrigin = req.headers.get("origin") ?? "";
+  const RP_ID = requestOrigin
+    ? new URL(requestOrigin).hostname
+    : (Deno.env.get("WEBAUTHN_RP_ID") ?? "localhost");
 
   try {
     const { email } = await req.json().catch(() => ({}));
