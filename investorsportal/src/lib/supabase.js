@@ -34,6 +34,9 @@ function saveSession(s) {
   try { localStorage.setItem("sb_session", JSON.stringify(s)); } catch {}
 }
 
+/** Persist a session returned from a custom auth flow (e.g. biometric login). */
+export function sbSaveSession(s) { saveSession(s); }
+
 function clearSession() {
   _sessionCache = null;
   // Also clear response cache on logout — prevents stale data leaking
@@ -1080,7 +1083,7 @@ export async function sbGetCDSAssignedUsers(cdsId) {
 
 export async function sbGetPasskeys() {
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/passkeys?select=id,nickname,device_type,backed_up,created_at,last_used_at&order=created_at.asc`,
+    `${BASE}/rest/v1/passkeys?select=id,credential_id,nickname,device_type,backed_up,created_at,last_used_at&order=created_at.asc`,
     { method: "GET", headers: headers(token()) },
     "Failed to fetch passkeys"
   );

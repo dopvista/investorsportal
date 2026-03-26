@@ -1,12 +1,14 @@
 // ── src/pages/LoginPage.jsx ───────────────────────────────────────
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
-import { sbSignIn, sbResetPassword } from "../lib/supabase";
+import { sbSignIn, sbResetPassword, sbSaveSession } from "../lib/supabase";
 import {
   loginWithPasskey,
   registerPasskey,
   isWebAuthnSupported,
   getStoredPasskeyInfo,
   storePasskeyInfo,
+  clearStoredPasskeyInfo,
+  getDeviceName,
 } from "../lib/webauthn";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
@@ -344,16 +346,20 @@ export default function LoginPage({ onLogin, loginSettings }) {
     setBiometricLoading(true);
     try {
       const session = await loginWithPasskey(view === "biometric" ? undefined : email.trim());
+      sbSaveSession(session); // persist to localStorage so page refresh keeps the session
       onLogin(session);
     } catch (err) {
       const msg = err.message || "";
-      if (msg.toLowerCase().includes("no passkeys") || msg.toLowerCase().includes("not found")) {
-        setError("No passkey found. Sign in with email & password first.");
+      if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+        setError("Biometric sign-in was cancelled. Tap the button to try again.");
+      } else if (msg === "no passkeys found" || msg.toLowerCase().includes("no passkeys") || msg.toLowerCase().includes("not found")) {
+        // The credential no longer exists on the server — clear stale local data
+        clearStoredPasskeyInfo();
+        setHasStoredPasskey(false);
+        setError("Passkey not found. Please sign in with email & password.");
         if (view === "biometric") setView("email");
-      } else if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
-        setError("Biometric sign-in was cancelled.");
       } else {
-        setError(msg || "Biometric sign-in failed.");
+        setError(msg || "Biometric sign-in failed. Please try again or use email.");
       }
       setBiometricLoading(false);
     }
@@ -363,7 +369,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
     if (!pendingSession) return;
     setRegisterLoading(true);
     try {
-      const nickname = `${navigator.platform || "Device"} — ${new Date().toLocaleDateString()}`;
+      const nickname = `${getDeviceName()} — ${new Date().toLocaleDateString()}`;
       const result = await registerPasskey(pendingSession.access_token, nickname);
       if (result.credentialId) {
         storePasskeyInfo(pendingSession.user?.email || email.trim(), result.credentialId);

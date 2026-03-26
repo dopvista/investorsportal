@@ -4,7 +4,7 @@ import { useTheme } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
-import { registerPasskey, isWebAuthnSupported } from "../lib/webauthn";
+import { registerPasskey, isWebAuthnSupported, storePasskeyInfo, clearStoredPasskeyInfo, getStoredPasskeyInfo, getDeviceName } from "../lib/webauthn";
 import { sbGetPasskeys, sbDeletePasskey } from "../lib/supabase";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
@@ -431,36 +431,59 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   }, []);
 
   const handleAddPasskey = useCallback(async () => {
-    const nickname = `${navigator.platform || "Device"} — ${new Date().toLocaleDateString()}`;
+    const nickname = `${getDeviceName()} — ${new Date().toLocaleDateString()}`;
     setAddingPasskey(true);
     try {
-      await registerPasskey(session?.access_token, nickname);
+      const result = await registerPasskey(session?.access_token, nickname);
+      // Sync localStorage so the login page knows to show the biometric option
+      if (result?.credentialId) {
+        const userEmail = session?.user?.email || profile?.email || "";
+        storePasskeyInfo(userEmail, result.credentialId);
+      }
       showToast("Passkey added! You can now sign in with biometrics.", "success");
       sbGetPasskeys().then(setPasskeys).catch(() => {});
     } catch (err) {
       const msg = err.message || "";
-      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
-        showToast("Passkey registration cancelled.", "error");
+      if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+        showToast("Passkey registration cancelled.", "info");
       } else {
         showToast(msg || "Failed to add passkey.", "error");
       }
     } finally {
       setAddingPasskey(false);
     }
-  }, [session?.access_token, showToast]);
+  }, [session?.access_token, session?.user?.email, profile?.email, showToast]);
 
   const handleDeletePasskey = useCallback(async (id) => {
+    // Find the passkey being deleted BEFORE any state changes
+    const targetPasskey = passkeys.find(p => p.id === id);
+    // Simple inline confirmation
+    const confirmed = window.confirm(
+      `Remove passkey "${targetPasskey?.nickname || "this device"}"?\n\nYou will no longer be able to use biometrics on this device until you register again.`
+    );
+    if (!confirmed) return;
+
     setPasskeyLoading(true);
     try {
       await sbDeletePasskey(id);
-      setPasskeys(prev => prev.filter(p => p.id !== id));
+      const remaining = passkeys.filter(p => p.id !== id);
+      setPasskeys(remaining);
+
+      // Sync localStorage: clear stored info if the deleted key matches,
+      // or if this was the last passkey (no more biometric login available).
+      const storedInfo = getStoredPasskeyInfo();
+      const deletedCredId = targetPasskey?.credential_id;
+      if (remaining.length === 0 || (storedInfo && deletedCredId && storedInfo.credentialId === deletedCredId)) {
+        clearStoredPasskeyInfo();
+      }
+
       showToast("Passkey removed.", "success");
     } catch {
       showToast("Failed to remove passkey.", "error");
     } finally {
       setPasskeyLoading(false);
     }
-  }, [showToast]);
+  }, [passkeys, showToast]);
 
   const fetchCdsUserCount = useCallback(async () => {
     const reqId = ++cdsCountReqRef.current;
@@ -892,7 +915,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
                 {webAuthnOk && (
                   <div style={{ marginTop: 14, borderTop: `1px solid ${C.gray100}`, paddingTop: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>🔏 Biometric Login (Passkeys)</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+                      </svg>
+                      Biometric Login (Passkeys)
+                    </div>
+                    {passkeys.length === 0 && (
+                      <div style={{ fontSize: 11, color: C.gray400, textAlign: "center", padding: "8px 0", fontStyle: "italic" }}>
+                        No passkeys registered. Add this device to enable biometric login.
+                      </div>
+                    )}
                     {passkeys.map(pk => (
                       <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: C.gray50, borderRadius: 9, marginBottom: 6, border: `1px solid ${C.gray100}` }}>
                         <div style={{ minWidth: 0 }}>
@@ -903,14 +936,27 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                           </div>
                         </div>
                         <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
-                          style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 16, color: C.red, padding: "4px 6px", flexShrink: 0 }}>
-                          🗑
+                          aria-label={`Remove passkey ${pk.nickname || "this device"}`}
+                          style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", color: C.red, padding: "4px 6px", flexShrink: 0, display: "flex", alignItems: "center", opacity: passkeyLoading ? 0.4 : 1, transition: "opacity 0.2s" }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                          </svg>
                         </button>
                       </div>
                     ))}
                     <button onClick={handleAddPasskey} disabled={addingPasskey}
                       style={{ width: "100%", marginTop: 4, padding: "10px", borderRadius: 10, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 13, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                      {addingPasskey ? (
+                        <>
+                          <div style={{ width: 12, height: 12, border: `2px solid ${C.gray300}`, borderTopColor: C.navy, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                          Registering...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                          Add This Device
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -1046,7 +1092,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
                   {webAuthnOk && (
                     <div style={{ marginTop: 10, borderTop: `1px solid ${C.gray100}`, paddingTop: 10 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 7 }}>🔏 Biometric Login (Passkeys)</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 7 }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+                        </svg>
+                        Biometric Login (Passkeys)
+                      </div>
+                      {passkeys.length === 0 && (
+                        <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", padding: "6px 0", fontStyle: "italic" }}>
+                          No passkeys registered. Add this device to enable biometric login.
+                        </div>
+                      )}
                       {passkeys.map(pk => (
                         <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: C.gray50, borderRadius: 7, marginBottom: 5, border: `1px solid ${C.gray100}` }}>
                           <div style={{ minWidth: 0 }}>
@@ -1057,14 +1113,27 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                             </div>
                           </div>
                           <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
-                            style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 14, color: C.red, padding: "2px 4px", flexShrink: 0 }}>
-                            🗑
+                            aria-label={`Remove passkey ${pk.nickname || "this device"}`}
+                            style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", color: C.red, padding: "2px 4px", flexShrink: 0, display: "flex", alignItems: "center", opacity: passkeyLoading ? 0.4 : 1, transition: "opacity 0.2s" }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
                           </button>
                         </div>
                       ))}
                       <button onClick={handleAddPasskey} disabled={addingPasskey}
                         style={{ width: "100%", marginTop: 4, padding: "7px", borderRadius: 8, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 11, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                        {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                        {addingPasskey ? (
+                          <>
+                            <div style={{ width: 10, height: 10, border: `2px solid ${C.gray300}`, borderTopColor: C.navy, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                            Registering...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add This Device
+                          </>
+                        )}
                       </button>
                     </div>
                   )}
