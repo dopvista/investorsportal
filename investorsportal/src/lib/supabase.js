@@ -1091,16 +1091,18 @@ export async function sbGetPasskeys() {
 }
 
 export async function sbDeletePasskey(id) {
-  // Prefer: return=representation (from headers()) makes PostgREST return the
-  // deleted row(s) as JSON. If RLS blocks the delete it returns [] with 200 OK
-  // — we must check the body to detect a silent block and surface a real error.
+  // Route through the delete-passkey edge function (service role) so this
+  // works regardless of whether the passkeys RLS DELETE policy is applied.
+  // Ownership is enforced server-side via user_id = auth.uid().
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/passkeys?id=eq.${encodeURIComponent(id)}`,
-    { method: "DELETE", headers: headers(token()) },
+    `${BASE}/functions/v1/delete-passkey`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${token()}` },
+      body: JSON.stringify({ id }),
+    },
     "Failed to delete passkey"
   );
-  const deleted = await res.json().catch(() => []);
-  if (!Array.isArray(deleted) || deleted.length === 0) {
-    throw new Error("Passkey could not be deleted — permission denied or not found.");
-  }
+  const data = await res.json().catch(() => ({}));
+  if (!data.deleted) throw new Error(data.error || "Failed to delete passkey");
 }

@@ -478,8 +478,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       }
 
       showToast("Passkey removed.", "success");
-    } catch {
-      showToast("Failed to remove passkey.", "error");
+    } catch (err) {
+      showToast(err?.message || "Failed to remove passkey.", "error");
     } finally {
       setPasskeyLoading(false);
     }
