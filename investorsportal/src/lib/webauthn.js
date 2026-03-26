@@ -16,6 +16,26 @@ const FUNCTIONS_URL = `${BASE}/functions/v1`;
 
 export { browserSupportsWebAuthn };
 
+// ── localStorage helpers for biometric-first login ────────────────
+const PASSKEY_STORAGE_KEY = "ip_passkey_info";
+
+export function getStoredPasskeyInfo() {
+  try {
+    const raw = localStorage.getItem(PASSKEY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.email ? parsed : null;
+  } catch { return null; }
+}
+
+export function storePasskeyInfo(email, credentialId) {
+  try { localStorage.setItem(PASSKEY_STORAGE_KEY, JSON.stringify({ email, credentialId })); } catch {}
+}
+
+export function clearStoredPasskeyInfo() {
+  try { localStorage.removeItem(PASSKEY_STORAGE_KEY); } catch {}
+}
+
 async function callEdgeFunction(name, body, accessToken = null) {
   const headers = { "Content-Type": "application/json", "apikey": KEY };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -51,23 +71,29 @@ export async function registerPasskey(accessToken, nickname = "My Device") {
   const registrationResponse = await startRegistration({ optionsJSON: options });
 
   // 3. Send the credential to the server for verification + storage
-  return await callEdgeFunction(
+  const result = await callEdgeFunction(
     "webauthn-register-verify",
     { registrationResponse, nickname },
     accessToken
   );
+
+  return { ...result, credentialId: registrationResponse.id };
 }
 
 /**
  * Authenticate using a previously registered passkey.
  * Call this from the Login page before the user has a session.
  *
- * @param {string} email - The user's email (used to look up their passkeys)
+ * @param {string} [email] - The user's email. If omitted, uses stored passkey info.
  * @returns {{ access_token, refresh_token, user }} - Ready-to-use session
  */
 export async function loginWithPasskey(email) {
+  // If no email provided, try to use stored passkey info
+  const resolvedEmail = email || getStoredPasskeyInfo()?.email;
+  if (!resolvedEmail) throw new Error("No passkeys found for this device. Please sign in with email & password.");
+
   // 1. Get authentication options (challenge) from server
-  const options = await callEdgeFunction("webauthn-auth-options", { email });
+  const options = await callEdgeFunction("webauthn-auth-options", { email: resolvedEmail });
 
   // 2. Ask the browser to use the matching credential (triggers Face ID / fingerprint)
   const authenticationResponse = await startAuthentication({ optionsJSON: options });
@@ -75,7 +101,7 @@ export async function loginWithPasskey(email) {
   // 3. Verify the credential server-side and get a Supabase session back
   return await callEdgeFunction("webauthn-auth-verify", {
     authenticationResponse,
-    email,
+    email: resolvedEmail,
   });
 }
 
