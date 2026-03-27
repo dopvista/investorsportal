@@ -1320,7 +1320,6 @@ export default function UserManagementPage({ role, showToast, profile }) {
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
-              <span style={{ fontSize:11, color:C.gray400, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:8, padding:"5px 10px", whiteSpace:"nowrap", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>{filtered.length}/{stats.total}</span>
               <button onClick={handleOpenInvite} style={INVITE_BTN_STYLE} onMouseEnter={e=>e.currentTarget.style.opacity="0.9"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>+ Invite User</button>
             </div>
 
