@@ -16,29 +16,37 @@ For any icon container, stat card, or badge:
 4. **Text** — must contrast with both the background and the accent
 
 ### Stat Card Icon Badge (mandatory for all stat cards)
-All stat card icon containers use a **pale yellow background** with **dark gray icons**.
-This is consistent across BOTH light and dark themes — no theme-dependent values.
+Each stat card icon gets a **distinct pale pastel background** based on its accent color,
+with a **bold dark gray icon**. Same colors in BOTH light and dark themes.
+
+### Pale Pastel Palette (per accent)
+
+| Accent  | Background | Border    | Used For                                        |
+|---------|------------|-----------|------------------------------------------------|
+| Blue    | `#DBEAFE`  | `#BFDBFE` | Companies, Holdings, Total Users, navy accents  |
+| Green   | `#D1FAE5`  | `#A7F3D0` | Active, Verified, green accents                 |
+| Red     | `#FEE2E2`  | `#FECACA` | Total Sold, errors, red accents                 |
+| Amber   | `#FEF3C7`  | `#FDE68A` | Awaiting Action, pending, gold accents          |
+| Purple  | `#EDE9FE`  | `#DDD6FE` | Data Entrants, purple accents                   |
+| Teal    | `#CCFBF1`  | `#99F6E4` | Teal accents                                    |
+
+Icon stroke for ALL badges: `#374151` (gray-700, bold dark gray), `sw={2.4}`
 
 ```jsx
-// Standard stat card icon badge
-const STAT_ICON_BG     = "#FEF3C7";  // pale yellow (amber-100)
-const STAT_ICON_BORDER = "#FDE68A";  // warm yellow border (amber-200)
-const STAT_ICON_COLOR  = "#4B5563";  // dark gray (gray-600)
-
 <div style={{
-  background: STAT_ICON_BG,
-  border: `1.5px solid ${STAT_ICON_BORDER}`,
-  color: STAT_ICON_COLOR,
+  background: "#DBEAFE",         // pale blue (or matching pastel)
+  border: "1.5px solid #BFDBFE", // matching pastel border
+  color: "#374151",              // dark gray for icon stroke
 }}>
-  <Icon name="..." size={17} />
+  <Icon name="..." size={17} sw={2.4} />
 </div>
 ```
 
-### Why Pale Yellow + Dark Gray
-- Yellow provides a warm, visible fill on BOTH white (light) and navy (dark) card backgrounds
-- Dark gray icons have strong contrast against the yellow without being harsh
+### Why Pale Pastels + Dark Gray
+- Each card gets a visually distinct colored badge — blue, green, red, amber etc
+- Pale pastels provide strong fill on BOTH white (light) and navy (dark) card backgrounds
+- Bold dark gray `#374151` icons contrast well against any pastel without being harsh
 - Same values in both themes = no per-theme logic needed, fewer bugs
-- The yellow border adds edge definition without competing with accent colors
 
 ### Section Header IconBadge (different from stat cards)
 Section headers still use per-section accent-tinted badges via `<IconBadge>`.

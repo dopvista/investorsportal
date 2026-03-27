@@ -97,13 +97,31 @@ export function Toast({ msg, type }) {
 }
 
 // ── StatCard ──────────────────────────────────────────────────────
-// Stat card icon badge: pale yellow bg, dark gray icon — consistent both themes
-const STAT_ICON_BG     = "#FEF3C7";
-const STAT_ICON_BORDER = "#FDE68A";
-const STAT_ICON_COLOR  = "#4B5563";
+// Stat card icon badge: pale colored bg per accent, dark gray bold icon
+// Each accent maps to a distinct pale pastel that works on both light & dark cards
+const STAT_ICON_COLOR = "#374151"; // dark gray (gray-700) for all icons
+const PALE_COLORS = {
+  blue:   { bg: "#DBEAFE", border: "#BFDBFE" },  // pale blue
+  green:  { bg: "#D1FAE5", border: "#A7F3D0" },  // pale green
+  red:    { bg: "#FEE2E2", border: "#FECACA" },  // pale red
+  amber:  { bg: "#FEF3C7", border: "#FDE68A" },  // pale yellow
+  purple: { bg: "#EDE9FE", border: "#DDD6FE" },  // pale purple
+  teal:   { bg: "#CCFBF1", border: "#99F6E4" },  // pale teal
+};
+function statPale(accentHex) {
+  if (!accentHex) return PALE_COLORS.green;
+  const h = accentHex.toLowerCase();
+  if (h.includes("ef44") || h.includes("ef6e") || h === "#dc2626") return PALE_COLORS.red;
+  if (h.includes("f59e") || h.includes("f0b4") || h.includes("d976")) return PALE_COLORS.amber;
+  if (h.includes("2563") || h.includes("3b6f") || h.includes("0b1f") || h.includes("0a25")) return PALE_COLORS.blue;
+  if (h.includes("8b5c") || h.includes("7c3a")) return PALE_COLORS.purple;
+  if (h.includes("0d94") || h.includes("14b8")) return PALE_COLORS.teal;
+  return PALE_COLORS.green; // default: green-tinted
+}
 
 export function StatCard({ label, value, sub, color, icon }) {
   const { C } = useTheme();
+  const pale = statPale(color);
   return (
     <div style={{
       background: C.white, border: `1px solid ${C.gray200}`,
@@ -112,8 +130,8 @@ export function StatCard({ label, value, sub, color, icon }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
     }}>
       <div style={{
-        width: 36, height: 36, background: STAT_ICON_BG,
-        border: `1.5px solid ${STAT_ICON_BORDER}`,
+        width: 36, height: 36, background: pale.bg,
+        border: `1.5px solid ${pale.border}`,
         borderRadius: 10, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 17, flexShrink: 0,
         color: STAT_ICON_COLOR,

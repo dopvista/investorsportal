@@ -231,6 +231,14 @@ const StatCard = memo(function StatCard({
   const hdrText = isColored ? "#ffffff" : C.text;
   const hdrSub  = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
   const hdrHint = isColored ? "rgba(255,255,255,0.45)" : C.gray400;
+  // Pale pastel bg per accent color
+  const h = (accent || "").toLowerCase();
+  const pale = h.includes("f59e") || h.includes("f0b4") ? { bg: "#FEF3C7", bdr: "#FDE68A" }  // amber
+    : h.includes("ef44") || h.includes("ef6e") ? { bg: "#FEE2E2", bdr: "#FECACA" }            // red
+    : h.includes("2563") || h.includes("3b6f") ? { bg: "#DBEAFE", bdr: "#BFDBFE" }            // blue
+    : { bg: "#D1FAE5", bdr: "#A7F3D0" };                                                       // green
+  const paleBg = pale.bg;
+  const paleBdr = pale.bdr;
 
   return (
     <div
@@ -265,11 +273,11 @@ const StatCard = memo(function StatCard({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : "#FEF3C7",
-            border: isColored ? "none" : "1.5px solid #FDE68A",
+            background: isColored ? "rgba(255,255,255,0.18)" : paleBg,
+            border: isColored ? "none" : `1.5px solid ${paleBdr}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
-            color: isColored ? "#ffffff" : "#4B5563",
+            color: isColored ? "#ffffff" : "#374151",
           }}>
             {icon}
           </div>
@@ -393,6 +401,11 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
 // ── Mobile stat pill ───────────────────────────────────────────────
 const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClick, active, accent, navigates }) {
   const { C } = useTheme();
+  const h = (accent || "").toLowerCase();
+  const pale = h.includes("f59e") || h.includes("f0b4") ? { bg: "#FEF3C7", bdr: "#FDE68A" }
+    : h.includes("ef44") || h.includes("ef6e") ? { bg: "#FEE2E2", bdr: "#FECACA" }
+    : h.includes("2563") || h.includes("3b6f") ? { bg: "#DBEAFE", bdr: "#BFDBFE" }
+    : { bg: "#D1FAE5", bdr: "#A7F3D0" };
   return (
     <div
       onClick={onClick}
@@ -405,7 +418,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
         display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
       }}
     >
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEF3C7", border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center", color: "#4B5563" }}>{icon}</div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: pale.bg, border: `1.5px solid ${pale.bdr}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#374151" }}>{icon}</div>
       <div style={{ fontSize: 17, fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 10, color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
       {navigates && <span style={{ fontSize: 10, color: C.gray400 }}>→</span>}

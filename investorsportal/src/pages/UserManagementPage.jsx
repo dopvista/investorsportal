@@ -869,11 +869,21 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
   );
 });
 
+function umPale(hex) {
+  const h = (hex || "").toLowerCase();
+  if (h.includes("ef44") || h.includes("ef6e") || h.includes("dc26")) return { bg: "#FEE2E2", bdr: "#FECACA" };
+  if (h.includes("f59e") || h.includes("f0b4") || h.includes("d976")) return { bg: "#FEF3C7", bdr: "#FDE68A" };
+  if (h.includes("2563") || h.includes("3b6f")) return { bg: "#DBEAFE", bdr: "#BFDBFE" };
+  if (h.includes("8b5c") || h.includes("7c3a")) return { bg: "#EDE9FE", bdr: "#DDD6FE" };
+  if (h.includes("0a25") || h.includes("0b1f")) return { bg: "#DBEAFE", bdr: "#BFDBFE" };
+  return { bg: "#D1FAE5", bdr: "#A7F3D0" };
+}
 const StatCard = memo(function StatCard({ label, value, color, icon }) {
   const { C } = useTheme();
+  const pale = umPale(color);
   return (
     <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"10px 12px", display:"flex", alignItems:"center", gap:10, flex:1, minWidth:90, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:"#FEF3C7", border:"1.5px solid #FDE68A", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#4B5563" }}>{icon}</div>
+      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:pale.bg, border:`1.5px solid ${pale.bdr}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#374151" }}>{icon}</div>
       <div>
         <div style={{ fontSize:18, fontWeight:800, color:C.text, lineHeight:1 }}>{value}</div>
         <div style={{ fontSize:10, color:C.gray400, marginTop:2 }}>{label}</div>
