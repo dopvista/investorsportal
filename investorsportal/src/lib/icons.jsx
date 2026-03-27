@@ -45,24 +45,29 @@ export function Icon({ name, size = 14, stroke = "currentColor", sw = 2, classNa
 /**
  * Icon inside a rounded-rect badge with themed background.
  * Use for section headers, stat cards, and anywhere icons need visual weight.
+ * Automatically adapts opacity for dark/light themes when `isDark` is provided.
  *
  * @param {string}  name     — key from ICON_PATHS
  * @param {string}  color    — primary color (used for icon stroke + tinted bg)
  * @param {number}  [size=28] — outer badge size
  * @param {number}  [iconSize] — icon size (defaults to size * 0.5)
  * @param {number}  [radius=7] — border-radius
+ * @param {boolean} [isDark]  — dark mode flag (increases contrast)
  * @param {object}  [style]  — extra styles on outer div
  */
-export function IconBadge({ name, color, size = 28, iconSize, radius = 7, style }) {
+export function IconBadge({ name, color, size = 28, iconSize, radius = 7, isDark, style }) {
   const iSize = iconSize || Math.round(size * 0.5);
+  // Stronger opacity in dark mode for visibility
+  const bgAlpha  = isDark ? "30" : "1A";
+  const bdrAlpha = isDark ? "50" : "35";
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: radius,
-        background: `${color}18`,
-        border: `1.5px solid ${color}30`,
+        background: `${color}${bgAlpha}`,
+        border: `1.5px solid ${color}${bdrAlpha}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

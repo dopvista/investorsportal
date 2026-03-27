@@ -226,7 +226,7 @@ const StatCard = memo(function StatCard({
   icon, label, value, subLabel, accent, accentBg,
   onClick, active, navigates, loading,
 }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const isColored = active && accentBg;
   const hdrText = isColored ? "#ffffff" : C.text;
   const hdrSub  = isColored ? "rgba(255,255,255,0.65)" : C.gray500;
@@ -265,7 +265,8 @@ const StatCard = memo(function StatCard({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}18`,
+            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}${isDark ? "35" : "20"}`,
+            border: isColored ? "none" : `1.5px solid ${accent}${isDark ? "50" : "30"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
           }}>
@@ -415,7 +416,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const [portfolio,     setPortfolio]     = useState([]);
   const [transactions,  setTransactions]  = useState([]);
   const [userCount,     setUserCount]     = useState(null);
@@ -1396,7 +1397,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Top 5 Holdings table */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
               <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.text, display: "flex", alignItems: "center", gap: 8 }}><IconBadge name="clipboard" color={C.green} size={28} radius={7} /> Top 5 Holdings by Market Value</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: C.text, display: "flex", alignItems: "center", gap: 8 }}><IconBadge name="clipboard" color={C.green} size={28} radius={7} isDark={isDark} /> Top 5 Holdings by Market Value</div>
                 <div style={{ fontSize: 11, color: C.gray400 }}>
                   {metrics.hasFinancials
                     ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`

@@ -116,7 +116,7 @@ function Section({ title, icon, children }) {
   const accent = SECTION_COLORS[icon];
   const color = accent ? (isDark ? accent.dark : accent.light) : C.gray500;
   const iconEl = typeof icon === "string" && ICON_PATHS[icon]
-    ? <IconBadge name={icon} color={color} size={26} radius={7} />
+    ? <IconBadge name={icon} color={color} size={26} radius={7} isDark={isDark} />
     : <span style={{ fontSize: 13 }}>{icon}</span>;
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 6 }}>
@@ -719,7 +719,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     <div style={{ marginBottom: 8 }}>
       <div onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
         style={{ display: "flex", alignItems: "center", gap: 6, background: cdsAccordionBg, border: `1px solid ${cdsExpanded ? C.green : cdsAccordionBdr}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: small ? "5px 8px" : "6px 9px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}>
-        <IconBadge name="lock" color={C.green} size={small ? 24 : 28} radius={6} />
+        <IconBadge name="lock" color={C.green} size={small ? 24 : 28} radius={6} isDark={isDark} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
           <div style={{ fontSize: small ? 12 : 13, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
@@ -962,7 +962,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <IconBadge name="building" color={isDark ? "#7EB3FF" : "#0B1F3A"} size={28} />
+                <IconBadge name="building" color={isDark ? "#7EB3FF" : "#0B1F3A"} size={28} isDark={isDark} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -971,7 +971,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
                     <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
                   </div>
-                  <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={36} radius={9} />
+                  <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={36} radius={9} isDark={isDark} />
                 </div>
                 <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.9 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><Icon name="user" size={13} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
@@ -982,7 +982,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <IconBadge name="shield" color={isDark ? "#28C062" : "#00843D"} size={28} />
+                <IconBadge name="shield" color={isDark ? "#28C062" : "#00843D"} size={28} isDark={isDark} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -1162,7 +1162,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                       <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
                       <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
                     </div>
-                    <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={30} radius={8} />
+                    <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={30} radius={8} isDark={isDark} />
                   </div>
                   <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.7 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}><Icon name="user" size={11} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
@@ -1263,7 +1263,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </Section>
 
                 <div style={{ background: isDark ? `${C.gold}14` : `${C.gold}10`, border: `1px solid ${isDark ? `${C.gold}44` : `${C.gold}30`}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                  <IconBadge name="image" color={C.gold} size={30} radius={8} />
+                  <IconBadge name="image" color={C.gold} size={30} radius={8} isDark={isDark} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
                     <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>

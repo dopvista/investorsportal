@@ -98,8 +98,10 @@ export function Toast({ msg, type }) {
 
 // ── StatCard ──────────────────────────────────────────────────────
 export function StatCard({ label, value, sub, color, icon }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const accentColor = color || C.green;
+  const iconBg = isDark ? accentColor + "35" : accentColor + "20";
+  const iconBorder = isDark ? accentColor + "55" : accentColor + "30";
   return (
     <div style={{
       background: C.white, border: `1px solid ${C.gray200}`,
@@ -108,7 +110,8 @@ export function StatCard({ label, value, sub, color, icon }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
     }}>
       <div style={{
-        width: 36, height: 36, background: accentColor + "28",
+        width: 36, height: 36, background: iconBg,
+        border: `1.5px solid ${iconBorder}`,
         borderRadius: 10, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 17, flexShrink: 0,
       }}>{icon}</div>

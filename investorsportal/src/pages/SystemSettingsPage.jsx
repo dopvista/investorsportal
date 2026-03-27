@@ -611,7 +611,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   if (!isSA) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ marginBottom: 10 }}><IconBadge name="lock" color={C.red} size={56} iconSize={28} radius={14} /></div>
+        <div style={{ marginBottom: 10 }}><IconBadge name="lock" color={C.red} size={56} iconSize={28} radius={14} isDark={isDark} /></div>
         <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Access Restricted</div>
         <div style={{ fontSize: 12, color: C.gray400, marginTop: 4 }}>Only Super Admins can access System Settings.</div>
       </div>
