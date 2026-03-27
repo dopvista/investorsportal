@@ -232,7 +232,18 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
   const [error, setError]         = useState("");
   const [show, setShow]           = useState({ new: false, confirm: false });
   const [countdown, setCountdown] = useState(0);
+  const closeTimerRef = useRef(null);
   const remaining = remainingPwChanges(uid);
+
+  // Cleanup auto-close timer on unmount
+  useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); }, []);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -307,7 +318,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
       incrementPwChanges(uid);
       setStep("done");
       showToast(`Password updated! ${remainingPwChanges(uid)} change${remainingPwChanges(uid) !== 1 ? "s" : ""} remaining today.`, "success");
-      setTimeout(() => onClose(), 2500);
+      closeTimerRef.current = setTimeout(() => onClose(), 2500);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -392,12 +403,16 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
 // ══════════════════════════════════════════════════════════════════
 // MAIN ProfilePage
 // ══════════════════════════════════════════════════════════════════
-export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList = [], onSwitchCds }) {
+export default function ProfilePage({ profile, setProfile, showToast, session, role, email: emailProp, activeCds, cdsList: cdsListProp = [], onSwitchCds }) {
   const { C, isDark } = useTheme();
+  const cdsList        = cdsListProp || []; // guard against explicit null
   const email          = emailProp || session?.user?.email || session?.email || profile?.email || "";
   const isMountedRef   = useRef(true);
   const cdsCountReqRef = useRef(0);
   const isMobile       = useIsMobile();
+
+  // Dedicated unmount guard — never toggled by dependency changes
+  useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const [form, setForm]                       = useState(() => profileToForm(profile));
   const [avatarPreview, setAvatarPreview]     = useState(profile?.avatar_url || null);
@@ -447,6 +462,19 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
+  // ── Escape key closes open modals/dialogs ─────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key !== "Escape") return;
+      if (confirmDeleteId) { setConfirmDeleteId(null); return; }
+      if (switchTarget)    { setSwitchTarget(null); return; }
+      if (showAvatarSheet) { setShowAvatarSheet(false); return; }
+      if (cropSrc)         { setCropSrc(null); return; }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [confirmDeleteId, switchTarget, showAvatarSheet, cropSrc]);
+
   // ── Load passkeys + detect WebAuthn support on mount ─────────────
   const loadPasskeys = useCallback(() => {
     sbGetPasskeys()
@@ -483,7 +511,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     }
   }, [session?.access_token, session?.user?.email, profile?.email, showToast, loadPasskeys]);
 
-  const handleDeletePasskey = useCallback(async (id) => {
+  const handleDeletePasskey = useCallback((id) => {
     setConfirmDeleteId(id);
   }, []);
 
@@ -528,9 +556,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   }, [activeCdsNumber, session?.access_token]);
 
   useEffect(() => {
-    isMountedRef.current = true;
     fetchCdsUserCount();
-    return () => { isMountedRef.current = false; };
   }, [fetchCdsUserCount]);
 
   const getScrollParent = useCallback((el) => {
@@ -554,8 +580,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const roleMeta        = ROLE_META[role] || { label: role || "User", color: C.gray400 };
   const ROLE_DARK_TEXT  = { SA: "#7EB3FF", AD: "#8BBFE8", DE: "#93C5FD", VR: "#6EE7B7", RO: "#D1D5DB" };
   const roleColor       = isDark ? (ROLE_DARK_TEXT[role] || C.gray400) : roleMeta.color;
-  const initials        = (form.full_name || email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const lastSaved       = profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const initials        = ((form.full_name || email || "?").split(" ").filter(Boolean).map(w => w[0]).join("").toUpperCase() || "?").slice(0, 2);
+  const lastSaved       = (() => { if (!profile?.updated_at) return null; const d = new Date(profile.updated_at); return isNaN(d.getTime()) ? null : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); })();
 
   const handleSwitchCDS = useCallback(async () => {
     if (!switchTarget || !onSwitchCds) return;
@@ -585,7 +611,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       if (!patchRes.ok) throw new Error("Failed to save avatar URL");
       const rows = await patchRes.json();
       if (!isMountedRef.current) return;
-      setProfile(rows[0] || { ...profile, avatar_url: publicUrl }); setAvatarPreview(publicUrl);
+      const updated = Array.isArray(rows) && rows[0] ? rows[0] : { ...profile, avatar_url: publicUrl };
+      setProfile(updated); setAvatarPreview(publicUrl);
       showToast("Profile picture updated!", "success");
     } catch (err) { if (!isMountedRef.current) return; showToast("Upload failed: " + err.message, "error"); }
     finally { if (isMountedRef.current) setUploadingAvatar(false); }
@@ -599,10 +626,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       const tok  = session?.access_token || KEY;
       const uid2 = session?.user?.id || profile?.id;
       const res  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, { method: "PATCH", headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" }, body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const errText = await res.text().catch(() => "Save failed"); throw new Error(errText); }
       const rows = await res.json();
       if (!isMountedRef.current) return;
-      setProfile(rows[0] || { ...profile, ...form }); showToast("Profile saved successfully!", "success");
+      const updated = Array.isArray(rows) && rows[0] ? rows[0] : { ...profile, ...form };
+      setProfile(updated); showToast("Profile saved successfully!", "success");
     } catch (e) { if (!isMountedRef.current) return; showToast("Error: " + e.message, "error"); }
     finally { if (isMountedRef.current) setSaving(false); }
   }, [form, profile, session?.access_token, session?.user?.id, setProfile, showToast]);
@@ -855,8 +883,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         input::placeholder, textarea::placeholder { color: #9ca3af; }
         .pcol::-webkit-scrollbar { width: 3px; } .pcol::-webkit-scrollbar-track { background: transparent; }
-        .pcol::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .pcol { scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
+        .pcol::-webkit-scrollbar-thumb { background: ${isDark ? C.gray200 : "#e5e7eb"}; border-radius: 10px; }
+        .pcol { scrollbar-width: thin; scrollbar-color: ${isDark ? C.gray200 : "#e5e7eb"} transparent; }
       `}</style>
 
       {/* Pull to refresh indicator */}
