@@ -1612,7 +1612,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
-                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
+                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : "#F0F4F8" }}>
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
@@ -1620,7 +1620,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                           </th>
                         )}
                         {tableHeaders.map(h => (
-                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)` }}>
+                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>
                             {h.label}
                           </th>
                         ))}
