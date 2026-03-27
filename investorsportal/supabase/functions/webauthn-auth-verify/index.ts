@@ -113,16 +113,43 @@ Deno.serve(async (req) => {
       .eq("id", passkey.id);
 
     // ── 5. Create a Supabase session for the verified user ────────
-    const { data: sessionData, error: sessionErr } = await supabase.auth.admin.createSession({
-      user_id: passkey.user_id as string,
+    // Look up the user's email for generateLink (createSession is not
+    // available on hosted Supabase GoTrue).
+    const { data: { user: verifiedUser }, error: userErr } = await supabase.auth.admin.getUserById(
+      passkey.user_id as string,
+    );
+
+    if (userErr || !verifiedUser?.email) {
+      console.error("getUserById error:", userErr);
+      return json({ error: "Failed to look up user for session creation" }, 500);
+    }
+
+    // Generate a magic-link server-side (no email is actually sent when
+    // using the admin generateLink endpoint) — this gives us a hashed
+    // token we can immediately exchange for a real session.
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type:  "magiclink",
+      email: verifiedUser.email,
     });
 
-    if (sessionErr || !sessionData?.session) {
-      console.error("Session creation error:", sessionErr);
+    if (linkErr || !linkData?.properties?.hashed_token) {
+      console.error("generateLink error:", linkErr);
+      return json({ error: "Failed to create login link after biometric verification" }, 500);
+    }
+
+    // Exchange the hashed token for a real session (no network round-trip
+    // to the user's browser — this happens entirely server-side).
+    const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
+      token_hash: linkData.properties.hashed_token,
+      type:       "magiclink",
+    });
+
+    if (otpErr || !otpData?.session) {
+      console.error("verifyOtp error:", otpErr);
       return json({ error: "Failed to create session after biometric login" }, 500);
     }
 
-    const { session } = sessionData;
+    const session = otpData.session;
     return json({
       access_token:  session.access_token,
       refresh_token: session.refresh_token,
