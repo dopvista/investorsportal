@@ -24,7 +24,8 @@ export function getStoredPasskeyInfo() {
     const raw = localStorage.getItem(PASSKEY_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && parsed.email ? parsed : null;
+    // Validate both required fields exist
+    return parsed && parsed.email && parsed.credentialId ? parsed : null;
   } catch { return null; }
 }
 
@@ -54,19 +55,46 @@ export function getDeviceName() {
 }
 
 // ── Edge function bridge ──────────────────────────────────────────
+// Lazy-import refreshSession from supabase.js to avoid circular deps.
+// Only resolved once, on first 401 retry.
+let _refreshSession = null;
+async function _getRefreshSession() {
+  if (!_refreshSession) {
+    const mod = await import("./supabase.js");
+    _refreshSession = mod.refreshSession;
+  }
+  return _refreshSession;
+}
+
 async function callEdgeFunction(name, body, accessToken = null) {
-  const headers = { "Content-Type": "application/json", "apikey": KEY };
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const hdrs = { "Content-Type": "application/json", "apikey": KEY };
+  if (accessToken) hdrs["Authorization"] = `Bearer ${accessToken}`;
 
   let res;
   try {
     res = await fetch(`${FUNCTIONS_URL}/${name}`, {
       method: "POST",
-      headers,
+      headers: hdrs,
       body: JSON.stringify(body),
     });
   } catch (networkErr) {
     throw new Error("Network error — check your connection and try again.");
+  }
+
+  // If we get a 401 and had a token, try refreshing the session once
+  if (res.status === 401 && accessToken) {
+    try {
+      const doRefresh = await _getRefreshSession();
+      const newToken = await doRefresh();
+      if (newToken) {
+        hdrs["Authorization"] = `Bearer ${newToken}`;
+        res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+          method: "POST",
+          headers: hdrs,
+          body: JSON.stringify(body),
+        });
+      }
+    } catch { /* refresh failed — fall through to original 401 error */ }
   }
 
   const data = await res.json().catch(() => ({}));
@@ -106,7 +134,8 @@ export async function registerPasskey(accessToken, nickname = "My Device") {
     accessToken
   );
 
-  return { ...result, credentialId: registrationResponse.id };
+  // Use server-confirmed credentialId, fall back to client-side id
+  return { ...result, credentialId: result.credentialId || registrationResponse.id };
 }
 
 /**

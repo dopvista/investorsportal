@@ -426,10 +426,16 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   useEffect(() => { try { localStorage.removeItem("dse_pw_changes"); } catch {} }, []);
 
   // ── Load passkeys + detect WebAuthn support on mount ─────────────
+  const loadPasskeys = useCallback(() => {
+    sbGetPasskeys()
+      .then(data => { if (Array.isArray(data)) setPasskeys(data); })
+      .catch(() => { /* silent — user sees existing list or empty */ });
+  }, []);
+
   useEffect(() => {
     setWebAuthnOk(isWebAuthnSupported());
-    sbGetPasskeys().then(setPasskeys).catch(() => {});
-  }, []);
+    loadPasskeys();
+  }, [loadPasskeys]);
 
   const handleAddPasskey = useCallback(async () => {
     const nickname = `${getDeviceName()} — ${new Date().toLocaleDateString()}`;
@@ -442,7 +448,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         storePasskeyInfo(userEmail, result.credentialId);
       }
       showToast("Passkey added! You can now sign in with biometrics.", "success");
-      sbGetPasskeys().then(setPasskeys).catch(() => {});
+      loadPasskeys();
     } catch (err) {
       const msg = err.message || "";
       if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
@@ -453,7 +459,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } finally {
       setAddingPasskey(false);
     }
-  }, [session?.access_token, session?.user?.email, profile?.email, showToast]);
+  }, [session?.access_token, session?.user?.email, profile?.email, showToast, loadPasskeys]);
 
   const handleDeletePasskey = useCallback(async (id) => {
     setConfirmDeleteId(id);

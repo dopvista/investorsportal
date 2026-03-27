@@ -39,9 +39,10 @@ export function sbSaveSession(s) { saveSession(s); }
 
 function clearSession() {
   _sessionCache = null;
-  // Also clear response cache on logout — prevents stale data leaking
-  // between sessions when a different user logs in on the same device.
+  // Clear response cache AND in-flight requests on logout — prevents
+  // stale data from a previous user's session leaking to a new one.
   _responseCache.clear();
+  _inFlight.clear();
   try { localStorage.removeItem("sb_session"); } catch {}
 }
 
@@ -229,7 +230,7 @@ const headers = (tok) => ({
 
 let _refreshPromise = null;
 
-async function refreshSession() {
+export async function refreshSession() {
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = _doRefreshSession().finally(() => { _refreshPromise = null; });
   return _refreshPromise;
@@ -244,12 +245,18 @@ async function _doRefreshSession() {
       { method: "POST", headers: { "Content-Type": "application/json", "apikey": KEY }, body: JSON.stringify({ refresh_token: refreshToken }) },
       10_000
     );
-    if (!res.ok) { clearSession(); return null; }
+    if (!res.ok) {
+      // 4xx = auth error (token revoked/expired) → session is dead
+      // 5xx = server error → preserve session for retry later
+      if (res.status >= 400 && res.status < 500) clearSession();
+      return null;
+    }
     const data = await res.json();
     saveSession(data);
     return data.access_token;
   } catch {
-    clearSession();
+    // Network error or timeout — preserve session so the user isn't
+    // logged out just because of a transient connectivity blip.
     return null;
   }
 }

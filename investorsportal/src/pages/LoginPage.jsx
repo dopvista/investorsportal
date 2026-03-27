@@ -347,6 +347,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
     try {
       const session = await loginWithPasskey(view === "biometric" ? undefined : email.trim());
       sbSaveSession(session); // persist to localStorage so page refresh keeps the session
+      setError("");
+      setBiometricLoading(false);
       onLogin(session);
     } catch (err) {
       const msg = err.message || "";
@@ -369,6 +371,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
     if (!pendingSession) return;
     setRegisterLoading(true);
     try {
+      // Use the session's current token (it's fresh — we just logged in)
       const nickname = `${getDeviceName()} — ${new Date().toLocaleDateString()}`;
       const result = await registerPasskey(pendingSession.access_token, nickname);
       if (result.credentialId) {
@@ -378,11 +381,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
       onLogin(pendingSession);
     } catch (err) {
       const msg = err.message || "";
-      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+      if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
         setRegisterLoading(false);
         // Let user try again or skip
       } else {
         // Registration failed — proceed to app anyway
+        setRegisterLoading(false);
         onLogin(pendingSession);
       }
     }

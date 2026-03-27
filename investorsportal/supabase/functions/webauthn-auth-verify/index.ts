@@ -3,14 +3,12 @@
 // update the counter, and return a fresh Supabase session.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyAuthenticationResponse } from "npm:@simplewebauthn/server@10";
+import { verifyAuthenticationResponse } from "https://esm.sh/@simplewebauthn/server@11.0.0";
 import { corsHeaders, json, decodeBase64URL } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Derive RP_ID + expectedOrigin from the request so both localhost (dev) and
-  // production work without re-deploying or changing secrets.
   const requestOrigin = req.headers.get("origin") ?? "";
   const RP_ID = requestOrigin
     ? new URL(requestOrigin).hostname
@@ -45,7 +43,6 @@ Deno.serve(async (req) => {
     }
 
     // ── 2. Look up the stored challenge ──────────────────────────
-    // First try: challenge associated with this specific user
     let { data: ch } = await supabase
       .from("webauthn_challenges")
       .select("id, challenge, expires_at")
@@ -55,7 +52,6 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    // Fallback: discoverable-flow challenge (user_id is null)
     if (!ch) {
       const { data: globalCh } = await supabase
         .from("webauthn_challenges")
@@ -86,7 +82,7 @@ Deno.serve(async (req) => {
         credential: {
           id:         credentialId,
           publicKey:  decodeBase64URL(passkey.public_key as string),
-          counter:    passkey.counter as number,
+          counter:    Number(passkey.counter) || 0,
           transports: (passkey.transports ?? []) as AuthenticatorTransport[],
         },
         requireUserVerification: false,
@@ -95,7 +91,6 @@ Deno.serve(async (req) => {
       console.error("Auth verify error:", verifyErr);
       return json({ error: "Biometric verification failed: " + (verifyErr as Error).message }, 400);
     } finally {
-      // Always consume the challenge
       await supabase.from("webauthn_challenges").delete().eq("id", ch.id);
     }
 
@@ -113,8 +108,6 @@ Deno.serve(async (req) => {
       .eq("id", passkey.id);
 
     // ── 5. Create a Supabase session for the verified user ────────
-    // Look up the user's email for generateLink (createSession is not
-    // available on hosted Supabase GoTrue).
     const { data: { user: verifiedUser }, error: userErr } = await supabase.auth.admin.getUserById(
       passkey.user_id as string,
     );
@@ -124,9 +117,9 @@ Deno.serve(async (req) => {
       return json({ error: "Failed to look up user for session creation" }, 500);
     }
 
-    // Generate a magic-link server-side (no email is actually sent when
-    // using the admin generateLink endpoint) — this gives us a hashed
-    // token we can immediately exchange for a real session.
+    // Generate a magic-link server-side (no email is sent via admin
+    // generateLink) then immediately exchange the hashed token for a
+    // real session — all happens server-side, no browser round-trip.
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type:  "magiclink",
       email: verifiedUser.email,
@@ -137,8 +130,6 @@ Deno.serve(async (req) => {
       return json({ error: "Failed to create login link after biometric verification" }, 500);
     }
 
-    // Exchange the hashed token for a real session (no network round-trip
-    // to the user's browser — this happens entirely server-side).
     const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
       token_hash: linkData.properties.hashed_token,
       type:       "magiclink",
