@@ -429,7 +429,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
           QuickType autofill bar (Key, Card, Location) on numeric fields.
           Previously type="number" alone triggered the autofill suggestion row. */}
       {!isEdit && <FInput label="Opening Price (TZS)" required type="text" inputMode="decimal" autoComplete="new-password" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
-      <FTextarea label="Remarks" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Optional notes..." style={{ minHeight: 72 }} />
+      <FInput label="Sector" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="e.g. Banking, Telecom, Energy..." />
     </ModalShell>
   );
 }
@@ -757,7 +757,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   const ddItemStyle = (selected) => ({ width: "100%", padding: "9px 14px", border: "none", background: selected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` });
 
   const fieldLabelStyle = { fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 };
-  const selectBtnStyle = (open) => ({ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${open ? C.green : C.gray200}`, background: C.white, color: C.text, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative" });
+  const selectBtnStyle = (open) => ({ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${open ? C.green : C.gray200}`, background: C.white, color: C.text, fontSize: 14, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" });
 
   const feeItems = [
     { label: "Broker", value: feeBreakdown.broker, note: "+VAT" },
@@ -925,12 +925,12 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           <div style={{ background: isBuy ? C.greenBg : C.redBg, border: `1px solid ${isBuy ? C.green : C.red}44`, borderRadius: 10, padding: "10px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <div style={{ flex: 1.3, minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
+                <div style={{ fontSize: 10, color: C.text, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trade Value</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmtFee(tradeValue)}</div>
               </div>
               <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>{isBuy ? "+" : "−"}</div>
               <div style={{ flex: 0.9, minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
+                <div style={{ fontSize: 10, color: C.text, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
                   Fees
                   <button type="button" onClick={() => setShowFeeBreakdown(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: showFeeBreakdown ? C.navy : C.gray400, padding: 0, lineHeight: 1 }}>
                     {showFeeBreakdown ? "▲" : "ⓘ"}
@@ -940,16 +940,16 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               </div>
               <div style={{ color: C.gray400, fontSize: 12, flexShrink: 0 }}>=</div>
               <div style={{ flex: 1.4, minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{isBuy ? "Total Paid" : "Net Proceeds"}</div>
+                <div style={{ fontSize: 10, color: C.text, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>{isBuy ? "Total Paid" : "Net Proceeds"}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: isBuy ? C.green : C.red, marginTop: 2 }}>{fmtFee(grandTotal)}</div>
               </div>
             </div>
             {showFeeBreakdown && (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${isBuy ? C.green : C.red}44`, display: "flex", gap: 4 }}>
                 {feeItems.map(({ label, value, note }) => (
-                  <div key={label} style={{ flex: 1, background: "rgba(255,255,255,0.6)", borderRadius: 6, padding: "5px 4px", textAlign: "center" }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase" }}>{label}</div>
-                    <div style={{ fontSize: 9, color: C.gray400 }}>{note}</div>
+                  <div key={label} style={{ flex: 1, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.7)", borderRadius: 6, padding: "5px 4px", textAlign: "center", border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}` }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: C.text, textTransform: "uppercase" }}>{label}</div>
+                    <div style={{ fontSize: 9, color: C.gray500, fontWeight: 600 }}>{note}</div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginTop: 2 }}>{fmt(value)}</div>
                   </div>
                 ))}

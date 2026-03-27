@@ -592,7 +592,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           ))}
         </div>
 
-        <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        <div className="tx-scroll" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? renderRightPanel() : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
               <div style={{ borderRight: `1px solid ${C.gray200}` }}>{renderLeftPanel()}</div>
@@ -603,7 +603,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
-          <button onClick={onClose} style={{ padding: "6px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+          <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
         </div>
       </div>
     </div>
@@ -742,7 +742,7 @@ const TransactionRow = memo(function TransactionRow({
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: isDark ? C.green : "#0B1F3A" }} />
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: isDark ? C.green : C.green }} />
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
@@ -1616,7 +1616,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
-                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: isDark ? C.green : "#0B1F3A" }} />
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: isDark ? C.green : C.green }} />
                           </th>
                         )}
                         {tableHeaders.map(h => (

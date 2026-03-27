@@ -1112,11 +1112,13 @@ export default function App() {
                 <div style={{ flex: 1, textAlign: "center" }}>
                   <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
                   <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
+                  {activeCds?.cds_name && <div style={{ fontSize: 10, color: C.gray400, marginTop: 1, fontWeight: 600 }}>{activeCds.cds_name}</div>}
                 </div>
                 <div style={{ fontSize: 16, color: C.gray500 }}>→</div>
                 <div style={{ flex: 1, textAlign: "center" }}>
                   <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>New</div>
                   <div style={{ fontWeight: 800, color: C.green, marginTop: 2 }}>{switchTarget.cds_number}</div>
+                  {switchTarget.cds_name && <div style={{ fontSize: 10, color: C.gray400, marginTop: 1, fontWeight: 600 }}>{switchTarget.cds_name}</div>}
                 </div>
               </div>
             </div>

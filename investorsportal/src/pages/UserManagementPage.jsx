@@ -107,7 +107,7 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
         </div>
         <div style={{ padding: isMobile ? "16px 18px" : "20px 24px", overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:14 }}>{children}</div>
         {footer && (
-          <div style={{ display:"flex", gap:10, padding: isMobile ? "12px 18px" : "16px 24px", flexShrink:0, background:C.gray50, borderTop:`1px solid ${C.gray200}`, borderRadius: isMobile ? 0 : "0 0 18px 18px", position: isMobile ? "sticky" : "static", bottom:0, zIndex:2 }}>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end", padding: isMobile ? "12px 18px" : "14px 24px", flexShrink:0, background:C.gray50, borderTop:`1px solid ${C.gray200}`, borderRadius: isMobile ? 0 : "0 0 18px 18px", position: isMobile ? "sticky" : "static", bottom:0, zIndex:2 }}>
             {footer}
           </div>
         )}
@@ -121,7 +121,7 @@ const CancelBtn = memo(function CancelBtn({ onClose }) {
   const { C } = useTheme();
   return (
     <button onClick={onClose}
-      style={{ flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", transition:"border-color 0.15s, color 0.15s, background 0.15s" }}
+      style={{ padding:"8px 20px", borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:12, cursor:"pointer", fontFamily:"inherit", transition:"border-color 0.15s, color 0.15s, background 0.15s" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; e.currentTarget.style.background = C.gray50; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; e.currentTarget.style.background = C.white; }}
     >Cancel</button>
@@ -133,7 +133,7 @@ const ConfirmBtn = memo(function ConfirmBtn({ onClick, label, color, loading, di
   const off = loading || disabled;
   return (
     <button onClick={onClick} disabled={off}
-      style={{ flex:2, padding:"10px", borderRadius:10, border:"none", background:off ? C.gray200 : (color || C.green), color:"#ffffff", fontWeight:700, fontSize:13, cursor:off ? "not-allowed" : "pointer", fontFamily:"inherit", boxShadow:off ? "none" : `0 4px 12px ${(color||C.green)}33`, transition:"transform 0.15s, box-shadow 0.15s" }}
+      style={{ padding:"8px 24px", borderRadius:8, border:"none", background:off ? C.gray200 : (color || C.green), color:"#ffffff", fontWeight:700, fontSize:12, cursor:off ? "not-allowed" : "pointer", fontFamily:"inherit", boxShadow:off ? "none" : `0 4px 12px ${(color||C.green)}33`, transition:"transform 0.15s, box-shadow 0.15s" }}
       onMouseEnter={e => { if (!off) e.currentTarget.style.transform = "translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
     >{loading ? "Saving..." : label}</button>
@@ -478,19 +478,19 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
       <Modal
         title="Manage CDS Accounts"
         subtitle={`${user.full_name||"User"} · ${userCdsList.length} account${userCdsList.length!==1?"s":""}`}
-        onClose={onClose} maxWidth={520}
-        footer={<button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>Close</button>}
+        onClose={onClose} maxWidth={420}
+        footer={<div style={{ display:"flex", justifyContent:"flex-end", width:"100%" }}><button onClick={onClose} style={{ padding:"7px 20px", borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, fontWeight:600, fontSize:12, cursor:"pointer", fontFamily:"inherit", transition:"border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button></div>}
       >
-        <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assigned CDS</div>
+        <div style={{ marginBottom:10 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 }}>Assigned CDS</div>
           {loadingList
             ? <div style={{ textAlign:"center", padding:"18px 0", color:C.gray400, fontSize:12 }}>Loading...</div>
             : userCdsList.length===0
               ? <div style={{ textAlign:"center", padding:"16px 0", color:C.gray400, fontSize:12, background:C.gray50, borderRadius:10, border:`1px dashed ${C.gray200}` }}>No CDS accounts assigned yet</div>
-              : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              : <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                   {userCdsList.map(c => (
-                    <div key={c.cds_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:c.is_active?`${C.green}09`:C.gray50, border:`1.5px solid ${c.is_active?C.green+"30":C.gray200}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-                      <div style={{ width:30, height:30, borderRadius:8, background:c.is_active?C.green+"18":C.navy+"10", border:`1px solid ${c.is_active?C.green+"30":C.navy+"15"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}><Icon name="lock" size={13} /></div>
+                    <div key={c.cds_id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:8, background:c.is_active?`${C.green}09`:C.gray50, border:`1.5px solid ${c.is_active?C.green+"30":C.gray200}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+                      <div style={{ width:26, height:26, borderRadius:7, background:c.is_active?C.green+"18":C.navy+"10", border:`1px solid ${c.is_active?C.green+"30":C.navy+"15"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, flexShrink:0 }}><Icon name="lock" size={12} /></div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
                         <div style={{ fontSize:11, color:C.gray500 }}>{c.cds_name||"—"}</div>
@@ -504,9 +504,9 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
         </div>
         {isSA && (
           <>
-            <div style={{ height:1, background:C.gray100, margin:"4px 0 14px" }}/>
+            <div style={{ height:1, background:C.gray100, margin:"2px 0 10px" }}/>
             <div>
-              <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>Assign CDS</div>
+              <div style={{ fontSize:10, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 }}>Assign CDS</div>
               <CDSSearchBox key={searchBoxKey} callerRole={callerRole} adCdsList={[]} excludeCdsIds={userCdsList.map(c=>c.cds_id)} excludeCdsNumbers={userCdsList.map(c=>c.cds_number)} onSelect={setSelectedCds} placeholder="Search CDS number or owner name..." />
               {selectedCds && (
                 <button onClick={handleAssign} disabled={assigning} style={{ marginTop:10, width:"100%", padding:"10px", borderRadius:9, border:"none", background:assigning?C.gray200:C.green, color:"#ffffff", fontWeight:700, fontSize:13, cursor:assigning?"not-allowed":"pointer", fontFamily:"inherit", boxShadow:assigning?"none":`0 4px 12px ${C.green}33`, display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
