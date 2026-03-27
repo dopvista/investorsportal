@@ -1071,8 +1071,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             <div style={{ marginBottom: 6, flexShrink: 0 }}>
               <div style={{ fontSize: 12, color: C.gray400 }}>Manage your personal information and security settings{lastSaved && <span style={{ marginLeft: 8 }}>· Last saved {lastSaved}</span>}</div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8, height: "100%" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gridTemplateRows: "1fr", gap: 10, flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <div className="pcol" style={{ overflowY: "auto", overflowX: "hidden", paddingRight: 3, paddingBottom: 8, minHeight: 0 }}>
                 <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
                   <div style={{ height: 40, background: `linear-gradient(135deg, ${C.navy} 0%, #1e3a5f 100%)` }} />
                   <div style={{ padding: "0 12px 12px", marginTop: -24 }}>
