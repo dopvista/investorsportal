@@ -5,6 +5,7 @@ import {
 } from "react";
 import {
   getSession,
+  saveSession,
   sbSignOut,
   sbGetProfile,
   sbGetMyRole,
@@ -621,6 +622,7 @@ export default function App() {
   }, [session, switching, cdsList, showToast]);
 
   const handleLogin = useCallback((s) => {
+    saveSession(s); // ensure cache + localStorage are populated for token() callers
     setDbError(null); setLoading(true); setAppBootstrapping(true);
     setProfile(undefined); setRole(null); setActiveCds(null); setCdsList([]);
     setCompanies([]); setTransactions([]); setDrawerOpen(false);

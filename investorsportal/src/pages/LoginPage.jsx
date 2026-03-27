@@ -1,7 +1,7 @@
 // ── src/pages/LoginPage.jsx ───────────────────────────────────────
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { sbSignIn, sbResetPassword } from "../lib/supabase";
-import { loginWithPasskey, isWebAuthnSupported } from "../lib/webauthn";
+import { loginWithPasskey, isWebAuthnSupported, getStoredPasskeyCredentialId } from "../lib/webauthn";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
@@ -19,6 +19,7 @@ if (typeof document !== "undefined" && !document.getElementById("lp-styles")) {
     @keyframes lp-fadeIn   { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes lp-kenBurns { 0% { transform:scale(1); } 100% { transform:scale(1.08); } }
     @keyframes lp-spin     { to { transform:rotate(360deg); } }
+    @keyframes lp-pulse    { 0%,100% { box-shadow: 0 6px 32px rgba(0,132,61,0.5), 0 0 0 0 rgba(0,132,61,0.4); } 55% { box-shadow: 0 6px 32px rgba(0,132,61,0.5), 0 0 0 16px rgba(0,132,61,0); } }
     .lp-kb { animation: lp-kenBurns 12s ease-in-out infinite alternate; }
     input:focus { border-color: ${C.green} !important; }
     input:-webkit-autofill,
@@ -149,6 +150,43 @@ const SlidePanel = memo(function SlidePanel({ adverts, activeAd, animated, onDot
   );
 });
 
+// ── BiometricIcon ─────────────────────────────────────────────────
+// Fingerprint-scanner SVG icon.
+// `showFrame` = show corner scan-brackets (use on large CTA buttons, not tabs)
+const BiometricIcon = memo(function BiometricIcon({ size = 44, color = "white", showFrame = true }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+
+      {showFrame && <>
+        {/* Scan-frame corner brackets */}
+        <path d="M10 28 L10 10 L28 10"  stroke={color} strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.65"/>
+        <path d="M72 10 L90 10 L90 28"  stroke={color} strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.65"/>
+        <path d="M10 72 L10 90 L28 90"  stroke={color} strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.65"/>
+        <path d="M72 90 L90 90 L90 72"  stroke={color} strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.65"/>
+      </>}
+
+      {/* Fingerprint — loop whorl, core at (50, 47) */}
+      {/* Core */}
+      <ellipse cx="50" cy="47" rx="3" ry="3.5" fill={color}/>
+      {/* Ridge 1 — innermost loop */}
+      <path d="M43 47 C43 41 57 41 57 47 C57 53.5 53.5 58 50 58 C46.5 58 43 53.5 43 47"
+        stroke={color} strokeWidth="3" strokeLinecap="round" fill="none"/>
+      {/* Ridge 2 */}
+      <path d="M36.5 46 C35.5 37 64.5 37 64.5 46 C64.5 57 57.5 66.5 50 67.5"
+        stroke={color} strokeWidth="3" strokeLinecap="round" fill="none"/>
+      {/* Ridge 3 */}
+      <path d="M30 44.5 C28.5 32 71.5 32 71.5 44.5 C71.5 58.5 63 71 50 73"
+        stroke={color} strokeWidth="3" strokeLinecap="round" fill="none"/>
+      {/* Ridge 4 */}
+      <path d="M23.5 43 C21.5 27 78.5 27 78.5 43 C78.5 60 68.5 75 50 77"
+        stroke={color} strokeWidth="3" strokeLinecap="round" fill="none"/>
+      {/* Ridge 5 — outermost */}
+      <path d="M17 41 C14.5 21.5 85.5 21.5 85.5 41 C85.5 62 74 80 50 82"
+        stroke={color} strokeWidth="3" strokeLinecap="round" fill="none"/>
+    </svg>
+  );
+});
+
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
@@ -170,9 +208,15 @@ export default function LoginPage({ onLogin, loginSettings }) {
   const [isHovering,      setIsHovering]     = useState(false);
   const [showPw,          setShowPw]         = useState(false);
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
+  const [hasStoredPasskey,  setHasStoredPasskey]  = useState(false);
 
-  // Detect WebAuthn support on mount (requires browser environment)
-  useEffect(() => { setWebAuthnSupported(isWebAuthnSupported()); }, []);
+  // Detect WebAuthn support and whether a passkey is stored on this device
+  useEffect(() => {
+    const ok     = isWebAuthnSupported();
+    const credId = getStoredPasskeyCredentialId();
+    setWebAuthnSupported(ok);
+    setHasStoredPasskey(!!credId);
+  }, []);
 
   // Guard: reset activeAd when loginSettings loads asynchronously and
   // the new slide array has fewer items than the current activeAd index.
@@ -214,17 +258,17 @@ export default function LoginPage({ onLogin, loginSettings }) {
   }, [email, password, onLogin]);
 
   const handleBiometricLogin = useCallback(async () => {
-    if (!email.trim()) return setError("Enter your email address first, then tap Sign in with Biometrics");
     setError(""); setSuccess("");
     setBiometricLoading(true);
     try {
-      const session = await loginWithPasskey(email.trim());
+      // email is optional — if omitted the browser shows all passkeys for this site
+      const session = await loginWithPasskey(email.trim() || undefined);
       onLogin(session);
     } catch (err) {
       const msg = err.message || "";
       if (msg.toLowerCase().includes("no passkeys") || msg.toLowerCase().includes("not found")) {
-        setError("No passkey registered for this account. Sign in with your password first, then add a passkey from your profile.");
-      } else if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
+        setError("No passkey found. Sign in with your password first, then add a passkey from your profile.");
+      } else if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("notallowederror")) {
         setError("Biometric sign-in was cancelled.");
       } else {
         setError(msg || "Biometric sign-in failed. Please try again.");
@@ -292,77 +336,105 @@ export default function LoginPage({ onLogin, loginSettings }) {
   );
 
   // ── Login form ──────────────────────────────────────────────────
+  // Layout: biometric button (if available) → "or" divider → password form.
+  // No tab-switching — both options are always visible in priority order.
   const loginForm = (
-    <form onSubmit={handleLogin}>
-      <div style={{ marginBottom: 18 }}>
-        <FormLabel text="Email Address" isMobile={isMobile} />
-        <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" onFocus={onFocusGreen} onBlur={onBlurReset} />
-      </div>
+    <div>
 
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
-          <button type="button" onClick={() => switchView("reset")}
-            style={{ fontSize: isMobile ? 13 : 12, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
-            Forgot password?
-          </button>
-        </div>
-        <div style={{ position: "relative" }}>
-          <input style={{ ...inpStyle, paddingRight: 48 }} type={showPw ? "text" : "password"} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" onFocus={onFocusGreen} onBlur={onBlurReset} />
-          <button type="button" onClick={() => setShowPw(v => !v)}
-            style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, lineHeight: 1 }}>
-            {showPw ? "🙈" : "👁"}
-          </button>
-        </div>
-      </div>
-
-      <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
-
-      {webAuthnSupported && (
+      {/* ── Biometric fast-lane ──────────────────────────────────── */}
+      {/* Only shown when a passkey is registered on this device.    */}
+      {webAuthnSupported && hasStoredPasskey && (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 10px" }}>
-            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.15)" : C.gray200 }} />
-            <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400, fontWeight: 500, whiteSpace: "nowrap" }}>or</span>
-            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.15)" : C.gray200 }} />
-          </div>
           <button
             type="button"
             onClick={handleBiometricLogin}
-            disabled={biometricLoading || loading}
+            disabled={biometricLoading}
             style={{
               width: "100%",
-              padding: isMobile ? "13px" : "11px",
-              borderRadius: isMobile ? 12 : 10,
-              border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`,
-              background: "transparent",
-              color: isMobile ? "rgba(255,255,255,0.85)" : C.text,
-              fontWeight: 600,
-              fontSize: isMobile ? 15 : 14,
-              cursor: (biometricLoading || loading) ? "not-allowed" : "pointer",
+              padding: isMobile ? "15px 20px" : "13px 18px",
+              borderRadius: isMobile ? 14 : 11,
+              border: "none",
+              background: biometricLoading
+                ? (isMobile ? "rgba(255,255,255,0.12)" : C.gray100)
+                : `linear-gradient(135deg, #00a34c 0%, ${C.green} 55%, #047857 100%)`,
+              color: C.white,
+              fontWeight: 700,
+              fontSize: isMobile ? 16 : 15,
+              cursor: biometricLoading ? "not-allowed" : "pointer",
               fontFamily: "inherit",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
-              opacity: (biometricLoading || loading) ? 0.7 : 1,
-              transition: "border-color 0.2s, opacity 0.2s",
+              gap: 10,
+              animation: biometricLoading ? "none" : "lp-pulse 2.8s ease-in-out infinite",
+              transition: "background 0.25s",
             }}
+            aria-label="Sign in with biometrics"
           >
             {biometricLoading ? (
               <>
-                <div style={{ width: 16, height: 16, border: "2px solid rgba(128,128,128,0.3)", borderTopColor: isMobile ? "#fff" : C.text, borderRadius: "50%", animation: "lp-spin 0.8s linear infinite", flexShrink: 0 }} />
-                Verifying...
+                <div style={{ width: 18, height: 18, border: "2.5px solid rgba(255,255,255,0.3)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "lp-spin 0.9s linear infinite", flexShrink: 0 }} />
+                Verifying…
               </>
             ) : (
               <>
-                <span style={{ fontSize: 20, lineHeight: 1 }}>🔏</span>
-                Sign in with Face / Fingerprint
+                <BiometricIcon size={22} color="white" showFrame={false} />
+                Sign in with Biometrics
               </>
             )}
           </button>
+
+          <div style={{ textAlign: "center", marginTop: 7, marginBottom: 20, fontSize: isMobile ? 12 : 11, color: isMobile ? "rgba(255,255,255,0.32)" : C.gray400 }}>
+            Use your fingerprint or face ID
+          </div>
+
+          {/* ── Divider ────────────────────────────────────────── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.1)" : C.gray200 }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.28)" : C.gray400, textTransform: "uppercase", letterSpacing: "0.1em" }}>or sign in with password</span>
+            <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.1)" : C.gray200 }} />
+          </div>
         </>
       )}
-    </form>
+
+      {/* ── Password form ──────────────────────────────────────── */}
+      <form onSubmit={handleLogin}>
+        <div style={{ marginBottom: 16 }}>
+          <FormLabel text="Email Address" isMobile={isMobile} />
+          <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" onFocus={onFocusGreen} onBlur={onBlurReset} />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
+            <button type="button" onClick={() => switchView("reset")}
+              style={{ fontSize: isMobile ? 13 : 12, color: C.green, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, padding: 0 }}>
+              Forgot password?
+            </button>
+          </div>
+          <div style={{ position: "relative" }}>
+            <input style={{ ...inpStyle, paddingRight: 48 }} type={showPw ? "text" : "password"} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" onFocus={onFocusGreen} onBlur={onBlurReset} />
+            <button type="button" onClick={() => setShowPw(v => !v)}
+              style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, lineHeight: 1 }}>
+              {showPw ? "🙈" : "👁"}
+            </button>
+          </div>
+        </div>
+
+        <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
+
+        {/* ── Biometric setup nudge ─────────────────────────────── */}
+        {/* Shown only when WebAuthn is available but no passkey yet */}
+        {webAuthnSupported && !hasStoredPasskey && (
+          <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <BiometricIcon size={13} color={isMobile ? "rgba(255,255,255,0.28)" : C.gray400} showFrame={false} />
+            <span style={{ fontSize: isMobile ? 12 : 11, color: isMobile ? "rgba(255,255,255,0.28)" : C.gray400 }}>
+              Enable biometric login from <strong style={{ fontWeight: 600 }}>Profile → Security</strong>
+            </span>
+          </div>
+        )}
+      </form>
+    </div>
   );
 
   // ── Reset form ──────────────────────────────────────────────────

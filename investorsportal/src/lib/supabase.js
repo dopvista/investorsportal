@@ -29,7 +29,7 @@ export function getSession() {
   }
 }
 
-function saveSession(s) {
+export function saveSession(s) {
   _sessionCache = s;
   try { localStorage.setItem("sb_session", JSON.stringify(s)); } catch {}
 }
@@ -1087,10 +1087,3 @@ export async function sbGetPasskeys() {
   return res.json();
 }
 
-export async function sbDeletePasskey(id) {
-  await fetchWithAuthRetry(
-    `${BASE}/rest/v1/passkeys?id=eq.${encodeURIComponent(id)}`,
-    { method: "DELETE", headers: headers(token()) },
-    "Failed to delete passkey"
-  );
-}

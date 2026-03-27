@@ -4,8 +4,8 @@ import { useTheme } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
-import { registerPasskey, isWebAuthnSupported } from "../lib/webauthn";
-import { sbGetPasskeys, sbDeletePasskey } from "../lib/supabase";
+import { registerPasskey, isWebAuthnSupported, clearStoredPasskeyCredentialId, deletePasskey } from "../lib/webauthn";
+import { sbGetPasskeys } from "../lib/supabase";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -452,15 +452,16 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const handleDeletePasskey = useCallback(async (id) => {
     setPasskeyLoading(true);
     try {
-      await sbDeletePasskey(id);
+      await deletePasskey(id, session?.access_token);
       setPasskeys(prev => prev.filter(p => p.id !== id));
+      clearStoredPasskeyCredentialId();
       showToast("Passkey removed.", "success");
-    } catch {
-      showToast("Failed to remove passkey.", "error");
+    } catch (err) {
+      showToast(err.message || "Failed to remove passkey.", "error");
     } finally {
       setPasskeyLoading(false);
     }
-  }, [showToast]);
+  }, [session?.access_token, showToast]);
 
   const fetchCdsUserCount = useCallback(async () => {
     const reqId = ++cdsCountReqRef.current;
