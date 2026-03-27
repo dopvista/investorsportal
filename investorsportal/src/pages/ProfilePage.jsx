@@ -399,6 +399,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [addingPasskey, setAddingPasskey] = useState(false);
   const [webAuthnOk,    setWebAuthnOk]    = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const fileRef        = useRef();
   const cameraRef      = useRef();
@@ -455,14 +456,15 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   }, [session?.access_token, session?.user?.email, profile?.email, showToast]);
 
   const handleDeletePasskey = useCallback(async (id) => {
-    // Find the passkey being deleted BEFORE any state changes
-    const targetPasskey = passkeys.find(p => p.id === id);
-    // Simple inline confirmation
-    const confirmed = window.confirm(
-      `Remove passkey "${targetPasskey?.nickname || "this device"}"?\n\nYou will no longer be able to use biometrics on this device until you register again.`
-    );
-    if (!confirmed) return;
+    setConfirmDeleteId(id);
+  }, []);
 
+  const confirmDeletePasskey = useCallback(async () => {
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+    if (!id) return;
+
+    const targetPasskey = passkeys.find(p => p.id === id);
     setPasskeyLoading(true);
     try {
       await sbDeletePasskey(id);
@@ -483,7 +485,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     } finally {
       setPasskeyLoading(false);
     }
-  }, [passkeys, showToast]);
+  }, [confirmDeleteId, passkeys, showToast]);
 
   const fetchCdsUserCount = useCallback(async () => {
     const reqId = ++cdsCountReqRef.current;
@@ -846,6 +848,31 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
       {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
       {renderAvatarSheet()}
       {renderSwitchModal()}
+
+      {/* Passkey delete confirmation */}
+      {confirmDeleteId && (() => {
+        const pk = passkeys.find(p => p.id === confirmDeleteId);
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ background: C.white, borderRadius: 14, padding: "24px 22px", maxWidth: 340, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: 15, color: C.text }}>Remove passkey?</p>
+              <p style={{ margin: "0 0 20px", fontSize: 13, color: C.gray400 }}>
+                <strong style={{ color: C.text }}>{pk?.nickname || "This device"}</strong> will no longer be able to sign in with biometrics.
+              </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button onClick={() => setConfirmDeleteId(null)}
+                  style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
+                  Cancel
+                </button>
+                <button onClick={confirmDeletePasskey}
+                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: C.red, color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Pull-to-refresh transform wrapper */}
       <div style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: isMobile ? "unset" : 1, minHeight: 0 }}>

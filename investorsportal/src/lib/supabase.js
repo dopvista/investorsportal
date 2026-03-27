@@ -167,7 +167,7 @@ const _SAFE_CODES = {
 function sanitiseError(j, fallback) {
   if (!j || typeof j !== "object") return fallback;
   if (j.code && _SAFE_CODES[j.code]) return _SAFE_CODES[j.code];
-  return j.message || fallback; // never expose hint/details/column names
+  return j.message || j.error || fallback; // never expose hint/details/column names
 }
 
 // ══════════════════════════════════════════════════════════════════
