@@ -85,38 +85,148 @@ Components access them through `useTheme()` which returns `{ C, isDark }`.
 
 ## 3. Icon System
 
-All section and action icons use **Lucide-style SVG** via the `SvgIcon` component.
-Emojis are **NOT** used for section headers, labels, or tab icons.
+All icons use **Lucide-style SVG** via `<Icon name="..." />` from `src/lib/icons.jsx`.
+Emojis are **NOT** used for section headers, navigation, labels, or tab icons.
 
-### Available Icons (defined in `ICONS` map)
+### Import
+```jsx
+import { Icon, ICON_PATHS } from "../lib/icons";
+<Icon name="shield" size={14} stroke={C.gray500} />
+```
 
-| Key           | Usage                              |
-|--------------|------------------------------------|
-| `shield`     | Security section header            |
-| `building`   | Account Type section header        |
-| `user`       | Account Information, Personal tab  |
-| `clipboard`  | More Info tab                      |
-| `mapPin`     | Contact Details section header     |
-| `fingerprint`| Biometric Passkeys button          |
-| `key`        | Change Password button             |
-| `image`      | Profile Picture tip box            |
+### Complete Icon Reference (defined in `ICON_PATHS`)
 
-### Icon Sizing
+#### Navigation & Structure
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `home`        | Dashboard navigation                     |
+| `menu`        | Hamburger menu                           |
+| `chevronDown` | Expand indicators, dropdowns             |
+| `chevronRight`| Breadcrumbs, list navigation             |
+| `chevronLeft` | Back navigation                          |
+| `x`           | Close buttons, dismiss                   |
+| `search`      | Search inputs, filter triggers           |
+| `refresh`     | Reload/refresh actions                   |
+| `externalLink`| Open in new tab                          |
 
-| Context             | Size | Stroke Width |
-|--------------------|------|-------------|
-| Section headers     | 13px | 1.8         |
-| Button inline icons | 13-15px | 2.0      |
-| Tab icons (mobile)  | 14px | 1.8         |
-| Delete icon (trash) | 13-15px | 2.0      |
-| Plus (add device)   | 11-13px | 2.5      |
+#### Security & Auth
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `shield`      | Security section headers                 |
+| `lock`        | CDS account badge, locked items          |
+| `key`         | Change Password button                   |
+| `fingerprint` | Biometric Passkeys button                |
+| `eye`         | Show password toggle                     |
+| `eyeOff`      | Hide password toggle                     |
+
+#### Users & People
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `user`        | Account Information, Personal tab, profile|
+| `users`       | User Management, corporate accounts      |
+
+#### Buildings & Business
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `building`    | Account Type, Holdings stat, companies   |
+| `briefcase`   | Business/portfolio contexts              |
+
+#### Documents & Data
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `clipboard`   | More Info tab, awaiting review stat      |
+| `fileText`    | Document references                      |
+| `barChart`    | Portfolio/statistics charts              |
+| `trendingUp`  | Price history, growth indicators         |
+| `pieChart`    | Distribution charts                      |
+
+#### Actions
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `edit`        | Edit company, edit transaction           |
+| `trash`       | Delete items, remove passkey             |
+| `save`        | Save buttons                             |
+| `plus`        | Add device, add items                    |
+| `minus`       | Remove/decrease                          |
+| `download`    | Download template, export                |
+| `upload`      | Import transactions, upload files        |
+
+#### Status & Feedback
+| Key              | Usage                                  |
+|-----------------|----------------------------------------|
+| `check`         | Single checkmark, confirm action       |
+| `checkCircle`   | Verified/confirmed status              |
+| `xCircle`       | Rejected status, errors                |
+| `alertTriangle` | Warnings, error screens                |
+| `alertCircle`   | Info alerts, validation errors         |
+| `info`          | Help tooltips, information             |
+| `ban`           | Blocked, forbidden                     |
+| `clock`         | Pending status, time-based             |
+| `hourglass`     | Processing, waiting                    |
+
+#### Finance & Money
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `dollarSign`  | Price setting, financial amounts         |
+| `wallet`      | Account balances                         |
+| `trophy`      | Highest price, achievements              |
+
+#### Media
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `image`       | Profile picture tip, gallery             |
+| `camera`      | Take a photo option                      |
+
+#### Location
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `mapPin`      | Contact Details section                  |
+| `globe`       | Nationality, international               |
+
+#### Theme
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `sun`         | Light theme toggle                       |
+| `moon`        | Dark theme toggle                        |
+| `settings`    | System Settings nav, default theme       |
+
+#### Arrows
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `arrowLeft`   | Back navigation                          |
+| `arrowRight`  | Forward, next                            |
+| `arrowUp`     | Upload indicator                         |
+| `arrowDown`   | Download indicator                       |
+| `undo`        | Unverify, revert action                  |
+
+#### Misc
+| Key            | Usage                                    |
+|---------------|------------------------------------------|
+| `inbox`       | Import/export data                       |
+| `send`        | Send/submit actions                      |
+| `filter`      | Filter controls                          |
+| `tag`         | Labels, categories                       |
+
+### Icon Sizing Standards
+
+| Context                  | Size   | Stroke Width |
+|-------------------------|--------|-------------|
+| Navigation sidebar       | 20px   | 1.8         |
+| Section headers          | 13-14px| 1.8         |
+| Button inline icons      | 13-15px| 2.0         |
+| Tab icons (mobile)       | 14px   | 1.8         |
+| Stat card icons          | 14px   | 1.8         |
+| CDS badge (mobile)       | 12px   | 2.0         |
+| CDS badge (desktop)      | 15px   | 2.0         |
+| Delete/action icons      | 13-15px| 2.0         |
+| Plus (add items)         | 11-13px| 2.5         |
+| Error screen icons       | 40px   | 1.5         |
+| Bottom nav (mobile)      | 22px   | 1.8         |
 
 ### When Emojis ARE Acceptable
-- Avatar camera overlay (small `📷` on the green circle)
-- Save button (`💾`)
-- Success checkmark in modals (`✓`)
-- Close button (`✕`)
-- These are small functional indicators, not section labels.
+- Avatar camera overlay (small `📷` on the green circle — too small for SVG)
+- Save button text (`💾 Save Changes`)
+- These are small functional indicators within buttons, not structural UI.
 
 ---
 

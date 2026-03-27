@@ -22,6 +22,7 @@ import ConnectionBanner  from "./components/ConnectionBanner";
 import InstallBanner     from "./components/InstallBanner";
 import useIdleLogout     from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
+import { Icon } from "./lib/icons";
 
 // ── Lazy page imports ─────────────────────────────────────────────
 // Pages are only parsed + executed when first visited.
@@ -166,7 +167,7 @@ const CdsSwitcherPopover = memo(function CdsSwitcherPopover({
           const isActive = c.cds_number === activeCdsNumber;
           return (
             <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: isActive ? C.green + "0a" : "transparent", borderLeft: `3px solid ${isActive ? C.green : "transparent"}` }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: isActive ? C.green + "18" : C.navy + "0f", border: `1px solid ${isActive ? C.green + "30" : C.navy + "18"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🔒</div>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: isActive ? C.green + "18" : C.navy + "0f", border: `1px solid ${isActive ? C.green + "30" : C.navy + "18"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={14} stroke="#ffffff" sw={2} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
                 <div style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
@@ -805,7 +806,7 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.gray50, fontFamily: "system-ui" }}>
         <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 16, padding: 40, maxWidth: 440, textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="alertTriangle" size={40} stroke={C.red} sw={1.5} /></div>
           <h3 style={{ color: C.red, margin: "0 0 8px", fontSize: 18 }}>Database Connection Error</h3>
           <p style={{ color: C.gray600, fontSize: 14, lineHeight: 1.6 }}>{dbError}</p>
         </div>
@@ -916,7 +917,7 @@ export default function App() {
                 onClick={() => cdsList.length > 1 && setShowCdsSwitcher((v) => !v)}
                 style={{ display: "flex", alignItems: "center", gap: 6, background: `linear-gradient(135deg,${C.navy},#1e3a5f)`, borderRadius: 10, padding: "5px 10px", border: showCdsSwitcher ? `1.5px solid ${C.gold}` : "1.5px solid rgba(255,255,255,0.12)", cursor: cdsList.length > 1 ? "pointer" : "default", boxShadow: "0 2px 8px rgba(11,31,58,0.25)", userSelect: "none" }}
               >
-                <div style={{ width: 22, height: 22, borderRadius: 6, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>🔒</div>
+                <div style={{ width: 22, height: 22, borderRadius: 6, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={12} stroke="#ffffff" sw={2} /></div>
                 <div>
                   <div style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>CDS</div>
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#ffffff", letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>
@@ -947,14 +948,14 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, background: C.navy + "0a", border: `1px solid ${C.navy}18`, borderRadius: 8, padding: "4px 10px" }}>
-                  <span style={{ fontSize: 12 }}>🏢</span>
+                  <Icon name="building" size={14} stroke={C.navy} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Holdings</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cdsCompanyCount}</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, background: C.green + "0d", border: `1px solid ${C.green}20`, borderRadius: 8, padding: "4px 10px" }}>
-                  <span style={{ fontSize: 12 }}>📋</span>
+                  <Icon name="clipboard" size={14} stroke={C.green} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Transactions</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green, lineHeight: 1.2 }}>{filteredTransactions.length}</div>
@@ -971,7 +972,7 @@ export default function App() {
                   onMouseEnter={(e) => { if (cdsList.length > 1) e.currentTarget.style.boxShadow = "0 4px 18px rgba(11,31,58,0.45)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(11,31,58,0.25)"; }}
                 >
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔒</div>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="lock" size={15} stroke="#ffffff" sw={2} /></div>
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>CDS Account</div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", letterSpacing: "0.04em", lineHeight: 1.3 }}>{activeCdsNumber || "—"}</div>

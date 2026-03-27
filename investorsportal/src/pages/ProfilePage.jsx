@@ -6,6 +6,7 @@ import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
 import { registerPasskey, isWebAuthnSupported, storePasskeyInfo, clearStoredPasskeyInfo, getStoredPasskeyInfo, getDeviceName } from "../lib/webauthn";
 import { sbGetPasskeys, sbDeletePasskey } from "../lib/supabase";
+import { Icon, ICON_PATHS } from "../lib/icons";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -101,28 +102,11 @@ function inp(C, extra = {}) {
 const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
 
-// ── SVG icon set (Lucide-style) ───────────────────────────────────
-const SvgIcon = ({ d, size = 14, stroke = "currentColor", sw = 1.8 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
-  </svg>
-);
-const ICONS = {
-  shield:      ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"],
-  building:    ["M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z", "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2", "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2", "M10 6h4", "M10 10h4", "M10 14h4", "M10 18h4"],
-  user:        ["M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"],
-  clipboard:   ["M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2", "M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"],
-  mapPin:      ["M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z", "M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
-  fingerprint: ["M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4", "M14 13.12c0 2.38 0 6.38-1 8.88", "M17.29 21.02c.12-.6.43-2.3.5-3.02", "M2 12a10 10 0 0 1 18-6", "M2 16h.01", "M21.8 16c.2-2 .131-5.354 0-6", "M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2", "M8.65 22c.21-.66.45-1.32.57-2", "M9 6.8a6 6 0 0 1 9 5.2v2"],
-  key:         ["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"],
-  image:       ["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z", "M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z", "M21 15l-5-5L5 21"],
-};
-
 function Section({ title, icon, children }) {
   const { C } = useTheme();
-  // icon can be a string key from ICONS, or a raw emoji/element
-  const iconEl = typeof icon === "string" && ICONS[icon]
-    ? <SvgIcon d={ICONS[icon]} size={13} stroke={C.gray500} />
+  // icon can be a string key from ICON_PATHS, or a raw element
+  const iconEl = typeof icon === "string" && ICON_PATHS[icon]
+    ? <Icon name={icon} size={13} stroke={C.gray500} />
     : <span style={{ fontSize: 13 }}>{icon}</span>;
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 6 }}>
@@ -968,7 +952,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <SvgIcon d={ICONS.building} size={14} stroke={C.gray500} />
+                <Icon name="building" size={14} stroke={C.gray500} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -988,7 +972,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
               <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <SvgIcon d={ICONS.shield} size={14} stroke={C.gray500} />
+                <Icon name="shield" size={14} stroke={C.gray500} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -996,7 +980,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = "#ffffff"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}>
-                  <SvgIcon d={ICONS.key} size={15} />
+                  <Icon name="key" size={15} />
                   Change Password
                 </button>
                 <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
@@ -1068,7 +1052,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 return (
                   <button key={tab.key} onClick={() => setMobileTab(tab.key)}
                     style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: active ? C.white : "transparent", color: active ? (isDark ? C.green : C.navy) : C.gray500, fontWeight: active ? 700 : 500, fontSize: 13, border: active ? `1.5px solid ${isDark ? C.green : C.navy}` : "1.5px solid transparent", cursor: "pointer", fontFamily: "inherit", boxShadow: active ? `0 1px 6px ${isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.08)"}` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <SvgIcon d={ICONS[tab.iconKey]} size={14} /> {tab.label}
+                    <Icon name={tab.iconKey} size={14} /> {tab.label}
                   </button>
                 );
               })}
@@ -1185,7 +1169,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
                     onMouseEnter={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = "#ffffff"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.text; }}>
-                    <SvgIcon d={ICONS.key} size={13} />
+                    <Icon name="key" size={13} />
                     Change Password
                   </button>
                   <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
@@ -1277,7 +1261,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </Section>
 
                 <div style={{ background: isDark ? `${C.gold}14` : `${C.gold}10`, border: `1px solid ${isDark ? `${C.gold}44` : `${C.gold}30`}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ flexShrink: 0, color: C.gold }}><SvgIcon d={ICONS.image} size={16} stroke={C.gold} /></span>
+                  <span style={{ flexShrink: 0, color: C.gold }}><Icon name="image" size={16} stroke={C.gold} /></span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
                     <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>
