@@ -222,7 +222,7 @@ function ModalShell({ title, subtitle, onClose, footer, children, maxWidth = 460
 }
 
 // ── Change Password Modal ─────────────────────────────────────────
-function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
+function ChangePasswordModal({ email, session, uid, onClose, showToast, onChanged }) {
   const { C, isDark } = useTheme();
   const [step, setStep]           = useState("send");
   const [otp, setOtp]             = useState("");
@@ -316,6 +316,7 @@ function ChangePasswordModal({ email, session, uid, onClose, showToast }) {
         throw new Error(d.error_description || d.message || "Failed to update password");
       }
       incrementPwChanges(uid);
+      if (onChanged) onChanged(); // notify parent to re-read counter
       setStep("done");
       showToast(`Password updated! ${remainingPwChanges(uid)} change${remainingPwChanges(uid) !== 1 ? "s" : ""} remaining today.`, "success");
       closeTimerRef.current = setTimeout(() => onClose(), 2500);
@@ -420,6 +421,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving]                   = useState(false);
   const [showPwModal, setShowPwModal]         = useState(false);
+  const [pwChangeEpoch, setPwChangeEpoch]   = useState(0); // bumped after password change to force re-read
   const [cdsUserCount, setCdsUserCount]       = useState(1);
   const [switchTarget, setSwitchTarget]       = useState(null);
   const [switching, setSwitching]             = useState(false);
@@ -568,6 +570,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     }
     return document.scrollingElement || document.documentElement;
   }, []);
+
+  // Password change counter — reads from localStorage, refreshed by pwChangeEpoch
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pwRemaining = useMemo(() => remainingPwChanges(uid), [uid, pwChangeEpoch]);
+  const pwUsed = PW_MAX_DAILY - pwRemaining;
 
   const refreshProfileView = useCallback(async () => {
     try { await fetchCdsUserCount(); }
@@ -901,7 +908,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
       {/* Modals — OUTSIDE transform wrapper */}
       {cropSrc && <AvatarCropModal imageSrc={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
-      {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} />}
+      {showPwModal && <ChangePasswordModal email={email} session={session} uid={uid} onClose={() => setShowPwModal(false)} showToast={showToast} onChanged={() => setPwChangeEpoch(e => e + 1)} />}
       {renderAvatarSheet()}
       {renderSwitchModal()}
 
@@ -993,8 +1000,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   Change Password
                 </button>
                 <div style={{ marginTop: 10, display: "flex", gap: 4, alignItems: "center" }}>
-                  {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray400 }} />)}
-                  <span style={{ fontSize: 10, color: C.gray500, marginLeft: 5, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
+                  {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= pwUsed ? (isDark ? C.green : C.navy) : (isDark ? C.gray200 : C.gray400) }} />)}
+                  <span style={{ fontSize: 10, color: C.gray500, marginLeft: 5, whiteSpace: "nowrap" }}>{pwRemaining}/{PW_MAX_DAILY} today</span>
                 </div>
 
                 {webAuthnOk && (
@@ -1055,13 +1062,16 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               </div>
             </div>
 
-            <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4 }}>
-              {[{ key: "personal", label: "Personal", iconKey: "user" }, { key: "more", label: "More Info", iconKey: "clipboard" }].map(tab => (
-                <button key={tab.key} onClick={() => setMobileTab(tab.key)}
-                  style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: mobileTab === tab.key ? C.white : "transparent", color: mobileTab === tab.key ? (isDark ? "#93C5FD" : C.navy) : C.gray500, fontWeight: mobileTab === tab.key ? 700 : 500, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "inherit", boxShadow: mobileTab === tab.key ? "0 1px 5px rgba(0,0,0,0.09)" : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <SvgIcon d={ICONS[tab.iconKey]} size={14} /> {tab.label}
-                </button>
-              ))}
+            <div style={{ display: "flex", background: C.gray100, borderRadius: 12, padding: 4, marginBottom: 12, gap: 4, border: `1px solid ${C.gray200}` }}>
+              {[{ key: "personal", label: "Personal", iconKey: "user" }, { key: "more", label: "More Info", iconKey: "clipboard" }].map(tab => {
+                const active = mobileTab === tab.key;
+                return (
+                  <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+                    style={{ flex: 1, padding: "10px 8px", borderRadius: 9, background: active ? C.white : "transparent", color: active ? (isDark ? C.green : C.navy) : C.gray500, fontWeight: active ? 700 : 500, fontSize: 13, border: active ? `1.5px solid ${isDark ? C.green : C.navy}` : "1.5px solid transparent", cursor: "pointer", fontFamily: "inherit", boxShadow: active ? `0 1px 6px ${isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.08)"}` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <SvgIcon d={ICONS[tab.iconKey]} size={14} /> {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
             {mobileTab === "personal" && (
@@ -1179,8 +1189,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     Change Password
                   </button>
                   <div style={{ marginTop: 8, display: "flex", gap: 3, alignItems: "center" }}>
-                    {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= (PW_MAX_DAILY - remainingPwChanges(uid)) ? C.navy : C.gray400 }} />)}
-                    <span style={{ fontSize: 9, color: C.gray500, marginLeft: 4, whiteSpace: "nowrap" }}>{remainingPwChanges(uid)}/{PW_MAX_DAILY} today</span>
+                    {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= pwUsed ? (isDark ? C.green : C.navy) : (isDark ? C.gray200 : C.gray400) }} />)}
+                    <span style={{ fontSize: 9, color: C.gray500, marginLeft: 4, whiteSpace: "nowrap" }}>{pwRemaining}/{PW_MAX_DAILY} today</span>
                   </div>
 
                   {webAuthnOk && (
