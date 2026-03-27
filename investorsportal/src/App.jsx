@@ -1100,15 +1100,10 @@ export default function App() {
 
             {/* Body */}
             <div style={{ padding: isMobile ? "20px 18px 8px" : "22px 24px" }}>
-              <div style={{ textAlign: "center", marginBottom: 20 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🔄</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Switch to {switchTarget.cds_number}?</div>
-                <div style={{ fontSize: 13, color: C.gray400, lineHeight: 1.6 }}>
-                  {switchTarget.cds_name && (<><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong><br /></>)}
-                  All portfolio data will update to reflect this CDS account.
-                </div>
+              <div style={{ textAlign: "center", marginBottom: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Switch to {switchTarget.cds_number}?</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 10, marginBottom: 20, fontSize: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 10, marginBottom: 14, fontSize: 12 }}>
                 <div style={{ flex: 1, textAlign: "center" }}>
                   <div style={{ fontSize: 10, color: C.gray500, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
                   <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
@@ -1121,6 +1116,7 @@ export default function App() {
                   {switchTarget.cds_name && <div style={{ fontSize: 10, color: C.gray400, marginTop: 1, fontWeight: 600 }}>{switchTarget.cds_name}</div>}
                 </div>
               </div>
+              <div style={{ textAlign: "center", fontSize: 12, color: C.gray400, lineHeight: 1.5, marginBottom: 8 }}>All portfolio data will update to reflect this CDS account.</div>
             </div>
 
             {/* Footer — sticky on mobile like ModalShell */}

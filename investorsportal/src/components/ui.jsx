@@ -828,7 +828,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                         <button key={c.id} type="button" onClick={() => { setForm(f => ({ ...f, companyId: c.id, qty: "" })); setCompanyOpen(false); setCompanySearch(""); setError(""); }} style={ddItemStyle(isSelected)}
                           onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
                           onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
-                          <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text }}>{c.name}</span>
+                          <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.name}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
                             {!isBuy && (netMap[c.id] || 0) > 0 && <span style={{ fontSize: 11, color: C.gray400 }}>{fmtInt(netMap[c.id])} shares</span>}
                             {isSelected && <span style={{ color: C.green, fontSize: 13 }}>✓</span>}

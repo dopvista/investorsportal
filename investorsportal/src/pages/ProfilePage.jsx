@@ -838,13 +838,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
         {/* Body */}
         <div style={{ padding: isMobile ? "20px 18px 8px" : "20px 22px" }}>
-          <div style={{ textAlign: "center", marginBottom: 18 }}>
-            <div style={{ fontSize: 34, marginBottom: 8 }}>🔄</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 5 }}>Switch to {switchTarget.cds_number}?</div>
-            {switchTarget.cds_name && <div style={{ fontSize: 13, color: C.gray400 }}><strong style={{ color: C.text }}>{switchTarget.cds_name}</strong></div>}
-            <div style={{ fontSize: 12, color: C.gray400, marginTop: 4, lineHeight: 1.5 }}>All portfolio data will update to reflect this CDS account.</div>
+          <div style={{ textAlign: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Switch to {switchTarget.cds_number}?</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 16, fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: C.gray100, border: `1px solid ${C.gray200}`, borderRadius: 9, marginBottom: 14, fontSize: 12 }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 9, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
               <div style={{ fontWeight: 800, color: C.text, marginTop: 2 }}>{activeCdsNumber}</div>
@@ -857,6 +854,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
               {switchTarget.cds_name && <div style={{ fontSize: 10, color: C.gray400, marginTop: 1, fontWeight: 600 }}>{switchTarget.cds_name}</div>}
             </div>
           </div>
+          <div style={{ textAlign: "center", fontSize: 12, color: C.gray400, lineHeight: 1.5, marginBottom: 8 }}>All portfolio data will update to reflect this CDS account.</div>
         </div>
 
         {/* Footer — sticky on mobile */}
