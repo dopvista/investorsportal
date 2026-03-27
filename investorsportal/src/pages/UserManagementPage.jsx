@@ -1325,6 +1325,10 @@ export default function UserManagementPage({ role, showToast, profile }) {
             </div>
 
             <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.gray100}`, background:C.gray50, flexShrink:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{`User Management (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}</div>
+                <div style={{ fontSize:11, color:C.gray400, marginTop:1 }}>Manage user roles, accounts & permissions</div>
+              </div>
               <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
                 <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`2px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
                   {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
