@@ -8,6 +8,7 @@ import {
   sbToggleBrokerStatus, sbDeleteBroker,
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
+import { Icon } from "../lib/icons";
 
 // ── inp(C, extra) — must receive live C from useTheme() ───────────
 function inp(C, extra = {}) {
@@ -311,7 +312,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
       {/* Header */}
       <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
         <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-          <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🏦 Manage Brokers</div>
+          <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}><Icon name="briefcase" size={14} /> Manage Brokers</div>
           <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register and manage DSE-licensed stockbrokers available across the platform</div>
         </div>
       </div>
@@ -359,7 +360,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>🏦</div>
+            <div style={{ fontSize: 36, marginBottom: 10 }}><Icon name="briefcase" size={36} /></div>
             <div style={{ fontWeight: 700, color: C.text }}>{search ? "No brokers match your search" : "No brokers registered yet"}</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>{search ? "Try a different keyword" : "Click 'Add Broker' to register the first one"}</div>
           </div>
@@ -628,9 +629,9 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   );
 
   const menuItems = [
-    { id: "companies",  icon: "🏢", label: "Companies"  },
-    { id: "brokers",    icon: "🏦", label: "Brokers"    },
-    { id: "login_page", icon: "🖼️", label: "Login Page" },
+    { id: "companies",  icon: <Icon name="building" size={14} />, label: "Companies"  },
+    { id: "brokers",    icon: <Icon name="briefcase" size={14} />, label: "Brokers"    },
+    { id: "login_page", icon: <Icon name="image" size={14} />, label: "Login Page" },
   ];
 
   return (
@@ -677,7 +678,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
         {activeMenu === "companies" && (
           <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
             <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🏢 Manage Companies</div>
+              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}><Icon name="building" size={14} /> Manage Companies</div>
               <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register, edit and manage listed companies</div>
             </div>
             <div style={{ padding: "16px" }}>
@@ -697,7 +698,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
           <>
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
               <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
-                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>🖼️ Login Page</div>
+                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}><Icon name="image" size={14} /> Login Page</div>
                 <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 500 }}>Customize the slideshow shown on the login screen</div>
               </div>
             </div>

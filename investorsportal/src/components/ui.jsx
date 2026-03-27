@@ -1,6 +1,7 @@
 // ── src/components/ui.jsx ────────────────────────────────────────
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
+import { Icon } from "../lib/icons";
 
 // ── Theme system re-exports ───────────────────────────────────────
 export { useTheme } from "../lib/theme";
@@ -348,7 +349,7 @@ export function Modal({ type = "confirm", title, message, onConfirm, onClose }) 
       title={
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ width: 40, height: 40, borderRadius: 10, background: isWarn ? C.redBg : "#FFF7ED", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-            {isWarn ? "🚫" : "🗑️"}
+            {isWarn ? <Icon name="ban" size={18} stroke={C.red} /> : <Icon name="trash" size={18} stroke={C.red} />}
           </span>
           {title}
         </span>
@@ -390,13 +391,13 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
 
   return (
     <ModalShell
-      title={isEdit ? "✏️ Edit Company" : "➕ Register New Company"}
-      subtitle={isEdit ? "To change the price use the 💰 Price button" : undefined}
+      title={isEdit ? <><Icon name="edit" size={15} /> Edit Company</> : <><Icon name="plus" size={15} /> Register New Company</>}
+      subtitle={isEdit ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>To change the price use the <Icon name="dollarSign" size={15} /> Price button</span> : undefined}
       onClose={onClose}
       maxWidth={460}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handle} icon="💾">{isEdit ? "Save Changes" : "Register Company"}</Btn></>}
     >
-      {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>⚠️ {error}</div>}
+      {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {error}</div>}
       <FInput label="Company Name" required value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="e.g. Tanzania Breweries" autoFocus />
       {/* FIX 1: inputMode="decimal" + autoComplete="off" suppresses the iOS/Android
           QuickType autofill bar (Key, Card, Location) on numeric fields.
@@ -436,7 +437,7 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   return (
     <ModalShell
       title={company.name}
-      subtitle="💰 Update share price"
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> Update share price</span>}
       headerRight={
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
@@ -748,13 +749,13 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
   return (
     <ModalShell
-      title={isEdit ? "✏️ Edit Transaction" : "📝 Record New Transaction"}
+      title={isEdit ? <><Icon name="edit" size={15} /> Edit Transaction</> : <><Icon name="fileText" size={15} /> Record New Transaction</>}
       subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
       onClose={onClose}
       maxWidth={580}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
-      {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>⚠️ {error}</div>}
+      {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {error}</div>}
 
       {/* Row 1: Type · Date · Ref No. */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
@@ -1071,7 +1072,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
             <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Step 1 — Download Sample Template</div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 3, lineHeight: 1.5 }}>Download the Excel template, fill in your transactions, and save the file.</div>
             <button onClick={downloadTemplate} style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, background: C.green, color: "#ffffff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              <span>⬇️</span> Download Import_Transactions_Template.xlsx
+              <Icon name="download" size={14} /> Download Import_Transactions_Template.xlsx
             </button>
           </div>
         </div>
@@ -1093,7 +1094,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
       </div>
       {brokers.length === 0 && (
         <div style={{ background: C.gold + "18", border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+          <span style={{ flexShrink: 0 }}><Icon name="alertTriangle" size={14} stroke={C.red || "#EF4444"} /></span>
           <div style={{ fontSize: 13, color: C.gray600, lineHeight: 1.7 }}><strong>No brokers configured.</strong> Ask your SA to add brokers before importing.</div>
         </div>
       )}
@@ -1129,7 +1130,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
       </div>
       {errors.length > 0 && (
         <div style={{ background: C.redBg, border: `1px solid ${C.red}33`, borderRadius: 10, padding: "12px 16px", maxHeight: 120, overflowY: "auto" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.red, marginBottom: 8 }}>⚠️ {errors.length} row(s) will be skipped:</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.red, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {errors.length} row(s) will be skipped:</div>
           {errors.map((e, i) => <div key={i} style={{ fontSize: 12, color: C.red, marginBottom: 4 }}><strong>Row {e.row}:</strong> {e.errors.join(" · ")}</div>)}
         </div>
       )}
@@ -1192,7 +1193,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 
   return (
     <ModalShell
-      title="⬆️ Import Transactions"
+      title={<><Icon name="upload" size={15} /> Import Transactions</>}
       subtitle={importing ? `Importing ${rows.length} transaction${rows.length !== 1 ? "s" : ""}… please wait` : step === "upload" ? "Upload your filled Excel template" : `Reviewing ${rows.length + errors.length} rows from "${fileName}"`}
       onClose={onClose}
       maxWidth={760}
@@ -1216,7 +1217,7 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
               <div>{step === "preview" && <Btn variant="secondary" onClick={resetToUpload}>← Back</Btn>}</div>
               <div style={{ display: "flex", gap: 10 }}>
                 <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-                {step === "preview" && rows.length > 0 && <Btn variant="primary" onClick={handleImport} icon="⬆️">{`Import ${rows.length} Transaction${rows.length !== 1 ? "s" : ""}`}</Btn>}
+                {step === "preview" && rows.length > 0 && <Btn variant="primary" onClick={handleImport} icon={<Icon name="upload" size={15} />}>{`Import ${rows.length} Transaction${rows.length !== 1 ? "s" : ""}`}</Btn>}
               </div>
             </div>
           )}

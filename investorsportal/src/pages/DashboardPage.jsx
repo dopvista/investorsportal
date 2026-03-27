@@ -1,6 +1,7 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { useTheme } from "../components/ui";
+import { Icon } from "../lib/icons";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
 import logo from "../assets/logo.jpg";
 
@@ -754,7 +755,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📤 Realized Gain / Loss</div>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="upload" size={14} /> Realized Gain / Loss</div>
         <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
@@ -823,7 +824,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>🏢 Top 5 Holdings</div>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="building" size={14} /> Top 5 Holdings</div>
         <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
@@ -892,7 +893,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       borderRadius: 14, marginBottom: 12, overflow: "hidden", animation: "dashFadeDown 0.2s ease",
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>👥 Members ({cdsUsers.length})</div>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="users" size={14} /> Members ({cdsUsers.length})</div>
         <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
       </div>
       {loading ? <Spinner /> : (
@@ -1074,9 +1075,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Holdings / Users / Pending pills */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <MobileStatPill icon="🏢" label="Holdings" value={loading ? "—" : metrics.totalCompanies}
+              <MobileStatPill icon={<Icon name="building" size={20} />} label="Holdings" value={loading ? "—" : metrics.totalCompanies}
                 onClick={onToggleCompanies} active={expanded === "companies"} accent="#3b6fc4" />
-              <MobileStatPill icon="👥" label="Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
+              <MobileStatPill icon={<Icon name="users" size={20} />} label="Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
                 onClick={onToggleUsers} active={expanded === "users"} accent="#2563eb" />
               <MobileStatPill icon="🔔" label="Pending" value={loading ? "—" : metrics.pending}
                 onClick={onNavTransactions} accent="#f59e0b" navigates />
@@ -1146,7 +1147,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Realized GL expand panel */}
             {expanded === "realized" && (
               <ExpandPanel
-                title="📤 Realized Gain / Loss — Closed Positions"
+                title={<><Icon name="upload" size={14} /> Realized Gain / Loss — Closed Positions</>}
                 accentColor={metrics.totalRealizedGL >= 0 ? C.green : C.red}
                 onClose={onCloseExpand}
               >
@@ -1224,13 +1225,13 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
               marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
             }}>
-              <StatCard icon="🏢" label="Companies"
+              <StatCard icon={<Icon name="building" size={19} />} label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
                 accent="#3b6fc4" accentBg="#3b6fc4"
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
               />
-              <StatCard icon="👥" label="Total Users"
+              <StatCard icon={<Icon name="users" size={19} />} label="Total Users"
                 value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
                 subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
                 accent="#2563eb" accentBg="#2563eb"
@@ -1246,7 +1247,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Companies expand panel */}
             {expanded === "companies" && (
-              <ExpandPanel title="🏢 Companies" accentColor="#3b6fc4" onClose={onCloseExpand}>
+              <ExpandPanel title={<><Icon name="building" size={14} /> Companies</>} accentColor="#3b6fc4" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1323,7 +1324,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Users expand panel */}
             {expanded === "users" && (
-              <ExpandPanel title={`👥 ${cds ? `CDS ${cds}` : "All"} — Members (${cdsUsers.length})`} accentColor="#2563eb" onClose={onCloseExpand}>
+              <ExpandPanel title={<><Icon name="users" size={14} /> {cds ? `CDS ${cds}` : "All"} — Members ({cdsUsers.length})</>} accentColor="#2563eb" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
                   <>
                     <div style={{ overflowX: "auto" }}>

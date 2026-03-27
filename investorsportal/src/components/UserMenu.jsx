@@ -1,6 +1,7 @@
 // ── src/components/UserMenu.jsx ───────────────────────────────────
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "./ui";
+import { Icon } from "../lib/icons";
 import logo from "../assets/logo.jpg";
 
 const ROLE_LABELS = {
@@ -12,9 +13,9 @@ const ROLE_LABELS = {
 };
 
 const THEME_OPTIONS = [
-  { value: "light",   label: "Light",   icon: "☀️" },
-  { value: "dark",    label: "Dark",    icon: "🌙" },
-  { value: "default", label: "Default", icon: "⚙️" },
+  { value: "light",   label: "Light",   icon: "sun" },
+  { value: "dark",    label: "Dark",    icon: "moon" },
+  { value: "default", label: "Default", icon: "settings" },
 ];
 
 export default function UserMenu({ profile, session, role, onSignOut, onOpenProfile }) {
@@ -100,7 +101,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}
             >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>👤</span>
+              <span style={{ fontSize: 16, flexShrink: 0 }}><Icon name="user" size={16} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff" }}>My Profile</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>View &amp; edit your details</div>
@@ -136,7 +137,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
                     >
-                      <span style={{ fontSize: 15, lineHeight: 1 }}>{opt.icon}</span>
+                      <span style={{ fontSize: 15, lineHeight: 1 }}><Icon name={opt.icon} size={14} /></span>
                       <span>{opt.label}</span>
                     </button>
                   );

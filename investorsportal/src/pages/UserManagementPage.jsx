@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { createPortal } from "react-dom";
+import { Icon } from "../lib/icons";
 import {
   sbGetAllUsers, sbGetRoles, sbAssignRole, sbDeactivateRole, sbAdminCreateUser,
   sbGetUserCDS, sbSearchCDS, sbCreateCDS, sbAssignCDS, sbRemoveCDS,
@@ -396,7 +397,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
         <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:8 }}>
           {selected.map(c => (
             <span key={c.cds_number} style={{ display:"inline-flex", alignItems:"center", gap:4, background:`${C.green}12`, border:`1px solid ${C.green}30`, borderRadius:20, padding:"3px 8px", fontSize:11, fontWeight:700, color:C.green }}>
-              🔒 {c.cds_number}
+              <Icon name="lock" size={11} /> {c.cds_number}
               <button onClick={() => toggle(c)} style={{ background:"none", border:"none", cursor:"pointer", color:C.green, fontSize:11, padding:0, lineHeight:1 }}>✕</button>
             </span>
           ))}
@@ -488,7 +489,7 @@ const ManageCDSModal = memo(function ManageCDSModal({ user, callerRole, callerCd
               : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {userCdsList.map(c => (
                     <div key={c.cds_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:c.is_active?`${C.green}09`:C.gray50, border:`1.5px solid ${c.is_active?C.green+"30":C.gray200}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-                      <div style={{ width:30, height:30, borderRadius:8, background:c.is_active?C.green+"18":C.navy+"10", border:`1px solid ${c.is_active?C.green+"30":C.navy+"15"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}>🔒</div>
+                      <div style={{ width:30, height:30, borderRadius:8, background:c.is_active?C.green+"18":C.navy+"10", border:`1px solid ${c.is_active?C.green+"30":C.navy+"15"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}><Icon name="lock" size={13} /></div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
                         <div style={{ fontSize:11, color:C.gray500 }}>{c.cds_name||"—"}</div>
@@ -580,7 +581,7 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
         ? <div style={{ textAlign:"center", padding:"20px 0", color:C.gray400, fontSize:12 }}>Checking affected users...</div>
         : affectedUsers.length === 0 ? (
           <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
-            <div style={{ fontSize:36, marginBottom:10 }}>🗑️</div>
+            <div style={{ fontSize:36, marginBottom:10 }}><Icon name="trash" size={36} /></div>
             <div style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:6 }}>Remove {cdsEntry.cds_number}?</div>
             <div style={{ fontSize:13, color:C.gray500, lineHeight:1.6 }}>No other users are assigned this CDS under <strong style={{ color:C.text }}>{admin.full_name}</strong>. It will simply be removed.</div>
           </div>
@@ -601,8 +602,8 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
             <div style={{ fontSize:11, fontWeight:700, color:isDark ? C.gray500 : C.gray600, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8 }}>What to do with their access?</div>
             <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:4 }}>
               {[
-                { val:false, icon:"🔒", label:"Remove from admin only", desc:"Users keep their CDS access" },
-                { val:true,  icon:"🗑️", label:"Remove from all users too", desc:"All listed users lose this CDS" }
+                { val:false, icon:<Icon name="lock" size={18} />, label:"Remove from admin only", desc:"Users keep their CDS access" },
+                { val:true,  icon:<Icon name="trash" size={18} />, label:"Remove from all users too", desc:"All listed users lose this CDS" }
               ].map(opt => (
                 <button key={String(opt.val)} onClick={() => setCascade(opt.val)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", textAlign:"left", border:`2px solid ${cascade===opt.val ? (opt.val ? C.red : C.navy) : C.gray200}`, background:cascade===opt.val ? (opt.val ? C.redBg : C.navy+"08") : C.white, transition:"all 0.15s", boxShadow:cascade===opt.val?"0 4px 12px rgba(0,0,0,0.05)":"none" }}>
                   <span style={{ fontSize:18, flexShrink:0 }}>{opt.icon}</span>
@@ -800,7 +801,7 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
       <Field label="CDS Account" required hint={isAD ? (callerCdsList?.length===1 ? "Auto-assigned from your account" : "Select one or more CDS from your pool") : "Search existing CDS or create a new one"}>
         {isAD && callerCdsList?.length === 1 && selectedCds ? (
           <div style={{ padding:"10px 12px", borderRadius:10, background:`${C.green}08`, border:`1.5px solid ${C.green}30`, display:"flex", alignItems:"center", gap:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-            <span style={{ fontSize:13 }}>🔒</span>
+            <span style={{ fontSize:13 }}><Icon name="lock" size={13} /></span>
             <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:C.green }}>{selectedCds.cds_number}</div><div style={{ fontSize:11, color:C.gray500 }}>{selectedCds.cds_name}</div></div>
             <span style={{ fontSize:10, fontWeight:700, color:C.green }}>Auto-selected</span>
           </div>
@@ -1182,7 +1183,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
     return (
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"60vh" }}>
         <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:44, marginBottom:10 }}>🔒</div>
+          <div style={{ fontSize:44, marginBottom:10 }}><Icon name="lock" size={44} /></div>
           <div style={{ fontWeight:800, fontSize:16, color:C.text }}>Access Restricted</div>
           <div style={{ fontSize:12, color:C.gray400, marginTop:4 }}>Only Admins and Super Admins can manage users.</div>
         </div>
@@ -1246,7 +1247,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
         {isMobile && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
-              <StatCard label="Total Users" value={stats.total}       color={C.navy}  icon="👥"/>
+              <StatCard label="Total Users" value={stats.total}       color={C.navy}  icon={<Icon name="users" size={15} />}/>
               <StatCard label="Active"      value={stats.activeCount} color={C.green} icon="✅"/>
               <StatCard label="No Role"     value={stats.noRoleCount} color={C.gold}  icon="⚠️"/>
             </div>
@@ -1286,7 +1287,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
         {!isMobile && (
           <>
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
-              <StatCard label="Total Users"   value={stats.total}                                          color={C.navy}   icon="👥"/>
+              <StatCard label="Total Users"   value={stats.total}                                          color={C.navy}   icon={<Icon name="users" size={15} />}/>
               <StatCard label="Active"        value={stats.activeCount}                                    color={C.green}  icon="✅"/>
               <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon="⚠️"/>
               <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon="🔑"/>

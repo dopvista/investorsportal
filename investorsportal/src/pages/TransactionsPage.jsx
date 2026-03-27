@@ -6,6 +6,7 @@ import {
   Btn, StatCard, SectionCard, Modal, ActionMenu,
   TransactionFormModal, ImportTransactionsModal,
 } from "../components/ui";
+import { Icon } from "../lib/icons";
 import {
   sbGetAllCompanies,
   sbGetTransactions,
@@ -65,19 +66,19 @@ const fmtDateTime = (d) => {
 };
 
 const getStatusConfig = (C, isDark) => ({
-  pending:   { label: "Pending",   color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: "🕐" },
-  confirmed: { label: "Confirmed", color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: "✅" },
-  verified:  { label: "Verified",  color: C.green,   bg: C.greenBg,                        border: isDark ? `${C.green}55` : "#BBF7D0", icon: "✔️" },
-  rejected:  { label: "Rejected",  color: C.red,     bg: C.redBg,                          border: isDark ? `${C.red}55`  : "#FECACA", icon: "✖"  },
+  pending:   { label: "Pending",   color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: <Icon name="clock" size={14} /> },
+  confirmed: { label: "Confirmed", color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: <Icon name="checkCircle" size={14} /> },
+  verified:  { label: "Verified",  color: C.green,   bg: C.greenBg,                        border: isDark ? `${C.green}55` : "#BBF7D0", icon: <Icon name="check" size={14} /> },
+  rejected:  { label: "Rejected",  color: C.red,     bg: C.redBg,                          border: isDark ? `${C.red}55`  : "#FECACA", icon: <Icon name="xCircle" size={14} /> },
 });
 
 const defaultStatus = "All";
 const statusOptions = [
   ["All", "All Statuses"],
-  ["pending", "🕐 Pending"],
-  ["confirmed", "✅ Confirmed"],
-  ["verified", "✔️ Verified"],
-  ["rejected", "✖ Rejected"],
+  ["pending", "Pending"],
+  ["confirmed", "Confirmed"],
+  ["verified", "Verified"],
+  ["rejected", "Rejected"],
 ];
 
 const TABLE_HEADERS_WITH_ACTIONS = [
@@ -133,7 +134,7 @@ function RejectModal({ count, onConfirm, onClose }) {
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, #0B1F3A, #1e3a5f)`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>✖ Reject Transaction{count > 1 ? "s" : ""}</div>
+            <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 6 }}><Icon name="xCircle" size={15} /> Reject Transaction{count > 1 ? "s" : ""}</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{count > 1 ? `${count} transactions selected` : "1 transaction selected"}</div>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -164,7 +165,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
   const accentColor = isVerify ? C.green : "#1D4ED8";
   const accentBg    = isVerify ? C.greenBg                      : (isDark ? "#1D4ED828" : "#EFF6FF");
   const accentBdr   = isVerify ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? "#1D4ED855" : "#BFDBFE");
-  const icon        = isVerify ? "✔" : "✅";
+  const icon        = isVerify ? <Icon name="check" size={15} /> : <Icon name="checkCircle" size={15} />;
   const title       = isVerify ? `Verify Transaction${count > 1 ? "s" : ""}` : "Confirm Transaction";
   const subtitle    = count > 1 ? `${count} transactions selected` : company || "1 transaction";
   const description = isVerify
@@ -185,7 +186,7 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
         </div>
         <div style={{ padding: "20px" }}>
           <div style={{ background: accentBg, border: `1px solid ${accentBdr}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
-            <span style={{ fontSize: 18, marginTop: 1 }}>{isVerify ? "🔍" : "📋"}</span>
+            <span style={{ fontSize: 18, marginTop: 1 }}>{isVerify ? <Icon name="search" size={18} /> : <Icon name="clipboard" size={18} />}</span>
             <div style={{ fontSize: 13, color: accentColor, lineHeight: 1.5 }}>{description}</div>
           </div>
           <div style={{ fontSize: 13, color: C.gray600 }}>Are you sure you want to proceed?</div>
@@ -405,11 +406,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   }, [isBuy, transaction.id, transaction.company_id, transactions]);
 
   const AUDIT_STEPS = useMemo(() => [
-    { icon: "📝", label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
-    { icon: "✅", label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: isDark ? "#1D4ED820" : "#EFF6FF" },
-    { icon: "✔️", label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
+    { icon: <Icon name="fileText" size={11} />, label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
+    { icon: <Icon name="checkCircle" size={11} />, label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: isDark ? "#1D4ED820" : "#EFF6FF" },
+    { icon: <Icon name="check" size={11} />, label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
     ...(transaction.status === "rejected"
-      ? [{ icon: "✖", label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
+      ? [{ icon: <Icon name="xCircle" size={11} />, label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
       : []
     ),
   ], [C, isDark, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
@@ -632,12 +633,12 @@ const TransactionMobileCard = memo(function TransactionMobileCard({
   const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
 
   const rowActions = useMemo(() => [
-    ...(perms.canConfirm  ? [{ icon: "✅", label: isRowConfirming  ? "Confirming..."  : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
-    ...(perms.canEdit     ? [{ icon: "✏️", label: "Edit",      disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
-    ...(perms.canVerify   ? [{ icon: "✔️", label: isRowVerifying   ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
-    ...(perms.canReject   ? [{ icon: "✖",  label: isRowRejecting   ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
-    ...(perms.canUnVerify ? [{ icon: "↩️", label: isRowUnverifying ? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
-    ...(perms.canDelete   ? [{ icon: "🗑️", label: isRowDeleting    ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+    ...(perms.canConfirm  ? [{ icon: <Icon name="checkCircle" size={14} />, label: isRowConfirming  ? "Confirming..."  : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
+    ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />, label: "Edit",      disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify   ? [{ icon: <Icon name="check" size={14} />, label: isRowVerifying   ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject   ? [{ icon: <Icon name="xCircle" size={14} />,  label: isRowRejecting   ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify ? [{ icon: <Icon name="undo" size={14} />, label: isRowUnverifying ? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete   ? [{ icon: <Icon name="trash" size={14} />, label: isRowDeleting    ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
   ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
       transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
@@ -719,12 +720,12 @@ const TransactionRow = memo(function TransactionRow({
   const isRowBusy        = isRowConfirming || isRowVerifying || isRowRejecting || isRowUnverifying || isRowDeleting;
 
   const rowActions = useMemo(() => [
-    ...(perms.canConfirm ? [{ icon: isRowConfirming  ? null : "✅", label: isRowConfirming  ? "Confirming..."  : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
-    ...(perms.canEdit    ? [{ icon: "✏️", label: "Edit",       disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
-    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : "✔️", label: isRowVerifying  ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
-    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : "✖",  label: isRowRejecting  ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
-    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : "↩️", label: isRowUnverifying? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
-    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : "🗑️", label: isRowDeleting   ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
+    ...(perms.canConfirm ? [{ icon: isRowConfirming  ? null : <Icon name="checkCircle" size={14} />, label: isRowConfirming  ? "Confirming..."  : (transaction.status === "rejected" ? "Re-Confirm" : "Confirm"), disabled: isRowBusy, onClick: () => onHandleConfirm(transaction.id, transaction.company_name, transaction.status) }] : []),
+    ...(perms.canEdit    ? [{ icon: <Icon name="edit" size={14} />, label: "Edit",       disabled: isRowBusy, onClick: () => onOpenFormModal(transaction) }] : []),
+    ...(perms.canVerify  ? [{ icon: isRowVerifying  ? null : <Icon name="check" size={14} />, label: isRowVerifying  ? "Verifying..."   : "Verify",    disabled: isRowBusy, onClick: () => onHandleVerify([transaction.id], transaction.company_name) }] : []),
+    ...(perms.canReject  ? [{ icon: isRowRejecting  ? null : <Icon name="xCircle" size={14} />,  label: isRowRejecting  ? "Rejecting..."   : "Reject",    danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([transaction.id]) }] : []),
+    ...(perms.canUnVerify? [{ icon: isRowUnverifying? null : <Icon name="undo" size={14} />, label: isRowUnverifying? "Unverifying..." : "UnVerify",  danger: true, disabled: isRowBusy, onClick: () => onHandleUnverify(transaction.id) }] : []),
+    ...(perms.canDelete  ? [{ icon: isRowDeleting   ? null : <Icon name="trash" size={14} />, label: isRowDeleting   ? "Deleting..."    : "Delete",    danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(transaction) }] : []),
   ], [perms, isRowBusy, isRowConfirming, isRowVerifying, isRowRejecting, isRowUnverifying, isRowDeleting,
       transaction, onHandleConfirm, onOpenFormModal, onHandleVerify, onOpenRejectModal, onHandleUnverify, onOpenDeleteModal]);
 
@@ -1363,28 +1364,28 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
   const statCards = useMemo(() => {
     if (isVR) return [
-      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant",                                                icon: "📋", color: "#1D4ED8" },
-      { label: "Verified",        value: stats.verified,  sub: "Approved transactions",                                                    icon: "✔️", color: C.green  },
-      { label: "Rejected",        value: stats.rejected,  sub: "Sent back for correction",                                                 icon: "✖",  color: C.red    },
-      { label: "Selected",        value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below",             icon: "☑️", color: C.gold  },
+      { label: "Awaiting Review", value: stats.confirmed, sub: "Confirmed by Data Entrant",                                                icon: <Icon name="clipboard" size={17} />, color: "#1D4ED8" },
+      { label: "Verified",        value: stats.verified,  sub: "Approved transactions",                                                    icon: <Icon name="check" size={17} />, color: C.green  },
+      { label: "Rejected",        value: stats.rejected,  sub: "Sent back for correction",                                                 icon: <Icon name="xCircle" size={17} />,  color: C.red    },
+      { label: "Selected",        value: selected.size,   sub: selected.size > 0 ? "Ready to action" : "Use checkboxes below",             icon: <Icon name="checkCircle" size={17} />, color: C.gold  },
     ];
     if (isDE) return [
-      { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
-      { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation",                             icon: "🕐", color: C.gold  },
+      { label: "My Transactions", value: stats.total,                           sub: `${stats.pending} pending · ${stats.confirmed} confirmed`, icon: <Icon name="clipboard" size={17} />, color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: <Icon name="download" size={17} />, color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: <Icon name="upload" size={17} />, color: C.red   },
+      { label: "Pending Confirm", value: stats.pending,                         sub: "Awaiting your confirmation",                             icon: <Icon name="clock" size={17} />, color: C.gold  },
     ];
     if (isRO) return [
-      { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`,                             icon: "📋", color: C.navy  },
-      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: "📥", color: C.green },
-      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: "📤", color: C.red   },
-      { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyGrand - stats.totalSellGrand))}`, sub: stats.totalBuyGrand >= stats.totalSellGrand ? "Net invested" : "Net realised", icon: "📊", color: C.gold },
+      { label: "Total Records",   value: stats.total,                           sub: `${stats.verified} verified`,                             icon: <Icon name="clipboard" size={17} />, color: C.navy  },
+      { label: "Total Bought",    value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                           icon: <Icon name="download" size={17} />, color: C.green },
+      { label: "Total Sold",      value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                          icon: <Icon name="upload" size={17} />, color: C.red   },
+      { label: "Net Position",    value: `TZS ${fmtSmart(Math.abs(stats.totalBuyGrand - stats.totalSellGrand))}`, sub: stats.totalBuyGrand >= stats.totalSellGrand ? "Net invested" : "Net realised", icon: <Icon name="barChart" size={17} />, color: C.gold },
     ];
     return [
-      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,           icon: "📋", color: C.navy  },
-      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                        icon: "📥", color: C.green },
-      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                       icon: "📤", color: C.red   },
-      { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: "⏳", color: C.gold  },
+      { label: "Total Transactions", value: stats.total,                           sub: `${stats.buys} buys · ${stats.sells} sells`,           icon: <Icon name="clipboard" size={17} />, color: C.navy  },
+      { label: "Total Bought",       value: `TZS ${fmtSmart(stats.totalBuyGrand)}`,  sub: `${stats.buys} buy orders`,                        icon: <Icon name="download" size={17} />, color: C.green },
+      { label: "Total Sold",         value: `TZS ${fmtSmart(stats.totalSellGrand)}`, sub: `${stats.sells} sell orders`,                       icon: <Icon name="upload" size={17} />, color: C.red   },
+      { label: "Pending Verify",     value: stats.confirmed,                       sub: `${stats.pending} pending · ${stats.rejected} rejected`, icon: <Icon name="hourglass" size={17} />, color: C.gold  },
     ];
   }, [C, stats, selected.size, isVR, isDE, isRO]);
 
@@ -1471,7 +1472,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             {(isDE || isSAAD) ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}><Icon name="search" size={14} /></span>
                   <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, date, status..." {...mobileInputAttrs}
                     style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
                     onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
@@ -1483,7 +1484,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               </div>
             ) : (
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}>🔍</span>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}><Icon name="search" size={14} /></span>
                 <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, date, status..." {...mobileInputAttrs}
                   style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
                   onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
@@ -1521,19 +1522,19 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
               {hasSelection ? (
                 <>
-                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming}  style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming  ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming  ? "not-allowed" : "pointer" }}>{isAnyConfirming  ? <><Spinner size={12} color="#888" /> Confirming...</>  : `✅ Confirm ${selectedBuckets.pendingRejected.length}`}</button>}
-                  {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)}                                                     disabled={isAnyVerifying}   style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying   ? C.gray200 : C.green,   color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying   ? "not-allowed" : "pointer" }}>{isAnyVerifying   ? <><Spinner size={12} color="#888" /> Verifying...</>   : `✔ Verify ${selectedBuckets.confirmed.length}`}</button>}
-                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}                                          disabled={isAnyRejecting}   style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting   ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting   ? "not-allowed" : "pointer" }}>{isAnyRejecting   ? <><Spinner size={12} color={C.red} /> Rejecting...</>   : `✖ Reject ${selectedBuckets.confirmed.length}`}</button>}
-                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}                                     disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : `↩️ UnVerify ${selectedBuckets.verified.length}`}</button>}
-                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}                                      disabled={isAnyDeleting}    style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting    ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting    ? "not-allowed" : "pointer" }}>{isAnyDeleting    ? <><Spinner size={12} color={C.red} /> Deleting...</>    : `🗑️ Delete ${selectedBuckets.deletable.length}`}</button>}
+                  {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming}  style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming  ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming  ? "not-allowed" : "pointer" }}>{isAnyConfirming  ? <><Spinner size={12} color="#888" /> Confirming...</>  : <><Icon name="checkCircle" size={12} /> Confirm {selectedBuckets.pendingRejected.length}</>}</button>}
+                  {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)}                                                     disabled={isAnyVerifying}   style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying   ? C.gray200 : C.green,   color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying   ? "not-allowed" : "pointer" }}>{isAnyVerifying   ? <><Spinner size={12} color="#888" /> Verifying...</>   : <><Icon name="check" size={12} /> Verify {selectedBuckets.confirmed.length}</>}</button>}
+                  {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}                                          disabled={isAnyRejecting}   style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting   ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting   ? "not-allowed" : "pointer" }}>{isAnyRejecting   ? <><Spinner size={12} color={C.red} /> Rejecting...</>   : <><Icon name="xCircle" size={12} /> Reject {selectedBuckets.confirmed.length}</>}</button>}
+                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}                                     disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : <><Icon name="undo" size={12} /> UnVerify {selectedBuckets.verified.length}</>}</button>}
+                  {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}                                      disabled={isAnyDeleting}    style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting    ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting    ? "not-allowed" : "pointer" }}>{isAnyDeleting    ? <><Spinner size={12} color={C.red} /> Deleting...</>    : <><Icon name="trash" size={12} /> Delete {selectedBuckets.deletable.length}</>}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>
               ) : (
                 <>
-                  <Btn variant="secondary" icon="🔄" onClick={loadTransactions}>Refresh</Btn>
+                  <Btn variant="secondary" icon={<Icon name="refresh" size={14} />} onClick={loadTransactions}>Refresh</Btn>
                   {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
                   {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
-                  {(isDE || isSAAD) && <Btn variant="primary" icon="⬆️" onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="primary" icon={<Icon name="upload" size={14} />} onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
                 </>
               )}
             </div>
@@ -1557,13 +1558,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               </div>
             ) : stats.total === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}><Icon name="clipboard" size={40} /></div>
                 <div style={{ fontWeight: 600, marginBottom: 4, color: C.text }}>No transactions yet</div>
                 <div style={{ fontSize: 13 }}>{isDE ? 'Tap "Record" to add your first buy or sell' : "Transactions will appear here once created"}</div>
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+                <div style={{ fontSize: 32, marginBottom: 10 }}><Icon name="search" size={32} /></div>
                 <div style={{ fontWeight: 600, color: C.text }}>No results found</div>
                 <div style={{ fontSize: 13, marginTop: 4 }}>Try adjusting your search or filters</div>
                 <button onClick={resetFilters} style={{ marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Reset Filters</button>
