@@ -97,11 +97,13 @@ export function Toast({ msg, type }) {
 }
 
 // ── StatCard ──────────────────────────────────────────────────────
+// Stat card icon badge: pale yellow bg, dark gray icon — consistent both themes
+const STAT_ICON_BG     = "#FEF3C7";
+const STAT_ICON_BORDER = "#FDE68A";
+const STAT_ICON_COLOR  = "#4B5563";
+
 export function StatCard({ label, value, sub, color, icon }) {
-  const { C, isDark } = useTheme();
-  const accentColor = color || C.green;
-  const iconBg = isDark ? accentColor + "40" : accentColor + "22";
-  const iconBorder = isDark ? accentColor + "60" : accentColor + "40";
+  const { C } = useTheme();
   return (
     <div style={{
       background: C.white, border: `1px solid ${C.gray200}`,
@@ -110,11 +112,11 @@ export function StatCard({ label, value, sub, color, icon }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
     }}>
       <div style={{
-        width: 36, height: 36, background: iconBg,
-        border: `1.5px solid ${iconBorder}`,
+        width: 36, height: 36, background: STAT_ICON_BG,
+        border: `1.5px solid ${STAT_ICON_BORDER}`,
         borderRadius: 10, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 17, flexShrink: 0,
-        color: accentColor,
+        color: STAT_ICON_COLOR,
       }}>{icon}</div>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>

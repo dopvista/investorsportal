@@ -870,12 +870,10 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
 });
 
 const StatCard = memo(function StatCard({ label, value, color, icon }) {
-  const { C, isDark } = useTheme();
-  const bgAlpha = isDark ? "40" : "22";
-  const bdrAlpha = isDark ? "60" : "40";
+  const { C } = useTheme();
   return (
     <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"10px 12px", display:"flex", alignItems:"center", gap:10, flex:1, minWidth:90, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:`${color}${bgAlpha}`, border:`1.5px solid ${color}${bdrAlpha}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color }}>{icon}</div>
+      <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:"#FEF3C7", border:"1.5px solid #FDE68A", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:"#4B5563" }}>{icon}</div>
       <div>
         <div style={{ fontSize:18, fontWeight:800, color:C.text, lineHeight:1 }}>{value}</div>
         <div style={{ fontSize:10, color:C.gray400, marginTop:2 }}>{label}</div>

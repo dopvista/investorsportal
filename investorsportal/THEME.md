@@ -15,22 +15,34 @@ For any icon container, stat card, or badge:
 3. **Icon stroke** — full 100% accent color (never gray, never `currentColor` without `color` set)
 4. **Text** — must contrast with both the background and the accent
 
-### Icon Container Pattern (mandatory for all stat cards and badges)
+### Stat Card Icon Badge (mandatory for all stat cards)
+All stat card icon containers use a **pale yellow background** with **dark gray icons**.
+This is consistent across BOTH light and dark themes — no theme-dependent values.
+
 ```jsx
+// Standard stat card icon badge
+const STAT_ICON_BG     = "#FEF3C7";  // pale yellow (amber-100)
+const STAT_ICON_BORDER = "#FDE68A";  // warm yellow border (amber-200)
+const STAT_ICON_COLOR  = "#4B5563";  // dark gray (gray-600)
+
 <div style={{
-  background: `${accentColor}${isDark ? "40" : "22"}`,
-  border: `1.5px solid ${accentColor}${isDark ? "60" : "40"}`,
-  color: accentColor,  // ← ensures currentColor inheritance for child SVGs
+  background: STAT_ICON_BG,
+  border: `1.5px solid ${STAT_ICON_BORDER}`,
+  color: STAT_ICON_COLOR,
 }}>
   <Icon name="..." size={17} />
 </div>
 ```
 
-### Why
-- In dark mode, low-opacity backgrounds on dark surfaces become invisible
-- Without explicit `color` on the container, `currentColor` inherits page text color, not accent
-- Without a border, the badge has no edge definition against the card background
-- Dark mode needs ~2x opacity vs light mode to achieve equivalent contrast
+### Why Pale Yellow + Dark Gray
+- Yellow provides a warm, visible fill on BOTH white (light) and navy (dark) card backgrounds
+- Dark gray icons have strong contrast against the yellow without being harsh
+- Same values in both themes = no per-theme logic needed, fewer bugs
+- The yellow border adds edge definition without competing with accent colors
+
+### Section Header IconBadge (different from stat cards)
+Section headers still use per-section accent-tinted badges via `<IconBadge>`.
+These use theme-adaptive opacity (stronger in dark mode).
 
 ---
 

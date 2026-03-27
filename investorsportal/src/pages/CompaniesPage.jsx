@@ -148,7 +148,7 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   ];
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.navy}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}><Icon name="building" size={17} stroke={C.navy} sw={2.2} /></div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEF3C7", border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}><Icon name="building" size={17} stroke="#4B5563" sw={2.2} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
         <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>

@@ -265,11 +265,11 @@ const StatCard = memo(function StatCard({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}${isDark ? "40" : "22"}`,
-            border: isColored ? "none" : `1.5px solid ${accent}${isDark ? "60" : "40"}`,
+            background: isColored ? "rgba(255,255,255,0.18)" : "#FEF3C7",
+            border: isColored ? "none" : "1.5px solid #FDE68A",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
-            color: isColored ? "#ffffff" : accent,
+            color: isColored ? "#ffffff" : "#4B5563",
           }}>
             {icon}
           </div>
@@ -405,7 +405,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
         display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
       }}
     >
-      <div style={{ fontSize: 20, color: accent }}>{icon}</div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEF3C7", border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center", color: "#4B5563" }}>{icon}</div>
       <div style={{ fontSize: 17, fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 10, color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
       {navigates && <span style={{ fontSize: 10, color: C.gray400 }}>→</span>}
