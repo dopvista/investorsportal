@@ -742,7 +742,7 @@ const TransactionRow = memo(function TransactionRow({
       {showCheckbox && (
         <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(transaction.id)} disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: isDark ? C.green : "#0B1F3A" }} />
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
@@ -1539,7 +1539,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <>
                   <Btn variant="secondary" icon={<Icon name="refresh" size={14} />} onClick={loadTransactions}>Refresh</Btn>
                   {(search || typeFilter !== "All" || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
-                  {(isDE || isSAAD) && <Btn variant="navy" icon="+" onClick={() => openFormModal(null)} disabled={loadingCompanies}>Record Transaction</Btn>}
+                  {(isDE || isSAAD) && <Btn variant="navy" icon={<Icon name="plus" size={14} stroke="#ffffff" />} onClick={() => openFormModal(null)} disabled={loadingCompanies} style={{ boxShadow: "0 4px 16px rgba(11,31,58,0.45)" }}>Record Transaction</Btn>}
                   {(isDE || isSAAD) && <Btn variant="primary" icon={<Icon name="upload" size={14} />} onClick={() => setImportModal(true)} disabled={loadingCompanies}>Import</Btn>}
                 </>
               )}
@@ -1616,7 +1616,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
-                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#0B1F3A" }} />
+                              style={{ cursor: "pointer", width: 15, height: 15, accentColor: isDark ? C.green : "#0B1F3A" }} />
                           </th>
                         )}
                         {tableHeaders.map(h => (

@@ -167,7 +167,7 @@ const CdsSwitcherPopover = memo(function CdsSwitcherPopover({
           const isActive = c.cds_number === activeCdsNumber;
           return (
             <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: isActive ? C.green + "0a" : "transparent", borderLeft: `3px solid ${isActive ? C.green : "transparent"}` }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: isActive ? C.green + "18" : C.navy + "0f", border: `1px solid ${isActive ? C.green + "30" : C.navy + "18"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={14} stroke="#ffffff" sw={2} /></div>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: isActive ? "#D1FAE5" : "#DBEAFE", border: `1.5px solid ${isActive ? "#A7F3D0" : "#BFDBFE"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={14} stroke="#374151" sw={2.2} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
                 <div style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>

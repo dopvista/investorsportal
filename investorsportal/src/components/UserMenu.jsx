@@ -101,7 +101,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}
             >
-              <span style={{ fontSize: 16, flexShrink: 0 }}><Icon name="user" size={16} /></span>
+              <span style={{ fontSize: 16, flexShrink: 0 }}><Icon name="user" size={16} stroke="rgba(255,255,255,0.7)" /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff" }}>My Profile</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>View &amp; edit your details</div>
@@ -111,7 +111,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
             {/* ── Theme Selector ──────────────────────────────────────── */}
             <div style={{ padding: "10px 18px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>🎨</span>
+                <span style={{ fontSize: 16, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "rgba(255,255,255,0.1)" }}><Icon name="sun" size={14} stroke="rgba(255,255,255,0.7)" /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#ffffff" }}>App Theme</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Appearance preference</div>
@@ -155,7 +155,7 @@ export default function UserMenu({ profile, session, role, onSignOut, onOpenProf
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}
             >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>🚪</span>
+              <span style={{ fontSize: 16, flexShrink: 0 }}><Icon name="externalLink" size={16} stroke="#f87171" /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#f87171" }}>Sign Out</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Exit your session</div>

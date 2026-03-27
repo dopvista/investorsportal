@@ -1003,7 +1003,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
   }), [C]);
 
   const theadBg = useMemo(
-    () => isDark ? C.gray50 : C.gray50,
+    () => isDark ? C.gray50 : "#F0F4F8",
     [isDark, C]
   );
 
@@ -1326,9 +1326,9 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
             <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ overflowX:"auto", flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-                <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`1px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
+                <div style={{ display:"grid", gridTemplateColumns:GRID, padding:"9px 14px", minWidth:940, borderBottom:`2px solid ${C.gray200}`, background:theadBg, flexShrink:0 }}>
                   {["#","User","CDS Number","Account Type","Role","Phone Number","Email Address","Created","Actions"].map((h,i)=>(
-                    <div key={i} style={{ fontSize:9, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
+                    <div key={i} style={{ fontSize:10, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
                   ))}
                 </div>
                 <div className="um-scroll" style={{ overflowY:"auto", flex:1 }}>

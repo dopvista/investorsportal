@@ -464,7 +464,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   );
 
   const pullReady  = pullDistance >= 64;
-  const theadBg    = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+  const theadBg    = isDark ? C.gray50 : "#F0F4F8";
 
   const mobileInputAttrs = isMobile ? {
     autoComplete: "off", autoCorrect: "off", autoCapitalize: "off",
@@ -618,11 +618,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: theadBg }}>
-                        {["#", "Company", "New Price (TZS)", "Change", "Previous Price (TZS)", "Last Updated", "Updated By", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price (TZS)" || h === "Change" || h === "Previous Price (TZS)" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
+                        {["#", "Company", "New Price", "Change", "Prev. Price", "Last Updated", "Updated By", "Actions"].map(h => (
+                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price" || h === "Change" || h === "Prev. Price" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
