@@ -326,13 +326,15 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
           style={{
             background: accentColor ? `${accentColor}18` : C.gray100,
             border: "none", borderRadius: "50%",
-            width: 40, height: 40,
-            cursor: "pointer", fontSize: 13,
-            color: C.gray500,
+            width: 36, height: 36,
+            cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background 0.15s",
           }}
+          onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
+          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
         >
-          ✕
+          <Icon name="x" size={15} stroke={C.gray500} sw={2.2} />
         </button>
       </div>
       {children}
@@ -771,7 +773,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="upload" size={14} /> Realized Gain / Loss</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><Icon name="x" size={15} stroke={C.gray500} sw={2.2} /></button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
@@ -840,7 +842,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="building" size={14} /> Top 5 Holdings</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><Icon name="x" size={15} stroke={C.gray500} sw={2.2} /></button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
@@ -909,7 +911,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     }}>
       <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.gray100}` }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}><Icon name="users" size={14} /> Members ({cdsUsers.length})</div>
-        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: 12, color: C.gray500, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <button onClick={onCloseExpand} style={{ background: C.gray100, border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><Icon name="x" size={15} stroke={C.gray500} sw={2.2} /></button>
       </div>
       {loading ? <Spinner /> : (
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>

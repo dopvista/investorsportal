@@ -2,7 +2,7 @@
 // Updated: 4:3 crop tool for login slide images (matches login page + settings preview)
 // Output: 1280×960 JPEG
 import { useState, useRef, useEffect, useCallback } from "react";
-import { C } from "./ui";
+import { C, useTheme } from "./ui";
 import { Icon } from "../lib/icons";
 
 const CANVAS_W = 560;
@@ -284,9 +284,10 @@ export default function ImageCropModal({ imageSrc, slideIndex, onConfirm, onCanc
     out.toBlob(blob => onConfirm(blob), "image/jpeg", 0.92);
   };
 
+  const { C: themeC } = useTheme();
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "rgba(10,37,64,0.75)",
+      position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)",
       zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
       backdropFilter: "blur(3px)",
     }}>
@@ -299,20 +300,21 @@ export default function ImageCropModal({ imageSrc, slideIndex, onConfirm, onCanc
 
       <div style={{
         background: C.white, borderRadius: 18, overflow: "hidden",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.45)", animation: "fadeIn 0.22s ease",
+        border: `1.5px solid ${C.gray200}`,
+        boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease",
         width: CANVAS_W,
       }}>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${themeC.navy} 0%, ${themeC.navyLight} 100%)`, padding: "18px 24px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ color: C.white, fontWeight: 800, fontSize: 15 }}>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>
               Crop Slide {slideIndex} Image
             </div>
-            <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 500 }}>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>
               Drag to reposition · Corner handles to resize · Scroll to zoom · Output: 1280×960
             </div>
           </div>
-          <button onClick={onCancel} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: C.white, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={onCancel} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
         {/* Canvas */}

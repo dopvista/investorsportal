@@ -197,18 +197,18 @@ function ModalShell({ title, subtitle, onClose, footer, children, maxWidth = 460
         boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined), overflow: "hidden",
       }}>
-        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0, borderTopLeftRadius: isMobile ? "18px" : 18, borderTopRightRadius: isMobile ? "18px" : 18 }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0, borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>{subtitle}</div>}
+            {subtitle && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3, fontWeight: 600 }}>{subtitle}</div>}
           </div>
           {!lockBackdrop && (
-            <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0, marginLeft: 16 }}>✕</button>
+            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
           )}
         </div>
         <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>{children}</div>
         {footer && (
-          <div style={{ padding: isMobile ? "12px 18px" : "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 16px 16px", flexShrink: 0, position: isMobile ? "sticky" : "static", bottom: 0, zIndex: 2 }}>{footer}</div>
+          <div style={{ padding: isMobile ? "12px 18px" : "16px 24px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 18px 18px", flexShrink: 0, position: isMobile ? "sticky" : "static", bottom: 0, zIndex: 2 }}>{footer}</div>
         )}
       </div>
     </div>
@@ -755,9 +755,9 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         style={{ width: "100%", background: C.white, borderRadius: "18px 18px 0 0", overflow: "hidden", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.26s cubic-bezier(0.4,0,0.2,1)" }}
       >
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: "16px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "18px 18px 0 0" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#ffffff" }}>Update Profile Picture</div>
-          <button onClick={() => setShowAvatarSheet(false)} style={{ width: 36, height: 36, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 14, color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "18px 18px 0 0" }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>Update Profile Picture</div>
+          <button onClick={() => setShowAvatarSheet(false)} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
         {/* Options */}
@@ -828,12 +828,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
         <style>{`@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: isMobile ? "18px 20px 14px" : "16px 22px", borderRadius: isMobile ? "18px 18px 0 0" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
-            <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 600 }}>Confirm account change</div>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>Switch CDS Account</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>Confirm account change</div>
           </div>
-          <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#ffffff", width: 40, height: 40, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={() => !switching && setSwitchTarget(null)} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
         {/* Body */}

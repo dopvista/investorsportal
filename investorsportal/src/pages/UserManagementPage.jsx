@@ -74,22 +74,23 @@ const MOBILE_INPUT_ATTRS = {
 const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, maxWidth = 460, closeOnBackdrop = true }) {
   const { C } = useTheme();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  return createPortal(
+  return createPortal(<>
+    <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
     <div
       onClick={closeOnBackdrop ? onClose : undefined}
-      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(10,37,64,0.56)", backdropFilter:"blur(4px)", display:"flex", alignItems: isMobile ? "flex-end" : "center", justifyContent:"center", padding: isMobile ? 0 : 20 }}
+      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(10,37,64,0.56)", backdropFilter:"blur(3px)", display:"flex", alignItems: isMobile ? "flex-end" : "center", justifyContent:"center", padding: isMobile ? 0 : 24 }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
           background: C.white,
-          borderRadius: isMobile ? "18px 18px 0 0" : 20,
+          borderRadius: isMobile ? "18px 18px 0 0" : 18,
           border: `1.5px solid ${C.gray200}`,
           borderBottom: isMobile ? "none" : undefined,
           width: "100%",
           maxWidth: isMobile ? "100%" : maxWidth,
           maxHeight: isMobile ? "92vh" : undefined,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.28)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -97,21 +98,21 @@ const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, 
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
-        <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding:"18px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-          <div>
+        <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+          <div style={{ flex:1, minWidth:0 }}>
             <div style={{ color:"#ffffff", fontWeight:800, fontSize:16 }}>{title}</div>
-            {subtitle && <div style={{ color:"rgba(255,255,255,0.62)", fontSize:12, marginTop:3, fontWeight:600, letterSpacing:"0.01em" }}>{subtitle}</div>}
+            {subtitle && <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, marginTop:3, fontWeight:600 }}>{subtitle}</div>}
           </div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.14)", color:"#ffffff", width:34, height:34, borderRadius:10, cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          <button onClick={onClose} style={{ width:36, height:36, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginLeft:16, transition:"background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
-        <div style={{ padding:"20px 24px 4px", overflowY:"auto", flex:1 }}>{children}</div>
+        <div style={{ padding: isMobile ? "16px 18px" : "20px 24px", overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:14 }}>{children}</div>
         {footer && (
-          <div style={{ display:"flex", gap:8, padding:"16px 24px", flexShrink:0, background:C.gray50, borderTop:`1px solid ${C.gray200}`, position:"sticky", bottom:0 }}>
+          <div style={{ display:"flex", gap:10, padding: isMobile ? "12px 18px" : "16px 24px", flexShrink:0, background:C.gray50, borderTop:`1px solid ${C.gray200}`, borderRadius: isMobile ? 0 : "0 0 18px 18px", position: isMobile ? "sticky" : "static", bottom:0, zIndex:2 }}>
             {footer}
           </div>
         )}
       </div>
-    </div>,
+    </div></>,
     document.body
   );
 });

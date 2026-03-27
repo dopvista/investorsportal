@@ -321,27 +321,29 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
   const { C } = useTheme();
   const isMobile = useIsMobile();
 
-  return (
+  return (<>
+    <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
+      style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
         background: C.white,
-        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        borderRadius: isMobile ? "18px 18px 0 0" : 18,
         border: `1.5px solid ${C.gray200}`,
         borderBottom: isMobile ? "none" : undefined,
         width: "100%",
         maxWidth: isMobile ? "100%" : maxWidth,
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+        animation: "fadeIn 0.2s ease",
         maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
       }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>{subtitle}</div>}
+            {subtitle && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3, fontWeight: 600 }}>{subtitle}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
@@ -354,13 +356,13 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
           {children}
         </div>
         {footer && (
-          <div style={{ padding: isMobile ? "12px 18px" : "16px 28px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 16px 16px", flexShrink: 0, position: isMobile ? "sticky" : "static", bottom: 0, zIndex: 2 }}>
+          <div style={{ padding: isMobile ? "12px 18px" : "16px 24px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", background: C.gray50, borderRadius: isMobile ? 0 : "0 0 18px 18px", flexShrink: 0, position: isMobile ? "sticky" : "static", bottom: 0, zIndex: 2 }}>
             {footer}
           </div>
         )}
       </div>
     </div>
-  );
+  </>);
 }
 
 // ── Modal (confirm / warning) ─────────────────────────────────────

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import logo from "../assets/logo.jpg";
+import { Icon } from "../lib/icons";
 
 // ── Storage keys ──────────────────────────────────────────────────
 const LATER_KEY  = "pwa-install-later-at";
@@ -399,10 +400,12 @@ export default function InstallBanner() {
           </button>
           <button
             onClick={handleNever}
-            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: "2px 6px", fontFamily: "inherit" }}
+            style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}
             title="Don't show again"
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
           >
-            ✕
+            <Icon name="x" size={14} stroke="rgba(255,255,255,0.6)" sw={2.2} />
           </button>
         </div>
       </div>

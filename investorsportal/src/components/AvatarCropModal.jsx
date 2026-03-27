@@ -26,27 +26,28 @@ function ModalShell({ title, subtitle, onClose, children, footer }) {
   const isMobile = useIsMobile();
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div style={{
         background: C.white,
-        borderRadius: isMobile ? "18px 18px 0 0" : 18,
-        // ── Consistent border matching app-wide popup style ──
+        borderRadius: "18px 18px 0 0",
         border: `1.5px solid ${C.gray200}`,
         borderBottom: "none",
         width: "100%", maxWidth: "100%",
         display: "flex", flexDirection: "column",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
         maxHeight: "92vh",
+        animation: "fadeIn 0.2s ease",
       }}>
+        <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: isMobile ? "18px 20px 14px" : "22px 28px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0, borderTopLeftRadius: "18px", borderTopRightRadius: "18px" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0, borderRadius: "18px 18px 0 0" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>{subtitle}</div>}
+            {subtitle && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3, fontWeight: 600 }}>{subtitle}</div>}
           </div>
-          <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0, marginLeft: 16 }}>✕</button>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
         {/* Body */}
         <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>
@@ -287,7 +288,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
   // ── DESKTOP ──────────────────────────────────────────────────
   if (!isMobile) {
     return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.75)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(3px)" }}>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(3px)" }}>
         <style>{`
           @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
           @keyframes spin   { to { transform: rotate(360deg); } }
@@ -296,18 +297,17 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
         `}</style>
         <div style={{
           background: C.white, borderRadius: 18, overflow: "hidden",
-          // ── Consistent border ──
           border: `1.5px solid ${C.gray200}`,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.45)", animation: "fadeIn 0.22s ease",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.3)", animation: "fadeIn 0.2s ease",
           width: canvasSize,
         }}>
           {/* Header */}
-          <div style={{ background: `linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)`, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 24px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Edit Profile Picture</div>
-              <div style={{ color: C.gold, fontSize: 11, marginTop: 2, fontWeight: 500 }}>Drag to reposition · Green handle to resize · Scroll to zoom</div>
+              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>Edit Profile Picture</div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>Drag to reposition · Green handle to resize · Scroll to zoom</div>
             </div>
-            <button onClick={onCancel} style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#ffffff", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            <button onClick={onCancel} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
           </div>
           {/* Canvas */}
           <div style={{ background: "#111827", lineHeight: 0 }}>{canvasEl}</div>

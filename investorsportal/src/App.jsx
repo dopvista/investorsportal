@@ -217,8 +217,10 @@ const SidebarInner = memo(function SidebarInner({
           <button
             onClick={onClose}
             aria-label="Close navigation"
-            style={{ position: "absolute", top: 14, right: 14, width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.1)", color: "#ffffff", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, flexShrink: 0 }}
-          >✕</button>
+            style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, flexShrink: 0, transition: "background 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+          ><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <img src={logo} alt="DI" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.35)" }} />
@@ -1088,12 +1090,12 @@ export default function App() {
             <style>{`@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
             {/* Header */}
-            <div style={{ background: "linear-gradient(135deg,#0c2548,#0B1F3A)", padding: isMobile ? "18px 20px 14px" : "16px 22px", borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}>Switch CDS Account</div>
-                <div style={{ color: C.gold, fontSize: 11, marginTop: 3, fontWeight: 600 }}>Confirm account change</div>
+                <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>Switch CDS Account</div>
+                <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>Confirm account change</div>
               </div>
-              <button onClick={() => !switching && setSwitchTarget(null)} style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#ffffff", width: 40, height: 40, borderRadius: 8, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              <button onClick={() => !switching && setSwitchTarget(null)} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
             </div>
 
             {/* Body */}
