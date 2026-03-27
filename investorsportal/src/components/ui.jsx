@@ -100,8 +100,8 @@ export function Toast({ msg, type }) {
 export function StatCard({ label, value, sub, color, icon }) {
   const { C, isDark } = useTheme();
   const accentColor = color || C.green;
-  const iconBg = isDark ? accentColor + "35" : accentColor + "20";
-  const iconBorder = isDark ? accentColor + "55" : accentColor + "30";
+  const iconBg = isDark ? accentColor + "40" : accentColor + "22";
+  const iconBorder = isDark ? accentColor + "60" : accentColor + "40";
   return (
     <div style={{
       background: C.white, border: `1px solid ${C.gray200}`,

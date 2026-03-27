@@ -947,14 +947,14 @@ export default function App() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: isDark ? C.navy + "30" : C.navy + "0a", border: `1px solid ${isDark ? C.navy + "50" : C.navy + "18"}`, borderRadius: 10, padding: "5px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: isDark ? C.navy + "40" : C.navy + "12", border: `1px solid ${isDark ? C.navy + "60" : C.navy + "25"}`, borderRadius: 10, padding: "5px 12px" }}>
                   <IconBadge name="building" color={isDark ? "#7EB3FF" : C.navy} size={30} radius={8} isDark={isDark} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Holdings</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cdsCompanyCount}</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: isDark ? C.green + "20" : C.green + "0d", border: `1px solid ${isDark ? C.green + "40" : C.green + "20"}`, borderRadius: 10, padding: "5px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: isDark ? C.green + "30" : C.green + "12", border: `1px solid ${isDark ? C.green + "50" : C.green + "25"}`, borderRadius: 10, padding: "5px 12px" }}>
                   <IconBadge name="clipboard" color={C.green} size={30} radius={8} isDark={isDark} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Transactions</div>

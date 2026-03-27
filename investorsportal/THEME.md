@@ -18,8 +18,8 @@ For any icon container, stat card, or badge:
 ### Icon Container Pattern (mandatory for all stat cards and badges)
 ```jsx
 <div style={{
-  background: `${accentColor}${isDark ? "30" : "1A"}`,
-  border: `1.5px solid ${accentColor}${isDark ? "50" : "35"}`,
+  background: `${accentColor}${isDark ? "40" : "22"}`,
+  border: `1.5px solid ${accentColor}${isDark ? "60" : "40"}`,
   color: accentColor,  // ← ensures currentColor inheritance for child SVGs
 }}>
   <Icon name="..." size={17} />

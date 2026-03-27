@@ -265,8 +265,8 @@ const StatCard = memo(function StatCard({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}${isDark ? "35" : "20"}`,
-            border: isColored ? "none" : `1.5px solid ${accent}${isDark ? "50" : "30"}`,
+            background: isColored ? "rgba(255,255,255,0.18)" : `${accent}${isDark ? "40" : "22"}`,
+            border: isColored ? "none" : `1.5px solid ${accent}${isDark ? "60" : "40"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
             color: isColored ? "#ffffff" : accent,

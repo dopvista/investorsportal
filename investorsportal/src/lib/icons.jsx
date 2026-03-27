@@ -57,9 +57,9 @@ export function Icon({ name, size = 14, stroke = "currentColor", sw = 2, classNa
  */
 export function IconBadge({ name, color, size = 28, iconSize, radius = 7, isDark, style }) {
   const iSize = iconSize || Math.round(size * 0.5);
-  // Stronger opacity in dark mode for visibility
-  const bgAlpha  = isDark ? "30" : "1A";
-  const bdrAlpha = isDark ? "50" : "35";
+  // Strong colored backgrounds for visibility in both themes
+  const bgAlpha  = isDark ? "40" : "22";
+  const bdrAlpha = isDark ? "60" : "40";
   return (
     <div
       style={{
