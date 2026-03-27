@@ -719,7 +719,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     <div style={{ marginBottom: 8 }}>
       <div onClick={() => cdsList.length > 1 && setCdsExpanded(v => !v)}
         style={{ display: "flex", alignItems: "center", gap: 6, background: cdsAccordionBg, border: `1px solid ${cdsExpanded ? C.green : cdsAccordionBdr}`, borderRadius: cdsExpanded ? "8px 8px 0 0" : 8, padding: small ? "5px 8px" : "6px 9px", cursor: cdsList.length > 1 ? "pointer" : "default", transition: "border-radius 0.15s, border 0.15s", userSelect: "none" }}>
-        <span style={{ fontSize: 16 }}>🔒</span>
+        <IconBadge name="lock" color={C.green} size={small ? 24 : 28} radius={6} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 8, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active CDS</div>
           <div style={{ fontSize: small ? 12 : 13, fontWeight: 800, color: C.text }}>{activeCdsNumber || "—"}</div>
@@ -741,7 +741,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const renderSaveBtn = () => (
     <button onClick={handleSave} disabled={saving}
       style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 14px ${C.green}44`, marginTop: 6 }}>
-      {saving ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <>💾 Save Changes</>}
+      {saving ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <><Icon name="save" size={14} stroke="#ffffff" /> Save Changes</>}
     </button>
   );
 
@@ -1004,9 +1004,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                       style={{ width: "100%", padding: "11px", borderRadius: passkeysExpanded ? "10px 10px 0 0" : 10, border: `1.5px solid ${passkeysExpanded ? C.green : C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, transition: "border-color 0.15s, border-radius 0.15s" }}
                       onMouseEnter={e => { if (!passkeysExpanded) { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = "#ffffff"; } }}
                       onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = passkeysExpanded ? C.green : C.gray200; e.currentTarget.style.color = C.text; }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
-                      </svg>
+                      <Icon name="fingerprint" size={15} sw={2.2} />
                       Biometric Passkeys
                       <span style={{ marginLeft: "auto", fontSize: 11, color: passkeysExpanded ? C.green : C.gray400, transform: passkeysExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>
                     </button>
@@ -1029,9 +1027,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                             <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
                               aria-label={`Remove passkey ${pk.nickname || "this device"}`}
                               style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", color: C.red, padding: "4px 6px", flexShrink: 0, display: "flex", alignItems: "center", opacity: passkeyLoading ? 0.4 : 1, transition: "opacity 0.2s" }}>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                              </svg>
+                              <Icon name="trash" size={15} sw={2.2} />
                             </button>
                           </div>
                         ))}
@@ -1044,7 +1040,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                             </>
                           ) : (
                             <>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                              <Icon name="plus" size={13} sw={2.5} />
                               Add This Device
                             </>
                           )}
@@ -1193,9 +1189,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                         style={{ width: "100%", padding: "7px", borderRadius: passkeysExpanded ? "8px 8px 0 0" : 8, border: `1.5px solid ${passkeysExpanded ? C.green : C.gray200}`, background: C.white, color: C.text, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, transition: "border-color 0.15s, border-radius 0.15s" }}
                         onMouseEnter={e => { if (!passkeysExpanded) { e.currentTarget.style.background = C.navy; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = "#ffffff"; } }}
                         onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = passkeysExpanded ? C.green : C.gray200; e.currentTarget.style.color = C.text; }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
-                        </svg>
+                        <Icon name="fingerprint" size={13} sw={2.2} />
                         Biometric Passkeys
                         <span style={{ marginLeft: "auto", fontSize: 10, color: passkeysExpanded ? C.green : C.gray400, transform: passkeysExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s, color 0.15s", lineHeight: 1 }}>▾</span>
                       </button>
@@ -1218,9 +1212,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                               <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
                                 aria-label={`Remove passkey ${pk.nickname || "this device"}`}
                                 style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", color: C.red, padding: "2px 4px", flexShrink: 0, display: "flex", alignItems: "center", opacity: passkeyLoading ? 0.4 : 1, transition: "opacity 0.2s" }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                                </svg>
+                                <Icon name="trash" size={13} sw={2.2} />
                               </button>
                             </div>
                           ))}
@@ -1233,7 +1225,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                               </>
                             ) : (
                               <>
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <Icon name="plus" size={11} sw={2.5} />
                                 Add This Device
                               </>
                             )}
@@ -1282,7 +1274,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                   {lastSaved && <span style={{ fontSize: 11, color: C.gray400 }}>Last saved {lastSaved}</span>}
                   <button onClick={handleSave} disabled={saving}
                     style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 9, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 4px 12px ${C.green}44` }}>
-                    {saving ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <>💾 Save Changes</>}
+                    {saving ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <><Icon name="save" size={14} stroke="#ffffff" /> Save Changes</>}
                   </button>
                 </div>
               </div>

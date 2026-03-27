@@ -8,7 +8,7 @@ import {
   sbToggleBrokerStatus, sbDeleteBroker,
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
-import { Icon } from "../lib/icons";
+import { Icon, IconBadge } from "../lib/icons";
 
 // ── inp(C, extra) — must receive live C from useTheme() ───────────
 function inp(C, extra = {}) {
@@ -118,7 +118,7 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
         {/* Header — navy gradient matching all other modals */}
         <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "18px 24px 14px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{isEdit ? "✏️ Edit Broker" : "➕ Register New Broker"}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff", display: "flex", alignItems: "center", gap: 8 }}>{isEdit ? <><Icon name="edit" size={16} stroke="#ffffff" /> Edit Broker</> : <><Icon name="plus" size={16} stroke="#ffffff" /> Register New Broker</>}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>Fill in the broker details below</div>
           </div>
           <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.12)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", flexShrink: 0 }}>✕</button>
@@ -191,7 +191,7 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
             style={{ padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
             {saving
               ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Saving...</>
-              : <>{isEdit ? "💾 Save Changes" : "➕ Register Broker"}</>}
+              : <>{isEdit ? <><Icon name="save" size={14} stroke="#ffffff" /> Save Changes</> : <><Icon name="plus" size={14} stroke="#ffffff" /> Register Broker</>}</>}
           </button>
         </div>
       </div>
@@ -344,7 +344,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
             </div>
             <button onClick={() => setFormModal({ open: true, broker: null })}
               style={{ padding: "8px 16px", border: "none", borderRadius: 8, background: C.green, color: "#ffffff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: `0 2px 8px ${C.green}44` }}>
-              ➕ Add Broker
+              <Icon name="plus" size={13} stroke="#ffffff" /> Add Broker
             </button>
           </div>
         </div>
@@ -611,7 +611,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   if (!isSA) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 44, marginBottom: 10 }}>🔒</div>
+        <div style={{ marginBottom: 10 }}><IconBadge name="lock" color={C.red} size={56} iconSize={28} radius={14} /></div>
         <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Access Restricted</div>
         <div style={{ fontSize: 12, color: C.gray400, marginTop: 4 }}>Only Super Admins can access System Settings.</div>
       </div>
@@ -846,7 +846,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
               </button>
               <button onClick={handleSave} disabled={saving}
                 style={{ padding: "10px 28px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: saving ? "none" : `0 2px 10px ${C.green}44`, display: "flex", alignItems: "center", gap: 8 }}>
-                {saving ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : "💾 Save Changes"}
+                {saving ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</> : <><Icon name="save" size={14} stroke="#ffffff" /> Save Changes</>}
               </button>
             </div>
           </>

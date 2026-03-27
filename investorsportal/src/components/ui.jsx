@@ -395,7 +395,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
       subtitle={isEdit ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>To change the price use the <Icon name="dollarSign" size={15} /> Price button</span> : undefined}
       onClose={onClose}
       maxWidth={460}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handle} icon="💾">{isEdit ? "Save Changes" : "Register Company"}</Btn></>}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handle} icon={<Icon name="save" size={14} stroke="#ffffff" />}>{isEdit ? "Save Changes" : "Register Company"}</Btn></>}
     >
       {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {error}</div>}
       <FInput label="Company Name" required value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="e.g. Tanzania Breweries" autoFocus />
@@ -446,7 +446,7 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
       }
       onClose={onClose}
       maxWidth={440}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleConfirm} icon="💾">Update Price</Btn></>}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleConfirm} icon={<Icon name="save" size={14} stroke="#ffffff" />}>Update Price</Btn></>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
@@ -549,7 +549,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
   return (
     <ModalShell
       title={company.name}
-      subtitle="📈 Price history"
+      subtitle={<span style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon name="trendingUp" size={13} /> Price history</span>}
       headerRight={
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
@@ -753,7 +753,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
       onClose={onClose}
       maxWidth={580}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon="💾">{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon={<Icon name="save" size={14} stroke="#ffffff" />}>{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
       {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {error}</div>}
 

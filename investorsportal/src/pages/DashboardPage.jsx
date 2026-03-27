@@ -1,7 +1,7 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { useTheme } from "../components/ui";
-import { Icon } from "../lib/icons";
+import { Icon, IconBadge } from "../lib/icons";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
 import logo from "../assets/logo.jpg";
 
@@ -1396,7 +1396,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Top 5 Holdings table */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
               <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>📋 Top 5 Holdings by Market Value</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: C.text, display: "flex", alignItems: "center", gap: 8 }}><IconBadge name="clipboard" color={C.green} size={28} radius={7} /> Top 5 Holdings by Market Value</div>
                 <div style={{ fontSize: 11, color: C.gray400 }}>
                   {metrics.hasFinancials
                     ? `top ${Math.min(metrics.companyMetrics.length, 5)} of ${metrics.companyMetrics.length} · market value ${fmtShort(metrics.totalMarketValue)}`

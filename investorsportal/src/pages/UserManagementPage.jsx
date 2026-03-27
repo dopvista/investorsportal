@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "../lib/icons";
+import { Icon, IconBadge } from "../lib/icons";
 import {
   sbGetAllUsers, sbGetRoles, sbAssignRole, sbDeactivateRole, sbAdminCreateUser,
   sbGetUserCDS, sbSearchCDS, sbCreateCDS, sbAssignCDS, sbRemoveCDS,
@@ -958,7 +958,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
           style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 1px 3px rgba(0,0,0,0.03)" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green; e.currentTarget.style.background=`${C.green}10`; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor=C.gray200; e.currentTarget.style.color=C.text; e.currentTarget.style.background=C.white; }}>
-          <span style={{ fontSize:14 }}>✏️</span> Change Role
+          <Icon name="edit" size={14} /> Change Role
         </button>
 
         {user.role_code ? (
@@ -1290,8 +1290,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
               <StatCard label="Total Users"   value={stats.total}                                          color={C.navy}   icon={<Icon name="users" size={15} />}/>
               <StatCard label="Active"        value={stats.activeCount}                                    color={C.green}  icon="✅"/>
               <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon="⚠️"/>
-              <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon="🔑"/>
-              <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0}        color="#2563EB"  icon="✏️"/>
+              <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon={<Icon name="key" size={15} sw={2.2} />}/>
+              <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0}        color="#2563EB"  icon={<Icon name="edit" size={15} sw={2.2} />}/>
               <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0}        color="#7C3AED"  icon="✔️"/>
             </div>
 
@@ -1363,7 +1363,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                           style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, cursor:"pointer", fontFamily:"inherit", transition:"all 0.12s", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36, boxShadow:"0 1px 3px rgba(0,0,0,0.03)" }}
                           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;e.currentTarget.style.background=`${C.green}10`;}}
                           onMouseLeave={e=>{e.currentTarget.style.borderColor=C.gray200;e.currentTarget.style.color=C.text;e.currentTarget.style.background=C.white;}}>
-                          <span style={{ fontSize:13 }}>✏️</span>
+                          <Icon name="edit" size={13} />
                           <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>Role</span>
                         </button>
                         <button onClick={() => setManageCdsUser(user)}
