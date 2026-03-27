@@ -3,7 +3,7 @@
 // update the counter, and return a fresh Supabase session.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyAuthenticationResponse } from "npm:@simplewebauthn/server@9";
+import { verifyAuthenticationResponse } from "npm:@simplewebauthn/server@10";
 import { corsHeaders, json, decodeBase64URL } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
