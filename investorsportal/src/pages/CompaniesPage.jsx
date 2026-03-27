@@ -148,7 +148,7 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
   ];
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}><Icon name="building" size={17} stroke={C.gray600} /></div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.navy}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}><Icon name="building" size={17} stroke={C.navy} sw={2.2} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
         <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
@@ -550,20 +550,20 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
             {isMobile ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
                 <StatCard label="Holdings"   value={portfolioStats.total}    sub="In your portfolio"    icon={<Icon name="building" size={17} stroke={C.navy} />} color={C.navy} />
-                <StatCard label="Not Priced" value={portfolioStats.unpriced} sub="Tap card → Set Price" icon={<Icon name="dollarSign" size={17} stroke={portfolioStats.unpriced > 0 ? C.red : C.gray400} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
+                <StatCard label="Not Priced" value={portfolioStats.unpriced} sub="Tap card → Set Price" icon={<Icon name="dollarSign" size={17} stroke={portfolioStats.unpriced > 0 ? C.red : C.gray600} sw={2.2} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
                 <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon={<Icon name="building" size={17} stroke={C.navy} />} color={C.navy}  />
                 <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon={<Icon name="barChart" size={17} stroke={C.green} />} color={C.green} />
                 <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon={<Icon name="trophy" size={17} stroke={C.gold} />} color={C.gold}  />
-                <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Tap ⋯ → Set Price to track"    icon={<Icon name="dollarSign" size={17} stroke={portfolioStats.unpriced > 0 ? C.red : C.gray400} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
+                <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Tap ⋯ → Set Price to track"    icon={<Icon name="dollarSign" size={17} stroke={portfolioStats.unpriced > 0 ? C.red : C.gray600} sw={2.2} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
               </div>
             )}
 
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16 }}>
               <div style={{ flex: 1, position: "relative" }}>
-                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, display: "flex", alignItems: "center" }}><Icon name="search" size={14} stroke={C.gray400} /></span>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray500, display: "flex", alignItems: "center" }}><Icon name="search" size={14} stroke={C.gray500} /></span>
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search your holdings..."
@@ -576,7 +576,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               {search && <Btn variant="secondary" onClick={() => setSearch("")}>Clear</Btn>}
               {!isMobile && <Btn variant="secondary" icon={<Icon name="refresh" size={14} stroke={C.gray800} />} onClick={() => loadPortfolio()}>Refresh</Btn>}
               {isMobile && (
-                <button onClick={() => loadPortfolio()} style={{ width: 40, height: 40, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="refresh" size={16} stroke={C.gray600} /></button>
+                <button onClick={() => loadPortfolio()} style={{ width: 40, height: 40, borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="refresh" size={16} stroke={C.gray800} sw={2.2} /></button>
               )}
             </div>
 
@@ -594,13 +594,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </div>
               ) : portfolio.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-                  <div style={{ fontSize: 40, marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="clipboard" size={40} stroke={C.gray400} /></div>
+                  <div style={{ fontSize: 40, marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="clipboard" size={40} stroke={C.gray500} /></div>
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>No holdings yet</div>
                   <div style={{ fontSize: 13 }}>Record transactions to see companies appear here automatically</div>
                 </div>
               ) : filteredPortfolio.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
-                  <div style={{ fontSize: 32, marginBottom: 10, display: "flex", justifyContent: "center" }}><Icon name="search" size={32} stroke={C.gray400} /></div>
+                  <div style={{ fontSize: 32, marginBottom: 10, display: "flex", justifyContent: "center" }}><Icon name="search" size={32} stroke={C.gray500} /></div>
                   <div style={{ fontWeight: 600 }}>No results for "{search}"</div>
                 </div>
               ) : isMobile ? (
@@ -733,7 +733,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 <div style={{ textAlign: "center", padding: "50px 20px", color: C.gray400 }}>{spinnerEl(C.navy)}<div style={{ fontSize: 13 }}>Loading master registry...</div></div>
               ) : masterList.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
-                  <div style={{ fontSize: 40, marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="building" size={40} stroke={C.gray400} /></div>
+                  <div style={{ fontSize: 40, marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="building" size={40} stroke={C.gray500} /></div>
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies registered yet</div>
                   <div style={{ fontSize: 13 }}>Click "Register Company" to add the first one</div>
                 </div>

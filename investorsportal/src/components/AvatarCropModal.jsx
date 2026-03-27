@@ -1,6 +1,7 @@
 // ── src/components/AvatarCropModal.jsx ───────────────────────────
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "./ui";
+import { Icon } from "../lib/icons";
 
 const DESKTOP_SIZE = 420;
 const CROP_SIZE    = 200;
@@ -275,7 +276,7 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
 
   const zoomControls = (mobile = false) => (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: mobile ? 10 : 14 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>🔍 Zoom</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}><Icon name="search" size={11} /> Zoom</span>
       <input type="range" min="0.5" max="3" step="0.01" value={zoom}
         className={mobile ? "zoom-slider-mobile" : "zoom-slider"}
         onChange={e => setZoom(parseFloat(e.target.value))} />

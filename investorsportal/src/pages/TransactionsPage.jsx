@@ -1498,7 +1498,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexShrink: 0, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
               <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
-                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}><Icon name="search" size={14} stroke={C.gray500} /></span>
                 <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
                   placeholder="Search company, date, month, type, broker, status, remarks..."
                   style={TOOLBAR_INPUT}

@@ -1075,11 +1075,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Holdings / Users / Pending pills */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <MobileStatPill icon={<Icon name="building" size={20} />} label="Holdings" value={loading ? "—" : metrics.totalCompanies}
+              <MobileStatPill icon={<Icon name="building" size={20} stroke="#3b6fc4" sw={2.2} />} label="Holdings" value={loading ? "—" : metrics.totalCompanies}
                 onClick={onToggleCompanies} active={expanded === "companies"} accent="#3b6fc4" />
-              <MobileStatPill icon={<Icon name="users" size={20} />} label="Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
+              <MobileStatPill icon={<Icon name="users" size={20} stroke="#2563eb" sw={2.2} />} label="Users" value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
                 onClick={onToggleUsers} active={expanded === "users"} accent="#2563eb" />
-              <MobileStatPill icon="🔔" label="Pending" value={loading ? "—" : metrics.pending}
+              <MobileStatPill icon={<Icon name="alertTriangle" size={20} stroke="#f59e0b" sw={2.2} />} label="Pending" value={loading ? "—" : metrics.pending}
                 onClick={onNavTransactions} accent="#f59e0b" navigates />
             </div>
 
@@ -1225,19 +1225,19 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
               marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
             }}>
-              <StatCard icon={<Icon name="building" size={19} />} label="Companies"
+              <StatCard icon={<Icon name="building" size={19} stroke="#3b6fc4" sw={2.2} />} label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
                 accent="#3b6fc4" accentBg="#3b6fc4"
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
               />
-              <StatCard icon={<Icon name="users" size={19} />} label="Total Users"
+              <StatCard icon={<Icon name="users" size={19} stroke="#2563eb" sw={2.2} />} label="Total Users"
                 value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
                 subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
                 accent="#2563eb" accentBg="#2563eb"
                 onClick={onToggleUsers} active={expanded === "users"} loading={loading}
               />
-              <StatCard icon="🔔" label="Awaiting Action"
+              <StatCard icon={<Icon name="alertTriangle" size={19} stroke="#f59e0b" sw={2.2} />} label="Awaiting Action"
                 value={loading ? "—" : metrics.pending}
                 subLabel={metrics.pending > 0 ? "pending or confirmed" : "all verified"}
                 accent="#f59e0b" accentBg="#f59e0b"

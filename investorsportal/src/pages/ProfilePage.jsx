@@ -161,7 +161,7 @@ function CountrySelect({ value, onChange }) {
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, zIndex: 9999, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
           <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-            <input autoFocus placeholder="🔍 Search country..." value={search} onChange={e => setSearch(e.target.value)}
+            <input autoFocus placeholder="Search country..." value={search} onChange={e => setSearch(e.target.value)}
               style={{ width: "100%", padding: "6px 8px", borderRadius: 7, fontSize: 12, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", boxSizing: "border-box", background: C.white, color: C.text }}
               onFocus={focusGreen(C)} onBlur={blurGray(C)} />
           </div>

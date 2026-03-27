@@ -247,7 +247,7 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
   return (
     <div>
       <div style={{ position:"relative" }}>
-        <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:C.gray400, pointerEvents:"none" }}>🔍</span>
+        <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:C.gray400, pointerEvents:"none" }}><Icon name="search" size={13} stroke={C.gray500} /></span>
         <input style={{ ...inp(C), paddingLeft:32 }} type="text" placeholder={placeholder} value={query}
           onChange={e => { setQuery(e.target.value); setSelected(null); onSelect(null); }}
           onFocus={focusGreen(C)} onBlur={blurGray(C)} autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} name="cds_lookup" data-lpignore="true" data-form-type="other" />
@@ -269,7 +269,7 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
       )}
 
       {isAD && !selected && query.trim().length > 1 && adFiltered.length === 0 && (
-        <div style={{ marginTop:6, padding:"9px 11px", borderRadius:9, background:C.gray50, border:`1px solid ${C.gray200}`, fontSize:11, color:C.gray400 }}>🔍 No matching CDS in your pool</div>
+        <div style={{ marginTop:6, padding:"9px 11px", borderRadius:9, background:C.gray50, border:`1px solid ${C.gray200}`, fontSize:11, color:C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /> No matching CDS in your pool</div>
       )}
 
       {(foundButExcluded || queryMatchesExcluded) && !selected && (
@@ -1254,7 +1254,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <div style={{ flex:1, position:"relative" }}>
-                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
+                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}><Icon name="search" size={13} stroke={C.gray500} /></span>
                 <input placeholder="Search name, CDS, role, status..." value={search} onChange={e => setSearch(e.target.value)} {...MOBILE_INPUT_ATTRS}
                   style={{ width:"100%", height:40, borderRadius:10, border:`1.5px solid ${C.gray200}`, background:C.white, color:C.text, paddingLeft:28, fontSize:13, outline:"none", boxSizing:"border-box", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}
                   onFocus={focusGreen(C)} onBlur={blurGray(C)}
@@ -1273,7 +1273,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
             {filtered.length === 0 ? (
               <div style={{ textAlign:"center", padding:"40px 20px", color:C.gray400 }}>
-                <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
+                <div style={{ fontSize:28, marginBottom:8 }}><Icon name="search" size={13} stroke={C.gray500} /></div>
                 <div style={{ fontSize:13 }}>No users match your search</div>
               </div>
             ) : (
@@ -1297,7 +1297,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
 
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, alignItems:"center", flexWrap:"wrap" }}>
               <div style={{ position:"relative", flex:1, minWidth:180 }}>
-                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}>🔍</span>
+                <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:12, color:C.gray400, pointerEvents:"none" }}><Icon name="search" size={13} stroke={C.gray500} /></span>
                 <input placeholder="Search by name, CDS or phone..." value={search} onChange={e=>setSearch(e.target.value)} style={SEARCH_INPUT_STYLE} onFocus={focusGreen(C)} onBlur={blurGray(C)}/>
               </div>
               <select value={filterRole}   onChange={e=>setFilterRole(e.target.value)}   onFocus={focusGreen(C)} onBlur={blurGray(C)} style={SELECT_STYLE}>
@@ -1324,7 +1324,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                 <div className="um-scroll" style={{ overflowY:"auto", flex:1 }}>
                   {filtered.length===0 ? (
                     <div style={{ padding:"40px 20px", textAlign:"center", color:C.gray400 }}>
-                      <div style={{ fontSize:28, marginBottom:8 }}>🔍</div>
+                      <div style={{ fontSize:28, marginBottom:8 }}><Icon name="search" size={13} stroke={C.gray500} /></div>
                       <div style={{ fontSize:13 }}>No users match your search</div>
                     </div>
                   ) : filtered.map((user,idx)=>(

@@ -335,7 +335,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}>🔍</span>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}><Icon name="search" size={14} stroke={C.gray500} /></span>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search broker..."
                 style={{ padding: "8px 12px 8px 32px", border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, borderRadius: 8, fontSize: 12, outline: "none", width: 200, fontFamily: "inherit" }}
@@ -410,7 +410,7 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
                           <button onClick={() => setFormModal({ open: true, broker: b })} disabled={isBusy} title="Edit broker"
                             style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                            ✏️
+                            <Icon name="edit" size={13} />
                           </button>
                           <button onClick={() => handleToggleStatus(b)} disabled={isBusy} title={isActive ? "Deactivate" : "Activate"}
                             style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? inactiveBdr : activeBdr}`, background: isActive ? C.redBg : C.greenBg, color: isDark ? "#ffffff" : (isActive ? C.red : C.green), fontWeight: 600, fontSize: 11, cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
@@ -772,7 +772,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                           <div style={{ position: "relative", width: 28, height: 28 }}>
                             <input type="color" value={slide.color || "#064e3b"} onChange={e => setSlideField(idx, "color", e.target.value)}
                               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
-                            <div style={{ width: 28, height: 28, borderRadius: 7, border: `2px dashed ${C.gray200}`, background: slide.color || "#064e3b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, pointerEvents: "none" }}>✏️</div>
+                            <div style={{ width: 28, height: 28, borderRadius: 7, border: `2px dashed ${C.gray200}`, background: slide.color || "#064e3b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, pointerEvents: "none" }}><Icon name="edit" size={13} stroke="#ffffff" /></div>
                           </div>
                         </div>
                       </div>

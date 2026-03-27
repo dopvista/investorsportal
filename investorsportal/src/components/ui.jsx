@@ -790,7 +790,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
               <div style={ddStyle}>
                 <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                   <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
+                    <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /></span>
                     <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..." style={ddSearchStyle} onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
                   </div>
                 </div>
@@ -838,7 +838,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             <div style={ddStyle}>
               <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}>🔍</span>
+                  <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /></span>
                   <input autoFocus type="text" value={brokerSearch} onChange={e => setBrokerSearch(e.target.value)} placeholder="Search broker name or code..." style={ddSearchStyle} onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
                 </div>
               </div>

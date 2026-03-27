@@ -3,6 +3,7 @@
 // Output: 1280×960 JPEG
 import { useState, useRef, useEffect, useCallback } from "react";
 import { C } from "./ui";
+import { Icon } from "../lib/icons";
 
 const CANVAS_W = 560;
 const CANVAS_H = 420;          // ← 4:3
@@ -341,7 +342,7 @@ export default function ImageCropModal({ imageSrc, slideIndex, onConfirm, onCanc
           {/* Zoom slider */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-              🔍 Zoom
+              <Icon name="search" size={11} /> Zoom
             </span>
             <input
               type="range" min="0.5" max="3" step="0.01"
