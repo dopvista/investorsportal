@@ -1434,7 +1434,13 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
       onTouchCancel={isMobile ? handleTouchEnd : undefined}
       style={{ height: isMobile ? "auto" : pageHeight, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden", position: "relative", paddingBottom: isMobile ? 96 : 0 }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tx-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .tx-scroll::-webkit-scrollbar-track { background: transparent; }
+        .tx-scroll::-webkit-scrollbar-thumb { background: ${isDark ? C.gray200 : "#cbd5e1"}; border-radius: 10px; }
+        .tx-scroll { scrollbar-width: thin; scrollbar-color: ${isDark ? C.gray200 : "#cbd5e1"} transparent; }
+      `}</style>
 
       {/* ── Pull-to-refresh indicator ── */}
       {isMobile && (
@@ -1586,7 +1592,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               </>
             ) : (
               <>
-                <div style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
+                <div className="tx-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
                     {showActions ? (
                       <colgroup>
