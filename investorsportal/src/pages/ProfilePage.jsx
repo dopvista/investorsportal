@@ -6,7 +6,7 @@ import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
 import { registerPasskey, isWebAuthnSupported, storePasskeyInfo, clearStoredPasskeyInfo, getStoredPasskeyInfo, getDeviceName } from "../lib/webauthn";
 import { sbGetPasskeys, sbDeletePasskey } from "../lib/supabase";
-import { Icon, ICON_PATHS } from "../lib/icons";
+import { Icon, IconBadge, ICON_PATHS } from "../lib/icons";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────
 // FIX A: added 80ms debounce — consistent with every other page in
@@ -102,15 +102,25 @@ function inp(C, extra = {}) {
 const focusGreen = (C) => (e) => { e.target.style.borderColor = C.green; };
 const blurGray   = (C) => (e) => { e.target.style.borderColor = C.gray200; };
 
+// Section color map — each section gets a distinct accent for its icon badge
+const SECTION_COLORS = {
+  building:  { light: "#0B1F3A", dark: "#7EB3FF" },  // navy / soft blue
+  shield:    { light: "#00843D", dark: "#28C062" },  // green
+  user:      { light: "#6366F1", dark: "#A5B4FC" },  // indigo / light indigo
+  mapPin:    { light: "#D97706", dark: "#F0B429" },  // amber
+  clipboard: { light: "#8B5CF6", dark: "#C4B5FD" },  // purple
+};
+
 function Section({ title, icon, children }) {
-  const { C } = useTheme();
-  // icon can be a string key from ICON_PATHS, or a raw element
+  const { C, isDark } = useTheme();
+  const accent = SECTION_COLORS[icon];
+  const color = accent ? (isDark ? accent.dark : accent.light) : C.gray500;
   const iconEl = typeof icon === "string" && ICON_PATHS[icon]
-    ? <Icon name={icon} size={13} stroke={C.gray500} />
+    ? <IconBadge name={icon} color={color} size={26} radius={7} />
     : <span style={{ fontSize: 13 }}>{icon}</span>;
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 6 }}>
-      <div style={{ padding: "6px 12px", borderBottom: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", gap: 6, background: C.gray50, borderRadius: "12px 12px 0 0" }}>
+      <div style={{ padding: "6px 12px", borderBottom: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderRadius: "12px 12px 0 0" }}>
         {iconEl}
         <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
       </div>
@@ -951,8 +961,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <Icon name="building" size={14} stroke={C.gray500} />
+              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+                <IconBadge name="building" color={isDark ? "#7EB3FF" : "#0B1F3A"} size={28} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Account Type</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -961,18 +971,18 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{accountType}</div>
                     <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
                   </div>
-                  <span style={{ fontSize: 22 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+                  <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={36} radius={9} />
                 </div>
-                <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.7 }}>
-                  <span>👤 <strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span><br />
-                  <span>🏢 <strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span>
+                <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.9 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><Icon name="user" size={13} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="building" size={13} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
                 </div>
               </div>
             </div>
 
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
-              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 7, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
-                <Icon name="shield" size={14} stroke={C.gray500} />
+              <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, background: C.gray50, borderBottom: `1px solid ${C.gray100}` }}>
+                <IconBadge name="shield" color={isDark ? "#28C062" : "#00843D"} size={28} />
                 <span style={{ fontWeight: 700, fontSize: 10, color: C.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>Security</span>
               </div>
               <div style={{ padding: "10px 14px" }}>
@@ -1156,11 +1166,11 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                       <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{accountType}</div>
                       <div style={{ fontSize: 9, color: C.gray400, marginTop: 1 }}>{cdsUserCount} user{cdsUserCount !== 1 ? "s" : ""} on {activeCdsNumber || "this CDS"}</div>
                     </div>
-                    <span style={{ fontSize: 18 }}>{accountType === "Corporate" ? "🏢" : "👤"}</span>
+                    <IconBadge name={accountType === "Corporate" ? "building" : "user"} color={C.green} size={30} radius={8} />
                   </div>
-                  <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.5 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 3 }}><span>👤</span><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}><span>🏢</span><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
+                  <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.7 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}><Icon name="user" size={11} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Individual</strong> — sole user on this CDS.</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon name="building" size={11} stroke={C.gray500} sw={2.2} /><span><strong style={{ color: C.text }}>Corporate</strong> — multiple users share this CDS.</span></div>
                   </div>
                 </Section>
 
@@ -1261,7 +1271,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </Section>
 
                 <div style={{ background: isDark ? `${C.gold}14` : `${C.gold}10`, border: `1px solid ${isDark ? `${C.gold}44` : `${C.gold}30`}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ flexShrink: 0, color: C.gold }}><Icon name="image" size={16} stroke={C.gold} /></span>
+                  <IconBadge name="image" color={C.gold} size={30} radius={8} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 11, color: C.text }}>Profile Picture</div>
                     <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>Click your avatar to upload. Use the crop tool to center your face. Stored permanently at 200×200px.</div>

@@ -17,7 +17,7 @@ import React from "react";
  * @param {string} [className]
  * @param {object} [style]
  */
-export function Icon({ name, size = 14, stroke = "currentColor", sw = 1.8, className, style }) {
+export function Icon({ name, size = 14, stroke = "currentColor", sw = 2, className, style }) {
   const paths = ICON_PATHS[name];
   if (!paths) {
     if (process.env.NODE_ENV !== "production") console.warn(`Icon: unknown name "${name}"`);
@@ -39,6 +39,39 @@ export function Icon({ name, size = 14, stroke = "currentColor", sw = 1.8, class
     >
       {paths.map((d, i) => <path key={i} d={d} />)}
     </svg>
+  );
+}
+
+/**
+ * Icon inside a rounded-rect badge with themed background.
+ * Use for section headers, stat cards, and anywhere icons need visual weight.
+ *
+ * @param {string}  name     — key from ICON_PATHS
+ * @param {string}  color    — primary color (used for icon stroke + tinted bg)
+ * @param {number}  [size=28] — outer badge size
+ * @param {number}  [iconSize] — icon size (defaults to size * 0.5)
+ * @param {number}  [radius=7] — border-radius
+ * @param {object}  [style]  — extra styles on outer div
+ */
+export function IconBadge({ name, color, size = 28, iconSize, radius = 7, style }) {
+  const iSize = iconSize || Math.round(size * 0.5);
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        background: `${color}18`,
+        border: `1.5px solid ${color}30`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        ...style,
+      }}
+    >
+      <Icon name={name} size={iSize} stroke={color} sw={2.2} />
+    </div>
   );
 }
 

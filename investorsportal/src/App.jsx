@@ -22,7 +22,7 @@ import ConnectionBanner  from "./components/ConnectionBanner";
 import InstallBanner     from "./components/InstallBanner";
 import useIdleLogout     from "./hooks/useIdleLogout";
 import logo from "./assets/logo.jpg";
-import { Icon } from "./lib/icons";
+import { Icon, IconBadge } from "./lib/icons";
 
 // ── Lazy page imports ─────────────────────────────────────────────
 // Pages are only parsed + executed when first visited.
@@ -329,7 +329,7 @@ export default function App() {
   const loadingStartRef               = useRef(null); // for timeout anchor
 
   const isMobile    = useIsMobile();
-  const { C }       = useTheme();
+  const { C, isDark } = useTheme();
 
   // ── isMobileRef — stable ref always reflecting current isMobile ──
   // Use this inside callbacks/effects to avoid stale closures.
@@ -947,15 +947,15 @@ export default function App() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, background: C.navy + "0a", border: `1px solid ${C.navy}18`, borderRadius: 8, padding: "4px 10px" }}>
-                  <Icon name="building" size={14} stroke={C.navy} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.navy + "0a", border: `1px solid ${C.navy}18`, borderRadius: 10, padding: "5px 12px" }}>
+                  <IconBadge name="building" color={isDark ? "#7EB3FF" : C.navy} size={30} radius={8} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Holdings</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cdsCompanyCount}</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, background: C.green + "0d", border: `1px solid ${C.green}20`, borderRadius: 8, padding: "4px 10px" }}>
-                  <Icon name="clipboard" size={14} stroke={C.green} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.green + "0d", border: `1px solid ${C.green}20`, borderRadius: 10, padding: "5px 12px" }}>
+                  <IconBadge name="clipboard" color={C.green} size={30} radius={8} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Transactions</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green, lineHeight: 1.2 }}>{filteredTransactions.length}</div>
