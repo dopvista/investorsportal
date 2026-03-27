@@ -15,6 +15,7 @@ import {
   sbSwitchActiveCDS,
 } from "./lib/supabase";
 import { C as CStatic, Toast, useTheme } from "./components/ui";
+import { isWebAuthnSupported, getStoredPasskeyCredentialId, registerPasskey } from "./lib/webauthn";
 import LoginPage        from "./pages/LoginPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -321,6 +322,8 @@ export default function App() {
   );
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [drawerOpen,      setDrawerOpen]      = useState(false);
+  const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
+  const [passkeyPromptBusy,  setPasskeyPromptBusy]  = useState(false);
 
   const cdsChipRef                    = useRef(null);
   const toastTimerRef                 = useRef(null);
@@ -402,6 +405,17 @@ export default function App() {
       window.removeEventListener("pwa:offline-ready",    onReady);
     };
   }, [showToast]);
+
+  // ── Post-login biometric nudge ────────────────────────────────────
+  // Show once after password login when: WebAuthn is supported, this
+  // device has no stored passkey, and the user hasn't dismissed before.
+  useEffect(() => {
+    if (!session?.user?.id || !profile?.full_name) return;
+    if (!isWebAuthnSupported()) return;
+    if (getStoredPasskeyCredentialId()) return;
+    try { if (localStorage.getItem(`ip_passkey_nudge_${session.user.id}`)) return; } catch {}
+    setShowPasskeyPrompt(true);
+  }, [session?.user?.id, profile?.full_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mobile → dashboard on session clear ──────────────────────────
   useEffect(() => {
@@ -650,6 +664,28 @@ export default function App() {
   }, []); // all deps are stable (setters + refs)
 
   const handleProfileDone = useCallback((p) => setProfile(p), []);
+
+  const handlePasskeyNudgeDismiss = useCallback(() => {
+    try { localStorage.setItem(`ip_passkey_nudge_${session?.user?.id}`, "1"); } catch {}
+    setShowPasskeyPrompt(false);
+  }, [session?.user?.id]);
+
+  const handlePasskeyNudgeEnable = useCallback(async () => {
+    setPasskeyPromptBusy(true);
+    try {
+      const nickname = `${navigator.platform || "Device"} — ${new Date().toLocaleDateString()}`;
+      await registerPasskey(session?.access_token, nickname);
+      showToast("Biometric login enabled! Sign in faster next time.", "success");
+    } catch (err) {
+      const msg = err.message || "";
+      if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("abort") && !msg.toLowerCase().includes("notallowederror")) {
+        showToast(msg || "Could not enable biometrics.", "error");
+      }
+    } finally {
+      setPasskeyPromptBusy(false);
+      setShowPasskeyPrompt(false);
+    }
+  }, [session?.access_token, showToast]);
 
   const handleAppRefresh = useCallback(async () => {
     try {
@@ -1135,6 +1171,50 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Biometric setup nudge (shown once after password login) ── */}
+      {showPasskeyPrompt && (
+        <div style={{
+          position: "fixed",
+          bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom,0px))" : 24,
+          left: isMobile ? 12 : "auto", right: isMobile ? 12 : 24,
+          zIndex: 9998,
+          background: C.white, border: `1.5px solid ${C.gray200}`,
+          borderRadius: isMobile ? 16 : 14,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          padding: "16px 18px",
+          maxWidth: isMobile ? "none" : 360,
+          display: "flex", gap: 12, alignItems: "flex-start",
+          animation: "cdsPopIn 0.22s ease",
+        }}>
+          <div style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>🔏</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 3 }}>Enable biometric login?</div>
+            <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.5, marginBottom: 12 }}>
+              Sign in faster next time using your fingerprint or face ID — no password needed.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={handlePasskeyNudgeEnable}
+                disabled={passkeyPromptBusy}
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "none", background: passkeyPromptBusy ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 12, cursor: passkeyPromptBusy ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                {passkeyPromptBusy
+                  ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Enabling...</>
+                  : "Enable"}
+              </button>
+              <button
+                onClick={handlePasskeyNudgeDismiss}
+                disabled={passkeyPromptBusy}
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${C.gray200}`, background: "transparent", color: C.gray400, fontWeight: 600, fontSize: 12, cursor: passkeyPromptBusy ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+          <button onClick={handlePasskeyNudgeDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: C.gray400, fontSize: 16, lineHeight: 1, padding: 2, flexShrink: 0 }}>✕</button>
         </div>
       )}
 

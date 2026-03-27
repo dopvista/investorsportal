@@ -399,6 +399,7 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [addingPasskey, setAddingPasskey] = useState(false);
   const [webAuthnOk,    setWebAuthnOk]    = useState(false);
+  const [passkeyOpen,   setPasskeyOpen]   = useState(false);
 
   const fileRef        = useRef();
   const cameraRef      = useRef();
@@ -427,7 +428,10 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   // ── Load passkeys + detect WebAuthn support on mount ─────────────
   useEffect(() => {
     setWebAuthnOk(isWebAuthnSupported());
-    sbGetPasskeys().then(setPasskeys).catch(() => {});
+    sbGetPasskeys().then(list => {
+      setPasskeys(list);
+      if (list.length > 0) setPasskeyOpen(true); // auto-expand if passkeys exist
+    }).catch(() => {});
   }, []);
 
   const handleAddPasskey = useCallback(async () => {
@@ -893,26 +897,40 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
                 {webAuthnOk && (
                   <div style={{ marginTop: 14, borderTop: `1px solid ${C.gray100}`, paddingTop: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>🔏 Biometric Login (Passkeys)</div>
-                    {passkeys.map(pk => (
-                      <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: C.gray50, borderRadius: 9, marginBottom: 6, border: `1px solid ${C.gray100}` }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
-                          <div style={{ fontSize: 10, color: C.gray400 }}>
-                            Added {new Date(pk.created_at).toLocaleDateString()}
-                            {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
-                          </div>
-                        </div>
-                        <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
-                          style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 16, color: C.red, padding: "4px 6px", flexShrink: 0 }}>
-                          🗑
-                        </button>
+                    <button
+                      onClick={() => setPasskeyOpen(v => !v)}
+                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", marginBottom: passkeyOpen ? 8 : 0 }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 12 }}>🔏</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em" }}>Biometric Login (Passkeys)</span>
+                        {passkeys.length > 0 && <span style={{ fontSize: 9, fontWeight: 700, background: C.green + "20", color: C.green, borderRadius: 10, padding: "1px 6px" }}>{passkeys.length}</span>}
                       </div>
-                    ))}
-                    <button onClick={handleAddPasskey} disabled={addingPasskey}
-                      style={{ width: "100%", marginTop: 4, padding: "10px", borderRadius: 10, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 13, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                      <span style={{ fontSize: 12, color: C.gray400, transform: passkeyOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
                     </button>
+                    {passkeyOpen && (
+                      <>
+                        {passkeys.map(pk => (
+                          <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: C.gray50, borderRadius: 9, marginBottom: 6, border: `1px solid ${C.gray100}` }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
+                              <div style={{ fontSize: 10, color: C.gray400 }}>
+                                Added {new Date(pk.created_at).toLocaleDateString()}
+                                {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
+                              </div>
+                            </div>
+                            <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
+                              style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 16, color: C.red, padding: "4px 6px", flexShrink: 0 }}>
+                              🗑
+                            </button>
+                          </div>
+                        ))}
+                        <button onClick={handleAddPasskey} disabled={addingPasskey}
+                          style={{ width: "100%", marginTop: 4, padding: "10px", borderRadius: 10, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 13, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                          {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1047,26 +1065,40 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
 
                   {webAuthnOk && (
                     <div style={{ marginTop: 10, borderTop: `1px solid ${C.gray100}`, paddingTop: 10 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 7 }}>🔏 Biometric Login (Passkeys)</div>
-                      {passkeys.map(pk => (
-                        <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: C.gray50, borderRadius: 7, marginBottom: 5, border: `1px solid ${C.gray100}` }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
-                            <div style={{ fontSize: 9, color: C.gray400 }}>
-                              Added {new Date(pk.created_at).toLocaleDateString()}
-                              {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
-                            </div>
-                          </div>
-                          <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
-                            style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 14, color: C.red, padding: "2px 4px", flexShrink: 0 }}>
-                            🗑
-                          </button>
+                      <button
+                        onClick={() => setPasskeyOpen(v => !v)}
+                        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", marginBottom: passkeyOpen ? 7 : 0 }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 11 }}>🔏</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em" }}>Biometric Login (Passkeys)</span>
+                          {passkeys.length > 0 && <span style={{ fontSize: 8, fontWeight: 700, background: C.green + "20", color: C.green, borderRadius: 10, padding: "1px 5px" }}>{passkeys.length}</span>}
                         </div>
-                      ))}
-                      <button onClick={handleAddPasskey} disabled={addingPasskey}
-                        style={{ width: "100%", marginTop: 4, padding: "7px", borderRadius: 8, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 11, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                        {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                        <span style={{ fontSize: 11, color: C.gray400, transform: passkeyOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
                       </button>
+                      {passkeyOpen && (
+                        <>
+                          {passkeys.map(pk => (
+                            <div key={pk.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: C.gray50, borderRadius: 7, marginBottom: 5, border: `1px solid ${C.gray100}` }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pk.nickname || "My Device"}</div>
+                                <div style={{ fontSize: 9, color: C.gray400 }}>
+                                  Added {new Date(pk.created_at).toLocaleDateString()}
+                                  {pk.last_used_at && ` · Used ${new Date(pk.last_used_at).toLocaleDateString()}`}
+                                </div>
+                              </div>
+                              <button onClick={() => handleDeletePasskey(pk.id)} disabled={passkeyLoading}
+                                style={{ background: "none", border: "none", cursor: passkeyLoading ? "not-allowed" : "pointer", fontSize: 14, color: C.red, padding: "2px 4px", flexShrink: 0 }}>
+                                🗑
+                              </button>
+                            </div>
+                          ))}
+                          <button onClick={handleAddPasskey} disabled={addingPasskey}
+                            style={{ width: "100%", marginTop: 4, padding: "7px", borderRadius: 8, border: `1.5px dashed ${C.gray200}`, background: "transparent", color: addingPasskey ? C.gray400 : C.navy, fontWeight: 600, fontSize: 11, cursor: addingPasskey ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                            {addingPasskey ? "⏳ Registering..." : "＋ Add This Device"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </Section>
