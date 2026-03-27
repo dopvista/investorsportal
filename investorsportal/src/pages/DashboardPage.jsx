@@ -269,6 +269,7 @@ const StatCard = memo(function StatCard({
             border: isColored ? "none" : `1.5px solid ${accent}${isDark ? "50" : "30"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
+            color: isColored ? "#ffffff" : accent,
           }}>
             {icon}
           </div>
@@ -404,7 +405,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
         display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
       }}
     >
-      <div style={{ fontSize: 20 }}>{icon}</div>
+      <div style={{ fontSize: 20, color: accent }}>{icon}</div>
       <div style={{ fontSize: 17, fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 10, color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
       {navigates && <span style={{ fontSize: 10, color: C.gray400 }}>→</span>}

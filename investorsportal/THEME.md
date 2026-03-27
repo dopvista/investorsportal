@@ -4,6 +4,34 @@
 > used throughout the application. All new UI work MUST reference these standards
 > to ensure visual consistency across light/dark themes and mobile/desktop views.
 
+## 0. Core Policy: Color Separation for Better Visibility
+
+**Every UI element must maintain clear visual separation between its layers.**
+
+### The Rule
+For any icon container, stat card, or badge:
+1. **Background** — low-opacity tint of accent color (light: 10%, dark: 19%)
+2. **Border** — medium-opacity ring of accent color (light: 21%, dark: 31%)
+3. **Icon stroke** — full 100% accent color (never gray, never `currentColor` without `color` set)
+4. **Text** — must contrast with both the background and the accent
+
+### Icon Container Pattern (mandatory for all stat cards and badges)
+```jsx
+<div style={{
+  background: `${accentColor}${isDark ? "30" : "1A"}`,
+  border: `1.5px solid ${accentColor}${isDark ? "50" : "35"}`,
+  color: accentColor,  // ← ensures currentColor inheritance for child SVGs
+}}>
+  <Icon name="..." size={17} />
+</div>
+```
+
+### Why
+- In dark mode, low-opacity backgrounds on dark surfaces become invisible
+- Without explicit `color` on the container, `currentColor` inherits page text color, not accent
+- Without a border, the badge has no edge definition against the card background
+- Dark mode needs ~2x opacity vs light mode to achieve equivalent contrast
+
 ---
 
 ## 1. Color Tokens

@@ -114,6 +114,7 @@ export function StatCard({ label, value, sub, color, icon }) {
         border: `1.5px solid ${iconBorder}`,
         borderRadius: 10, display: "flex", alignItems: "center",
         justifyContent: "center", fontSize: 17, flexShrink: 0,
+        color: accentColor,
       }}>{icon}</div>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>
