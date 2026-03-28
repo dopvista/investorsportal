@@ -580,15 +580,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
         <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
       </form>
 
-      {/* Switch to biometric (only if passkey is registered on this device) */}
+      {/* Switch back to biometric view (only if passkey is registered on this device) */}
       {webAuthnSupported && hasStoredPasskey && (
         <>
           {divider}
           <button
             className="lp-link"
-            onClick={handleBiometricLogin}
-            disabled={biometricLoading || loading}
-            aria-label="Sign in with biometrics"
+            onClick={() => switchView("biometric")}
+            aria-label="Switch to biometric login"
             style={{
               width: "100%", padding: isMobile ? "13px" : "11px", borderRadius: isMobile ? 12 : 10,
               border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`,
@@ -596,20 +595,11 @@ export default function LoginPage({ onLogin, loginSettings }) {
               color: isMobile ? "rgba(255,255,255,0.7)" : C.gray500,
               fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              opacity: (biometricLoading || loading) ? 0.5 : 0.85, transition: "all 0.2s",
+              opacity: 0.85, transition: "all 0.2s",
             }}
           >
-            {biometricLoading ? (
-              <>
-                <div style={{ width: 14, height: 14, border: "2px solid rgba(128,128,128,0.3)", borderTopColor: isMobile ? "#fff" : C.text, borderRadius: "50%", animation: "lp-spin 0.8s linear infinite", flexShrink: 0 }} />
-                Verifying...
-              </>
-            ) : (
-              <>
-                <FingerprintIcon size={16} color={isMobile ? "rgba(255,255,255,0.6)" : C.gray500} />
-                Sign in with biometrics
-              </>
-            )}
+            <FingerprintIcon size={16} color={isMobile ? "rgba(255,255,255,0.6)" : C.gray500} />
+            Sign in with biometrics
           </button>
         </>
       )}
