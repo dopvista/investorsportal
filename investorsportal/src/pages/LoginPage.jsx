@@ -130,7 +130,7 @@ const SlidePanel = memo(function SlidePanel({ adverts, activeAd, animated, onDot
   const hexAlpha   = Math.round(overlayVal * 255).toString(16).padStart(2, "0");
 
   return (
-    <div style={{ position: "relative", background: adverts[activeAd]?.color || C.navy, transition: "background 1s ease", overflow: "hidden", height: "100%" }}>
+    <div style={{ position: "relative", background: adverts[activeAd]?.color || C.navy, transition: "background 1s ease", overflow: "hidden", aspectRatio: "4/3.07", height: "auto" }}>
       {adverts.map((ad, i) => (
         <div
           key={ad.id}
@@ -141,26 +141,26 @@ const SlidePanel = memo(function SlidePanel({ adverts, activeAd, animated, onDot
 
       <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${adverts[activeAd]?.color || "#064e3b"}${hexAlpha} 0%, transparent 100%)`, pointerEvents: "none" }} />
 
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 32px 48px", zIndex: 2 }}>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px", zIndex: 2 }}>
         {adverts.map((ad, i) => (
           <div key={ad.id} style={{ display: i === activeAd ? "block" : "none", animation: "lp-fadeIn 0.8s ease-out" }}>
             <h2 style={{ fontSize: "clamp(22px, 3vw, 29px)", fontWeight: 800, color: "white", margin: "0 0 6px 0", lineHeight: 1.2 }}>{ad.title}</h2>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, maxWidth: 320, margin: 0 }}>{ad.sub}</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, maxWidth: 270, margin: 0 }}>{ad.sub}</p>
           </div>
         ))}
+      </div>
 
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          {adverts.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => onDotClick(i)}
-              onMouseEnter={onMouseEnter}
-              onMouseLeave={onMouseLeave}
-              aria-label={`Slide ${i + 1}`}
-              style={{ width: i === activeAd ? 28 : 6, height: 4, borderRadius: 2, background: "white", opacity: i === activeAd ? 0.85 : 0.35, transition: "all 0.3s", cursor: "pointer", border: "none", padding: 0 }}
-            />
-          ))}
-        </div>
+      <div style={{ position: "absolute", bottom: 20, left: 28, zIndex: 2, display: "flex", gap: 8 }}>
+        {adverts.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => onDotClick(i)}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            aria-label={`Slide ${i + 1}`}
+            style={{ width: i === activeAd ? 28 : 6, height: 4, borderRadius: 2, background: "white", opacity: i === activeAd ? 0.85 : 0.35, transition: "all 0.3s", cursor: "pointer", border: "none", padding: 0 }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -462,7 +462,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // BIOMETRIC VIEW
   // ═════════════════════════════════════════════════════════════════
   const biometricView = (
-    <div key="biometric" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 380, margin: "0 auto" }}>
+    <div key="biometric" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Welcome back")}
       {alerts}
 
@@ -537,7 +537,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // EMAIL/PASSWORD VIEW
   // ═════════════════════════════════════════════════════════════════
   const emailView = (
-    <div key="email" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 380, margin: "0 auto" }}>
+    <div key="email" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Sign in to your account")}
       {alerts}
 
@@ -630,7 +630,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // RESET VIEW
   // ═════════════════════════════════════════════════════════════════
   const resetView = (
-    <div key="reset" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 380, margin: "0 auto" }}>
+    <div key="reset" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Reset your password")}
 
       {!success && (
@@ -696,7 +696,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {/* ══════════ DESKTOP ══════════ */}
       {!isMobile && (
         <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
-          <div style={{ width: "min(920px, 92vw)", height: "min(540px, 88vh)", background: "rgba(255,255,255,0.98)", borderRadius: 28, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)", display: "grid", gridTemplateColumns: "1.15fr 1fr", overflow: "hidden", position: "relative" }}>
+          <div style={{ width: "min(960px, 92vw)", background: "rgba(255,255,255,0.98)", borderRadius: 32, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)", display: "grid", gridTemplateColumns: "1.68fr 0.85fr", overflow: "hidden", position: "relative" }}>
             <SlidePanel
               adverts={ADVERTS}
               activeAd={activeAd}
@@ -705,7 +705,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
               onMouseEnter={onHoverIn}
               onMouseLeave={onHoverOut}
             />
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 36px", overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 28px" }}>
               {activeView}
             </div>
           </div>
