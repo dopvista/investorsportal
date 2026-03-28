@@ -1355,44 +1355,91 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const totalNet = useMemo(() => dividends.reduce((s, d) => s + Number(d.net_amount || d.total_amount || 0), 0), [dividends]);
+  const totalGross = useMemo(() => dividends.reduce((s, d) => s + Number(d.total_amount || 0), 0), [dividends]);
 
   const sc = (status) => ({
-    declared:       { bg: isDark ? "rgba(251,191,36,0.15)" : "#FEF3C7", color: isDark ? "#fbbf24" : "#92400e" },
-    ex_date_passed: { bg: isDark ? "rgba(96,165,250,0.15)" : "#DBEAFE", color: isDark ? "#60a5fa" : "#1e40af" },
-    paid:           { bg: isDark ? "rgba(52,211,153,0.15)" : "#D1FAE5", color: isDark ? "#34d399" : "#065f46" },
-  }[status] || { bg: C.gray100, color: C.gray500 });
+    declared:       { bg: isDark ? "rgba(251,191,36,0.15)" : "#FEF3C7", color: isDark ? "#fbbf24" : "#92400e", label: "Declared" },
+    ex_date_passed: { bg: isDark ? "rgba(96,165,250,0.15)" : "#DBEAFE", color: isDark ? "#60a5fa" : "#1e40af", label: "Ex-Date" },
+    paid:           { bg: isDark ? "rgba(52,211,153,0.15)" : "#D1FAE5", color: isDark ? "#34d399" : "#065f46", label: "Paid" },
+  }[status] || { bg: C.gray100, color: C.gray500, label: status });
+
+  const colWidths = isMobile
+    ? ["7%", "22%", "18%", "18%", "17%", "18%"]
+    : ["5%", "18%", "14%", "12%", "14%", "14%", "12%", "11%"];
+
+  const headers = isMobile
+    ? ["#", "Payment Date", "Per Share", "Shares", "Net Amt", "Status"]
+    : ["#", "Payment Date", "Per Share", "Shares", "Gross Amt", "Tax", "Net Amt", "Status"];
 
   return (
-    <ModalShell title={`${companyName} — Dividends`} subtitle={`${dividends.length} record${dividends.length !== 1 ? "s" : ""} · Net: TZS ${totalNet.toLocaleString()}`} onClose={onClose} maxWidth={520} maxHeight={isMobile ? "92vh" : "80vh"}
-      footer={<Btn variant="secondary" onClick={onClose}>Close</Btn>}>
+    <ModalShell
+      title={companyName}
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={13} /> Dividend history</span>}
+      onClose={onClose}
+      maxWidth={isMobile ? 560 : 700}
+      maxHeight={isMobile ? "92vh" : "80vh"}
+      footer={
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 10 }}>
+          <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.4 }}>
+            {dividends.length} dividend{dividends.length !== 1 ? "s" : ""}
+            {totalNet > 0 && <span style={{ marginLeft: 6 }}>· Net: <span style={{ fontWeight: 700, color: C.green }}>TZS {totalNet.toLocaleString()}</span></span>}
+          </div>
+          <Btn variant="secondary" onClick={onClose}>Close</Btn>
+        </div>
+      }
+    >
       {dividends.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "32px 0", color: C.gray400, fontSize: 14 }}>
-          <Icon name="dollarSign" size={32} stroke={C.gray300} sw={1.5} />
-          <div style={{ marginTop: 12 }}>No dividends recorded yet</div>
+        <div style={{ textAlign: "center", padding: isMobile ? "20px 12px" : "24px 16px", color: C.gray400 }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}><Icon name="dollarSign" size={32} stroke={C.gray300} sw={1.5} /></div>
+          <div style={{ fontWeight: 600 }}>No dividends recorded yet</div>
+          <div style={{ fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>Use "Record Dividend" from the portfolio action menu</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {dividends.map(d => {
-            const s = sc(d.status);
-            return (
-              <div key={d.id} style={{ padding: "12px 14px", borderRadius: 12, border: `1px solid ${C.gray200}`, background: isDark ? "rgba(255,255,255,0.02)" : "#fafbfc" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 6, background: s.bg, color: s.color }}>
-                    {d.status === "ex_date_passed" ? "Ex-Date" : d.status}
-                  </span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(d.net_amount || d.total_amount).toLocaleString()}</span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12, color: C.gray500 }}>
-                  <div>Per Share: <span style={{ fontWeight: 700, color: C.text }}>TZS {Number(d.dividend_per_share).toLocaleString()}</span></div>
-                  {d.shares_held && <div>Shares: <span style={{ fontWeight: 700, color: C.text }}>{Number(d.shares_held).toLocaleString()}</span></div>}
-                  {d.payment_date && <div>Paid: <span style={{ fontWeight: 700, color: C.text }}>{d.payment_date}</span></div>}
-                  {Number(d.withholding_tax) > 0 && <div>Tax: <span style={{ fontWeight: 700, color: C.red }}>TZS {Number(d.withholding_tax).toLocaleString()}</span></div>}
-                </div>
-                {d.remarks && <div style={{ marginTop: 6, fontSize: 11, color: C.gray400, fontStyle: "italic" }}>{d.remarks}</div>}
-              </div>
-            );
-          })}
-        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: isMobile ? 12 : 13, tableLayout: "fixed" }}>
+          <colgroup>
+            {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+          </colgroup>
+          <thead>
+            <tr style={{ background: C.gray50 }}>
+              {headers.map(h => (
+                <th key={h} style={{
+                  padding: isMobile ? "8px 8px" : "9px 10px",
+                  textAlign: ["Per Share", "Shares", "Gross Amt", "Tax", "Net Amt"].includes(h) ? "right" : "left",
+                  color: C.gray400, fontWeight: 700, fontSize: isMobile ? 10 : 11,
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                  borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`,
+                  whiteSpace: "nowrap", background: C.gray50,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dividends.map((d, i) => {
+              const s = sc(d.status);
+              const dateText = d.payment_date
+                ? new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                : "—";
+              return (
+                <tr key={d.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.gray50}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", color: C.gray400, fontWeight: 600 }}>{i + 1}</td>
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>{dateText}</td>
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.dividend_per_share)}</td>
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.gray600 }}>{d.shares_held ? Number(d.shares_held).toLocaleString() : "—"}</td>
+                  {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.total_amount)}</td>}
+                  {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: Number(d.withholding_tax) > 0 ? C.red : C.gray400 }}>{Number(d.withholding_tax) > 0 ? fmt(d.withholding_tax) : "—"}</td>}
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", fontWeight: 700, color: C.green }}>{fmt(d.net_amount || d.total_amount)}</td>
+                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
+                    <span style={{ background: s.bg, color: s.color, padding: isMobile ? "2px 7px" : "3px 8px", borderRadius: 20, fontSize: isMobile ? 10 : 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {s.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </ModalShell>
   );
