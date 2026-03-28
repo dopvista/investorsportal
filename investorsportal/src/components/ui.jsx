@@ -196,13 +196,26 @@ const makeInputStyle = (C) => (readOnly) => ({
 });
 
 export function FInput({ label, required, ...props }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const inputStyle = makeInputStyle(C);
+  const isDate = props.type === "date" || props.type === "datetime-local";
   return (
     <FormField label={label} required={required} C={C}>
+      {isDate && <style>{`
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+          cursor: pointer; padding: 4px; border-radius: 4px;
+          background-color: ${isDark ? "rgba(255,255,255,0.1)" : "#f1f5f9"};
+          ${isDark ? "filter: invert(1);" : ""}
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+          background-color: ${isDark ? "rgba(255,255,255,0.18)" : "#e2e8f0"};
+        }
+      `}</style>}
       <input
         {...props}
-        style={{ ...inputStyle(props.readOnly), ...props.style }}
+        style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer" } : {}), ...props.style }}
         onFocus={e => !props.readOnly && (e.target.style.borderColor = C.green)}
         onBlur={e => (e.target.style.borderColor = C.gray200)}
       />
