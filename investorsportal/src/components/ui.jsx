@@ -1256,44 +1256,29 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 }
 
 // ── Dividend Form Modal ───────────────────────────────────────────
-export function DividendFormModal({ dividend, companies, onConfirm, onClose }) {
+export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const isEdit = !!dividend;
 
+  if (!company) return null;
+
   const [form, setForm] = useState(() =>
     dividend
       ? {
-          companyId: dividend.company_id, declarationDate: dividend.declaration_date || "",
-          exDividendDate: dividend.ex_dividend_date || "", paymentDate: dividend.payment_date || "",
-          dividendPerShare: String(dividend.dividend_per_share || ""), sharesHeld: String(dividend.shares_held || ""),
-          totalAmount: String(dividend.total_amount || ""), withholdingTax: String(dividend.withholding_tax || "0"),
-          status: dividend.status || "declared", remarks: dividend.remarks || "",
+          declarationDate: dividend.declaration_date || "", exDividendDate: dividend.ex_dividend_date || "",
+          paymentDate: dividend.payment_date || "", dividendPerShare: String(dividend.dividend_per_share || ""),
+          sharesHeld: String(dividend.shares_held || ""), totalAmount: String(dividend.total_amount || ""),
+          withholdingTax: String(dividend.withholding_tax || "0"), status: dividend.status || "declared",
+          remarks: dividend.remarks || "",
         }
       : {
-          companyId: "", declarationDate: "", exDividendDate: "", paymentDate: "",
+          declarationDate: "", exDividendDate: "", paymentDate: "",
           dividendPerShare: "", sharesHeld: "", totalAmount: "", withholdingTax: "0",
           status: "declared", remarks: "",
         }
   );
   const [error, setError] = useState("");
-  const [companySearch, setCompanySearch] = useState("");
-  const [companyOpen, setCompanyOpen] = useState(false);
-  const companyRef = useRef(null);
-
-  useEffect(() => {
-    if (!companyOpen) return;
-    const handle = (e) => { if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false); };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [companyOpen]);
-
-  const filteredCompanies = useMemo(() => {
-    const q = companySearch.trim().toLowerCase();
-    return q ? companies.filter(c => c.name.toLowerCase().includes(q)) : companies;
-  }, [companies, companySearch]);
-
-  const selectedCompanyName = useMemo(() => companies.find(c => c.id === form.companyId)?.name || "", [companies, form.companyId]);
 
   // Auto-calculate total when per-share × shares
   useEffect(() => {
@@ -1308,11 +1293,10 @@ export function DividendFormModal({ dividend, companies, onConfirm, onClose }) {
 
   const handleSubmit = () => {
     setError("");
-    if (!form.companyId) return setError("Select a company");
     if (!form.dividendPerShare || Number(form.dividendPerShare) <= 0) return setError("Enter dividend per share");
     if (!form.totalAmount || Number(form.totalAmount) <= 0) return setError("Total amount is required");
     onConfirm({
-      company_id: form.companyId, declaration_date: form.declarationDate || null,
+      company_id: company.id, declaration_date: form.declarationDate || null,
       ex_dividend_date: form.exDividendDate || null, payment_date: form.paymentDate || null,
       dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
       total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
@@ -1320,45 +1304,17 @@ export function DividendFormModal({ dividend, companies, onConfirm, onClose }) {
     });
   };
 
-  const inpS = makeInputStyle(C);
-
   return (
-    <ModalShell title={isEdit ? "Edit Dividend" : "Record Dividend"} subtitle="Track dividend income for your portfolio" onClose={onClose} maxWidth={480} maxHeight={isMobile ? "92vh" : "85vh"}
+    <ModalShell
+      title={company.name}
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Record dividend income"}</span>}
+      onClose={onClose} maxWidth={480} maxHeight={isMobile ? "92vh" : "85vh"}
       footer={<>
         {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
-      {/* Company dropdown */}
-      <div ref={companyRef} style={{ position: "relative" }}>
-        <FormField label="Company" required C={C}>
-          <button type="button" onClick={() => setCompanyOpen(v => !v)}
-            style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{selectedCompanyName || "Select company..."}</span>
-            <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
-          </button>
-        </FormField>
-        {companyOpen && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
-              <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
-            </div>
-            <div style={{ overflowY: "auto", maxHeight: 150 }}>
-              {filteredCompanies.map(c => (
-                <div key={c.id} onClick={() => { setForm(f => ({ ...f, companyId: c.id })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                  style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === form.companyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
-                  onMouseEnter={e => { if (c.id !== form.companyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
-                  onMouseLeave={e => { if (c.id !== form.companyId) e.currentTarget.style.background = "transparent"; }}>
-                  {c.name}
-                </div>
-              ))}
-              {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
-            </div>
-          </div>
-        )}
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
         <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />
@@ -1375,17 +1331,19 @@ export function DividendFormModal({ dividend, companies, onConfirm, onClose }) {
         <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-        <FInput label="Declaration" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
-        <FInput label="Ex-Dividend" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
-        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
+        <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
       </div>
 
-      <FSelect label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-        <option value="declared">Declared</option>
-        <option value="ex_date_passed">Ex-Date Passed</option>
-        <option value="paid">Paid</option>
-      </FSelect>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+        <FSelect label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+          <option value="declared">Declared</option>
+          <option value="ex_date_passed">Ex-Date Passed</option>
+          <option value="paid">Paid</option>
+        </FSelect>
+      </div>
 
       <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
     </ModalShell>

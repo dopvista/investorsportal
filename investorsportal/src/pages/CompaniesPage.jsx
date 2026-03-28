@@ -208,7 +208,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [formModal, setFormModal]       = useState({ open: false, company: null });
 
   // Dividend state
-  const [dividendFormModal, setDividendFormModal] = useState({ open: false, dividend: null });
+  const [dividendFormModal, setDividendFormModal] = useState({ open: false, company: null, dividend: null });
   const [dividendHistoryModal, setDividendHistoryModal] = useState({ open: false, companyName: "", dividends: [] });
   const [dividendSummary, setDividendSummary] = useState(null);
 
@@ -474,7 +474,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         await sbInsertDividend({ ...data, cds_number: cdsNumber });
         showToast("Dividend recorded!", "success");
       }
-      setDividendFormModal({ open: false, dividend: null });
+      setDividendFormModal({ open: false, company: null, dividend: null });
       loadDividendSummary();
     } catch (e) {
       showToast("Error: " + e.message, "error");
@@ -604,16 +604,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           company={actionSheetCompany}
           onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
           onViewHistory={viewHistory}
-          onRecordDividend={(c) => setDividendFormModal({ open: true, dividend: null, companyId: c.id })}
+          onRecordDividend={(c) => setDividendFormModal({ open: true, company: c, dividend: null })}
           onViewDividends={viewDividends}
           onClose={closeActionSheet} />
       )}
       {dividendFormModal.open && (
         <DividendFormModal
+          company={dividendFormModal.company}
           dividend={dividendFormModal.dividend}
-          companies={portfolio}
           onConfirm={handleDividendConfirm}
-          onClose={() => setDividendFormModal({ open: false, dividend: null })} />
+          onClose={() => setDividendFormModal({ open: false, company: null, dividend: null })} />
       )}
       {dividendHistoryModal.open && (
         <DividendHistoryModal
@@ -744,7 +744,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                           {
                             icon: <Icon name="plus" size={14} stroke="#7c3aed" />,
                             label: "Record Dividend",
-                            onClick: () => setDividendFormModal({ open: true, dividend: null, companyId: c.id }),
+                            onClick: () => setDividendFormModal({ open: true, company: c, dividend: null }),
                           },
                           {
                             icon: <Icon name="dollarSign" size={14} stroke="#0ea5e9" />,
