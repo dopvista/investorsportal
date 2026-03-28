@@ -196,26 +196,11 @@ const makeInputStyle = (C) => (readOnly) => ({
 });
 
 export function FInput({ label, required, ...props }) {
-  const { C, isDark } = useTheme();
+  const { C } = useTheme();
   const inputStyle = makeInputStyle(C);
   const isDate = props.type === "date" || props.type === "datetime-local";
   return (
     <FormField label={label} required={required} C={C}>
-      {isDate && <style>{`
-        input[type="date"]::-webkit-calendar-picker-indicator,
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-          cursor: pointer; padding: 4px; border-radius: 4px;
-          background-color: ${isDark ? "rgba(255,255,255,0.12)" : "#f1f5f9"};
-          filter: ${isDark ? "invert(1) brightness(1.8)" : "none"};
-          opacity: ${isDark ? "0.9" : "0.7"};
-          transition: background-color 0.15s, opacity 0.15s;
-        }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover,
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-          background-color: ${isDark ? "rgba(255,255,255,0.22)" : "#e2e8f0"};
-          opacity: 1;
-        }
-      `}</style>}
       <input
         {...props}
         style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer" } : {}), ...props.style }}
@@ -224,6 +209,29 @@ export function FInput({ label, required, ...props }) {
       />
     </FormField>
   );
+}
+
+// Global date picker styles — injected once, applies to ALL date inputs app-wide
+export function DatePickerStyles() {
+  const { isDark } = useTheme();
+  return <style>{`
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+      cursor: pointer; padding: 4px; border-radius: 4px;
+      background-color: ${isDark ? "rgba(255,255,255,0.12)" : "#f1f5f9"};
+      filter: ${isDark ? "invert(1) brightness(1.8)" : "none"};
+      opacity: ${isDark ? "0.9" : "0.7"};
+      transition: background-color 0.15s, opacity 0.15s;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+      background-color: ${isDark ? "rgba(255,255,255,0.22)" : "#e2e8f0"};
+      opacity: 1;
+    }
+    input[type="date"], input[type="datetime-local"] {
+      cursor: pointer;
+    }
+  `}</style>;
 }
 
 export function FSelect({ label, required, children, ...props }) {

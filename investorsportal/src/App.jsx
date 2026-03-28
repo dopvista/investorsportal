@@ -14,7 +14,7 @@ import {
   sbSwitchActiveCDS,
   sbGetNavCounts,
 } from "./lib/supabase";
-import { C as CStatic, Toast, useTheme } from "./components/ui";
+import { C as CStatic, Toast, useTheme, DatePickerStyles } from "./components/ui";
 import LoginPage        from "./pages/LoginPage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -1160,6 +1160,7 @@ export default function App() {
       )}
 
       <Toast msg={toast.msg} type={toast.type} />
+      <DatePickerStyles />
     </div>
   );
 }
