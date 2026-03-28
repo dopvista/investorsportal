@@ -1307,22 +1307,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         {/* ═══════════════════ DESKTOP VIEW ═══════════════════════ */}
         {!isMobile && (
           <>
-            {/* Report button */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-              <button onClick={() => setShowReportsModal(true)}
-                style={{
-                  padding: "6px 14px", borderRadius: 8, border: `1px solid ${C.gray200}`,
-                  background: isDark ? "rgba(255,255,255,0.04)" : "#fafbfc",
-                  color: C.gray500, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.color = C.green; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray500; }}>
-                <Icon name="download" size={14} stroke="currentColor" sw={2} />
-                Generate Report
-              </button>
-            </div>
             {/* Top snap cards */}
             <div
               ref={snapRef}
