@@ -1337,51 +1337,55 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
-      {/* Company selector — only shown when no company prop is passed (page-level usage) */}
-      {needsCompanySelect && (
-        <div ref={companyRef} style={{ position: "relative" }}>
-          <FormField label="Company" required C={C}>
-            <button type="button" onClick={() => setCompanyOpen(v => !v)}
-              style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{resolvedCompany?.name || "Select company..."}</span>
-              <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
-            </button>
-          </FormField>
-          {companyOpen && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
-                <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
-              </div>
-              <div style={{ overflowY: "auto", maxHeight: 150 }}>
-                {filteredCompanies.map(c => (
-                  <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                    style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
-                    onMouseEnter={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
-                    onMouseLeave={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = "transparent"; }}>
-                    {c.name}
-                  </div>
-                ))}
-                {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Row 1: Company + Shares Held */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
+        {needsCompanySelect ? (
+          <div ref={companyRef} style={{ position: "relative" }}>
+            <FormField label="Company" required C={C}>
+              <button type="button" onClick={() => setCompanyOpen(v => !v)}
+                style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{resolvedCompany?.name || "Select company..."}</span>
+                <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
+              </button>
+            </FormField>
+            {companyOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
+                  <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
+                </div>
+                <div style={{ overflowY: "auto", maxHeight: 150 }}>
+                  {filteredCompanies.map(c => (
+                    <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
+                      onMouseEnter={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
+                      onMouseLeave={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = "transparent"; }}>
+                      {c.name}
+                    </div>
+                  ))}
+                  {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div />
+        )}
         <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />
       </div>
 
+      {/* Row 2: Dividend/Share + Total Amount */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
         <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={form.totalAmount} onChange={e => { setForm(f => ({ ...f, totalAmount: e.target.value })); setError(""); }} placeholder="0.00" />
-        <FInput label="Withholding Tax" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
       </div>
 
-      {/* Net amount */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}` }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.gray500 }}>Net Amount</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
+      {/* Row 3: Withholding Tax + Net Amount */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
+        <FInput label="Withholding Tax" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, height: 42 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.gray500 }}>Net Amount</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
