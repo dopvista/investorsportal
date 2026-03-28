@@ -1256,12 +1256,30 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 }
 
 // ── Dividend Form Modal ───────────────────────────────────────────
-export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
+export function DividendFormModal({ company, companies, dividend, onConfirm, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const isEdit = !!dividend;
+  const needsCompanySelect = !company && companies?.length > 0;
 
-  if (!company) return null;
+  const [selectedCompanyId, setSelectedCompanyId] = useState(company?.id || dividend?.company_id || "");
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const companyRef = useRef(null);
+
+  useEffect(() => {
+    if (!companyOpen) return;
+    const handle = (e) => { if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false); };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [companyOpen]);
+
+  const resolvedCompany = company || (companies || []).find(c => c.id === selectedCompanyId);
+  const filteredCompanies = useMemo(() => {
+    if (!companies) return [];
+    const q = companySearch.trim().toLowerCase();
+    return q ? companies.filter(c => c.name.toLowerCase().includes(q)) : companies;
+  }, [companies, companySearch]);
 
   const [form, setForm] = useState(() =>
     dividend
@@ -1293,10 +1311,12 @@ export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
 
   const handleSubmit = () => {
     setError("");
+    const cid = resolvedCompany?.id || selectedCompanyId;
+    if (!cid) return setError("Select a company");
     if (!form.dividendPerShare || Number(form.dividendPerShare) <= 0) return setError("Enter dividend per share");
     if (!form.totalAmount || Number(form.totalAmount) <= 0) return setError("Total amount is required");
     onConfirm({
-      company_id: company.id, declaration_date: form.declarationDate || null,
+      company_id: cid, declaration_date: form.declarationDate || null,
       ex_dividend_date: form.exDividendDate || null, payment_date: form.paymentDate || null,
       dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
       total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
@@ -1304,9 +1324,11 @@ export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
     });
   };
 
+  const inpS = makeInputStyle(C);
+
   return (
     <ModalShell
-      title={company.name}
+      title={resolvedCompany?.name || (isEdit ? "Edit Dividend" : "Record Dividend")}
       subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Record dividend income"}</span>}
       onClose={onClose} maxWidth={480}
       footer={<>
@@ -1315,6 +1337,37 @@ export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
+      {/* Company selector — only shown when no company prop is passed (page-level usage) */}
+      {needsCompanySelect && (
+        <div ref={companyRef} style={{ position: "relative" }}>
+          <FormField label="Company" required C={C}>
+            <button type="button" onClick={() => setCompanyOpen(v => !v)}
+              style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{resolvedCompany?.name || "Select company..."}</span>
+              <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
+            </button>
+          </FormField>
+          {companyOpen && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
+                <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
+              </div>
+              <div style={{ overflowY: "auto", maxHeight: 150 }}>
+                {filteredCompanies.map(c => (
+                  <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                    style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
+                    onMouseEnter={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
+                    onMouseLeave={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = "transparent"; }}>
+                    {c.name}
+                  </div>
+                ))}
+                {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
         <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />

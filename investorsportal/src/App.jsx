@@ -29,6 +29,7 @@ import { Icon, IconBadge } from "./lib/icons";
 // LoginPage / ProfileSetupPage / ResetPasswordPage stay eager because
 // they render before the main shell is mounted.
 const CompaniesPage      = lazy(() => import("./pages/CompaniesPage"));
+const DividendsPage      = lazy(() => import("./pages/DividendsPage"));
 const TransactionsPage   = lazy(() => import("./pages/TransactionsPage"));
 const DashboardPage      = lazy(() => import("./pages/DashboardPage"));
 const ProfilePage        = lazy(() => import("./pages/ProfilePage"));
@@ -39,6 +40,7 @@ const SystemSettingsPage = lazy(() => import("./pages/SystemSettingsPage"));
 const NAV = [
   { id: "dashboard",       label: "Dashboard",        roles: ["SA","AD","DE","VR","RO"] },
   { id: "companies",       label: "Portfolio",         roles: ["SA","AD","DE","VR","RO"] },
+  { id: "dividends",       label: "Dividends",         roles: ["SA","AD","DE","VR","RO"] },
   { id: "transactions",    label: "Transactions",      roles: ["SA","AD","DE","VR","RO"] },
   { id: "user-management", label: "User Management",   roles: ["SA","AD"] },
   { id: "system-settings", label: "System Settings",   roles: ["SA"] },
@@ -49,6 +51,7 @@ const NAV = [
 const BOTTOM_NAV = [
   { id: "dashboard",       label: "Home",      roles: ["SA","AD","DE","VR","RO"] },
   { id: "companies",       label: "Portfolio", roles: ["SA","AD","DE","VR","RO"] },
+  { id: "dividends",       label: "Dividends", roles: ["SA","AD","DE","VR","RO"] },
   { id: "transactions",    label: "Trades",    roles: ["SA","AD","DE","VR","RO"] },
   { id: "user-management", label: "Users",     roles: ["SA","AD"] },
 ];
@@ -67,6 +70,12 @@ const NAV_ICONS = {
       <line x1="12" y1="20" x2="12" y2="4"/>
       <line x1="6" y1="20" x2="6" y2="14"/>
       <line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  ),
+  "dividends": (color, sw = 1.8, size = 20) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/>
+      <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
     </svg>
   ),
   "transactions": (color, sw = 1.8, size = 20) => (
@@ -1008,6 +1017,7 @@ export default function App() {
           <Suspense fallback={<PageFallback />}>
             {tab === "dashboard"        && <DashboardPage      key={`dashboard-${activeCdsNumber || "none"}`}    profile={activeProfile} role={role} session={session} showToast={showToast} onNavigate={setTab} activeCds={activeCds} />}
             {tab === "companies"        && <CompaniesPage       key={`companies-${activeCdsNumber || "none"}`}    companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile} />}
+            {tab === "dividends"        && <DividendsPage        key={`dividends-${activeCdsNumber || "none"}`}    companies={companies} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
             {tab === "transactions"     && <TransactionsPage    key={`transactions-${activeCdsNumber || "none"}`} companies={companies} transactions={transactions} setTransactions={setTransactions} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
             {tab === "profile"          && <ProfilePage         profile={profile} setProfile={setProfile} session={session} role={role} email={session?.user?.email || session?.email || ""} showToast={showToast} activeCds={activeCds} cdsList={cdsList} onSwitchCds={handleCdsSwitch} />}
             {tab === "user-management"  && <UserManagementPage  role={role} showToast={showToast} profile={activeProfile} />}

@@ -1171,6 +1171,34 @@ export async function sbDeleteDividend(id) {
   );
 }
 
+export async function sbUpdateDividendStatus(id, status) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status }) },
+    "Failed to update dividend status"
+  );
+  return res.json();
+}
+
+export async function sbBulkUpdateDividendStatus(ids, status) {
+  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=in.${idList}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status }) },
+    "Failed to update dividend statuses"
+  );
+  return res.json();
+}
+
+export async function sbBulkDeleteDividends(ids) {
+  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=in.${idList}`,
+    { method: "DELETE", headers: headers(token()) },
+    "Failed to delete dividends"
+  );
+}
+
 // ── Portfolio Snapshots ────────────────────────────────────────────
 
 export async function sbHasTodaySnapshot(cdsNumber) {
