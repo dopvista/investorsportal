@@ -1,8 +1,9 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
-import { useTheme } from "../components/ui";
+import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
-import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers } from "../lib/supabase";
+import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
+import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel, generateTransactionExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint hook ─────────────────────────────────────────
@@ -124,6 +125,82 @@ const Badge = memo(function Badge({ value, positive }) {
     }}>
       {value}
     </span>
+  );
+});
+
+// ── PerformanceChart — inline SVG polyline chart ──────────────────
+const RANGE_DAYS = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, ALL: 9999 };
+
+const PerformanceChart = memo(function PerformanceChart({ snapshots, range, onRangeChange, C, isDark }) {
+  if (!snapshots || snapshots.length < 2) return null;
+
+  const days = RANGE_DAYS[range] || 90;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const filtered = days >= 9999 ? snapshots : snapshots.filter(s => new Date(s.snapshot_date) >= cutoff);
+  if (filtered.length < 2) return null;
+
+  const values = filtered.map(s => Number(s.total_market_value));
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const valRange = maxVal - minVal || 1;
+
+  const W = 500, H = 120, PAD = 2;
+  const points = filtered.map((s, i) => {
+    const x = PAD + (i / (filtered.length - 1)) * (W - PAD * 2);
+    const y = H - PAD - ((Number(s.total_market_value) - minVal) / valRange) * (H - PAD * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  const first = values[0];
+  const last = values[values.length - 1];
+  const change = last - first;
+  const changePct = first > 0 ? (change / first) * 100 : 0;
+  const isPositive = change >= 0;
+  const lineColor = isPositive ? (isDark ? "#34d399" : C.green) : (isDark ? "#f87171" : C.red);
+  const fillColor = isPositive ? (isDark ? "rgba(52,211,153,0.08)" : "rgba(0,132,61,0.06)") : (isDark ? "rgba(248,113,113,0.08)" : "rgba(220,38,38,0.06)");
+
+  // Fill polygon: line + bottom edges
+  const fillPoints = `${PAD},${H} ${points} ${W - PAD},${H}`;
+
+  const ranges = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
+
+  return (
+    <div style={{ padding: "16px 18px", borderRadius: 14, border: `1px solid ${C.gray200}`, background: isDark ? "rgba(255,255,255,0.02)" : "#fafbfc", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>Portfolio Performance</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: isPositive ? C.green : C.red }}>
+              {isPositive ? "+" : ""}{changePct.toFixed(2)}%
+            </span>
+            <span style={{ fontSize: 12, color: C.gray400 }}>
+              {isPositive ? "+" : ""}TZS {Number(change.toFixed(0)).toLocaleString()}
+            </span>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {ranges.map(r => (
+            <button key={r} onClick={() => onRangeChange(r)}
+              style={{
+                padding: "4px 8px", borderRadius: 6, border: "none", fontSize: 10, fontWeight: 700,
+                background: r === range ? (isDark ? "rgba(255,255,255,0.12)" : C.navy) : "transparent",
+                color: r === range ? (isDark ? "#fff" : "#fff") : C.gray400,
+                cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+            >{r}</button>
+          ))}
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }} preserveAspectRatio="none">
+        <polygon points={fillPoints} fill={fillColor} />
+        <polyline points={points} fill="none" stroke={lineColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+        <span style={{ fontSize: 10, color: C.gray400 }}>{filtered[0]?.snapshot_date}</span>
+        <span style={{ fontSize: 10, color: C.gray400 }}>{filtered[filtered.length - 1]?.snapshot_date}</span>
+      </div>
+    </div>
   );
 });
 
@@ -439,6 +516,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const [allUsers,      setAllUsers]      = useState([]);
   const [cdsMembers,    setCdsMembers]    = useState([]);
   const [loading,       setLoading]       = useState(true);
+  const [dividendSummary, setDividendSummary] = useState(null);
+  const [snapshots, setSnapshots] = useState([]);
+  const [chartRange, setChartRange] = useState("3M");
+  const [showReportsModal, setShowReportsModal] = useState(false);
   const [expanded,      setExpanded]      = useState(null);
   const [pullDistance,  setPullDistance]  = useState(0);
   const [refreshing,    setRefreshing]    = useState(false);
@@ -488,7 +569,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     try {
       const activeCdsId = activeCds?.cds_id;
 
-      const [port, txns, users, members] = await Promise.all([
+      const [port, txns, users, members, divSummary] = await Promise.all([
         sbGetPortfolio(profile?.cds_number).catch(() => []),
         sbGetTransactions().catch(() => []),
         // FIX 2: only call sbGetAllUsers for SA/AD roles.
@@ -502,6 +583,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         activeCdsId
           ? sbGetCDSAssignedUsers(activeCdsId).catch(() => [])
           : Promise.resolve([]),
+        profile?.cds_number
+          ? sbGetDividendSummary(profile.cds_number).catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       // FIX 1: discard results if a newer request has already started
@@ -509,6 +593,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
       setPortfolio(port || []);
       setTransactions(txns || []);
+      if (divSummary) setDividendSummary(divSummary);
 
       if (users?.length) {
         setUserCount(users.length);
@@ -548,6 +633,70 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     loadDashboard();
     return () => { mountedRef.current = false; };
   }, [loadDashboard]);
+
+  // ── Snapshot capture + chart data loading ────────────────────────
+  // Lazy: capture today's snapshot if it doesn't exist, then load chart data
+  const snapshotCaptured = useRef(false);
+  useEffect(() => {
+    if (!profile?.cds_number || loading || snapshotCaptured.current) return;
+    const cds = profile.cds_number;
+
+    (async () => {
+      try {
+        // Check if we already have today's snapshot
+        const hasToday = await sbHasTodaySnapshot(cds);
+        if (!hasToday && portfolio.length > 0) {
+          // Build snapshot data from current metrics
+          // We compute inline to avoid circular dependency with the metrics useMemo
+          let totalMV = 0, totalCB = 0;
+          const details = [];
+          for (const co of portfolio) {
+            const price = Number(co.cds_price || 0);
+            // Get net shares for this company from transactions
+            let netShares = 0;
+            let costBasis = 0;
+            for (const t of transactions) {
+              if (t.company_id === co.id && t.cds_number === cds && (t.status === "verified")) {
+                if (t.type === "Buy") {
+                  netShares += Number(t.qty || 0);
+                  costBasis += Number(t.total || 0) + Number(t.fees || 0);
+                } else {
+                  netShares -= Number(t.qty || 0);
+                }
+              }
+            }
+            if (netShares <= 0) continue;
+            const mv = netShares * price;
+            totalMV += mv;
+            totalCB += costBasis;
+            details.push({
+              company_id: co.id,
+              company_name: co.name,
+              shares_held: netShares,
+              price: price,
+              market_value: mv,
+              cost_basis: costBasis,
+            });
+          }
+          await sbCaptureSnapshot(cds, {
+            totalMarketValue: totalMV,
+            totalCostBasis: totalCB,
+            unrealizedGL: totalMV - totalCB,
+            dividendYTD: dividendSummary?.ytd_net || 0,
+            companyCount: details.length,
+            details,
+          });
+          snapshotCaptured.current = true;
+        }
+
+        // Load chart data (always, regardless of capture)
+        const fromDate = new Date();
+        fromDate.setFullYear(fromDate.getFullYear() - 1);
+        const snaps = await sbGetSnapshots(cds, fromDate.toISOString().split("T")[0], new Date().toISOString().split("T")[0]);
+        if (mountedRef.current) setSnapshots(snaps || []);
+      } catch { /* silent — snapshots are non-critical */ }
+    })();
+  }, [profile?.cds_number, loading, portfolio, transactions, dividendSummary]);
 
   const groupedVerifiedByCompany = useMemo(() => {
     const map = new Map();
@@ -716,6 +865,39 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onNavTransactions  = useCallback(() => onNavigate("transactions"),    [onNavigate]);
   const onNavUserMgmt      = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand      = useCallback(() => setExpanded(null), []);
+
+  // ── Report generation handler ─────────────────────────────────
+  const handleGenerateReport = useCallback(({ reportType, format, dateFrom, dateTo }) => {
+    const cdsNumber = profile?.cds_number || "N/A";
+    try {
+      if (reportType === "portfolio") {
+        if (format === "pdf") {
+          generatePortfolioStatementPDF({ cdsNumber, portfolio, metrics, dividendSummary });
+        } else {
+          generatePortfolioExcel({ cdsNumber, portfolio, metrics, dividendSummary });
+        }
+      } else if (reportType === "transactions") {
+        if (format === "pdf") {
+          generateTransactionHistoryPDF({ cdsNumber, transactions, dateFrom, dateTo });
+        } else {
+          generateTransactionExcel({ cdsNumber, transactions, dateFrom, dateTo });
+        }
+      } else if (reportType === "gainloss") {
+        // Build company breakdown from metrics data
+        const companyBreakdown = [];
+        if (metrics?.companyData) {
+          for (const [, cd] of Object.entries(metrics.companyData)) {
+            companyBreakdown.push(cd);
+          }
+        }
+        generateGainLossReportPDF({ cdsNumber, metrics, companyBreakdown });
+      }
+      setShowReportsModal(false);
+      showToast?.("Report downloaded!", "success");
+    } catch (e) {
+      showToast?.("Report generation failed: " + e.message, "error");
+    }
+  }, [profile?.cds_number, portfolio, metrics, transactions, dividendSummary, showToast]);
 
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing || loading) return;
@@ -1117,6 +1299,22 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         {/* ═══════════════════ DESKTOP VIEW ═══════════════════════ */}
         {!isMobile && (
           <>
+            {/* Report button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button onClick={() => setShowReportsModal(true)}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, border: `1px solid ${C.gray200}`,
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#fafbfc",
+                  color: C.gray500, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.color = C.green; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray500; }}>
+                <Icon name="download" size={14} stroke="currentColor" sw={2} />
+                Generate Report
+              </button>
+            </div>
             {/* Top snap cards */}
             <div
               ref={snapRef}
@@ -1169,6 +1367,38 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 onToggle={onToggleRealized} hoverable
               />
             </div>
+
+            {/* Dividend Income Row */}
+            {dividendSummary && (dividendSummary.ytd_income > 0 || dividendSummary.lifetime_income > 0) && (
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
+                marginBottom: 20, padding: "14px 18px", borderRadius: 14,
+                background: isDark ? "rgba(124,58,237,0.06)" : "#faf5ff",
+                border: `1px solid ${isDark ? "rgba(124,58,237,0.15)" : "#e9d5ff"}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Dividend Income (YTD)</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>TZS {Number(dividendSummary.ytd_net || 0).toLocaleString()}</div>
+                  {dividendSummary.ytd_tax > 0 && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Tax withheld: TZS {Number(dividendSummary.ytd_tax).toLocaleString()}</div>}
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Lifetime Income</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>TZS {Number(dividendSummary.lifetime_net || 0).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{dividendSummary.dividend_count} dividend{dividendSummary.dividend_count != 1 ? "s" : ""} from {dividendSummary.company_count} compan{dividendSummary.company_count != 1 ? "ies" : "y"}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: isDark ? "rgba(124,58,237,0.12)" : "#ede9fe" }}>
+                    <Icon name="dollarSign" size={18} stroke={isDark ? "#a78bfa" : "#7c3aed"} sw={2.2} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed" }}>Dividends</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Performance Chart */}
+            {snapshots.length >= 2 && (
+              <PerformanceChart snapshots={snapshots} range={chartRange} onRangeChange={setChartRange} C={C} isDark={isDark} />
+            )}
 
             {/* Realized GL expand panel */}
             {expanded === "realized" && (
@@ -1528,6 +1758,11 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           </>
         )}
       </div>
+
+      {/* Reports Modal */}
+      {showReportsModal && (
+        <ReportsModal onGenerate={handleGenerateReport} onClose={() => setShowReportsModal(false)} />
+      )}
     </div>
   );
 }

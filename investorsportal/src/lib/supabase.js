@@ -1113,3 +1113,111 @@ export async function sbDeletePasskey(id) {
   const data = await res.json().catch(() => ({}));
   if (!data.deleted) throw new Error(data.error || "Failed to delete passkey");
 }
+
+// ── Dividends ──────────────────────────────────────────────────────
+
+export async function sbGetDividends(cdsNumber) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_cds_dividends`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+    "Failed to fetch dividends"
+  );
+  return res.json();
+}
+
+export async function sbGetDividendSummary(cdsNumber) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_dividend_summary`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+    "Failed to fetch dividend summary"
+  );
+  const rows = await res.json();
+  return rows?.[0] || { ytd_income: 0, ytd_tax: 0, ytd_net: 0, lifetime_income: 0, lifetime_tax: 0, lifetime_net: 0, company_count: 0, dividend_count: 0 };
+}
+
+export async function sbGetCompanyDividends(cdsNumber, companyId) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_company_dividends`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber, p_company_id: companyId }) },
+    "Failed to fetch company dividends"
+  );
+  return res.json();
+}
+
+export async function sbInsertDividend(data) {
+  const uid = getSession()?.user?.id;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ ...data, created_by: uid }) },
+    "Failed to create dividend"
+  );
+  return res.json();
+}
+
+export async function sbUpdateDividend(id, data) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(data) },
+    "Failed to update dividend"
+  );
+  return res.json();
+}
+
+export async function sbDeleteDividend(id) {
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=eq.${id}`,
+    { method: "DELETE", headers: headers(token()) },
+    "Failed to delete dividend"
+  );
+}
+
+// ── Portfolio Snapshots ────────────────────────────────────────────
+
+export async function sbHasTodaySnapshot(cdsNumber) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/has_today_snapshot`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+    "Failed to check snapshot"
+  );
+  return res.json();
+}
+
+export async function sbCaptureSnapshot(cdsNumber, data) {
+  const today = new Date().toISOString().split("T")[0];
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/capture_portfolio_snapshot`,
+    {
+      method: "POST",
+      headers: headers(token()),
+      body: JSON.stringify({
+        p_cds_number: cdsNumber,
+        p_date: today,
+        p_total_market_value: data.totalMarketValue || 0,
+        p_total_cost_basis: data.totalCostBasis || 0,
+        p_unrealized_gl: data.unrealizedGL || 0,
+        p_dividend_ytd: data.dividendYTD || 0,
+        p_company_count: data.companyCount || 0,
+        p_details: JSON.stringify(data.details || []),
+      }),
+    },
+    "Failed to capture snapshot"
+  );
+  return res.json();
+}
+
+export async function sbGetSnapshots(cdsNumber, fromDate, toDate) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_portfolio_snapshots`,
+    {
+      method: "POST",
+      headers: headers(token()),
+      body: JSON.stringify({
+        p_cds_number: cdsNumber,
+        p_from: fromDate,
+        p_to: toDate,
+      }),
+    },
+    "Failed to fetch snapshots"
+  );
+  return res.json();
+}

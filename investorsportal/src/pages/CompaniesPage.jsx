@@ -2,11 +2,13 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   sbInsert, sbUpdate, sbDelete,
-  sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies
+  sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
+  sbGetDividends, sbGetCompanyDividends, sbInsertDividend, sbUpdateDividend, sbDeleteDividend, sbGetDividendSummary
 } from "../lib/supabase";
 import {
   useTheme, fmt, fmtSmart, Btn, StatCard, SectionCard,
-  Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu
+  Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu,
+  DividendFormModal, DividendHistoryModal
 } from "../components/ui";
 import { Icon } from "../lib/icons";
 
@@ -39,7 +41,7 @@ const amberBadgeStyle = (isDark) => ({
 });
 
 // ── Mobile Action Sheet ────────────────────────────────────────────────
-function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
+function ActionSheet({ company, onUpdatePrice, onViewHistory, onRecordDividend, onViewDividends, onClose }) {
   const { C } = useTheme();
   const hasCdsPrice = company.cds_price != null;
   return (
@@ -77,6 +79,22 @@ function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
             <div>
               <div style={{ fontWeight: 700 }}>Price History</div>
               <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>View price changes over time</div>
+            </div>
+          </button>
+          <button onClick={() => { onClose(); onRecordDividend(company); }}
+            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: "1.5px solid #c4b5fd", background: "#f5f3ff", color: "#7c3aed", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+            <span style={{ fontSize: 22, display: "flex", alignItems: "center" }}><Icon name="plus" size={22} stroke="#7c3aed" /></span>
+            <div>
+              <div style={{ fontWeight: 700 }}>Record Dividend</div>
+              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>Track dividend income for this company</div>
+            </div>
+          </button>
+          <button onClick={() => { onClose(); onViewDividends(company); }}
+            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: "1.5px solid #7dd3fc", background: "#f0f9ff", color: "#0284c7", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+            <span style={{ fontSize: 22, display: "flex", alignItems: "center" }}><Icon name="dollarSign" size={22} stroke="#0284c7" /></span>
+            <div>
+              <div style={{ fontWeight: 700 }}>Dividend History</div>
+              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>View all dividends for this company</div>
             </div>
           </button>
         </div>
@@ -188,6 +206,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [historyModal, setHistoryModal] = useState({ open: false, company: null, history: [] });
   const [updateModal, setUpdateModal]   = useState({ open: false, company: null });
   const [formModal, setFormModal]       = useState({ open: false, company: null });
+
+  // Dividend state
+  const [dividendFormModal, setDividendFormModal] = useState({ open: false, dividend: null });
+  const [dividendHistoryModal, setDividendHistoryModal] = useState({ open: false, companyName: "", dividends: [] });
+  const [dividendSummary, setDividendSummary] = useState(null);
 
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing]     = useState(false);
@@ -417,6 +440,47 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     }
   }, [cdsNumber, loadingHistory, showToast]);
 
+  // ── Dividend handlers ───────────────────────────────────────────
+  const loadDividendSummary = useCallback(async () => {
+    if (!cdsNumber) return;
+    try {
+      const summary = await sbGetDividendSummary(cdsNumber);
+      if (isMountedRef.current) setDividendSummary(summary);
+    } catch { /* silent */ }
+  }, [cdsNumber]);
+
+  // Load dividend summary when portfolio tab loads
+  useEffect(() => {
+    if (activeTab === "portfolio" && cdsNumber) loadDividendSummary();
+  }, [activeTab, cdsNumber, loadDividendSummary]);
+
+  const viewDividends = useCallback(async (company) => {
+    try {
+      const divs = await sbGetCompanyDividends(cdsNumber, company.id);
+      if (!isMountedRef.current) return;
+      setDividendHistoryModal({ open: true, companyName: company.name, dividends: divs });
+    } catch (e) {
+      showToast("Error loading dividends: " + e.message, "error");
+    }
+  }, [cdsNumber, showToast]);
+
+  const handleDividendConfirm = useCallback(async (data) => {
+    const editing = dividendFormModal.dividend;
+    try {
+      if (editing) {
+        await sbUpdateDividend(editing.id, data);
+        showToast("Dividend updated!", "success");
+      } else {
+        await sbInsertDividend({ ...data, cds_number: cdsNumber });
+        showToast("Dividend recorded!", "success");
+      }
+      setDividendFormModal({ open: false, dividend: null });
+      loadDividendSummary();
+    } catch (e) {
+      showToast("Error: " + e.message, "error");
+    }
+  }, [cdsNumber, dividendFormModal.dividend, showToast, loadDividendSummary]);
+
   const handleFormConfirm = useCallback(async ({ name, price, remarks }) => {
     const editingCompany = formModal.company;
     const isEdit = !!editingCompany;
@@ -540,7 +604,22 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           company={actionSheetCompany}
           onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
           onViewHistory={viewHistory}
+          onRecordDividend={(c) => setDividendFormModal({ open: true, dividend: null, companyId: c.id })}
+          onViewDividends={viewDividends}
           onClose={closeActionSheet} />
+      )}
+      {dividendFormModal.open && (
+        <DividendFormModal
+          dividend={dividendFormModal.dividend}
+          companies={portfolio}
+          onConfirm={handleDividendConfirm}
+          onClose={() => setDividendFormModal({ open: false, dividend: null })} />
+      )}
+      {dividendHistoryModal.open && (
+        <DividendHistoryModal
+          companyName={dividendHistoryModal.companyName}
+          dividends={dividendHistoryModal.dividends}
+          onClose={() => setDividendHistoryModal({ open: false, companyName: "", dividends: [] })} />
       )}
 
       {/* Transform wrapper */}
@@ -661,6 +740,16 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             label: loadingHistory === c.id ? "Loading..." : "Price History",
                             disabled: isRowBusy,
                             onClick: () => viewHistory(c),
+                          },
+                          {
+                            icon: <Icon name="plus" size={14} stroke="#7c3aed" />,
+                            label: "Record Dividend",
+                            onClick: () => setDividendFormModal({ open: true, dividend: null, companyId: c.id }),
+                          },
+                          {
+                            icon: <Icon name="dollarSign" size={14} stroke="#0ea5e9" />,
+                            label: "Dividend History",
+                            onClick: () => viewDividends(c),
                           },
                         ];
 

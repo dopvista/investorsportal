@@ -1254,3 +1254,272 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
     </ModalShell>
   );
 }
+
+// ── Dividend Form Modal ───────────────────────────────────────────
+export function DividendFormModal({ dividend, companies, onConfirm, onClose }) {
+  const { C, isDark } = useTheme();
+  const isMobile = useIsMobile();
+  const isEdit = !!dividend;
+
+  const [form, setForm] = useState(() =>
+    dividend
+      ? {
+          companyId: dividend.company_id, declarationDate: dividend.declaration_date || "",
+          exDividendDate: dividend.ex_dividend_date || "", paymentDate: dividend.payment_date || "",
+          dividendPerShare: String(dividend.dividend_per_share || ""), sharesHeld: String(dividend.shares_held || ""),
+          totalAmount: String(dividend.total_amount || ""), withholdingTax: String(dividend.withholding_tax || "0"),
+          status: dividend.status || "declared", remarks: dividend.remarks || "",
+        }
+      : {
+          companyId: "", declarationDate: "", exDividendDate: "", paymentDate: "",
+          dividendPerShare: "", sharesHeld: "", totalAmount: "", withholdingTax: "0",
+          status: "declared", remarks: "",
+        }
+  );
+  const [error, setError] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const companyRef = useRef(null);
+
+  useEffect(() => {
+    if (!companyOpen) return;
+    const handle = (e) => { if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false); };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [companyOpen]);
+
+  const filteredCompanies = useMemo(() => {
+    const q = companySearch.trim().toLowerCase();
+    return q ? companies.filter(c => c.name.toLowerCase().includes(q)) : companies;
+  }, [companies, companySearch]);
+
+  const selectedCompanyName = useMemo(() => companies.find(c => c.id === form.companyId)?.name || "", [companies, form.companyId]);
+
+  // Auto-calculate total when per-share × shares
+  useEffect(() => {
+    const dps = Number(form.dividendPerShare) || 0;
+    const shares = Number(form.sharesHeld) || 0;
+    if (dps > 0 && shares > 0) setForm(f => ({ ...f, totalAmount: String((dps * shares).toFixed(2)) }));
+  }, [form.dividendPerShare, form.sharesHeld]);
+
+  const netAmount = useMemo(() => {
+    return ((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)).toFixed(2);
+  }, [form.totalAmount, form.withholdingTax]);
+
+  const handleSubmit = () => {
+    setError("");
+    if (!form.companyId) return setError("Select a company");
+    if (!form.dividendPerShare || Number(form.dividendPerShare) <= 0) return setError("Enter dividend per share");
+    if (!form.totalAmount || Number(form.totalAmount) <= 0) return setError("Total amount is required");
+    onConfirm({
+      company_id: form.companyId, declaration_date: form.declarationDate || null,
+      ex_dividend_date: form.exDividendDate || null, payment_date: form.paymentDate || null,
+      dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
+      total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
+      net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
+    });
+  };
+
+  const inpS = makeInputStyle(C);
+
+  return (
+    <ModalShell title={isEdit ? "Edit Dividend" : "Record Dividend"} subtitle="Track dividend income for your portfolio" onClose={onClose} maxWidth={480} maxHeight={isMobile ? "92vh" : "85vh"}
+      footer={<>
+        {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
+      </>}
+    >
+      {/* Company dropdown */}
+      <div ref={companyRef} style={{ position: "relative" }}>
+        <FormField label="Company" required C={C}>
+          <button type="button" onClick={() => setCompanyOpen(v => !v)}
+            style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{selectedCompanyName || "Select company..."}</span>
+            <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
+          </button>
+        </FormField>
+        {companyOpen && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
+              <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
+            </div>
+            <div style={{ overflowY: "auto", maxHeight: 150 }}>
+              {filteredCompanies.map(c => (
+                <div key={c.id} onClick={() => { setForm(f => ({ ...f, companyId: c.id })); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                  style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === form.companyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
+                  onMouseEnter={e => { if (c.id !== form.companyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
+                  onMouseLeave={e => { if (c.id !== form.companyId) e.currentTarget.style.background = "transparent"; }}>
+                  {c.name}
+                </div>
+              ))}
+              {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
+        <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={form.totalAmount} onChange={e => { setForm(f => ({ ...f, totalAmount: e.target.value })); setError(""); }} placeholder="0.00" />
+        <FInput label="Withholding Tax" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
+      </div>
+
+      {/* Net amount */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}` }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: C.gray500 }}>Net Amount</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <FInput label="Declaration" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
+        <FInput label="Ex-Dividend" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
+        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+      </div>
+
+      <FSelect label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+        <option value="declared">Declared</option>
+        <option value="ex_date_passed">Ex-Date Passed</option>
+        <option value="paid">Paid</option>
+      </FSelect>
+
+      <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
+    </ModalShell>
+  );
+}
+
+// ── Dividend History Modal ────────────────────────────────────────
+export function DividendHistoryModal({ companyName, dividends, onClose }) {
+  const { C, isDark } = useTheme();
+  const isMobile = useIsMobile();
+  const totalNet = useMemo(() => dividends.reduce((s, d) => s + Number(d.net_amount || d.total_amount || 0), 0), [dividends]);
+
+  const sc = (status) => ({
+    declared:       { bg: isDark ? "rgba(251,191,36,0.15)" : "#FEF3C7", color: isDark ? "#fbbf24" : "#92400e" },
+    ex_date_passed: { bg: isDark ? "rgba(96,165,250,0.15)" : "#DBEAFE", color: isDark ? "#60a5fa" : "#1e40af" },
+    paid:           { bg: isDark ? "rgba(52,211,153,0.15)" : "#D1FAE5", color: isDark ? "#34d399" : "#065f46" },
+  }[status] || { bg: C.gray100, color: C.gray500 });
+
+  return (
+    <ModalShell title={`${companyName} — Dividends`} subtitle={`${dividends.length} record${dividends.length !== 1 ? "s" : ""} · Net: TZS ${totalNet.toLocaleString()}`} onClose={onClose} maxWidth={520} maxHeight={isMobile ? "92vh" : "80vh"}
+      footer={<Btn variant="secondary" onClick={onClose}>Close</Btn>}>
+      {dividends.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "32px 0", color: C.gray400, fontSize: 14 }}>
+          <Icon name="dollarSign" size={32} stroke={C.gray300} sw={1.5} />
+          <div style={{ marginTop: 12 }}>No dividends recorded yet</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {dividends.map(d => {
+            const s = sc(d.status);
+            return (
+              <div key={d.id} style={{ padding: "12px 14px", borderRadius: 12, border: `1px solid ${C.gray200}`, background: isDark ? "rgba(255,255,255,0.02)" : "#fafbfc" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 6, background: s.bg, color: s.color }}>
+                    {d.status === "ex_date_passed" ? "Ex-Date" : d.status}
+                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(d.net_amount || d.total_amount).toLocaleString()}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12, color: C.gray500 }}>
+                  <div>Per Share: <span style={{ fontWeight: 700, color: C.text }}>TZS {Number(d.dividend_per_share).toLocaleString()}</span></div>
+                  {d.shares_held && <div>Shares: <span style={{ fontWeight: 700, color: C.text }}>{Number(d.shares_held).toLocaleString()}</span></div>}
+                  {d.payment_date && <div>Paid: <span style={{ fontWeight: 700, color: C.text }}>{d.payment_date}</span></div>}
+                  {Number(d.withholding_tax) > 0 && <div>Tax: <span style={{ fontWeight: 700, color: C.red }}>TZS {Number(d.withholding_tax).toLocaleString()}</span></div>}
+                </div>
+                {d.remarks && <div style={{ marginTop: 6, fontSize: 11, color: C.gray400, fontStyle: "italic" }}>{d.remarks}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+// ── Reports Modal ─────────────────────────────────────────────────
+export function ReportsModal({ onGenerate, onClose }) {
+  const { C, isDark } = useTheme();
+  const isMobile = useIsMobile();
+  const today = new Date().toISOString().split("T")[0];
+  const yearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().split("T")[0]; })();
+
+  const [reportType, setReportType] = useState("portfolio");
+  const [format, setFormat] = useState("pdf");
+  const [dateFrom, setDateFrom] = useState(yearAgo);
+  const [dateTo, setDateTo] = useState(today);
+
+  const reportTypes = [
+    { value: "portfolio", label: "Portfolio Statement", icon: "briefcase", desc: "Current holdings, prices, and gain/loss" },
+    { value: "transactions", label: "Transaction History", icon: "list", desc: "All transactions with fee breakdowns" },
+    { value: "gainloss", label: "Gain/Loss Report", icon: "trendingUp", desc: "Realized and unrealized gains by company" },
+  ];
+
+  const needsDateRange = reportType === "transactions";
+
+  return (
+    <ModalShell title="Generate Report" subtitle="Export your portfolio data" onClose={onClose} maxWidth={460}
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={() => onGenerate({ reportType, format, dateFrom, dateTo })} icon={<Icon name="download" size={15} />}>
+          Download {format.toUpperCase()}
+        </Btn>
+      </>}
+    >
+      {/* Report Type */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>Report Type</div>
+        {reportTypes.map(rt => (
+          <button key={rt.value} onClick={() => setReportType(rt.value)}
+            style={{
+              padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${rt.value === reportType ? C.green : C.gray200}`,
+              background: rt.value === reportType ? (isDark ? "rgba(0,132,61,0.08)" : "#f0fdf4") : "transparent",
+              cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+              transition: "all 0.15s",
+            }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: rt.value === reportType ? (isDark ? "rgba(0,132,61,0.15)" : "#D1FAE5") : C.gray100, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name={rt.icon} size={18} stroke={rt.value === reportType ? C.green : C.gray400} sw={2} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{rt.label}</div>
+              <div style={{ fontSize: 11, color: C.gray400, marginTop: 1 }}>{rt.desc}</div>
+            </div>
+            {rt.value === reportType && <Icon name="checkCircle" size={16} stroke={C.green} sw={2.2} style={{ marginLeft: "auto", flexShrink: 0 }} />}
+          </button>
+        ))}
+      </div>
+
+      {/* Date Range (for transactions) */}
+      {needsDateRange && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 4 }}>
+          <FInput label="From" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <FInput label="To" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        </div>
+      )}
+
+      {/* Format */}
+      <div style={{ marginTop: 4 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Format</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {[{ value: "pdf", label: "PDF", icon: "file" }, { value: "xlsx", label: "Excel", icon: "grid" }].map(f => (
+            <button key={f.value} onClick={() => setFormat(f.value)}
+              style={{
+                flex: 1, padding: "10px 14px", borderRadius: 10,
+                border: `1.5px solid ${f.value === format ? C.green : C.gray200}`,
+                background: f.value === format ? (isDark ? "rgba(0,132,61,0.08)" : "#f0fdf4") : "transparent",
+                cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                fontWeight: 700, fontSize: 13, color: f.value === format ? C.green : C.gray500,
+                transition: "all 0.15s",
+              }}>
+              <Icon name={f.icon} size={16} stroke={f.value === format ? C.green : C.gray400} sw={2} />
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
