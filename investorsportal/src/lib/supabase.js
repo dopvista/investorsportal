@@ -1135,6 +1135,15 @@ export async function sbGetDividendSummary(cdsNumber) {
   return rows?.[0] || { ytd_income: 0, ytd_tax: 0, ytd_net: 0, lifetime_income: 0, lifetime_tax: 0, lifetime_net: 0, company_count: 0, dividend_count: 0 };
 }
 
+export async function sbGetDividendByCompany(cdsNumber) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_dividend_by_company`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+    "Failed to fetch dividends by company"
+  );
+  return res.json();
+}
+
 export async function sbGetCompanyDividends(cdsNumber, companyId) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_company_dividends`,

@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
-import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
+import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
 import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel, generateTransactionExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
@@ -517,6 +517,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const [cdsMembers,    setCdsMembers]    = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [dividendSummary, setDividendSummary] = useState(null);
+  const [dividendByCompany, setDividendByCompany] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
   const [chartRange, setChartRange] = useState("3M");
   const [showReportsModal, setShowReportsModal] = useState(false);
@@ -569,7 +570,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     try {
       const activeCdsId = activeCds?.cds_id;
 
-      const [port, txns, users, members, divSummary] = await Promise.all([
+      const [port, txns, users, members, divSummary, divByCompany] = await Promise.all([
         sbGetPortfolio(profile?.cds_number).catch(() => []),
         sbGetTransactions().catch(() => []),
         // FIX 2: only call sbGetAllUsers for SA/AD roles.
@@ -586,6 +587,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         profile?.cds_number
           ? sbGetDividendSummary(profile.cds_number).catch(() => null)
           : Promise.resolve(null),
+        profile?.cds_number
+          ? sbGetDividendByCompany(profile.cds_number).catch(() => [])
+          : Promise.resolve([]),
       ]);
 
       // FIX 1: discard results if a newer request has already started
@@ -594,6 +598,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       setPortfolio(port || []);
       setTransactions(txns || []);
       if (divSummary) setDividendSummary(divSummary);
+      if (divByCompany?.length) setDividendByCompany(divByCompany);
 
       if (users?.length) {
         setUserCount(users.length);
@@ -863,6 +868,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onToggleCompanies  = useCallback(() => toggleExpand("companies"), [toggleExpand]);
   const onToggleUsers      = useCallback(() => toggleExpand("users"),     [toggleExpand]);
   const onNavTransactions  = useCallback(() => onNavigate("transactions"),    [onNavigate]);
+  const onNavDividends     = useCallback(() => onNavigate("dividends"),       [onNavigate]);
   const onNavUserMgmt      = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand      = useCallback(() => setExpanded(null), []);
 
@@ -1368,33 +1374,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               />
             </div>
 
-            {/* Dividend Income Row */}
-            {dividendSummary && (dividendSummary.ytd_income > 0 || dividendSummary.lifetime_income > 0) && (
-              <div style={{
-                display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
-                marginBottom: 20, padding: "14px 18px", borderRadius: 14,
-                background: isDark ? "rgba(124,58,237,0.06)" : "#faf5ff",
-                border: `1px solid ${isDark ? "rgba(124,58,237,0.15)" : "#e9d5ff"}`,
-              }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Dividend Income (YTD)</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>TZS {Number(dividendSummary.ytd_net || 0).toLocaleString()}</div>
-                  {dividendSummary.ytd_tax > 0 && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Tax withheld: TZS {Number(dividendSummary.ytd_tax).toLocaleString()}</div>}
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Lifetime Income</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>TZS {Number(dividendSummary.lifetime_net || 0).toLocaleString()}</div>
-                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{dividendSummary.dividend_count} dividend{dividendSummary.dividend_count != 1 ? "s" : ""} from {dividendSummary.company_count} compan{dividendSummary.company_count != 1 ? "ies" : "y"}</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: isDark ? "rgba(124,58,237,0.12)" : "#ede9fe" }}>
-                    <Icon name="dollarSign" size={18} stroke={isDark ? "#a78bfa" : "#7c3aed"} sw={2.2} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? "#a78bfa" : "#7c3aed" }}>Dividends</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Performance Chart */}
             {snapshots.length >= 2 && (
               <PerformanceChart snapshots={snapshots} range={chartRange} onRangeChange={setChartRange} C={C} isDark={isDark} />
@@ -1478,7 +1457,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Lower stat cards */}
             <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14,
+              display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14,
               marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
             }}>
               <StatCard icon={<Icon name="building" size={19} stroke="#3b6fc4" sw={2.2} />} label="Companies"
@@ -1486,6 +1465,12 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
                 accent="#3b6fc4" accentBg="#3b6fc4"
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
+              />
+              <StatCard icon={<Icon name="dollarSign" size={19} stroke="#7c3aed" sw={2.2} />} label="Dividend Income"
+                value={loading ? "—" : `TZS ${Number(dividendSummary?.ytd_net || 0).toLocaleString()}`}
+                subLabel={dividendSummary ? `${dividendSummary.dividend_count || 0} from ${dividendSummary.company_count || 0} co.` : "YTD net"}
+                accent="#7c3aed" accentBg="#7c3aed"
+                onClick={onNavDividends} navigates loading={loading}
               />
               <StatCard icon={<Icon name="users" size={19} stroke="#2563eb" sw={2.2} />} label="Total Users"
                 value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
@@ -1755,6 +1740,65 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 </div>
               )}
             </div>
+
+            {/* Top 5 Dividends by Company table */}
+            {dividendByCompany.length > 0 && (
+              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginTop: 22 }}>
+                <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: C.text, display: "flex", alignItems: "center", gap: 8 }}><IconBadge name="dollarSign" color="#7c3aed" size={28} radius={7} isDark={isDark} /> Top 5 Dividends by Company</div>
+                  <div style={{ fontSize: 11, color: C.gray400 }}>
+                    {dividendByCompany.length} compan{dividendByCompany.length !== 1 ? "ies" : "y"} · net {fmtShort(dividendByCompany.reduce((s, d) => s + Number(d.total_net || 0), 0))}
+                  </div>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <colgroup>
+                      <col style={{ width: "22%" }} /><col style={{ width: "10%" }} />
+                      <col style={{ width: "15%" }} /><col style={{ width: "15%" }} />
+                      <col style={{ width: "15%" }} /><col style={{ width: "10%" }} />
+                      <col style={{ width: "13%" }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <Th>Company</Th>
+                        <Th right>Dividends</Th>
+                        <Th right>Gross Amount</Th>
+                        <Th right>Tax Withheld</Th>
+                        <Th right>Net Income</Th>
+                        <Th right>Avg DPS</Th>
+                        <Th right>Last Payment</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dividendByCompany.map((d, i) => (
+                        <tr key={d.company_id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                          <Td bold>{d.company_name}</Td>
+                          <Td right>{d.dividend_count}</Td>
+                          <Td right>{fmt(d.total_gross)}</Td>
+                          <Td right color={Number(d.total_tax) > 0 ? C.red : C.gray400}>{Number(d.total_tax) > 0 ? fmt(d.total_tax) : "—"}</Td>
+                          <Td right bold color={C.green}>{fmt(d.total_net)}</Td>
+                          <Td right>{fmt(d.avg_dps)}</Td>
+                          <Td right color={C.gray500} small>{d.last_payment_date ? new Date(d.last_payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {dividendByCompany.length > 1 && (
+                      <tfoot>
+                        <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{dividendByCompany.reduce((s, d) => s + Number(d.dividend_count), 0)}</td>
+                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_gross), 0))}</td>
+                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.red, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_tax), 0))}</td>
+                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.green, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_net), 0))}</td>
+                          <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
+                          <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
