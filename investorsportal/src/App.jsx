@@ -12,6 +12,7 @@ import {
   sbGetActiveCDS,
   sbGetUserCDS,
   sbSwitchActiveCDS,
+  sbGetNavCounts,
 } from "./lib/supabase";
 import { C as CStatic, Toast, useTheme } from "./components/ui";
 import LoginPage        from "./pages/LoginPage";
@@ -326,6 +327,7 @@ export default function App() {
   const [cdsList,         setCdsList]         = useState([]);
   const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
   const [switchTarget,    setSwitchTarget]    = useState(null);
+  const [navCounts,       setNavCounts]       = useState({ holdings: 0, transactions: 0 });
   const [switching,       setSwitching]       = useState(false);
   const [isOffline,       setIsOffline]       = useState(
     () => typeof navigator !== "undefined" && !navigator.onLine
@@ -710,14 +712,24 @@ export default function App() {
     [role]
   );
 
-  const cdsCompanyCount = useMemo(
-    () => new Set(filteredTransactions.map((t) => t.company_id)).size,
-    [filteredTransactions]
-  );
+  // Fetch nav badge counts from server (instant from summary table)
+  useEffect(() => {
+    if (!activeCdsNumber) return;
+    let cancelled = false;
+    sbGetNavCounts(activeCdsNumber).then((c) => {
+      if (!cancelled && c) setNavCounts(c);
+    });
+    return () => { cancelled = true; };
+  }, [activeCdsNumber]);
+
+  const cdsCompanyCount = navCounts.holdings;
 
   const counts = useMemo(
-    () => ({ companies: cdsCompanyCount, transactions: filteredTransactions.length }),
-    [cdsCompanyCount, filteredTransactions.length]
+    () => ({
+      companies: navCounts.holdings,
+      transactions: navCounts.transactions?.toLocaleString?.() ?? navCounts.transactions,
+    }),
+    [navCounts]
   );
 
   // TAB_META references profile name — only recompute when name changes
@@ -969,7 +981,7 @@ export default function App() {
                   <IconBadge name="clipboard" color={C.green} size={30} radius={8} isDark={isDark} />
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1 }}>Transactions</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.green, lineHeight: 1.2 }}>{filteredTransactions.length}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.green, lineHeight: 1.2 }}>{navCounts.transactions.toLocaleString()}</div>
                   </div>
                 </div>
               </div>

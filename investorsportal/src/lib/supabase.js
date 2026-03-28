@@ -642,6 +642,18 @@ export async function sbGetTransactions(cdsNumber, opts = {}) {
   };
 }
 
+export async function sbGetNavCounts(cdsNumber) {
+  if (!cdsNumber) return { holdings: 0, transactions: 0 };
+  try {
+    const res = await fetchWithAuthRetry(
+      `${BASE}/rest/v1/rpc/get_nav_counts`,
+      { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+      "Failed to fetch nav counts"
+    );
+    return res.json();
+  } catch { return { holdings: 0, transactions: 0 }; }
+}
+
 export async function sbGetDashboardMetrics(cdsNumber) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_dashboard_metrics`,
