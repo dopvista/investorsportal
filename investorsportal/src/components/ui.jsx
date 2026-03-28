@@ -205,12 +205,15 @@ export function FInput({ label, required, ...props }) {
         input[type="date"]::-webkit-calendar-picker-indicator,
         input[type="datetime-local"]::-webkit-calendar-picker-indicator {
           cursor: pointer; padding: 4px; border-radius: 4px;
-          background-color: ${isDark ? "rgba(255,255,255,0.1)" : "#f1f5f9"};
-          ${isDark ? "filter: invert(1);" : ""}
+          background-color: ${isDark ? "rgba(255,255,255,0.12)" : "#f1f5f9"};
+          filter: ${isDark ? "invert(1) brightness(1.8)" : "none"};
+          opacity: ${isDark ? "0.9" : "0.7"};
+          transition: background-color 0.15s, opacity 0.15s;
         }
         input[type="date"]::-webkit-calendar-picker-indicator:hover,
         input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-          background-color: ${isDark ? "rgba(255,255,255,0.18)" : "#e2e8f0"};
+          background-color: ${isDark ? "rgba(255,255,255,0.22)" : "#e2e8f0"};
+          opacity: 1;
         }
       `}</style>}
       <input
