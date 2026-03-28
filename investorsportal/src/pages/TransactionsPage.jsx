@@ -405,15 +405,16 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     return null;
   }, [isBuy, transaction.id, transaction.company_id, transactions]);
 
+  const auditIconColor = isDark ? undefined : "#374151";
   const AUDIT_STEPS = useMemo(() => [
-    { icon: <Icon name="fileText" size={11} />, label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
-    { icon: <Icon name="checkCircle" size={11} />, label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: isDark ? "#1D4ED820" : "#EFF6FF" },
-    { icon: <Icon name="check" size={11} />, label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
+    { icon: <Icon name="fileText" size={11} stroke={auditIconColor} />, label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
+    { icon: <Icon name="checkCircle" size={11} stroke={auditIconColor} />, label: "Confirmed", time: transaction.confirmed_at, name: transaction.confirmed_by_name, stepColor: "#1D4ED8", activeBg: isDark ? "#1D4ED820" : "#EFF6FF" },
+    { icon: <Icon name="check" size={11} stroke={auditIconColor} />, label: "Verified",  time: transaction.verified_at,  name: transaction.verified_by_name,  stepColor: C.green,   activeBg: C.greenBg },
     ...(transaction.status === "rejected"
-      ? [{ icon: <Icon name="xCircle" size={11} />, label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
+      ? [{ icon: <Icon name="xCircle" size={11} stroke={auditIconColor} />, label: "Rejected", time: transaction.rejected_at, name: transaction.rejected_by_name, stepColor: C.red, activeBg: C.redBg }]
       : []
     ),
-  ], [C, isDark, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
+  ], [C, isDark, auditIconColor, transaction.created_at, transaction.confirmed_at, transaction.verified_at, transaction.rejected_at,
       transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name, transaction.status]);
 
   const summaryItems = [
