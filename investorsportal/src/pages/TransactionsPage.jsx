@@ -260,7 +260,7 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 12, color: C.gray400 }}>
-          Showing <strong style={{ color: C.text }}>{from}–{to}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
+          Showing <strong style={{ color: C.text }}>{from === to ? from : `${from}–${to}`}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
           {filtered !== total ? ` (${total} total)` : ""}
         </span>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
