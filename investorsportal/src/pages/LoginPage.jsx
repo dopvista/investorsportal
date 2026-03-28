@@ -415,6 +415,20 @@ export default function LoginPage({ onLogin, loginSettings }) {
   const onDotClick   = useCallback((i) => setActiveAd(i), []);
   const onHoverIn    = useCallback(() => setIsHovering(true), []);
   const onHoverOut   = useCallback(() => setIsHovering(false), []);
+  // Desktop card scale — shrink-to-fit so it never wraps
+  const [cardScale, setCardScale] = useState(1);
+  useEffect(() => {
+    if (isMobile) return;
+    const calc = () => {
+      const sx = (window.innerWidth - 32) / 960;
+      const sy = (window.innerHeight - 32) / 580;
+      setCardScale(Math.min(1, sx, sy));
+    };
+    calc();
+    window.addEventListener("resize", calc, { passive: true });
+    return () => window.removeEventListener("resize", calc);
+  }, [isMobile]);
+
   const onFocusGreen = useCallback((e) => { e.target.style.borderColor = C.green; }, []);
   const onBlurReset  = useCallback((e) => {
     e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200;
@@ -695,8 +709,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* ══════════ DESKTOP ══════════ */}
       {!isMobile && (
-        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
-          <div style={{ width: "min(960px, 92vw)", background: "rgba(255,255,255,0.98)", borderRadius: 32, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)", display: "grid", gridTemplateColumns: "1.68fr 0.85fr", overflow: "hidden", position: "relative" }}>
+        <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <div style={{ width: 960, flexShrink: 0, background: "rgba(255,255,255,0.98)", borderRadius: 32, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)", display: "grid", gridTemplateColumns: "1.68fr 0.85fr", overflow: "hidden", position: "relative", transform: `scale(${cardScale})`, transformOrigin: "center center" }}>
             <SlidePanel
               adverts={ADVERTS}
               activeAd={activeAd}
