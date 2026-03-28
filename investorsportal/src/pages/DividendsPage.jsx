@@ -240,6 +240,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const net = Number(dividend.net_amount || 0) || (gross - tax);
   const dps = Number(dividend.dividend_per_share || 0);
   const shares = Number(dividend.shares_held || 0);
+  const taxPct = gross > 0 ? ((tax / gross) * 100).toFixed(1) : "0.0";
 
   const companiesMap = useMemo(() => new Map(companies.map(c => [c.id, c])), [companies]);
   const company = companiesMap.get(dividend.company_id);
@@ -249,28 +250,68 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
   );
 
-  const detailRows = [
+  const renderKVRows = (rows) => rows.map(([label, value, valueColor], i, arr) => (
+    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
+      <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: valueColor || C.text, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
+    </div>
+  ));
+
+  const summaryItems = [
+    { label: "Gross Amount",     value: `TZS ${fmt(gross)}`, sub: `${shares > 0 ? fmt(shares) : "—"} shares`, valueColor: C.text },
+    { label: "Withholding Tax",  value: `TZS ${fmt(tax)}`,   sub: `${taxPct}% of gross`,                      valueColor: C.red },
+    { label: "Net Amount",       value: `TZS ${fmt(net)}`,   sub: "after tax",                                valueColor: C.green },
+  ];
+
+  // Left panel: Dividend details (dates, per-share, shares, status, remarks)
+  const leftRows = [
     ["Declaration Date", fmtDate(dividend.declaration_date)],
     ["Ex-Dividend Date", fmtDate(dividend.ex_dividend_date)],
     ["Payment Date",     fmtDate(dividend.payment_date)],
     ["Dividend/Share",   `TZS ${fmt(dps)}`],
     ["Shares Held",      shares > 0 ? fmt(shares) : "\u2014"],
-    ["Gross Amount",     `TZS ${fmt(gross)}`],
-    ["Withholding Tax",  `TZS ${fmt(tax)}`],
-    ["Net Amount",       `TZS ${fmt(net)}`],
+    ["Status",           st.label],
     ["Remarks",          dividend.remarks || "\u2014"],
   ];
 
-  const summaryItems = [
-    { label: "Gross Amount",     value: `TZS ${fmt(gross)}`, valueColor: C.text },
-    { label: "Withholding Tax",  value: `TZS ${fmt(tax)}`,   valueColor: C.red },
-    { label: "Net Amount",       value: `TZS ${fmt(net)}`,   valueColor: C.green },
+  // Right panel: Tax & income breakdown
+  const taxRows = [
+    ["Gross Amount",     `TZS ${fmt(gross)}`],
+    ["Tax Rate",         `${taxPct}%`],
+    ["Withholding Tax",  `TZS ${fmt(tax)}`, C.red],
   ];
+
+  const renderLeftPanel = () => (
+    <div style={{ padding: "14px 20px" }}>
+      {renderSectionTitle("Dividend Details")}
+      {renderKVRows(leftRows)}
+    </div>
+  );
+
+  const renderRightPanel = () => (
+    <>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+        {renderSectionTitle("Tax & Income")}
+        {renderKVRows(taxRows)}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
+        </div>
+      </div>
+      <div style={{ padding: "14px 20px" }}>
+        {renderSectionTitle("Record Info")}
+        {renderKVRows([
+          ["Recorded", fmtDateTime(dividend.created_at) || "\u2014"],
+          ["Recorded By", dividend.created_by_name || "\u2014"],
+        ])}
+      </div>
+    </>
+  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 520, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 680, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -279,38 +320,42 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
               <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>{st.icon} {st.label}</span>
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
-              <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={12} stroke="rgba(255,255,255,0.6)" /> {fmt(dps)} per share</span>
+              <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={12} stroke="rgba(255,255,255,0.6)" sw={2} /> {fmt(dps)} per share</span>
+              <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="calendar" size={12} stroke="rgba(255,255,255,0.6)" sw={2} /> {fmtDate(dividend.payment_date)}</span>
+              {dividend.cds_number && (
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                  CDS {dividend.cds_number}
+                </span>
+              )}
             </div>
           </div>
           <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
-        {/* Summary strip */}
+        {/* Summary strip — 3 columns on desktop, stacked on mobile */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
           {summaryItems.map((item, i) => (
             <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? C.greenBg : "transparent", display: "flex", alignItems: isMobile ? "center" : "block", justifyContent: isMobile ? "space-between" : "initial" }}>
               <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 4 }}>{item.label}</div>
               <div>
                 <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.value}</div>
+                {!isMobile && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Detail rows */}
+        {/* Body — 2-column on desktop, single on mobile */}
         <div className="div-scroll" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
-          <div style={{ padding: "14px 20px" }}>
-            {renderSectionTitle("Dividend Details")}
-            {detailRows.map(([label, value], i, arr) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
-                <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.text, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
-              </div>
-            ))}
-          </div>
-          {dividend.created_at && (
-            <div style={{ padding: "0 20px 14px" }}>
-              <div style={{ fontSize: 11, color: C.gray400 }}>Recorded: {fmtDateTime(dividend.created_at)}</div>
+          {isMobile ? (
+            <>
+              {renderLeftPanel()}
+              <div style={{ borderTop: `1px solid ${C.gray100}` }}>{renderRightPanel()}</div>
+            </>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+              <div style={{ borderRight: `1px solid ${C.gray200}` }}>{renderLeftPanel()}</div>
+              <div>{renderRightPanel()}</div>
             </div>
           )}
         </div>
