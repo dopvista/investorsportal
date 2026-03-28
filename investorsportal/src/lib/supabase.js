@@ -651,6 +651,15 @@ export async function sbGetDashboardMetrics(cdsNumber) {
   return res.json();
 }
 
+export async function sbGetFifoRealizedGL(cdsNumber) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_fifo_realized_gl`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber }) },
+    "Failed to fetch realized G/L"
+  );
+  return res.json();
+}
+
 export async function sbGetTransactionsByIds(ids) {
   if (!ids?.length) return [];
   const idList = `(${ids.map((id) => `"${id}"`).join(",")})`;

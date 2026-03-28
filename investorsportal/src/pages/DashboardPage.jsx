@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo, cloneElement } from "react";
 import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
-import { sbGetPortfolio, sbGetDashboardMetrics, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
+import { sbGetPortfolio, sbGetDashboardMetrics, sbGetFifoRealizedGL, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
 import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel, generateTransactionExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
@@ -510,6 +510,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const { C, isDark } = useTheme();
   const [portfolio,     setPortfolio]     = useState([]);
   const [dashMetrics,   setDashMetrics]   = useState(null);
+  const [realizedData,  setRealizedData]  = useState(null);
   const [userCount,     setUserCount]     = useState(null);
   const [allUsers,      setAllUsers]      = useState([]);
   const [cdsMembers,    setCdsMembers]    = useState([]);
@@ -564,9 +565,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     try {
       const activeCdsId = activeCds?.cds_id;
 
-      const [port, dashMetrics, users, members, divSummary, divByCompany] = await Promise.all([
+      const [port, dashMetrics, fifoData, users, members, divSummary, divByCompany] = await Promise.all([
         sbGetPortfolio(profile?.cds_number).catch(() => []),
         profile?.cds_number ? sbGetDashboardMetrics(profile.cds_number).catch(() => null) : Promise.resolve(null),
+        profile?.cds_number ? sbGetFifoRealizedGL(profile.cds_number).catch(() => null) : Promise.resolve(null),
         // FIX 2: only call sbGetAllUsers for SA/AD roles.
         // DE/VR/RO users hit a permission-denied error on this RPC
         // on every single dashboard open. The .catch masked the error
@@ -591,6 +593,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
       setPortfolio(port || []);
       setDashMetrics(dashMetrics);
+      setRealizedData(fifoData);
       if (divSummary) setDividendSummary(divSummary);
       if (divByCompany?.length) setDividendByCompany(divByCompany);
 
@@ -759,25 +762,37 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     const unrealizedGL     = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
     const hasFinancials    = activeCompanies.some((c) => c.currentPrice > 0 && c.netShares > 0);
-    const hasRealized      = false; // Realized GL needs FIFO — will be computed via dedicated RPC later
+    const totalRealizedGL    = Number(realizedData?.total_realized_gl || 0);
+    const totalSaleProceeds  = Number(realizedData?.total_sale_proceeds || 0);
+    const totalCostBasisSold = Number(realizedData?.total_cost_basis || 0);
+    const totalSharesSold    = Number(realizedData?.total_shares_sold || 0);
+    const hasRealized        = totalSharesSold > 0;
     const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
     const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
     const avgFirstBuyDays  = firstBuySharesDenominator > 0
       ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
-    const realizedCompanies = [];
+    const realizedCompanies = (realizedData?.companies || []).map((rc, i) => ({
+      id: rc.company_id, name: rc.company_name,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+      totalSharesSold: Number(rc.shares_sold || 0),
+      totalSaleProceeds: Number(rc.sale_proceeds || 0),
+      totalCostBasis: Number(rc.cost_basis || 0),
+      realizedGL: Number(rc.realized_gl || 0),
+      realizedTrades: [{ soldShares: Number(rc.shares_sold || 0), costBasis: Number(rc.cost_basis || 0), saleProceeds: Number(rc.sale_proceeds || 0), realizedGL: Number(rc.realized_gl || 0) }],
+    }));
     const totalCompanies    = activeCompanies.length > 0
       ? activeCompanies.length
       : portfolio.length > 0 ? portfolio.length : serverCompanyMetrics.length;
 
     return {
       pending, total, totalCompanies, totalMarketValue, investedCapital, grossBuyCapital,
-      unrealizedGL, unrealizedRetPct, totalRealizedGL: 0,
-      totalSaleProceeds: 0, totalCostBasis: 0,
-      totalSharesSold: 0, hasRealized, hasFinancials, hasCostData,
+      unrealizedGL, unrealizedRetPct, totalRealizedGL,
+      totalSaleProceeds, totalCostBasis: totalCostBasisSold,
+      totalSharesSold, hasRealized, hasFinancials, hasCostData,
       companyMetrics: activeCompanies, realizedCompanies,
       totalNetShares, totalBuyTransactionCount: totalBuyTxnCount, avgFirstBuyDays,
     };
-  }, [portfolio, serverCompanyMap, serverTxStats, serverCompanyMetrics]);
+  }, [portfolio, serverCompanyMap, serverTxStats, serverCompanyMetrics, realizedData]);
 
   const cdsUsers = useMemo(() => cdsMembers.map((u) => {
     const name = u.full_name || u.email || "?";
