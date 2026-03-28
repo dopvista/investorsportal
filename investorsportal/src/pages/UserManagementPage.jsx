@@ -275,29 +275,29 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
 
       {(foundButExcluded || queryMatchesExcluded) && !selected && (
         <div style={{ marginTop:6, padding:"9px 11px", borderRadius:9, background:C.greenBg, border:`1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, fontSize:11, color:C.green, display:"flex", alignItems:"center", gap:6 }}>
-          <span>✅</span> Already assigned to this user
+          <Icon name="checkCircle" size={13} stroke={C.green} /> Already assigned to this user
         </div>
       )}
 
       {selected && (
         <div style={{ marginTop:8, padding:"9px 12px", borderRadius:10, background:`${C.green}0d`, border:`1.5px solid ${C.green}30`, display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:16 }}>✅</span>
+          <div style={{ width:28, height:28, borderRadius:7, background:"#D1FAE5", border:"1.5px solid #A7F3D0", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="checkCircle" size={15} stroke="#374151" sw={2.2} /></div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{selected.cds_number}</div>
             <div style={{ fontSize:11, color:C.gray500 }}>{selected.cds_name}</div>
           </div>
-          <button onClick={() => { setSelected(null); setQuery(""); onSelect(null); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.gray400, fontSize:14, padding:2 }}>✕</button>
+          <button onClick={() => { setSelected(null); setQuery(""); onSelect(null); }} style={{ background:"none", border:"none", cursor:"pointer", padding:2, display:"flex", alignItems:"center" }}><Icon name="x" size={14} stroke={C.gray400} sw={2} /></button>
         </div>
       )}
 
       {showCreate && !isAD && !queryMatchesExcluded && query.trim().length > 2 && !selected && (
         <div style={{ marginTop:8, padding:"11px 12px", borderRadius:10, background:createPanelBg, border:`1.5px solid ${createPanelBdr}`, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
           <div style={{ fontSize:11, fontWeight:700, color:createTitleCol, marginBottom:8, display:"flex", alignItems:"center", gap:5 }}>
-            <span>✨</span> Not found — create new CDS record
+            <Icon name="plus" size={12} stroke={createTitleCol} sw={2.5} /> Not found — create new CDS record
           </div>
           {createError && (
             <div style={{ fontSize:11, color:C.red, marginBottom:6, background:C.redBg, padding:"6px 9px", borderRadius:7, border:`1px solid ${isDark ? `${C.red}55` : "#FECACA"}` }}>
-              ⚠️ {createError}
+              <Icon name="alertTriangle" size={12} stroke={C.red} /> {createError}
             </div>
           )}
           <div style={{ display:"flex", gap:6, marginBottom:6 }}>
@@ -399,7 +399,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
           {selected.map(c => (
             <span key={c.cds_number} style={{ display:"inline-flex", alignItems:"center", gap:4, background:`${C.green}12`, border:`1px solid ${C.green}30`, borderRadius:20, padding:"3px 8px", fontSize:11, fontWeight:700, color:C.green }}>
               <Icon name="lock" size={11} /> {c.cds_number}
-              <button onClick={() => toggle(c)} style={{ background:"none", border:"none", cursor:"pointer", color:C.green, fontSize:11, padding:0, lineHeight:1 }}>✕</button>
+              <button onClick={() => toggle(c)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}><Icon name="x" size={11} stroke={C.green} sw={2.2} /></button>
             </span>
           ))}
         </div>
@@ -589,7 +589,7 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
         ) : (
           <div>
             <div style={{ padding:"10px 14px", borderRadius:10, background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, marginBottom:14, fontSize:13, color:C.red }}>
-              ⚠️ <strong>{affectedUsers.length} user{affectedUsers.length>1?"s":""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
+              <Icon name="alertTriangle" size={14} stroke={C.red} /> <strong>{affectedUsers.length} user{affectedUsers.length>1?"s":""}</strong> assigned by this admin also have <strong>{cdsEntry.cds_number}</strong>.
             </div>
             <div style={{ maxHeight:140, overflowY:"auto", marginBottom:14, border:`1px solid ${C.gray200}`, borderRadius:10, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
               {affectedUsers.map((u,i) => (
@@ -640,7 +640,7 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
   }, [sel, showToast, onSave, user.id, onClose]);
 
   return (
-    <Modal title="Change Role" subtitle={`Assigning to ${user.full_name||"user"}`} onClose={onClose} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSave} label="✓ Save Role" loading={saving}/></>}>
+    <Modal title="Change Role" subtitle={`Assigning to ${user.full_name||"user"}`} onClose={onClose} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSave} label="Save Role" loading={saving}/></>}>
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:C.gray50, border:`1px solid ${C.gray200}`, marginBottom:14, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
         <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={34}/>
         <div style={{ flex:1 }}>
@@ -690,7 +690,7 @@ const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onCon
       footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleConfirm} label={deactivating ? "Yes, Deactivate" : "Yes, Reactivate"} color={deactivating ? C.red : C.green} loading={saving}/></>}
     >
       <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
-        <div style={{ fontSize:40, marginBottom:10 }}>{deactivating ? "🚫" : "✅"}</div>
+        <div style={{ width:56, height:56, borderRadius:14, background:deactivating ? "#FEE2E2" : "#D1FAE5", border:`1.5px solid ${deactivating ? "#FECACA" : "#A7F3D0"}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}><Icon name={deactivating ? "ban" : "checkCircle"} size={28} stroke="#374151" sw={2} /></div>
         <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:8 }}>{deactivating ? `Deactivate ${user.full_name}?` : `Reactivate ${user.full_name}?`}</div>
         <div style={{ fontSize:13, color:C.gray500, lineHeight:1.7 }}>
           {deactivating ? "This user will lose access immediately. Their data is preserved and they can be reactivated anytime." : "This user will regain access with their previous role restored."}
@@ -793,7 +793,7 @@ const InviteModal = memo(function InviteModal({ roles, callerRole, callerCdsList
     <Modal title="Invite New User" subtitle="Create an account and assign a role" onClose={onClose} closeOnBackdrop={false} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSubmit} label="Create & Invite" loading={saving}/></>}>
       {error && (
         <div style={{ background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, color:C.red, borderRadius:10, padding:"10px 14px", fontSize:13, marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
-          <span>⚠️</span> {error}
+          <Icon name="alertTriangle" size={14} stroke={C.red} /> {error}
         </div>
       )}
       <Field label="Email Address" required>
@@ -1217,7 +1217,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
   if (error) {
     return (
       <div style={{ background:C.redBg, border:`1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, color:C.red, borderRadius:12, padding:14, fontSize:12 }}>
-        ⚠️ {error}
+        <Icon name="alertTriangle" size={13} stroke={C.red} /> {error}
       </div>
     );
   }
@@ -1259,8 +1259,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
               <StatCard label="Total Users" value={stats.total}       color={C.navy}  icon={<Icon name="users" size={15} />}/>
-              <StatCard label="Active"      value={stats.activeCount} color={C.green} icon="✅"/>
-              <StatCard label="No Role"     value={stats.noRoleCount} color={C.gold}  icon="⚠️"/>
+              <StatCard label="Active"      value={stats.activeCount} color={C.green} icon={<Icon name="checkCircle" size={15} />}/>
+              <StatCard label="No Role"     value={stats.noRoleCount} color={C.gold}  icon={<Icon name="alertTriangle" size={15} />}/>
             </div>
 
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -1299,8 +1299,8 @@ export default function UserManagementPage({ role, showToast, profile }) {
           <>
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
               <StatCard label="Total Users"   value={stats.total}                                          color={C.navy}   icon={<Icon name="users" size={15} />}/>
-              <StatCard label="Active"        value={stats.activeCount}                                    color={C.green}  icon="✅"/>
-              <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon="⚠️"/>
+              <StatCard label="Active"        value={stats.activeCount}                                    color={C.green}  icon={<Icon name="checkCircle" size={15} />}/>
+              <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon={<Icon name="alertTriangle" size={15} />}/>
               <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon={<Icon name="key" size={15} sw={2.2} />}/>
               <StatCard label="Data Entrants" value={users.filter(u=>u.role_code==="DE").length||0}        color="#2563EB"  icon={<Icon name="edit" size={15} sw={2.2} />}/>
               <StatCard label="Verifiers"     value={users.filter(u=>u.role_code==="VR").length||0}        color="#7C3AED"  icon="✔️"/>
@@ -1389,10 +1389,10 @@ export default function UserManagementPage({ role, showToast, profile }) {
                         </button>
                         {user.role_code && (
                           <button onClick={() => setToggleUser(user)}
-                            style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${user.is_active ? (isDark ? `${C.red}55` : "#FECACA") : (isDark ? `${C.green}55` : "#BBF7D0")}`, background:user.is_active ? C.redBg : C.greenBg, color:user.is_active ? C.red : C.green, cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
+                            style={{ padding:"4px 7px", borderRadius:8, border:`1.5px solid ${user.is_active ? "#FECACA" : "#A7F3D0"}`, background:user.is_active ? "#FEE2E2" : "#D1FAE5", color:"#374151", cursor:"pointer", fontFamily:"inherit", display:"flex", flexDirection:"column", alignItems:"center", gap:1, minWidth:36 }}
                             onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
                             onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                            <span style={{ fontSize:13 }}>{user.is_active ? "🚫" : "✅"}</span>
+                            <Icon name={user.is_active ? "ban" : "checkCircle"} size={13} stroke="#374151" sw={2.2} />
                             <span style={{ fontSize:9, fontWeight:700, lineHeight:1 }}>{user.is_active ? "Off" : "On"}</span>
                           </button>
                         )}
