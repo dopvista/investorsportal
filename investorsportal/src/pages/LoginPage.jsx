@@ -83,7 +83,7 @@ const FingerprintIcon = memo(function FingerprintIcon({ size = 40, color = "whit
 // ── FormLabel ─────────────────────────────────────────────────────
 const FormLabel = memo(function FormLabel({ text, isMobile }) {
   return (
-    <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 6 }}>
+    <label style={{ fontSize: isMobile ? 14 : 12, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: isMobile ? 6 : 4 }}>
       {text}
     </label>
   );
@@ -97,8 +97,8 @@ const SubmitBtn = memo(function SubmitBtn({ label, loadingLabel, loading, isMobi
       disabled={loading}
       style={{
         width: "100%",
-        padding: isMobile ? "15px" : "13px",
-        borderRadius: isMobile ? 12 : 10,
+        padding: isMobile ? "15px" : "10px",
+        borderRadius: isMobile ? 12 : 9,
         border: "none",
         background: loading ? C.gray200 : `linear-gradient(135deg, ${C.green} 0%, #00a34c 100%)`,
         color: C.white,
@@ -310,7 +310,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
     border: "1.5px solid rgba(255,255,255,0.15)", outline: "none", fontFamily: "'Inter', sans-serif",
     background: "rgba(255,255,255,0.06)", color: C.white, transition: "border 0.2s", boxSizing: "border-box",
   } : {
-    width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 14,
+    width: "100%", padding: "9px 12px", borderRadius: 9, fontSize: 13,
     border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "'Inter', sans-serif",
     background: "rgba(240,244,248,0.7)", color: C.text, transition: "border 0.2s", boxSizing: "border-box",
   }, [isMobile]);
@@ -422,7 +422,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   // ── Divider ───────────────────────────────────────────────────
   const divider = (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: isMobile ? "18px 0" : "12px 0" }}>
       <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.12)" : C.gray200 }} />
       <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>or</span>
       <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.12)" : C.gray200 }} />
@@ -447,12 +447,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   // ── Form header ─────────────────────────────────────────────────
   const formHeader = (title, subtitle) => (
-    <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 20 }}>
-      <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 56 : 44, height: isMobile ? 56 : 44, borderRadius: 13, objectFit: "cover", marginBottom: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.2)" }} />
-      <div style={{ fontWeight: 800, fontSize: isMobile ? 22 : 16, color: isMobile ? C.white : C.text, letterSpacing: "-0.01em" }}>
+    <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 14 }}>
+      <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 56 : 38, height: isMobile ? 56 : 38, borderRadius: 11, objectFit: "cover", marginBottom: 6, boxShadow: "0 6px 20px rgba(0,0,0,0.2)" }} />
+      <div style={{ fontWeight: 800, fontSize: isMobile ? 22 : 15, color: isMobile ? C.white : C.text, letterSpacing: "-0.01em" }}>
         {title}
       </div>
-      <div style={{ fontSize: isMobile ? 13 : 12, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, marginTop: 4 }}>
+      <div style={{ fontSize: isMobile ? 13 : 11, color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, marginTop: 2 }}>
         {subtitle}
       </div>
     </div>
@@ -467,15 +467,15 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {alerts}
 
       {/* Large biometric button */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 24px" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: isMobile ? "8px 0 24px" : "4px 0 16px" }}>
         <button
           className="lp-bio-btn"
           onClick={handleBiometricLogin}
           disabled={biometricLoading}
           aria-label="Sign in with biometrics"
           style={{
-            width: isMobile ? 96 : 80,
-            height: isMobile ? 96 : 80,
+            width: isMobile ? 96 : 68,
+            height: isMobile ? 96 : 68,
             borderRadius: "50%",
             border: "none",
             background: biometricLoading
@@ -509,11 +509,11 @@ export default function LoginPage({ onLogin, loginSettings }) {
         onClick={() => switchView("email")}
         aria-label="Switch to email and password login"
         style={{
-          width: "100%", padding: isMobile ? "13px" : "11px", borderRadius: isMobile ? 12 : 10,
+          width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9,
           border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`,
           background: "transparent",
           color: isMobile ? "rgba(255,255,255,0.7)" : C.gray500,
-          fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit",
+          fontWeight: 600, fontSize: isMobile ? 14 : 12, cursor: "pointer", fontFamily: "inherit",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           opacity: 0.85, transition: "all 0.2s",
         }}
@@ -523,7 +523,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Footer */}
       {!isMobile && (
-        <div style={{ marginTop: 28, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
+        <div style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${C.gray200}` }}>
           <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
@@ -542,12 +542,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {alerts}
 
       <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: isMobile ? 18 : 14 }}>
           <FormLabel text="Email Address" isMobile={isMobile} />
           <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" onFocus={onFocusGreen} onBlur={onBlurReset} />
         </div>
 
-        <div style={{ marginBottom: 22 }}>
+        <div style={{ marginBottom: isMobile ? 22 : 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
             <button type="button" onClick={() => switchView("reset")}
@@ -589,16 +589,16 @@ export default function LoginPage({ onLogin, loginSettings }) {
             onClick={() => switchView("biometric")}
             aria-label="Switch to biometric login"
             style={{
-              width: "100%", padding: isMobile ? "13px" : "11px", borderRadius: isMobile ? 12 : 10,
+              width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9,
               border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`,
               background: "transparent",
               color: isMobile ? "rgba(255,255,255,0.7)" : C.gray500,
-              fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit",
+              fontWeight: 600, fontSize: isMobile ? 14 : 12, cursor: "pointer", fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               opacity: 0.85, transition: "all 0.2s",
             }}
           >
-            <FingerprintIcon size={16} color={isMobile ? "rgba(255,255,255,0.6)" : C.gray500} />
+            <FingerprintIcon size={14} color={isMobile ? "rgba(255,255,255,0.6)" : C.gray500} />
             Sign in with biometrics
           </button>
         </>
@@ -616,7 +616,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Footer */}
       {!isMobile && (
-        <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.gray200}` }}>
           <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
@@ -642,17 +642,17 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {alerts}
 
       <form onSubmit={handleReset}>
-        <div style={{ marginBottom: 22 }}>
+        <div style={{ marginBottom: isMobile ? 22 : 14 }}>
           <FormLabel text="Email Address" isMobile={isMobile} />
           <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" onFocus={onFocusGreen} onBlur={onBlurReset} />
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: isMobile ? 14 : 10 }}>
           <SubmitBtn label="Send Reset Email" loadingLabel="Sending..." loading={loading} isMobile={isMobile} />
         </div>
 
         <button type="button" onClick={() => switchView(hasStoredPasskey ? "biometric" : "email")}
-          style={{ width: "100%", padding: isMobile ? "13px" : "11px", borderRadius: isMobile ? 12 : 10, border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.6)" : C.gray400, fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
+          style={{ width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9, border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.6)" : C.gray400, fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.3)" : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.12)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.6)" : C.gray400; }}>
           &larr; Back to Sign In
@@ -661,7 +661,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Footer */}
       {!isMobile && (
-        <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.gray200}` }}>
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.gray200}` }}>
           <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
