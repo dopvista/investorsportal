@@ -602,19 +602,44 @@ export async function sbSearchCdsAccounts(query = "") {
 // ── TRANSACTIONS
 // ══════════════════════════════════════════════════════════════════
 
-export async function sbGetTransactions() {
-  const rows = await _fetchGET(
-    `${BASE}/rest/v1/transactions?order=date.desc,created_at.desc`,
+export async function sbGetTransactions(cdsNumber, opts = {}) {
+  const {
+    page = 1, pageSize = 50,
+    status, type, companyId, search,
+    dateFrom, dateTo,
+    sortCol = "date", sortDir = "desc",
+  } = opts;
+
+  // Use optimized server-side paginated RPC
+  const body = {
+    p_cds_number: cdsNumber,
+    p_page: page,
+    p_page_size: pageSize,
+    ...(status    ? { p_status: status } : {}),
+    ...(type      ? { p_type: type } : {}),
+    ...(companyId ? { p_company_id: companyId } : {}),
+    ...(search    ? { p_search: search } : {}),
+    ...(dateFrom  ? { p_date_from: dateFrom } : {}),
+    ...(dateTo    ? { p_date_to: dateTo } : {}),
+    ...(sortCol   ? { p_sort_col: sortCol } : {}),
+    ...(sortDir   ? { p_sort_dir: sortDir } : {}),
+  };
+
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_transactions`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify(body) },
     "Failed to fetch transactions"
   );
-  if (!rows.length) return rows;
-  const nameMap = await resolveUserNames([
-    ...rows.map((t) => t.created_by),
-    ...rows.map((t) => t.confirmed_by),
-    ...rows.map((t) => t.verified_by),
-    ...rows.map((t) => t.rejected_by),
-  ]);
-  return rows.map((t) => _attachNames(t, nameMap));
+  const envelope = await res.json();
+
+  // envelope = { rows: [...], total, page, page_size, total_pages }
+  return {
+    rows:       envelope.rows || [],
+    total:      envelope.total || 0,
+    page:       envelope.page || 1,
+    pageSize:   envelope.page_size || pageSize,
+    totalPages: envelope.total_pages || 1,
+  };
 }
 
 export async function sbGetTransactionsByIds(ids) {

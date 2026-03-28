@@ -826,11 +826,23 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const [loadingBrokers, setLoadingBrokers]           = useState(true);
   const [pageError, setPageError]                     = useState(null);
 
+  const [searchInput, setSearchInput]   = useState("");
   const [search, setSearch]             = useState("");
   const [typeFilter, setTypeFilter]     = useState("All");
   const [statusFilter, setStatusFilter] = useState(defaultStatus);
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(50);
+
+  // Debounce search input — waits 400ms after typing stops before triggering server query
+  const searchTimerRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(searchTimerRef.current);
+  }, [searchInput]);
   const [selected, setSelected]         = useState(new Set());
 
   const [pullDistance, setPullDistance] = useState(0);
@@ -858,14 +870,26 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     [companies, localCompanies]
   );
 
+  // Server-side pagination state
+  const [serverTotal, setServerTotal]       = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+
   // ── Individual loaders (kept as callbacks for pull-to-refresh) ───
   const loadTransactions = useCallback(async ({ fromPull = false } = {}) => {
+    if (!cdsNumber) return;
     const requestId = ++txLoadRef.current;
     if (!fromPull && isMountedRef.current) { setLoadingTransactions(true); setPageError(null); }
     try {
-      const data = await sbGetTransactions();
+      const envelope = await sbGetTransactions(cdsNumber, {
+        page, pageSize,
+        status: statusFilter !== "All" ? statusFilter : undefined,
+        type: typeFilter !== "All" ? typeFilter : undefined,
+        search: search.trim() || undefined,
+      });
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
-      setTransactions(data);
+      setTransactions(envelope.rows);
+      setServerTotal(envelope.total);
+      setServerTotalPages(envelope.totalPages);
       setPageError(null);
     } catch (e) {
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
@@ -877,7 +901,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
         if (fromPull) { setRefreshing(false); setPullDistance(0); }
       }
     }
-  }, [setTransactions, showToast]);
+  }, [cdsNumber, page, pageSize, statusFilter, typeFilter, search, setTransactions, showToast]);
 
   const loadCompanies = useCallback(async () => {
     const requestId = ++companyLoadRef.current;
@@ -930,6 +954,16 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { isMountedRef.current = false; };
   }, []); // intentionally run once on mount
+
+  // Re-fetch when server-side filters, page, or pageSize change
+  const prevParamsRef = useRef("");
+  useEffect(() => {
+    const key = `${cdsNumber}|${page}|${pageSize}|${statusFilter}|${typeFilter}|${search}`;
+    if (prevParamsRef.current && prevParamsRef.current !== key) {
+      loadTransactions();
+    }
+    prevParamsRef.current = key;
+  }, [cdsNumber, page, pageSize, statusFilter, typeFilter, search, loadTransactions]);
 
   // When parent passes companies directly, skip local load
   useEffect(() => {
@@ -984,12 +1018,9 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const isAnyDeleting    = !!deletingId || bulkDeletingIds.size > 0;
   const hasSelection     = selected.size > 0;
 
-  const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
-  const myTransactions = useMemo(
-    () => (cdsNumber ? transactions.filter(t => t.cds_number === cdsNumber) : transactions),
-    [transactions, cdsNumber]
-  );
+  // With server-side pagination, transactions are already filtered to the current CDS + page
+  const myTransactions = transactions;
 
   const txById      = useMemo(() => new Map(myTransactions.map(t => [t.id, t])), [myTransactions]);
   const companyById = useMemo(() => new Map(effectiveCompanies.map(c => [c.id, c])), [effectiveCompanies]);
@@ -1011,42 +1042,14 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     return { total, buys, sells, totalBuyVal, totalSellVal, totalBuyGrand, totalSellGrand, pending, confirmed, verified, rejected };
   }, [myTransactions]);
 
-  const filtered = useMemo(() => {
-    let list = myTransactions;
-    if (typeFilter !== "All")   list = list.filter(t => t.type === typeFilter);
-    if (statusFilter !== "All") list = list.filter(t => t.status === statusFilter);
-    if (normalizedSearch) {
-      list = list.filter(t => {
-        const dateObj    = t.date ? new Date(t.date + "T00:00:00") : null;
-        const monthName  = dateObj ? dateObj.toLocaleDateString("en-GB", { month: "long" }).toLowerCase()  : "";
-        const monthShort = dateObj ? dateObj.toLocaleDateString("en-GB", { month: "short" }).toLowerCase() : "";
-        const yearStr    = dateObj ? String(dateObj.getFullYear()) : "";
-        const matchDate  = monthName.includes(normalizedSearch) || monthShort.includes(normalizedSearch)
-          || (yearStr && normalizedSearch.length >= 4 && yearStr.includes(normalizedSearch));
-        return matchDate
-          || t.date?.includes(normalizedSearch)
-          || t.company_name?.toLowerCase().includes(normalizedSearch)
-          || t.type?.toLowerCase().includes(normalizedSearch)
-          || t.broker_name?.toLowerCase().includes(normalizedSearch)
-          || t.status?.toLowerCase().includes(normalizedSearch)
-          || t.remarks?.toLowerCase().includes(normalizedSearch);
-      });
-    }
-    return list.slice().sort((a, b) => {
-      const aActive = a.status === "pending" || a.status === "confirmed" || a.status === "rejected";
-      const bActive = b.status === "pending" || b.status === "confirmed" || b.status === "rejected";
-      if (aActive !== bActive) return aActive ? -1 : 1;
-      const da = a.date || "", db = b.date || "";
-      return db > da ? 1 : db < da ? -1 : 0;
-    });
-  }, [myTransactions, typeFilter, statusFilter, normalizedSearch]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage   = useMemo(() => Math.min(page, totalPages), [page, totalPages]);
-  const paginated  = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
+  // Server-side filtering — transactions already filtered/paginated by RPC
+  const filtered  = myTransactions;
+  const totalPages = serverTotalPages;
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered;
 
   const resetPage    = useCallback(() => setPage(1), []);
-  const resetFilters = useCallback(() => { setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
+  const resetFilters = useCallback(() => { setSearchInput(""); setSearch(""); setTypeFilter("All"); setStatusFilter(defaultStatus); setPage(1); }, []);
 
   const totals = useMemo(() => {
     let buyAmt = 0, sellAmt = 0, buyFees = 0, sellFees = 0;
@@ -1480,7 +1483,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}><Icon name="search" size={14} /></span>
-                  <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, date, status..." {...mobileInputAttrs}
+                  <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search company, date, status..." {...mobileInputAttrs}
                     style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
                     onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
                 </div>
@@ -1492,7 +1495,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             ) : (
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400, pointerEvents: "none" }}><Icon name="search" size={14} /></span>
-                <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }} placeholder="Search company, date, status..." {...mobileInputAttrs}
+                <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search company, date, status..." {...mobileInputAttrs}
                   style={{ width: "100%", height: 40, borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, paddingLeft: 34, fontSize: 13, outline: "none", color: C.text, boxSizing: "border-box" }}
                   onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
               </div>
@@ -1506,7 +1509,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
               <div style={{ flex: 1, minWidth: 220, maxWidth: 360, position: "relative" }}>
                 <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}><Icon name="search" size={14} stroke={C.gray500} /></span>
-                <input value={search} onChange={e => { setSearch(e.target.value); resetPage(); }}
+                <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
                   placeholder="Search company, date, month, type, broker, status, remarks..."
                   style={TOOLBAR_INPUT}
                   onFocus={e => { e.target.style.borderColor = C.green; e.target.style.background = C.white; }}
@@ -1550,7 +1553,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
         {/* ── Content area ── */}
         <div style={{ flex: isMobile ? "unset" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
-          <SectionCard title={`Transaction History (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}>
+          <SectionCard title={`Transaction History (${serverTotal})`}>
             {loadingTransactions ? (
               <div style={{ textAlign: "center", padding: "60px 20px", color: C.gray400 }}>
                 <div style={{ width: 28, height: 28, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
@@ -1569,7 +1572,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                 <div style={{ fontWeight: 600, marginBottom: 4, color: C.text }}>No transactions yet</div>
                 <div style={{ fontSize: 13 }}>{isDE ? 'Tap "Record" to add your first buy or sell' : "Transactions will appear here once created"}</div>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : serverTotal === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}><Icon name="search" size={32} /></div>
                 <div style={{ fontWeight: 600, color: C.text }}>No results found</div>
@@ -1589,7 +1592,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     />
                   ))}
                 </div>
-                <MobilePagination page={safePage} totalPages={totalPages} setPage={setPage} filtered={filtered.length} pageSize={pageSize} />
+                <MobilePagination page={safePage} totalPages={totalPages} setPage={setPage} filtered={serverTotal} pageSize={pageSize} />
               </>
             ) : (
               <>
@@ -1641,11 +1644,11 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                         />
                       ))}
                     </tbody>
-                    {filtered.length > 1 && (
+                    {paginated.length > 1 && (
                       <tfoot>
                         <tr style={{ background: C.gray50, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
                           <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
+                            TOTALS ({paginated.length} rows on this page)
                           </td>
                           <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }} title={fmt(totals.fees)}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{fmt(totals.fees)}</div>
@@ -1660,7 +1663,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                     )}
                   </table>
                 </div>
-                <Pagination page={safePage} totalPages={totalPages} pageSize={pageSize} setPage={setPage} setPageSize={setPageSize} total={stats.total} filtered={filtered.length} />
+                <Pagination page={safePage} totalPages={totalPages} pageSize={pageSize} setPage={setPage} setPageSize={setPageSize} total={serverTotal} filtered={serverTotal} />
               </>
             )}
           </SectionCard>
