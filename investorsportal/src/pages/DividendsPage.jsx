@@ -281,6 +281,8 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     ["Withholding Tax",  `TZS ${fmt(tax)}`, C.red],
   ];
 
+  const auditIconColor = isDark ? undefined : "#374151";
+
   const renderLeftPanel = () => (
     <div style={{ padding: "14px 20px" }}>
       {renderSectionTitle("Dividend Details")}
@@ -299,11 +301,46 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
         </div>
       </div>
       <div style={{ padding: "14px 20px" }}>
-        {renderSectionTitle("Record Info")}
-        {renderKVRows([
-          ["Recorded", fmtDateTime(dividend.created_at) || "\u2014"],
-          ["Recorded By", dividend.created_by_name || "\u2014"],
-        ])}
+        {renderSectionTitle("Audit trail")}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Recorded step */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.gray100, border: `1px solid ${C.gray600}22` }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.gray600}20`, border: `1.5px solid ${C.gray600}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="fileText" size={11} stroke={auditIconColor} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.gray600 }}>Recorded</div>
+              <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.created_at) || "—"}</div>
+            </div>
+            {dividend.created_by_name && (
+              <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.created_by_name}</span>
+            )}
+          </div>
+          {/* Paid step (if paid) */}
+          {dividend.status === "paid" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.greenBg, border: `1px solid ${C.green}22` }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.green}20`, border: `1.5px solid ${C.green}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="checkCircle" size={11} stroke={auditIconColor} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Paid</div>
+                <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.updated_at) || fmtDateTime(dividend.payment_date) || "—"}</div>
+              </div>
+            </div>
+          )}
+          {/* Awaiting steps (if not paid) */}
+          {dividend.status !== "paid" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: "transparent", border: `1px solid ${C.gray100}`, opacity: 0.45 }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.gray100, border: `1.5px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="checkCircle" size={11} stroke={C.gray400} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.gray400 }}>Paid</div>
+                <div style={{ fontSize: 10, color: C.gray400 }}>Awaiting</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
