@@ -693,35 +693,32 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   // Server-side metrics — no need to iterate 1M transactions client-side
   const serverCompanyMetrics = dashMetrics?.company_metrics || [];
   const serverTxStats = dashMetrics?.transaction_stats || {};
-  const serverCompanyMap = useMemo(() => {
-    const m = new Map();
-    for (const cm of serverCompanyMetrics) m.set(cm.company_id, cm);
-    return m;
-  }, [serverCompanyMetrics]);
 
   const metrics = useMemo(() => {
+    // ── Transaction stats (from server) ──
     const total          = Number(serverTxStats.total || 0);
+    const buys           = Number(serverTxStats.buys || 0);
+    const sells          = Number(serverTxStats.sells || 0);
     const pending        = Number(serverTxStats.pending || 0) + Number(serverTxStats.confirmed || 0);
     const grossBuyCapital = Number(serverTxStats.total_buy_grand || 0);
     const hasCostData    = grossBuyCapital > 0;
 
+    // ── Company metrics (directly from server, NOT from portfolio) ──
     let totalMarketValue   = 0;
     let totalCurrentCost   = 0;
     let totalBuyTxnCount   = 0;
     let firstBuyDaysNumerator = 0;
     let firstBuySharesDenominator = 0;
 
-    // Build company metrics from server-side aggregates
-    const companyMetricsRaw = portfolio.map((company, idx) => {
-      const color = CHART_COLORS[idx % CHART_COLORS.length];
-      const scm   = serverCompanyMap.get(company.id);
-
-      const netShares      = Number(scm?.net_shares || 0);
-      const costBasis      = Number(scm?.cost_basis || 0);
-      const sellProceeds   = Number(scm?.sell_proceeds || 0);
-      const currentPrice   = Number(scm?.current_price || company.cds_price || 0);
-      const buyCount       = Number(scm?.buy_count || 0);
-      const firstBuyDate   = scm?.first_buy_date || null;
+    // Use serverCompanyMetrics directly — already filtered to net_shares > 0
+    const activeCompanies = serverCompanyMetrics.map((scm, idx) => {
+      const netShares    = Number(scm.net_shares || 0);
+      const costBasis    = Number(scm.cost_basis || 0);
+      const sellProceeds = Number(scm.sell_proceeds || 0);
+      const currentPrice = Number(scm.current_price || 0);
+      const buyCount     = Number(scm.buy_count || 0);
+      const firstBuyDate = scm.first_buy_date || null;
+      const color        = CHART_COLORS[idx % CHART_COLORS.length];
 
       const marketValue      = netShares > 0 && currentPrice > 0 ? netShares * currentPrice : 0;
       const openPositionCost = costBasis;
@@ -737,41 +734,44 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         firstBuySharesDenominator += netShares;
       }
 
+      // Find matching portfolio entry for previous price
+      const portCo = portfolio.find(p => p.id === scm.company_id);
+
       return {
-        id: company.id, name: company.name, color,
+        id: scm.company_id, name: scm.company_name, color,
         netShares, avgCost: netShares > 0 ? costBasis / netShares : 0, currentPrice,
         marketValue, openPositionCost, unrealizedGL, unrealizedRetPct,
         firstBuyDays, buyTransactionCount: buyCount,
         hasAnomaly: netShares < 0,
         realizedTrades: [], realizedGL: 0, totalSaleProceeds: sellProceeds, totalCostBasis: 0, totalSharesSold: 0,
-        prevPrice: Number(company.cds_previous_price || 0),
+        prevPrice: Number(portCo?.cds_previous_price || 0),
+        weight: 0, costWeight: 0,
       };
     });
 
-    const activeCompanies = [];
-    for (const c of companyMetricsRaw) {
-      if (c.netShares <= 0 && c.marketValue <= 0) continue;
-      activeCompanies.push({
-        ...c,
-        weight:     totalMarketValue  > 0 ? (c.marketValue      / totalMarketValue)  * 100 : 0,
-        costWeight: totalCurrentCost  > 0 ? (c.openPositionCost / totalCurrentCost)  * 100 : 0,
-      });
+    // Compute weights after totals are known
+    for (const c of activeCompanies) {
+      c.weight     = totalMarketValue > 0 ? (c.marketValue / totalMarketValue) * 100 : 0;
+      c.costWeight = totalCurrentCost > 0 ? (c.openPositionCost / totalCurrentCost) * 100 : 0;
     }
     activeCompanies.sort((a, b) => b.marketValue - a.marketValue);
 
+    // ── Derived totals ──
     const unrealizedGL     = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
     const hasFinancials    = activeCompanies.some((c) => c.currentPrice > 0 && c.netShares > 0);
+    const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
+    const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
+    const avgFirstBuyDays  = firstBuySharesDenominator > 0
+      ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
+
+    // ── Realized G/L (from FIFO server RPC) ──
     const totalRealizedGL    = Number(realizedData?.total_realized_gl || 0);
     const totalSaleProceeds  = Number(realizedData?.total_sale_proceeds || 0);
     const totalCostBasisSold = Number(realizedData?.total_cost_basis || 0);
     const totalSharesSold    = Number(realizedData?.total_shares_sold || 0);
     const hasRealized        = totalSharesSold > 0;
-    const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
-    const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
-    const avgFirstBuyDays  = firstBuySharesDenominator > 0
-      ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
-    const realizedCompanies = (realizedData?.companies || []).map((rc, i) => ({
+    const realizedCompanies  = (realizedData?.companies || []).map((rc, i) => ({
       id: rc.company_id, name: rc.company_name,
       color: CHART_COLORS[i % CHART_COLORS.length],
       totalSharesSold: Number(rc.shares_sold || 0),
@@ -780,19 +780,18 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       realizedGL: Number(rc.realized_gl || 0),
       realizedTrades: [{ soldShares: Number(rc.shares_sold || 0), costBasis: Number(rc.cost_basis || 0), saleProceeds: Number(rc.sale_proceeds || 0), realizedGL: Number(rc.realized_gl || 0) }],
     }));
-    const totalCompanies    = activeCompanies.length > 0
-      ? activeCompanies.length
-      : portfolio.length > 0 ? portfolio.length : serverCompanyMetrics.length;
+
+    const totalCompanies = activeCompanies.length;
 
     return {
-      pending, total, totalCompanies, totalMarketValue, investedCapital, grossBuyCapital,
+      pending, total, buys, sells, totalCompanies, totalMarketValue, investedCapital, grossBuyCapital,
       unrealizedGL, unrealizedRetPct, totalRealizedGL,
       totalSaleProceeds, totalCostBasis: totalCostBasisSold,
       totalSharesSold, hasRealized, hasFinancials, hasCostData,
       companyMetrics: activeCompanies, realizedCompanies,
       totalNetShares, totalBuyTransactionCount: totalBuyTxnCount, avgFirstBuyDays,
     };
-  }, [portfolio, serverCompanyMap, serverTxStats, serverCompanyMetrics, realizedData]);
+  }, [serverCompanyMetrics, serverTxStats, realizedData, portfolio]);
 
   const cdsUsers = useMemo(() => cdsMembers.map((u) => {
     const name = u.full_name || u.email || "?";
