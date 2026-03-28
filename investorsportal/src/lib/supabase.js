@@ -1174,6 +1174,7 @@ export async function sbDeleteDividend(id) {
 export async function sbUpdateDividendStatus(id, status) {
   const body = { status };
   if (status === "paid") { body.paid_by = getSession()?.user?.id || null; body.paid_at = new Date().toISOString(); }
+  else { body.paid_by = null; body.paid_at = null; }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=eq.${id}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },

@@ -220,8 +220,9 @@ function getDivPermissions({ dividend, isDE, isSAAD }) {
   const isPaid = dividend.status === "paid";
   return {
     canEdit: (isSAAD || isDE) && !isPaid,
-    canDelete: isSAAD || (isDE && isDeclared),
+    canDelete: (isSAAD || (isDE && isDeclared)) && !isPaid,
     canMarkPaid: (isSAAD || isDE) && !isPaid,
+    canUnpay: isSAAD && isPaid,
     isDeclared, isExDate, isPaid,
   };
 }
@@ -412,7 +413,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
 
 // ── Dividend Mobile Card ──────────────────────────────────────────
 const DividendMobileCard = memo(function DividendMobileCard({
-  dividend, onEdit, onOpenDeleteModal, onMarkPaid,
+  dividend, onEdit, onOpenDeleteModal, onMarkPaid, onUnpay,
   deletingId, bulkDeletingIds, markingPaidIds,
   isDE, isSAAD, showActions, onOpenDetail,
 }) {
@@ -427,10 +428,11 @@ const DividendMobileCard = memo(function DividendMobileCard({
   const isRowBusy        = isRowDeleting || isRowMarkingPaid;
 
   const rowActions = useMemo(() => [
+    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,     label: "Revert to Declared", disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
     ...(perms.canMarkPaid ? [{ icon: <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid", disabled: isRowBusy, onClick: () => onMarkPaid(dividend.id) }] : []),
     ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,        label: "Edit",           disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
     ...(perms.canDelete   ? [{ icon: <Icon name="trash" size={14} />,       label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
-  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onMarkPaid, onEdit, onOpenDeleteModal]);
+  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onUnpay, onMarkPaid, onEdit, onOpenDeleteModal]);
 
   const cardBg  = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : C.white;
   const cardBdr = perms.isPaid ? (isDark ? `${C.green}55` : "#BBF7D0") : C.gray200;
@@ -471,7 +473,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
 // ── Dividend Row ──────────────────────────────────────────────────
 const DividendRow = memo(function DividendRow({
   dividend, globalIdx, selected, onToggleOne,
-  onEdit, onOpenDeleteModal, onMarkPaid,
+  onEdit, onOpenDeleteModal, onMarkPaid, onUnpay,
   deletingId, bulkDeletingIds, markingPaidIds,
   isDE, isSAAD, showCheckbox, showActions, onOpenDetail,
 }) {
@@ -490,10 +492,11 @@ const DividendRow = memo(function DividendRow({
   const isRowBusy        = isRowDeleting || isRowMarkingPaid;
 
   const rowActions = useMemo(() => [
+    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,    label: "Revert to Declared", disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
     ...(perms.canMarkPaid ? [{ icon: isRowMarkingPaid ? null : <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid", disabled: isRowBusy, onClick: () => onMarkPaid(dividend.id) }] : []),
     ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,  label: "Edit",   disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
     ...(perms.canDelete   ? [{ icon: isRowDeleting ? null : <Icon name="trash" size={14} />, label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
-  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onMarkPaid, onEdit, onOpenDeleteModal]);
+  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onUnpay, onMarkPaid, onEdit, onOpenDeleteModal]);
 
   const rowBg      = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : "transparent";
   const rowBgHover = perms.isPaid ? (isDark ? `${C.green}1c` : "#F0FDF4") : C.gray50;
@@ -914,6 +917,21 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     }
   }, [bulkMarkPaidModal, showToast, loadDividends]);
 
+  const handleUnpay = useCallback(async (id) => {
+    setMarkingPaidIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    try {
+      await sbUpdateDividendStatus(id, "declared");
+      if (!isMountedRef.current) return;
+      setDividends(p => p.map(d => d.id === id ? { ...d, status: "declared", paid_by: null, paid_at: null, paid_by_name: null } : d));
+      showToast("Dividend reverted to Declared.", "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setMarkingPaidIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, [showToast]);
+
   const handleEdit = useCallback((dividend) => {
     openFormModal(dividend);
   }, [openFormModal]);
@@ -1123,7 +1141,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                 <div style={{ padding: "8px 12px" }}>
                   {paginated.map(dividend => (
                     <DividendMobileCard key={dividend.id} dividend={dividend}
-                      onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid}
+                      onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid} onUnpay={handleUnpay}
                       deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds}
                       isDE={isDE} isSAAD={isSAAD} showActions={showActions} onOpenDetail={setDetailModal}
                     />
@@ -1172,7 +1190,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                         <DividendRow key={dividend.id} dividend={dividend}
                           globalIdx={(safePage - 1) * pageSize + i + 1}
                           selected={selected} onToggleOne={toggleOne}
-                          onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid}
+                          onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid} onUnpay={handleUnpay}
                           deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds}
                           isDE={isDE} isSAAD={isSAAD}
                           showCheckbox={showCheckbox} showActions={showActions} onOpenDetail={setDetailModal}
