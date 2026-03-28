@@ -868,6 +868,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const onToggleCompanies  = useCallback(() => toggleExpand("companies"), [toggleExpand]);
   const onToggleUsers      = useCallback(() => toggleExpand("users"),     [toggleExpand]);
   const onNavTransactions  = useCallback(() => onNavigate("transactions"),    [onNavigate]);
+  const onToggleDividends  = useCallback(() => toggleExpand("dividends"),      [toggleExpand]);
   const onNavDividends     = useCallback(() => onNavigate("dividends"),       [onNavigate]);
   const onNavUserMgmt      = useCallback(() => onNavigate("user-management"), [onNavigate]);
   const onCloseExpand      = useCallback(() => setExpanded(null), []);
@@ -1328,7 +1329,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 display: "grid",
                 gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
                 gap: 14,
-                marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users") ? 14 : 20,
+                marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users" || expanded === "dividends") ? 14 : 20,
               }}
             >
               <SnapCard
@@ -1458,7 +1459,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Lower stat cards */}
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14,
-              marginBottom: (expanded === "companies" || expanded === "users") ? 14 : 22,
+              marginBottom: (expanded === "companies" || expanded === "users" || expanded === "dividends") ? 14 : 22,
             }}>
               <StatCard icon={<Icon name="building" size={19} stroke="#3b6fc4" sw={2.2} />} label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
@@ -1470,7 +1471,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 value={loading ? "—" : `TZS ${Number(dividendSummary?.ytd_net || 0).toLocaleString()}`}
                 subLabel={dividendSummary ? `${dividendSummary.dividend_count || 0} from ${dividendSummary.company_count || 0} co.` : "YTD net"}
                 accent="#7c3aed" accentBg="#7c3aed"
-                onClick={onNavDividends} navigates loading={loading}
+                onClick={onToggleDividends} active={expanded === "dividends"} loading={loading}
               />
               <StatCard icon={<Icon name="users" size={19} stroke="#2563eb" sw={2.2} />} label="Total Users"
                 value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
@@ -1634,6 +1635,73 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </ExpandPanel>
             )}
 
+            {/* Dividends expand panel */}
+            {expanded === "dividends" && (
+              <ExpandPanel title={<><Icon name="dollarSign" size={14} /> Top 5 Dividends by Company</>} accentColor="#7c3aed" onClose={onCloseExpand}>
+                {loading ? <Spinner /> : dividendByCompany.length === 0 ? <Empty msg="No dividends recorded yet." /> : (
+                  <>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <colgroup>
+                          <col style={{ width: "22%" }} /><col style={{ width: "10%" }} />
+                          <col style={{ width: "15%" }} /><col style={{ width: "15%" }} />
+                          <col style={{ width: "15%" }} /><col style={{ width: "10%" }} />
+                          <col style={{ width: "13%" }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <Th>Company</Th>
+                            <Th right>Dividends</Th>
+                            <Th right>Gross Amount</Th>
+                            <Th right>Tax Withheld</Th>
+                            <Th right>Net Income</Th>
+                            <Th right>Avg DPS</Th>
+                            <Th right>Last Payment</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dividendByCompany.map((d, i) => (
+                            <tr key={d.company_id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
+                              <Td bold>{d.company_name}</Td>
+                              <Td right>{d.dividend_count}</Td>
+                              <Td right>{fmt(d.total_gross)}</Td>
+                              <Td right color={Number(d.total_tax) > 0 ? C.red : C.gray400}>{Number(d.total_tax) > 0 ? fmt(d.total_tax) : "—"}</Td>
+                              <Td right bold color={C.green}>{fmt(d.total_net)}</Td>
+                              <Td right>{fmt(d.avg_dps)}</Td>
+                              <Td right color={C.gray500} small>{d.last_payment_date ? new Date(d.last_payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        {dividendByCompany.length > 1 && (
+                          <tfoot>
+                            <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
+                              <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
+                              <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{dividendByCompany.reduce((s, d) => s + Number(d.dividend_count), 0)}</td>
+                              <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_gross), 0))}</td>
+                              <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.red, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_tax), 0))}</td>
+                              <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.green, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_net), 0))}</td>
+                              <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
+                              <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={onNavDividends}
+                        style={{ background: "none", border: "1.5px solid #7c3aed", color: "#7c3aed", borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#7c3aed"; e.currentTarget.style.color = "#ffffff"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#7c3aed"; }}
+                      >
+                        Go to Dividends →
+                      </button>
+                    </div>
+                  </>
+                )}
+              </ExpandPanel>
+            )}
+
             {/* Top 5 Holdings table */}
             <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden" }}>
               <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1741,64 +1809,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               )}
             </div>
 
-            {/* Top 5 Dividends by Company table */}
-            {dividendByCompany.length > 0 && (
-              <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", marginTop: 22 }}>
-                <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}`, background: C.gray50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: C.text, display: "flex", alignItems: "center", gap: 8 }}><IconBadge name="dollarSign" color="#7c3aed" size={28} radius={7} isDark={isDark} /> Top 5 Dividends by Company</div>
-                  <div style={{ fontSize: 11, color: C.gray400 }}>
-                    {dividendByCompany.length} compan{dividendByCompany.length !== 1 ? "ies" : "y"} · net {fmtShort(dividendByCompany.reduce((s, d) => s + Number(d.total_net || 0), 0))}
-                  </div>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <colgroup>
-                      <col style={{ width: "22%" }} /><col style={{ width: "10%" }} />
-                      <col style={{ width: "15%" }} /><col style={{ width: "15%" }} />
-                      <col style={{ width: "15%" }} /><col style={{ width: "10%" }} />
-                      <col style={{ width: "13%" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <Th>Company</Th>
-                        <Th right>Dividends</Th>
-                        <Th right>Gross Amount</Th>
-                        <Th right>Tax Withheld</Th>
-                        <Th right>Net Income</Th>
-                        <Th right>Avg DPS</Th>
-                        <Th right>Last Payment</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dividendByCompany.map((d, i) => (
-                        <tr key={d.company_id} style={{ borderBottom: `1px solid ${C.gray100}`, background: i % 2 ? `${C.gray50}60` : "transparent" }}>
-                          <Td bold>{d.company_name}</Td>
-                          <Td right>{d.dividend_count}</Td>
-                          <Td right>{fmt(d.total_gross)}</Td>
-                          <Td right color={Number(d.total_tax) > 0 ? C.red : C.gray400}>{Number(d.total_tax) > 0 ? fmt(d.total_tax) : "—"}</Td>
-                          <Td right bold color={C.green}>{fmt(d.total_net)}</Td>
-                          <Td right>{fmt(d.avg_dps)}</Td>
-                          <Td right color={C.gray500} small>{d.last_payment_date ? new Date(d.last_payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    {dividendByCompany.length > 1 && (
-                      <tfoot>
-                        <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>TOTAL</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{dividendByCompany.reduce((s, d) => s + Number(d.dividend_count), 0)}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_gross), 0))}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.red, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_tax), 0))}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.green, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_net), 0))}</td>
-                          <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
-                          <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
