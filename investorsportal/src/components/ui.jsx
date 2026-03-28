@@ -1354,8 +1354,12 @@ export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
 export function DividendHistoryModal({ companyName, dividends, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   const totalNet = useMemo(() => dividends.reduce((s, d) => s + Number(d.net_amount || d.total_amount || 0), 0), [dividends]);
-  const totalGross = useMemo(() => dividends.reduce((s, d) => s + Number(d.total_amount || 0), 0), [dividends]);
+  const totalPages = Math.ceil(dividends.length / PAGE_SIZE);
+  const paged = dividends.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const sc = (status) => ({
     declared:       { bg: isDark ? "rgba(251,191,36,0.15)" : "#FEF3C7", color: isDark ? "#fbbf24" : "#92400e", label: "Declared" },
@@ -1371,18 +1375,49 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
     ? ["#", "Payment Date", "Per Share", "Shares", "Net Amt", "Status"]
     : ["#", "Payment Date", "Per Share", "Shares", "Gross Amt", "Tax", "Net Amt", "Status"];
 
+  const btnStyle = (disabled, active) => ({
+    padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${active ? C.navy : C.gray200}`,
+    background: active ? C.navy : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.text,
+    cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit", minWidth: 28,
+  });
+
+  const PaginationBar = () => totalPages <= 1 ? null : (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "center" : "space-between", gap: isMobile ? 8 : 10, padding: "8px 0 0", marginTop: 2, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+      {!isMobile && <div style={{ fontSize: 12, color: C.gray400, whiteSpace: "nowrap" }}>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, dividends.length)} of {dividends.length}</div>}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, flex: isMobile ? "0 0 auto" : 1, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+        <button onClick={() => setPage(1)} disabled={page === 1} style={btnStyle(page === 1, false)}>«</button>
+        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={btnStyle(page === 1, false)}>‹ Prev</button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+          .reduce((acc, p, i, arr) => { if (i > 0 && arr[i - 1] !== p - 1) acc.push("..."); acc.push(p); return acc; }, [])
+          .map((p, i) => p === "..." ? <span key={`dots-${i}`} style={{ fontSize: 12, color: C.gray400, padding: "0 1px" }}>…</span> : (
+            <button key={p} onClick={() => setPage(p)} style={btnStyle(false, p === page)}>{p}</button>
+          ))}
+        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={btnStyle(page === totalPages, false)}>Next ›</button>
+        <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={btnStyle(page === totalPages, false)}>»</button>
+      </div>
+    </div>
+  );
+
   return (
     <ModalShell
       title={companyName}
       subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={13} /> Dividend history</span>}
+      headerRight={
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {dividends.length} dividend{dividends.length !== 1 ? "s" : ""}
+          </div>
+          <div style={{ fontSize: isMobile ? 16 : 17, fontWeight: 800, color: C.green }}>TZS {totalNet.toLocaleString()}</div>
+        </div>
+      }
       onClose={onClose}
       maxWidth={isMobile ? 560 : 700}
       maxHeight={isMobile ? "92vh" : "80vh"}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 10 }}>
           <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.4 }}>
-            {dividends.length} dividend{dividends.length !== 1 ? "s" : ""}
-            {totalNet > 0 && <span style={{ marginLeft: 6 }}>· Net: <span style={{ fontWeight: 700, color: C.green }}>TZS {totalNet.toLocaleString()}</span></span>}
+            {dividends.length} record{dividends.length !== 1 ? "s" : ""} total
           </div>
           <Btn variant="secondary" onClick={onClose}>Close</Btn>
         </div>
@@ -1395,51 +1430,55 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
           <div style={{ fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>Use "Record Dividend" from the portfolio action menu</div>
         </div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: isMobile ? 12 : 13, tableLayout: "fixed" }}>
-          <colgroup>
-            {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
-          </colgroup>
-          <thead>
-            <tr style={{ background: C.gray50 }}>
-              {headers.map(h => (
-                <th key={h} style={{
-                  padding: isMobile ? "8px 8px" : "9px 10px",
-                  textAlign: ["Per Share", "Shares", "Gross Amt", "Tax", "Net Amt"].includes(h) ? "right" : "left",
-                  color: C.gray400, fontWeight: 700, fontSize: isMobile ? 10 : 11,
-                  textTransform: "uppercase", letterSpacing: "0.05em",
-                  borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`,
-                  whiteSpace: "nowrap", background: C.gray50,
-                }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dividends.map((d, i) => {
-              const s = sc(d.status);
-              const dateText = d.payment_date
-                ? new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                : "—";
-              return (
-                <tr key={d.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
-                  onMouseEnter={e => e.currentTarget.style.background = C.gray50}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", color: C.gray400, fontWeight: 600 }}>{i + 1}</td>
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>{dateText}</td>
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.dividend_per_share)}</td>
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.gray600 }}>{d.shares_held ? Number(d.shares_held).toLocaleString() : "—"}</td>
-                  {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.total_amount)}</td>}
-                  {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: Number(d.withholding_tax) > 0 ? C.red : C.gray400 }}>{Number(d.withholding_tax) > 0 ? fmt(d.withholding_tax) : "—"}</td>}
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", fontWeight: 700, color: C.green }}>{fmt(d.net_amount || d.total_amount)}</td>
-                  <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
-                    <span style={{ background: s.bg, color: s.color, padding: isMobile ? "2px 7px" : "3px 8px", borderRadius: 20, fontSize: isMobile ? 10 : 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                      {s.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: isMobile ? 12 : 13, tableLayout: "fixed" }}>
+            <colgroup>
+              {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
+            <thead>
+              <tr style={{ background: C.gray50 }}>
+                {headers.map(h => (
+                  <th key={h} style={{
+                    padding: isMobile ? "8px 8px" : "9px 10px",
+                    textAlign: ["Per Share", "Shares", "Gross Amt", "Tax", "Net Amt"].includes(h) ? "right" : "left",
+                    color: C.gray400, fontWeight: 700, fontSize: isMobile ? 10 : 11,
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                    borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`,
+                    whiteSpace: "nowrap", background: C.gray50,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((d, i) => {
+                const globalIdx = (page - 1) * PAGE_SIZE + i;
+                const s = sc(d.status);
+                const dateText = d.payment_date
+                  ? new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                  : "—";
+                return (
+                  <tr key={d.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.gray50}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>{dateText}</td>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.dividend_per_share)}</td>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.gray600 }}>{d.shares_held ? Number(d.shares_held).toLocaleString() : "—"}</td>
+                    {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: C.text }}>{fmt(d.total_amount)}</td>}
+                    {!isMobile && <td style={{ padding: "9px 10px", textAlign: "right", color: Number(d.withholding_tax) > 0 ? C.red : C.gray400 }}>{Number(d.withholding_tax) > 0 ? fmt(d.withholding_tax) : "—"}</td>}
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", fontWeight: 700, color: C.green }}>{fmt(d.net_amount || d.total_amount)}</td>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
+                      <span style={{ background: s.bg, color: s.color, padding: isMobile ? "2px 7px" : "3px 8px", borderRadius: 20, fontSize: isMobile ? 10 : 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {s.label}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <PaginationBar />
+        </>
       )}
     </ModalShell>
   );
