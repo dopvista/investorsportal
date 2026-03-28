@@ -324,8 +324,11 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Paid</div>
-                <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.updated_at) || fmtDateTime(dividend.payment_date) || "—"}</div>
+                <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.paid_at) || fmtDateTime(dividend.updated_at) || "—"}</div>
               </div>
+              {dividend.paid_by_name && (
+                <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.paid_by_name}</span>
+              )}
             </div>
           )}
           {/* Awaiting steps (if not paid) */}
@@ -875,15 +878,18 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     try {
       await sbUpdateDividendStatus(id, "paid");
       if (!isMountedRef.current) return;
-      setDividends(p => p.map(d => d.id === id ? { ...d, status: "paid" } : d));
+      const now = new Date().toISOString();
+      setDividends(p => p.map(d => d.id === id ? { ...d, status: "paid", paid_at: now } : d));
       showToast("Dividend marked as paid.", "success");
+      // Background reload to get paid_by_name from RPC
+      loadDividends({ fromPull: false }).catch(() => {});
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
       if (isMountedRef.current) setMarkingPaidIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
-  }, [showToast]);
+  }, [showToast, loadDividends]);
 
   const doBulkMarkPaid = useCallback(async () => {
     const ids = bulkMarkPaidModal?.ids;
@@ -894,16 +900,19 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       await sbBulkUpdateDividendStatus(ids, "paid");
       if (!isMountedRef.current) return;
       const idSet = new Set(ids);
-      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "paid" } : d));
+      const now = new Date().toISOString();
+      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "paid", paid_at: now } : d));
       setSelected(new Set());
       showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} marked as paid.`, "success");
+      // Background reload to get paid_by_name from RPC
+      loadDividends({ fromPull: false }).catch(() => {});
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
       if (isMountedRef.current) setMarkingPaidIds(new Set());
     }
-  }, [bulkMarkPaidModal, showToast]);
+  }, [bulkMarkPaidModal, showToast, loadDividends]);
 
   const handleEdit = useCallback((dividend) => {
     openFormModal(dividend);

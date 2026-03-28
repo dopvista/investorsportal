@@ -1172,9 +1172,11 @@ export async function sbDeleteDividend(id) {
 }
 
 export async function sbUpdateDividendStatus(id, status) {
+  const body = { status };
+  if (status === "paid") { body.paid_by = getSession()?.user?.id || null; body.paid_at = new Date().toISOString(); }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=eq.${id}`,
-    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status }) },
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
     "Failed to update dividend status"
   );
   return res.json();
@@ -1182,9 +1184,11 @@ export async function sbUpdateDividendStatus(id, status) {
 
 export async function sbBulkUpdateDividendStatus(ids, status) {
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  const body = { status };
+  if (status === "paid") { body.paid_by = getSession()?.user?.id || null; body.paid_at = new Date().toISOString(); }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=in.${idList}`,
-    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ status }) },
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
     "Failed to update dividend statuses"
   );
   return res.json();
