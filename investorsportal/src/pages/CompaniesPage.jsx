@@ -721,9 +721,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
         {/* ═══════════════════ MANAGE TAB (SA only) ═══════════════ */}
         {activeTab === "manage" && isSA && (
-          <>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
             {isMobile ? (
-              <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 14, flexShrink: 0 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                   <StatCard label="Total Companies"  value={manageStats.total}           sub="In master registry" icon={<Icon name="building" size={17} stroke={C.navy} />} color={C.navy}  />
                   <StatCard label="Registered Today" value={manageStats.registeredToday} sub="Added today"        icon={<Icon name="checkCircle" size={17} stroke={C.green} />} color={C.green} />
@@ -733,7 +733,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </button>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24, flexShrink: 0 }}>
                 <StatCard label="Total Companies"   value={manageStats.total}           sub="In master registry" icon={<Icon name="building" size={17} stroke={C.navy} />} color={C.navy}  />
                 <StatCard label="Registered Today"  value={manageStats.registeredToday} sub="Added today"        icon={<Icon name="checkCircle" size={17} stroke={C.green} />} color={C.green} />
                 <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 90 }}>
@@ -760,12 +760,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   ))}
                 </div>
               ) : (
-                <div className="cp-scroll" style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                    <thead>
-                      <tr style={{ background: theadBg }}>
+                <>
+                <div className="cp-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
+                      <tr>
                         {["#", "Company Name", "Sector", "Registered", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "10px 18px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
+                          <th key={h} style={{ padding: "8px 14px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -780,20 +781,26 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
                             onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
                             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-                            <td style={{ padding: "10px 18px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-                            <td style={{ padding: "10px 18px", minWidth: 160 }}><div style={{ fontWeight: 700, color: C.text }}>{c.name}</div></td>
-                            <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
-                            <td style={{ padding: "10px 18px", color: C.gray500, fontSize: 13, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
-                            <td style={{ padding: "10px 18px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>
+                            <td style={{ padding: "8px 14px", color: C.gray400, fontWeight: 600, width: 36, fontSize: 12 }}>{i + 1}</td>
+                            <td style={{ padding: "8px 14px", minWidth: 140 }}><div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{c.name}</div></td>
+                            <td style={{ padding: "8px 14px", color: C.gray500, fontSize: 12 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
+                            <td style={{ padding: "8px 14px", color: C.gray500, fontSize: 12, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
+                            <td style={{ padding: "8px 14px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
+                <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
+                  <span style={{ fontSize: 12, color: C.gray400 }}>
+                    Showing <strong style={{ color: C.text }}>1–{masterList.length}</strong> of <strong style={{ color: C.text }}>{masterList.length}</strong>
+                  </span>
+                </div>
+                </>
               )}
             </SectionCard>
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -676,12 +676,12 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
 
         {/* ── COMPANIES ── */}
         {activeMenu === "companies" && (
-          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
-            <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
+          <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "16px 22px", flexShrink: 0 }}>
               <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}><Icon name="building" size={14} /> Manage Companies</div>
-              <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>Register, edit and manage listed companies</div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, marginTop: 3, fontWeight: 600 }}>Register, edit and manage listed companies</div>
             </div>
-            <div style={{ padding: "16px" }}>
+            <div style={{ padding: "16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <CompaniesPage
                 companies={companies} setCompanies={setCompanies}
                 transactions={transactions || []} showToast={showToast}
