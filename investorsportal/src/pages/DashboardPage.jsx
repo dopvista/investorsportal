@@ -150,7 +150,7 @@ const SnapCard = memo(function SnapCard({
         background: dark ? "linear-gradient(135deg, #0B1F3A 0%, #1e3a5f 100%)" : C.white,
         border: `1.5px solid ${expanded ? eff : (dark ? "#1e3a5f" : C.gray200)}`,
         borderRadius: 14,
-        overflow: "hidden",
+        overflow: "hidden", minWidth: 0,
         boxShadow: expanded ? `0 4px 20px ${eff}33` : "0 1px 4px rgba(0,0,0,0.04)",
         transition: "all 0.18s ease",
         cursor: expandable ? "pointer" : "default",
@@ -203,7 +203,7 @@ const SnapCard = memo(function SnapCard({
             </span>
           )}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: valueClr, lineHeight: 1, marginBottom: 5, transition: "color 0.2s" }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: valueClr, lineHeight: 1, marginBottom: 5, transition: "color 0.2s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {loading
             ? <span style={{ fontSize: 14, color: dark ? "rgba(255,255,255,0.2)" : isColored ? "rgba(255,255,255,0.3)" : C.gray400 }}>—</span>
             : value}
@@ -963,13 +963,20 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       style={{
         maxWidth: isMobile ? "none" : 1200,
         margin: isMobile ? 0 : "0 auto",
-        position: "relative", overflow: "visible",
+        position: "relative",
+        height: isMobile ? "auto" : "calc(100vh - 118px)",
+        display: "flex", flexDirection: "column",
+        overflow: isMobile ? "visible" : "hidden",
         paddingBottom: isMobile ? 96 : 0,
       }}
     >
       <style>{`
         @keyframes spin         { to { transform: rotate(360deg); } }
         @keyframes dashFadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        .dash-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .dash-scroll::-webkit-scrollbar-track { background: transparent; }
+        .dash-scroll::-webkit-scrollbar-thumb { background: ${isDark ? C.gray200 : "#cbd5e1"}; border-radius: 10px; }
+        .dash-scroll { scrollbar-width: thin; scrollbar-color: ${isDark ? C.gray200 : "#cbd5e1"} transparent; }
       `}</style>
 
       {/* Pull to refresh indicator */}
@@ -1002,10 +1009,12 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       )}
 
       {/* Transform wrapper (pull-to-refresh) */}
-      <div style={{
+      <div className={isMobile ? undefined : "dash-scroll"} style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
         willChange: isMobile ? "transform" : "auto",
+        flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
+        overflow: isMobile ? "visible" : "auto",
       }}>
 
         {/* ═══════════════════ MOBILE VIEW ════════════════════════ */}
