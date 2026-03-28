@@ -478,7 +478,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       onTouchMove={isMobile ? handleTouchMove : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
       onTouchCancel={isMobile ? handleTouchEnd : undefined}
-      style={{ position: "relative", overflow: "visible", paddingBottom: isMobile ? 96 : 0 }}
+      style={{ position: "relative", height: isMobile ? "auto" : "calc(100vh - 118px)", display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden", paddingBottom: isMobile ? 96 : 0 }}
     >
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -548,18 +548,19 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         transform: isMobile ? `translateY(${pullDistance}px)` : "none",
         transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"),
         willChange: isMobile ? "transform" : "auto",
+        flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden",
       }}>
 
         {/* ═══════════════════ PORTFOLIO TAB ══════════════════════ */}
         {activeTab === "portfolio" && (
-          <>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
             {isMobile ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14, flexShrink: 0 }}>
                 <StatCard label="Holdings"   value={portfolioStats.total}    sub="In your portfolio"    icon={<Icon name="building" size={17} />} color={C.navy} />
                 <StatCard label="Not Priced" value={portfolioStats.unpriced} sub="Tap card → Set Price" icon={<Icon name="dollarSign" size={17} sw={2.2} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} />
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24, flexShrink: 0 }}>
                 <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon={<Icon name="building" size={17} />} color={C.navy}  />
                 <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon={<Icon name="barChart" size={17} />} color={C.green} />
                 <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon={<Icon name="trophy" size={17} />} color={C.gold}  />
@@ -567,7 +568,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
               </div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 12 : 16, flexShrink: 0 }}>
               <div style={{ flex: 1, position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray500, display: "flex", alignItems: "center" }}><Icon name="search" size={14} stroke={C.gray500} /></span>
                 <input
@@ -623,7 +624,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   ))}
                 </div>
               ) : (
-                <div className="cp-scroll" style={{ overflowX: "auto" }}>
+                <div className="cp-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: theadBg }}>
@@ -708,7 +709,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </div>
               )}
             </SectionCard>
-          </>
+          </div>
         )}
 
         {/* ═══════════════════ MANAGE TAB (SA only) ═══════════════ */}
