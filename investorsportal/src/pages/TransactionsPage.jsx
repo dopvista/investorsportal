@@ -895,8 +895,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       });
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
       setTransactions(envelope.rows);
-      setServerTotal(envelope.total);
-      setServerTotalPages(envelope.totalPages);
+      setServerTotal(Number(envelope.total) || 0);
+      setServerTotalPages(Number(envelope.totalPages) || 1);
       setPageError(null);
     } catch (e) {
       if (!isMountedRef.current || requestId !== txLoadRef.current) return;
