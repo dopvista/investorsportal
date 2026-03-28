@@ -13,6 +13,13 @@ import { LIGHT_C, useTheme } from "../lib/theme";
 // are not included in the dark-theme rollout.
 export const C = LIGHT_C;
 
+// ── Module-level CSS: thin themed dropdown scrollbar ──────────────
+if (typeof document !== "undefined" && !document.getElementById("_ui_dd_scroll")) {
+  const s = document.createElement("style"); s.id = "_ui_dd_scroll";
+  s.textContent = `.ui-dd-scroll::-webkit-scrollbar{width:4px;height:4px}.ui-dd-scroll::-webkit-scrollbar-track{background:transparent}.ui-dd-scroll::-webkit-scrollbar-thumb{border-radius:10px}.ui-dd-scroll{scrollbar-width:thin}`;
+  document.head.appendChild(s);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────
 export const fmt = (n) => {
   const v = Number(n || 0);
@@ -659,7 +666,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
 // ═══════════════════════════════════════════════════════════════════
 // ── TRANSACTION FORM MODAL ────────────────────────────────────────
 export function TransactionFormModal({ transaction, companies, transactions = [], brokers = [], onConfirm, onClose }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const today  = new Date().toISOString().split("T")[0];
   const isEdit = !!transaction;
@@ -774,6 +781,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
   );
 
   return (
+    <><style>{`.ui-dd-scroll::-webkit-scrollbar-thumb{background:${isDark ? C.gray200 : "#cbd5e1"}}`}</style>
     <ModalShell
       title={isEdit ? <><Icon name="edit" size={15} /> Edit Transaction</> : <><Icon name="fileText" size={15} /> Record New Transaction</>}
       subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
@@ -820,7 +828,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
                     <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..." style={ddSearchStyle} onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
                   </div>
                 </div>
-                <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                <div className="ui-dd-scroll" style={{ maxHeight: 200, overflowY: "auto", scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
                   {filteredCompanies.length === 0 ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
                     : filteredCompanies.map(c => {
                       const isSelected = form.companyId === c.id;
@@ -960,7 +968,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       })()}
 
       <FTextarea label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." style={{ minHeight: 48 }} />
-    </ModalShell>
+    </ModalShell></>
   );
 }
 
@@ -1327,6 +1335,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
   const inpS = makeInputStyle(C);
 
   return (
+    <><style>{`.ui-dd-scroll::-webkit-scrollbar-thumb{background:${isDark ? C.gray200 : "#cbd5e1"}}`}</style>
     <ModalShell
       title={resolvedCompany?.name || (isEdit ? "Edit Dividend" : "Record Dividend")}
       subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Record dividend income"}</span>}
@@ -1353,7 +1362,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
                 <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
                   <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
                 </div>
-                <div style={{ overflowY: "auto", maxHeight: 150 }}>
+                <div className="ui-dd-scroll" style={{ overflowY: "auto", maxHeight: 150, scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
                   {filteredCompanies.map(c => (
                     <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
                       style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
@@ -1403,7 +1412,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       </div>
 
       <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
-    </ModalShell>
+    </ModalShell></>
   );
 }
 
