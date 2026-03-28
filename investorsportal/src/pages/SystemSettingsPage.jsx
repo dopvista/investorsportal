@@ -109,9 +109,9 @@ const BrokerFormModal = memo(function BrokerFormModal({ broker, onConfirm, onClo
   const onBlur     = blurGray(C);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{
-        background: C.white, borderRadius: 16, width: "100%", maxWidth: 500,
+        background: C.white, borderRadius: 18, width: "100%", maxWidth: 500,
         border: `1.5px solid ${C.gray200}`,
         boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden", display: "flex", flexDirection: "column",
       }}>
@@ -440,8 +440,8 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
 
       {/* Delete Confirm Modal */}
       {deleteConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, border: `1.5px solid ${C.gray200}`, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: C.white, borderRadius: 18, width: "100%", maxWidth: 400, border: `1.5px solid ${C.gray200}`, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", animation: "fadeIn 0.2s ease" }}>
             <div style={{ background: "linear-gradient(135deg, #7f1d1d, #991b1b)", padding: "16px 20px" }}>
               <div style={{ color: "#ffffff", fontWeight: 700, fontSize: 15 }}>🗑️ Delete Broker</div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>{deleteConfirm.name}</div>

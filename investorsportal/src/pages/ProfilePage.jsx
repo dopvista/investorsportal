@@ -187,7 +187,7 @@ function ModalShell({ title, subtitle, onClose, footer, children, maxWidth = 460
   const { C } = useTheme();
   const isMobile = useIsMobile();
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}>
       <div style={{
         background: C.white, borderRadius: isMobile ? "18px 18px 0 0" : 18,

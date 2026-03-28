@@ -143,7 +143,8 @@ export default class ErrorBoundary extends React.Component {
 
 const styles = {
   page: {
-    minHeight: "100vh",
+    position: "fixed",
+    inset: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -151,10 +152,11 @@ const styles = {
     background:
       "radial-gradient(circle at top, #18345a 0%, #0b1f3a 45%, #08111f 100%)",
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    zIndex: 99999,
   },
   card: {
     width: "100%",
-    maxWidth: 520,
+    maxWidth: 480,
     background: "#ffffff",
     borderRadius: 20,
     padding: 32,
