@@ -392,7 +392,8 @@ const ExpandPanel = memo(function ExpandPanel({ title, onClose, accentColor, chi
       border: `1.5px solid ${accentColor || C.gray200}`,
       borderRadius: 14,
       padding: "20px 24px",
-      marginBottom: 20,
+      marginTop: 14,
+      marginBottom: 14,
       animation: "dashFadeDown 0.2s ease",
       boxShadow: accentColor ? `0 4px 20px ${accentColor}18` : "none",
     }}>
@@ -1459,7 +1460,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             {/* Lower stat cards */}
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14,
-              marginBottom: (expanded === "companies" || expanded === "users" || expanded === "dividends") ? 14 : 22,
+              marginBottom: (expanded === "companies" || expanded === "users" || expanded === "dividends") ? 0 : 22,
             }}>
               <StatCard icon={<Icon name="building" size={19} stroke="#3b6fc4" sw={2.2} />} label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
