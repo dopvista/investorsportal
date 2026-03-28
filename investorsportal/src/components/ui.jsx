@@ -214,18 +214,23 @@ export function FInput({ label, required, ...props }) {
 // Global date picker styles — injected once, applies to ALL date inputs app-wide
 export function DatePickerStyles() {
   const { isDark } = useTheme();
+  // Use an inline SVG calendar icon in red (#dc2626) for both themes
+  const redCalSvg = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E")`;
   return <style>{`
     input[type="date"]::-webkit-calendar-picker-indicator,
     input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-      cursor: pointer; padding: 4px; border-radius: 4px;
-      background-color: ${isDark ? "rgba(255,255,255,0.12)" : "#f1f5f9"};
-      filter: ${isDark ? "invert(1) brightness(1.8)" : "none"};
-      opacity: ${isDark ? "0.9" : "0.7"};
-      transition: background-color 0.15s, opacity 0.15s;
+      cursor: pointer; padding: 2px; border-radius: 4px;
+      background-image: ${redCalSvg};
+      background-size: 16px 16px;
+      background-repeat: no-repeat;
+      background-position: center;
+      width: 20px; height: 20px;
+      opacity: 0.85;
+      transition: opacity 0.15s;
+      color: transparent;
     }
     input[type="date"]::-webkit-calendar-picker-indicator:hover,
     input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-      background-color: ${isDark ? "rgba(255,255,255,0.22)" : "#e2e8f0"};
       opacity: 1;
     }
     input[type="date"], input[type="datetime-local"] {
