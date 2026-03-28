@@ -234,10 +234,12 @@ const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, co
 // ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
   const { C } = useTheme();
+  const isNum = typeof label === "number";
+  const display = isNum ? label.toLocaleString() : label;
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: 28, height: 28, borderRadius: 6, border: `1.5px solid ${active ? "#0B1F3A" : C.gray200}`, background: active ? "#0B1F3A" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {label}
+      style={{ minWidth: 28, height: 28, padding: isNum ? "0 6px" : "0 4px", borderRadius: 6, border: `1.5px solid ${active ? "#0B1F3A" : C.gray200}`, background: active ? "#0B1F3A" : disabled ? C.gray50 : C.white, color: active ? "#ffffff" : disabled ? C.gray400 : C.gray600, fontWeight: active ? 700 : 500, fontSize: 12, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}>
+      {display}
     </button>
   );
 });
@@ -248,10 +250,13 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
   const to   = Math.min(page * pageSize, filtered);
 
   const pages = useMemo(() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const set = new Set([1, 2, page - 1, page, page + 1, totalPages - 1, totalPages]);
+    const nums = [...set].filter(n => n >= 1 && n <= totalPages).sort((a, b) => a - b);
     const arr = [];
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) arr.push(i);
-      else if (arr[arr.length - 1] !== "...") arr.push("...");
+    for (let i = 0; i < nums.length; i++) {
+      if (i > 0 && nums[i] - nums[i - 1] > 1) arr.push("...");
+      arr.push(nums[i]);
     }
     return arr;
   }, [page, totalPages]);
@@ -260,14 +265,16 @@ const Pagination = memo(function Pagination({ page, totalPages, pageSize, setPag
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 12, color: C.gray400 }}>
-          Showing <strong style={{ color: C.text }}>{from === to ? from : `${from}–${to}`}</strong> of <strong style={{ color: C.text }}>{filtered}</strong>
-          {filtered !== total ? ` (${total} total)` : ""}
+          Showing <strong style={{ color: C.text }}>{from === to ? from.toLocaleString() : `${from.toLocaleString()}–${to.toLocaleString()}`}</strong> of <strong style={{ color: C.text }}>{filtered.toLocaleString()}</strong>
+          {filtered !== total ? ` (${total.toLocaleString()} total)` : ""}
         </span>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           style={{ padding: "3px 8px", borderRadius: 6, border: `1.5px solid ${C.gray200}`, fontSize: 11, fontFamily: "inherit", color: C.gray600, outline: "none", background: C.white, cursor: "pointer" }}>
           <option value={50}>50 / page</option>
           <option value={100}>100 / page</option>
           <option value={200}>200 / page</option>
+          {filtered > 1000 && <option value={500}>500 / page</option>}
+          {filtered > 5000 && <option value={1000}>1000 / page</option>}
         </select>
       </div>
       {totalPages > 1 && (
