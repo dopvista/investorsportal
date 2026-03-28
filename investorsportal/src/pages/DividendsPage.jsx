@@ -205,7 +205,7 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
       <span style={{ fontSize: 12, color: C.gray500 }}>
-        <strong style={{ color: C.text }}>{from.toLocaleString()}\u2013{to.toLocaleString()}</strong> of <strong style={{ color: C.text }}>{filtered.toLocaleString()}</strong>
+        <strong style={{ color: C.text }}>{from === to ? from.toLocaleString() : `${from.toLocaleString()}\u2013${to.toLocaleString()}`}</strong> of <strong style={{ color: C.text }}>{filtered.toLocaleString()}</strong>
       </span>
       {totalPages > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
