@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo, cloneElement } from "react";
 import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
-import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
+import { sbGetPortfolio, sbGetDashboardMetrics, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
 import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel, generateTransactionExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
@@ -67,10 +67,7 @@ const ROLE_NAMES = {
   RO: "Read Only",
 };
 
-// ── Status helpers ─────────────────────────────────────────────────
-const statusOf   = (t) => String(t?.status || "").toLowerCase().trim();
-const isVerified = (t) => statusOf(t) === "verified";
-const txTime     = (t) => new Date(t?.date || t?.created_at || 0).getTime() || 0;
+// ── Status helpers (kept for future use) ──────────────────────────
 
 // ── Shared table primitives ────────────────────────────────────────
 const Th = memo(function Th({ children, right }) {
@@ -512,7 +509,7 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
 export default function DashboardPage({ profile, role, showToast, onNavigate, activeCds }) {
   const { C, isDark } = useTheme();
   const [portfolio,     setPortfolio]     = useState([]);
-  const [transactions,  setTransactions]  = useState([]);
+  const [dashMetrics,   setDashMetrics]   = useState(null);
   const [userCount,     setUserCount]     = useState(null);
   const [allUsers,      setAllUsers]      = useState([]);
   const [cdsMembers,    setCdsMembers]    = useState([]);
@@ -542,10 +539,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
   const scrollHostRef    = useRef(null);
 
   const cds   = profile?.cds_number || null;
-  const myTxns = useMemo(
-    () => (cds ? transactions.filter((t) => t.cds_number === cds) : transactions),
-    [transactions, cds]
-  );
 
   const getScrollParent = useCallback((el) => {
     let node = el?.parentElement;
@@ -571,9 +564,9 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     try {
       const activeCdsId = activeCds?.cds_id;
 
-      const [port, txns, users, members, divSummary, divByCompany] = await Promise.all([
+      const [port, dashMetrics, users, members, divSummary, divByCompany] = await Promise.all([
         sbGetPortfolio(profile?.cds_number).catch(() => []),
-        sbGetTransactions().catch(() => []),
+        profile?.cds_number ? sbGetDashboardMetrics(profile.cds_number).catch(() => null) : Promise.resolve(null),
         // FIX 2: only call sbGetAllUsers for SA/AD roles.
         // DE/VR/RO users hit a permission-denied error on this RPC
         // on every single dashboard open. The .catch masked the error
@@ -597,7 +590,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
       if (!mountedRef.current || reqId !== dashReqRef.current) return;
 
       setPortfolio(port || []);
-      setTransactions(txns || []);
+      setDashMetrics(dashMetrics);
       if (divSummary) setDividendSummary(divSummary);
       if (divByCompany?.length) setDividendByCompany(divByCompany);
 
@@ -653,33 +646,23 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         const hasToday = await sbHasTodaySnapshot(cds);
         if (!hasToday && portfolio.length > 0) {
           // Build snapshot data from current metrics
-          // We compute inline to avoid circular dependency with the metrics useMemo
+          // Use server-side metrics instead of iterating all transactions
           let totalMV = 0, totalCB = 0;
           const details = [];
-          for (const co of portfolio) {
-            const price = Number(co.cds_price || 0);
-            // Get net shares for this company from transactions
-            let netShares = 0;
-            let costBasis = 0;
-            for (const t of transactions) {
-              if (t.company_id === co.id && t.cds_number === cds && (t.status === "verified")) {
-                if (t.type === "Buy") {
-                  netShares += Number(t.qty || 0);
-                  costBasis += Number(t.total || 0) + Number(t.fees || 0);
-                } else {
-                  netShares -= Number(t.qty || 0);
-                }
-              }
-            }
+          const scmList = dashMetrics?.company_metrics || [];
+          for (const scm of scmList) {
+            const netShares = Number(scm.net_shares || 0);
             if (netShares <= 0) continue;
+            const price = Number(scm.current_price || 0);
+            const costBasis = Number(scm.cost_basis || 0);
             const mv = netShares * price;
             totalMV += mv;
             totalCB += costBasis;
             details.push({
-              company_id: co.id,
-              company_name: co.name,
+              company_id: scm.company_id,
+              company_name: scm.company_name,
               shares_held: netShares,
-              price: price,
+              price,
               market_value: mv,
               cost_basis: costBasis,
             });
@@ -702,118 +685,62 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
         if (mountedRef.current) setSnapshots(snaps || []);
       } catch { /* silent — snapshots are non-critical */ }
     })();
-  }, [profile?.cds_number, loading, portfolio, transactions, dividendSummary]);
+  }, [profile?.cds_number, loading, portfolio, dashMetrics, dividendSummary]);
 
-  const groupedVerifiedByCompany = useMemo(() => {
-    const map = new Map();
-    let grossBuyCapital = 0;
-    let pending         = 0;
-
-    for (const t of myTxns) {
-      const s = statusOf(t);
-      if (s === "pending" || s === "confirmed") pending++;
-      if (!isVerified(t)) continue;
-
-      const { company_id } = t;
-      if (company_id) {
-        if (!map.has(company_id)) map.set(company_id, []);
-        map.get(company_id).push(t);
-      }
-      if (t.type === "Buy") grossBuyCapital += Number(t.total || 0) + Number(t.fees || 0);
-    }
-
-    for (const arr of map.values()) arr.sort((a, b) => txTime(a) - txTime(b));
-    return { map, grossBuyCapital, pending };
-  }, [myTxns]);
+  // Server-side metrics — no need to iterate 1M transactions client-side
+  const serverCompanyMetrics = dashMetrics?.company_metrics || [];
+  const serverTxStats = dashMetrics?.transaction_stats || {};
+  const serverCompanyMap = useMemo(() => {
+    const m = new Map();
+    for (const cm of serverCompanyMetrics) m.set(cm.company_id, cm);
+    return m;
+  }, [serverCompanyMetrics]);
 
   const metrics = useMemo(() => {
-    const total          = myTxns.length;
-    const pending        = groupedVerifiedByCompany.pending;
-    const grossBuyCapital = groupedVerifiedByCompany.grossBuyCapital;
+    const total          = Number(serverTxStats.total || 0);
+    const pending        = Number(serverTxStats.pending || 0) + Number(serverTxStats.confirmed || 0);
+    const grossBuyCapital = Number(serverTxStats.total_buy_grand || 0);
     const hasCostData    = grossBuyCapital > 0;
-    const txnCompanyCount = new Set(myTxns.map((t) => t.company_id).filter(Boolean)).size;
 
-    let totalMarketValue        = 0;
-    let totalCurrentCost        = 0;
-    let totalRealizedGLAll      = 0;
-    let totalSaleProceedsAcc    = 0;
-    let totalCostBasisAcc       = 0;
-    let totalSharesSoldAcc      = 0;
-    let totalBuyTxnCount        = 0;
-    let firstBuyDaysNumerator   = 0;
+    let totalMarketValue   = 0;
+    let totalCurrentCost   = 0;
+    let totalBuyTxnCount   = 0;
+    let firstBuyDaysNumerator = 0;
     let firstBuySharesDenominator = 0;
 
+    // Build company metrics from server-side aggregates
     const companyMetricsRaw = portfolio.map((company, idx) => {
-      const color        = CHART_COLORS[idx % CHART_COLORS.length];
-      const verifiedTxns = groupedVerifiedByCompany.map.get(company.id) || [];
+      const color = CHART_COLORS[idx % CHART_COLORS.length];
+      const scm   = serverCompanyMap.get(company.id);
 
-      let sharesHeld = 0, costHeld = 0, runningAvg = 0;
-      let realizedGL = 0, totalSaleProceeds = 0, totalCostBasis = 0, totalSharesSold = 0;
-      let buyTxnCount = 0, firstBuyDate = null;
-      const realizedTrades = [];
+      const netShares      = Number(scm?.net_shares || 0);
+      const costBasis      = Number(scm?.cost_basis || 0);
+      const sellProceeds   = Number(scm?.sell_proceeds || 0);
+      const currentPrice   = Number(scm?.current_price || company.cds_price || 0);
+      const buyCount       = Number(scm?.buy_count || 0);
+      const firstBuyDate   = scm?.first_buy_date || null;
 
-      for (const t of verifiedTxns) {
-        const qty  = Number(t.qty  || 0);
-        const fees = Number(t.fees || 0);
-
-        if (t.type === "Buy") {
-          const cost = Number(t.total || 0) + fees;
-          costHeld   += cost;
-          sharesHeld += qty;
-          runningAvg  = sharesHeld > 0 ? costHeld / sharesHeld : 0;
-          buyTxnCount++;
-          if (t.date && (!firstBuyDate || t.date < firstBuyDate)) firstBuyDate = t.date;
-
-        } else if (t.type === "Sell") {
-          if (sharesHeld <= 0) continue;
-          const actualSold   = Math.min(qty, sharesHeld);
-          const costBasis    = actualSold * runningAvg;
-          const netProceeds  = Number(t.total || 0) - fees;
-          const gain         = netProceeds - costBasis;
-          const retPct       = costBasis > 0 ? (gain / costBasis) * 100 : 0;
-          const daysHeld     = firstBuyDate && t.date
-            ? Math.max(0, Math.floor((new Date(t.date) - new Date(firstBuyDate)) / 86_400_000))
-            : null;
-
-          realizedGL         += gain;
-          totalSaleProceeds  += netProceeds;
-          totalCostBasis     += costBasis;
-          totalSharesSold    += actualSold;
-
-          costHeld   -= costBasis;
-          sharesHeld -= actualSold;
-          if (sharesHeld <= 0) { sharesHeld = 0; costHeld = 0; runningAvg = 0; }
-
-          realizedTrades.push({ soldShares: actualSold, costBasis, saleProceeds: netProceeds, realizedGL: gain, realRetPct: retPct, date: t.date, daysHeld });
-        }
-      }
-
-      const currentPrice     = Number(company.cds_price || 0);
-      const marketValue      = sharesHeld > 0 && currentPrice > 0 ? sharesHeld * currentPrice : 0;
-      const openPositionCost = costHeld;
+      const marketValue      = netShares > 0 && currentPrice > 0 ? netShares * currentPrice : 0;
+      const openPositionCost = costBasis;
       const unrealizedGL     = currentPrice > 0 ? marketValue - openPositionCost : 0;
       const unrealizedRetPct = openPositionCost > 0 ? (unrealizedGL / openPositionCost) * 100 : 0;
       const firstBuyDays     = firstBuyDate ? daysBetween(firstBuyDate) : null;
 
-      totalMarketValue     += marketValue;
-      totalCurrentCost     += openPositionCost;
-      totalRealizedGLAll   += realizedGL;
-      totalSaleProceedsAcc += totalSaleProceeds;
-      totalCostBasisAcc    += totalCostBasis;
-      totalSharesSoldAcc   += totalSharesSold;
-      totalBuyTxnCount     += buyTxnCount;
-      if (sharesHeld > 0 && firstBuyDays !== null) {
-        firstBuyDaysNumerator     += firstBuyDays * sharesHeld;
-        firstBuySharesDenominator += sharesHeld;
+      totalMarketValue   += marketValue;
+      totalCurrentCost   += openPositionCost;
+      totalBuyTxnCount   += buyCount;
+      if (netShares > 0 && firstBuyDays !== null) {
+        firstBuyDaysNumerator     += firstBuyDays * netShares;
+        firstBuySharesDenominator += netShares;
       }
 
       return {
         id: company.id, name: company.name, color,
-        netShares: sharesHeld, avgCost: runningAvg, currentPrice,
+        netShares, avgCost: netShares > 0 ? costBasis / netShares : 0, currentPrice,
         marketValue, openPositionCost, unrealizedGL, unrealizedRetPct,
-        firstBuyDays, buyTransactionCount: buyTxnCount,
-        hasAnomaly: sharesHeld < 0,
-        realizedTrades, realizedGL, totalSaleProceeds, totalCostBasis, totalSharesSold,
+        firstBuyDays, buyTransactionCount: buyCount,
+        hasAnomaly: netShares < 0,
+        realizedTrades: [], realizedGL: 0, totalSaleProceeds: sellProceeds, totalCostBasis: 0, totalSharesSold: 0,
         prevPrice: Number(company.cds_previous_price || 0),
       };
     });
@@ -832,25 +759,25 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     const unrealizedGL     = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
     const hasFinancials    = activeCompanies.some((c) => c.currentPrice > 0 && c.netShares > 0);
-    const hasRealized      = totalRealizedGLAll !== 0;
+    const hasRealized      = false; // Realized GL needs FIFO — will be computed via dedicated RPC later
     const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
     const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
     const avgFirstBuyDays  = firstBuySharesDenominator > 0
       ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
-    const realizedCompanies = companyMetricsRaw.filter((c) => c.realizedTrades.length > 0);
+    const realizedCompanies = [];
     const totalCompanies    = activeCompanies.length > 0
       ? activeCompanies.length
-      : portfolio.length > 0 ? portfolio.length : txnCompanyCount;
+      : portfolio.length > 0 ? portfolio.length : serverCompanyMetrics.length;
 
     return {
       pending, total, totalCompanies, totalMarketValue, investedCapital, grossBuyCapital,
-      unrealizedGL, unrealizedRetPct, totalRealizedGL: totalRealizedGLAll,
-      totalSaleProceeds: totalSaleProceedsAcc, totalCostBasis: totalCostBasisAcc,
-      totalSharesSold: totalSharesSoldAcc, hasRealized, hasFinancials, hasCostData,
+      unrealizedGL, unrealizedRetPct, totalRealizedGL: 0,
+      totalSaleProceeds: 0, totalCostBasis: 0,
+      totalSharesSold: 0, hasRealized, hasFinancials, hasCostData,
       companyMetrics: activeCompanies, realizedCompanies,
       totalNetShares, totalBuyTransactionCount: totalBuyTxnCount, avgFirstBuyDays,
     };
-  }, [portfolio, myTxns, groupedVerifiedByCompany]);
+  }, [portfolio, serverCompanyMap, serverTxStats, serverCompanyMetrics]);
 
   const cdsUsers = useMemo(() => cdsMembers.map((u) => {
     const name = u.full_name || u.email || "?";
@@ -885,11 +812,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
           generatePortfolioExcel({ cdsNumber, portfolio, metrics, dividendSummary });
         }
       } else if (reportType === "transactions") {
-        if (format === "pdf") {
-          generateTransactionHistoryPDF({ cdsNumber, transactions, dateFrom, dateTo });
-        } else {
-          generateTransactionExcel({ cdsNumber, transactions, dateFrom, dateTo });
-        }
+        showToast?.("Transaction reports are generated from the Transactions page.", "info");
       } else if (reportType === "gainloss") {
         // Build company breakdown from metrics data
         const companyBreakdown = [];
@@ -905,7 +828,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     } catch (e) {
       showToast?.("Report generation failed: " + e.message, "error");
     }
-  }, [profile?.cds_number, portfolio, metrics, transactions, dividendSummary, showToast]);
+  }, [profile?.cds_number, portfolio, metrics, dividendSummary, showToast]);
 
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || refreshing || loading) return;
