@@ -1308,7 +1308,7 @@ export function DividendFormModal({ company, dividend, onConfirm, onClose }) {
     <ModalShell
       title={company.name}
       subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Record dividend income"}</span>}
-      onClose={onClose} maxWidth={480} maxHeight={isMobile ? "92vh" : "85vh"}
+      onClose={onClose} maxWidth={480}
       footer={<>
         {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
