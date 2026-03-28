@@ -624,12 +624,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   ))}
                 </div>
               ) : (
+                <>
                 <div className="cp-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: theadBg }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
+                      <tr>
                         {["#", "Company", "New Price", "Change", "Prev. Price", "Last Updated", "Updated By", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price" || h === "Change" || h === "Prev. Price" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>{h}</th>
+                          <th key={h} style={{ padding: "10px 16px", textAlign: h === "Actions" || h === "New Price" || h === "Change" || h === "Prev. Price" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -707,6 +708,12 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                     </tbody>
                   </table>
                 </div>
+                <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
+                  <span style={{ fontSize: 12, color: C.gray400 }}>
+                    Showing <strong style={{ color: C.text }}>1–{filteredPortfolio.length}</strong> of <strong style={{ color: C.text }}>{portfolio.length}</strong>
+                  </span>
+                </div>
+                </>
               )}
             </SectionCard>
           </div>
