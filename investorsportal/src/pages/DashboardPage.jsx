@@ -1,5 +1,5 @@
 // ── src/pages/DashboardPage.jsx ────────────────────────────────────
-import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, memo, cloneElement } from "react";
 import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
 import { sbGetPortfolio, sbGetTransactions, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
@@ -350,13 +350,13 @@ const StatCard = memo(function StatCard({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
-            background: isColored ? "rgba(255,255,255,0.18)" : paleBg,
-            border: isColored ? "none" : `1.5px solid ${paleBdr}`,
+            background: isColored ? "rgba(255,255,255,0.22)" : paleBg,
+            border: isColored ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${paleBdr}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 19, transition: "background 0.2s",
             color: isColored ? "#ffffff" : "#374151",
           }}>
-            {icon}
+            {isColored ? cloneElement(icon, { stroke: "#ffffff" }) : icon}
           </div>
           {navigates && <span style={{ fontSize: 13, color: isColored ? "rgba(255,255,255,0.6)" : C.gray400, marginTop: 2 }}>→</span>}
           {!navigates && onClick && (
