@@ -975,10 +975,10 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
         {user.role_code ? (
           <button
             onClick={() => onToggleStatus(user)}
-            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? (isDark ? "#7a2020" : "#FECACA") : (isDark ? `${C.green}55` : "#BBF7D0")}`, background:user.is_active ? (isDark ? "#3d1212" : C.redBg) : C.greenBg, color:user.is_active ? (isDark ? "#e07070" : C.red) : C.green, cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+            style={{ padding:"9px 8px", borderRadius:9, border:`1px solid ${user.is_active ? "#FECACA" : "#A7F3D0"}`, background:user.is_active ? "#FEE2E2" : "#D1FAE5", color:user.is_active ? "#374151" : "#374151", cursor:"pointer", fontFamily:"inherit", fontWeight:700, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
             onMouseEnter={e => e.currentTarget.style.opacity="0.8"}
             onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-            <span style={{ fontSize:14 }}>{user.is_active ? "🚫" : "✅"}</span>
+            <Icon name={user.is_active ? "ban" : "checkCircle"} size={14} stroke="#374151" sw={2.2} />
             {user.is_active ? "Deactivate" : "Activate"}
           </button>
         ) : (
