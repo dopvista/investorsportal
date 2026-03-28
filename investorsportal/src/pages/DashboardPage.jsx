@@ -1620,7 +1620,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                       </table>
                     </div>
                     {isSAAD && (
-                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                      <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
                         <button
                           onClick={onNavUserMgmt}
                           style={{ background: "none", border: `1.5px solid #2563eb`, color: "#2563eb", borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
@@ -1688,7 +1688,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         )}
                       </table>
                     </div>
-                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.gray100}`, display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
                       <button
                         onClick={onNavDividends}
                         style={{ background: "none", border: "1.5px solid #7c3aed", color: "#7c3aed", borderRadius: 9, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
