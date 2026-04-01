@@ -5,9 +5,10 @@ import ImageCropModal from "../components/ImageCropModal";
 import {
   sbGetSiteSettings, sbSaveSiteSettings, sbUploadSlideImage,
   sbGetAllBrokers, sbInsertBroker, sbUpdateBroker,
-  sbToggleBrokerStatus, sbDeleteBroker,
+  sbToggleBrokerStatus, sbDeleteBroker, supabase,
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
+import DSEPriceSettings from "../components/DSEPriceSettings";
 
 // ── inp(C, extra) — must receive live C from useTheme() ───────────
 function inp(C, extra = {}) {
@@ -624,6 +625,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     { id: "companies",  icon: "🏢", label: "Companies"  },
     { id: "brokers",    icon: "🏦", label: "Brokers"    },
     { id: "login_page", icon: "🖼️", label: "Login Page" },
+    { id: "price_updates", icon: "📊", label: "Price Updates" },
   ];
 
   return (
@@ -750,6 +752,10 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
                           ) : (
                             <><div style={{ fontSize: 28, marginBottom: 8 }}>📷</div><span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>Click to change image</span><span style={{ color: "rgba(255,255,255,0.75)", fontSize: 10, marginTop: 4 }}>JPG, PNG, WEBP — max 15MB</span></>
                           )}
+
+          {activeMenu === "price_updates" && (
+            <DSEPriceSettings supabase={supabase} />
+          )}
                         </div>
                       </div>
                       <input ref={fileRefs[idx]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFileSelect(e, idx)} />
