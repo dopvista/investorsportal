@@ -9,6 +9,10 @@ if (!BASE || !KEY) {
   console.log("✅ Supabase connected to:", BASE);
 }
 
+// ── Supabase JS Client (used by DSE Price components) ──
+import { createClient } from "@supabase/supabase-js";
+export const supabase = createClient(BASE, KEY);
+
 // ══════════════════════════════════════════════════════════════════
 // ── PERFORMANCE: IN-MEMORY SESSION CACHE
 // ══════════════════════════════════════════════════════════════════
