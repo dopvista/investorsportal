@@ -516,7 +516,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     const glCol  = isGain ? C.green : C.red;
     const rows   = type === "buy"
       ? [["Current Price × " + fmtInt(qty) + " shares", `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
-      : [["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`], ["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`]];
+      : [["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`], ["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`]];
     const cardTitle = type === "buy" ? "Unrealized Gain / Loss" : "Realized Gain / Loss";
     return (
       <div style={{ padding: "0 20px 14px" }}>
