@@ -73,7 +73,7 @@ const MOBILE_INPUT_ATTRS = {
 
 const Modal = memo(function Modal({ title, subtitle, onClose, children, footer, maxWidth = 460, closeOnBackdrop = true }) {
   const { C } = useTheme();
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const isMobile = useIsMobile();
   return createPortal(<>
     <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
     <div

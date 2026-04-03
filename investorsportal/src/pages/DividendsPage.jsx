@@ -97,7 +97,7 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
 // ── Dividend Status Badge ─────────────────────────────────────────
 const DivStatusBadge = memo(function DivStatusBadge({ status }) {
   const { C, isDark } = useTheme();
-  const STATUS = getStatusConfig(C, isDark);
+  const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
   const s = STATUS[status] || STATUS.declared;
   return (
     <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -238,10 +238,11 @@ function getDivPermissions({ dividend, isDE, isSAAD }) {
 const DividendDetailModal = memo(function DividendDetailModal({ dividend, companies = [], onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
+  const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
 
   if (!dividend) return null;
 
-  const STATUS = getStatusConfig(C, isDark);
+
   const st = STATUS[dividend.status] || STATUS.declared;
   const gross = Number(dividend.total_amount || 0);
   const tax = Number(dividend.withholding_tax || 0);

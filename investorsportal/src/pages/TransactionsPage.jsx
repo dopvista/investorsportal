@@ -108,7 +108,7 @@ const Spinner = memo(function Spinner({ size = 13, color = "#fff", style = {} })
 // ── Status Badge ──────────────────────────────────────────────────
 const StatusBadge = memo(function StatusBadge({ status }) {
   const { C, isDark } = useTheme();
-  const STATUS = getStatusConfig(C, isDark);
+  const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
   const s = STATUS[status] || STATUS.pending;
   return (
     <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -419,9 +419,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     return () => { cancelled = true; };
   }, [transaction?.id]); // re-fetch only when a different transaction is opened
 
+  const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
+
   if (!transaction) return null;
 
-  const STATUS      = getStatusConfig(C, isDark);
+
   const isBuy       = transaction.type === "Buy";
   const isVerified  = transaction.status === "verified";
   const tradeVal    = Number(transaction.total || 0);

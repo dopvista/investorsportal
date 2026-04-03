@@ -358,17 +358,21 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing]     = useState(false);
 
-  const isMountedRef    = useRef(true);
-  const portfolioReqRef = useRef(0);
-  const masterReqRef    = useRef(0);
-  const rootRef         = useRef(null);
-  const touchStartYRef  = useRef(null);
-  const pullingRef      = useRef(false);
-  const scrollHostRef   = useRef(null);
+  const isMountedRef       = useRef(true);
+  const portfolioReqRef    = useRef(0);
+  const masterReqRef       = useRef(0);
+  const rootRef            = useRef(null);
+  const touchStartYRef     = useRef(null);
+  const pullingRef         = useRef(false);
+  const scrollHostRef      = useRef(null);
+  const dseMsgTimerRef     = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(dseMsgTimerRef.current);
+    };
   }, []);
 
   useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
@@ -443,7 +447,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       const n = result.updatedCount;
       setDseFetchMsg({ text: `${n} price${n !== 1 ? "s" : ""} updated`, isError: false });
       loadPortfolio();
-      setTimeout(() => { if (isMountedRef.current) setDseFetchMsg(null); }, 6000);
+      clearTimeout(dseMsgTimerRef.current);
+      dseMsgTimerRef.current = setTimeout(() => { if (isMountedRef.current) setDseFetchMsg(null); }, 6000);
     } catch (e) {
       if (!isMountedRef.current) return;
       setDseError(e.message);

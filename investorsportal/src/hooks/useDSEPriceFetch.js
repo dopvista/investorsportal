@@ -18,16 +18,23 @@ function isJwtExpired(token) {
     return true;
   }
 }
+let _tokenCache = null; // { token, expires }
 async function resolveToken(supabase) {
+  if (_tokenCache && Date.now() < _tokenCache.expires) return _tokenCache.token;
+  let token;
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token && !isJwtExpired(session.access_token)) return session.access_token;
+    if (session?.access_token && !isJwtExpired(session.access_token)) token = session.access_token;
   } catch {}
-  try {
-    const s = JSON.parse(localStorage.getItem("sb_session") || "null");
-    if (s?.access_token && !isJwtExpired(s.access_token)) return s.access_token;
-  } catch {}
-  return getAnonKey();
+  if (!token) {
+    try {
+      const s = JSON.parse(localStorage.getItem("sb_session") || "null");
+      if (s?.access_token && !isJwtExpired(s.access_token)) token = s.access_token;
+    } catch {}
+  }
+  token = token ?? getAnonKey();
+  _tokenCache = { token, expires: Date.now() + 30_000 }; // cache for 30 s
+  return token;
 }
 
 async function patchSiteSetting(key, value, token) {
