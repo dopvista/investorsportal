@@ -76,24 +76,33 @@ const DSEPricePopup = memo(function DSEPricePopup({
         </button>
       </div>
 
-      {/* Last DSE auto-fetch info */}
+      {/* Last DSE auto-fetch info — badge shows fetch result temporarily, then reverts */}
       <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Last DSE Auto-Fetch</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmtDate(lastFetchAt)}</div>
-          {lastFetchStatus && (
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: lastFetchStatus === "success" ? C.green : C.red,
-              background: lastFetchStatus === "success" ? (isDark ? "rgba(34,197,94,0.15)" : "#f0fdf4") : (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2"),
-              border: `1px solid ${lastFetchStatus === "success" ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0") : (isDark ? "rgba(239,68,68,0.3)" : "#fecaca")}`,
-              padding: "2px 8px", borderRadius: 20,
-            }}>
-              {lastFetchStatus === "success"
-                ? lastFetchCount > 0 ? `${lastFetchCount} updated` : "All current"
-                : "error"}
-            </span>
-          )}
+          {(() => {
+            const isResultMsg = fetchMsg && !fetchMsg.isError;
+            const isErrMsg    = error || (fetchMsg?.isError);
+            const badgeText   = isResultMsg ? fetchMsg.text
+              : isErrMsg ? (fetchMsg?.text || error)
+              : lastFetchStatus === "success"
+                ? (lastFetchCount > 0 ? `${lastFetchCount} updated` : "All current")
+                : lastFetchStatus === "error" ? "error" : null;
+            const isGreen = isResultMsg || lastFetchStatus === "success";
+            if (!badgeText) return null;
+            return (
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                color: isErrMsg ? C.red : C.green,
+                background: isErrMsg ? (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2") : (isDark ? "rgba(34,197,94,0.15)" : "#f0fdf4"),
+                border: `1px solid ${isErrMsg ? (isDark ? "rgba(239,68,68,0.3)" : "#fecaca") : (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0")}`,
+                padding: "2px 8px", borderRadius: 20,
+              }}>
+                {badgeText}
+              </span>
+            );
+          })()}
         </div>
       </div>
 
@@ -106,25 +115,6 @@ const DSEPricePopup = memo(function DSEPricePopup({
           <><Icon name="download" size={16} stroke="#fff" sw={2} />Update Prices from DSE</>
         )}
       </button>
-
-      {/* Fetch result — shown after button click (success or error) */}
-      {(fetchMsg || error) && (
-        <div style={{
-          padding: "10px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
-          background: (fetchMsg && !fetchMsg.isError)
-            ? (isDark ? "rgba(34,197,94,0.12)" : "#f0fdf4")
-            : (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2"),
-          border: `1px solid ${(fetchMsg && !fetchMsg.isError)
-            ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0")
-            : (isDark ? "rgba(239,68,68,0.3)" : "#fecaca")}`,
-          color: (fetchMsg && !fetchMsg.isError) ? C.green : C.red,
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <Icon name={fetchMsg && !fetchMsg.isError ? "check" : "alertCircle"} size={15}
-            stroke={(fetchMsg && !fetchMsg.isError) ? C.green : C.red} sw={2.5} />
-          {fetchMsg ? fetchMsg.text : error}
-        </div>
-      )}
     </div>
   );
 

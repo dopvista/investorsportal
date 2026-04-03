@@ -1035,11 +1035,11 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   const ts             = new Date().toISOString();
   const currentUserId  = getSession()?.user?.id;
 
-  // 1. Get the user's portfolio companies + their current CDS prices
-  const [portfolioRows, companiesWithPrice] = await Promise.all([
+  // 1. Get the user's CURRENT holdings (net qty > 0) + market prices in parallel
+  const [txRows, companiesWithPrice] = await Promise.all([
     _fetchGET(
-      `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
-      "Failed to fetch portfolio"
+      `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&status=eq.verified&select=company_id,type,qty`,
+      "Failed to fetch portfolio transactions"
     ),
     _fetchGET(
       `${BASE}/rest/v1/companies?price=not.is.null&select=id,name,price&order=name.asc`,
@@ -1047,7 +1047,13 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
     ),
   ]);
 
-  const portfolioIds   = [...new Set(portfolioRows.map(r => r.company_id).filter(Boolean))];
+  // Only include companies where net shares > 0 (excludes fully-sold positions)
+  const netQty = {};
+  for (const r of txRows) {
+    if (!r.company_id) continue;
+    netQty[r.company_id] = (netQty[r.company_id] || 0) + (r.type === "Buy" ? Number(r.qty) : -Number(r.qty));
+  }
+  const portfolioIds = Object.keys(netQty).filter(id => netQty[id] > 0);
   if (!portfolioIds.length) return { updatedCount: 0, results: [], alreadyCurrent: 0, noMarketPrice: 0 };
 
   // Only process companies in the user's portfolio that have a market price
