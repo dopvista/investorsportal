@@ -42,7 +42,7 @@ export default async function handler(req) {
     }),
   });
 
-  const data = await response.json().catch(() => ({ raw: await response.text() }));
+  const data = await response.json().catch(async () => ({ raw: await response.text() }));
 
   return new Response(JSON.stringify(data), {
     status: response.ok ? 200 : response.status,
