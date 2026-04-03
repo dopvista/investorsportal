@@ -3,6 +3,52 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// ── Helpers ───────────────────────────────────────────────────────────
+// The app uses a custom auth system (sb_session in localStorage).
+// The Supabase JS SDK client never receives the user's JWT, so SDK
+// `.from()` calls run as anonymous. We resolve the token ourselves
+// and use fetch() directly to PostgREST for writes that need auth.
+
+function getSupabaseBase() {
+  return import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+}
+function getAnonKey() {
+  return import.meta.env.VITE_SUPABASE_ANON_KEY;
+}
+async function resolveToken(supabase) {
+  // Try SDK session first (works if setSession was called)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session.access_token;
+  } catch {}
+  // Fall back to custom session in localStorage
+  try {
+    const s = JSON.parse(localStorage.getItem("sb_session") || "null");
+    if (s?.access_token) return s.access_token;
+  } catch {}
+  return getAnonKey();
+}
+
+async function patchSiteSetting(key, value, token) {
+  const url = `${getSupabaseBase()}/rest/v1/site_settings?key=eq.${encodeURIComponent(key)}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token,
+      "apikey": getAnonKey(),
+      "Prefer": "return=minimal",
+    },
+    body: JSON.stringify({ value, updated_at: new Date().toISOString() }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `PATCH failed (${res.status})`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
 export function useDSEPriceFetch(supabase) {
   const [setting, setSetting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,10 +98,8 @@ export function useDSEPriceFetch(supabase) {
       setError(null);
       const newEnabled = !setting.enabled;
       const newValue = { ...setting, enabled: newEnabled };
-      const { error: err } = await supabase
-        .from("site_settings")
-        .upsert({ key: "auto_fetch_dse_prices", value: newValue, updated_at: new Date().toISOString() }, { onConflict: "key" });
-      if (err) throw err;
+      const token = await resolveToken(supabase);
+      await patchSiteSetting("auto_fetch_dse_prices", newValue, token);
       setSetting(newValue);
     } catch (e) {
       console.error("Failed to toggle auto-fetch:", e);
@@ -71,15 +115,13 @@ export function useDSEPriceFetch(supabase) {
       setError(null);
       setFetchResult(null);
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || anonKey;
+      const token = await resolveToken(supabase);
+      const anonKey = getAnonKey();
 
       const body = { updated_by: updatedBy };
       if (cdsNumber) body.cds_number = cdsNumber;
 
-      const res = await fetch(supabaseUrl + "/functions/v1/fetch-dse-prices", {
+      const res = await fetch(getSupabaseBase() + "/functions/v1/fetch-dse-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,10 +142,7 @@ export function useDSEPriceFetch(supabase) {
         last_fetch_status: "success",
         last_fetch_count: result.updated_count,
       };
-      await supabase
-        .from("site_settings")
-        .update({ value: updatedValue, updated_at: new Date().toISOString() })
-        .eq("key", "auto_fetch_dse_prices");
+      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
       setSetting(updatedValue);
       return result;
     } catch (e) {
@@ -116,11 +155,10 @@ export function useDSEPriceFetch(supabase) {
           last_fetch_at: new Date().toISOString(),
           last_fetch_status: "error: " + e.message,
         };
-        await supabase
-          .from("site_settings")
-          .update({ value: updatedValue, updated_at: new Date().toISOString() })
-          .eq("key", "auto_fetch_dse_prices")
-          .catch(() => {});
+        try {
+          const token = await resolveToken(supabase);
+          await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
+        } catch {}
         setSetting(updatedValue);
       }
       return null;
@@ -144,4 +182,4 @@ export function useDSEPriceFetch(supabase) {
     error,
     reload: loadSetting,
   };
-      }
+}
