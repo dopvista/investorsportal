@@ -31,7 +31,7 @@ const useIsMobile = () => {
 };
 
 // ── DSE Price Popup ──────────────────────────────────────────────────
-const DSEPricePopup = memo(function DSEPricePopup({ onClose }) {
+const DSEPricePopup = memo(function DSEPricePopup({ onClose, onFetchComplete }) {
   const { C, isDark } = useTheme();
   const {
     enabled, loading, toggling, fetching,
@@ -45,7 +45,10 @@ const DSEPricePopup = memo(function DSEPricePopup({ onClose }) {
   const handleFetch = async () => {
     setFetchMsg(null);
     const result = await fetchNow("Manual Fetch (Portfolio)");
-    if (result) setFetchMsg(`${result.updated_count} price${result.updated_count !== 1 ? "s" : ""} updated`);
+    if (result) {
+      setFetchMsg(`${result.updated_count} price${result.updated_count !== 1 ? "s" : ""} updated`);
+      if (onFetchComplete) onFetchComplete();
+    }
   };
 
   const fmtDate = (iso) => {
@@ -638,7 +641,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
           onConfirm={confirmDelete} onClose={closeDeleteModal} />
       )}
-      {showDSEPopup && <DSEPricePopup onClose={() => setShowDSEPopup(false)} />}
+      {showDSEPopup && <DSEPricePopup onClose={() => setShowDSEPopup(false)} onFetchComplete={loadPortfolio} />}
       {historyModal.open && (
         <PriceHistoryModal
           company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null}
