@@ -26,7 +26,7 @@ export function useDSEPriceFetch(supabase) {
 
       if (err) {
         if (err.code === "PGRST116") {
-          setSetting({ enabled: false, schedule: "0 12 * * 1-5", last_fetch_at: null, last_fetch_status: null, last_fetch_count: 0 });
+          setSetting({ enabled: false, schedule: "30 13 * * 1-5", last_fetch_at: null, last_fetch_status: null, last_fetch_count: 0 });
         } else {
           throw err;
         }
@@ -54,8 +54,7 @@ export function useDSEPriceFetch(supabase) {
       const newValue = { ...setting, enabled: newEnabled };
       const { error: err } = await supabase
         .from("site_settings")
-        .update({ value: newValue, updated_at: new Date().toISOString() })
-        .eq("key", "auto_fetch_dse_prices");
+        .upsert({ key: "auto_fetch_dse_prices", value: newValue, updated_at: new Date().toISOString() }, { onConflict: "key" });
       if (err) throw err;
       setSetting(newValue);
     } catch (e) {
@@ -138,7 +137,7 @@ export function useDSEPriceFetch(supabase) {
     lastFetchAt: setting?.last_fetch_at ?? null,
     lastFetchStatus: setting?.last_fetch_status ?? null,
     lastFetchCount: setting?.last_fetch_count ?? 0,
-    schedule: setting?.schedule ?? "0 12 * * 1-5",
+    schedule: setting?.schedule ?? "30 13 * * 1-5",
     toggleAutoFetch,
     fetchNow,
     fetchResult,

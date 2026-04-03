@@ -30,121 +30,162 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── DSE Price Popup ──────────────────────────────────────────────────
-const DSEPricePopup = memo(function DSEPricePopup({ onClose, onFetchComplete }) {
+// ── DSE Price Popup (purely presentational) ──────────────────────────
+const DSEPricePopup = memo(function DSEPricePopup({
+  onClose, isMobile,
+  enabled, loading, toggling, fetching, error, fetchMsg,
+  lastFetchAt, lastFetchStatus, lastFetchCount,
+  toggleAutoFetch, onFetchNow,
+}) {
   const { C, isDark } = useTheme();
-  const {
-    enabled, loading, toggling, fetching,
-    lastFetchAt, lastFetchStatus, lastFetchCount,
-    toggleAutoFetch, fetchNow, error,
-  } = useDSEPriceFetch(supabase);
-
-  const [fetchMsg, setFetchMsg] = useState(null);
-  const backdropRef = useRef(null);
-
-  const handleFetch = async () => {
-    setFetchMsg(null);
-    const result = await fetchNow("Manual Fetch (Portfolio)");
-    if (result) {
-      setFetchMsg(`${result.updated_count} price${result.updated_count !== 1 ? "s" : ""} updated`);
-      if (onFetchComplete) onFetchComplete();
-    }
-  };
 
   const fmtDate = (iso) => {
     if (!iso) return "Never";
-    return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  const statusColor = lastFetchStatus === "success" ? C.green : lastFetchStatus?.startsWith("error") ? C.red : C.gray400;
+  const header = (
+    <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>DSE Price Updates</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>Fetch latest share prices from DSE</div>
+      </div>
+      <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icon name="x" size={16} stroke="#ffffff" sw={2.2} />
+      </button>
+    </div>
+  );
+
+  const body = loading ? (
+    <div style={{ padding: 32, textAlign: "center", color: C.gray400, fontSize: 13, fontFamily: "inherit" }}>Loading...</div>
+  ) : (
+    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, fontFamily: "inherit" }}>
+      {/* Auto-Fetch Toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: "inherit" }}>Auto-Fetch Prices</div>
+          <div style={{ fontSize: 11, color: C.gray500, marginTop: 2, fontFamily: "inherit" }}>Mon–Fri at 4:30 PM (EAT)</div>
+        </div>
+        <button onClick={toggleAutoFetch} disabled={toggling}
+          style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none", fontFamily: "inherit" }}>
+          <div style={{ position: "absolute", top: 3, left: enabled ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+        </button>
+      </div>
+
+      {/* Last Fetch */}
+      <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "inherit" }}>Last Fetch</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, fontFamily: "inherit" }}>{fmtDate(lastFetchAt)}</div>
+          {lastFetchStatus && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, fontFamily: "inherit",
+              color: lastFetchStatus === "success" ? C.green : C.red,
+              background: lastFetchStatus === "success" ? (isDark ? "rgba(34,197,94,0.15)" : "#f0fdf4") : (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2"),
+              border: `1px solid ${lastFetchStatus === "success" ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0") : (isDark ? "rgba(239,68,68,0.3)" : "#fecaca")}`,
+              padding: "2px 8px", borderRadius: 20,
+            }}>
+              {lastFetchStatus === "success" ? `${lastFetchCount} updated` : "error"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Fetch Now */}
+      <button onClick={onFetchNow} disabled={fetching}
+        style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: fetching ? (isDark ? "rgba(59,130,246,0.3)" : "#93c5fd") : "#3b82f6", color: "#fff", fontWeight: 700, fontSize: 15, cursor: fetching ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.15s" }}>
+        {fetching ? (
+          <><span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "dseSpin 0.8s linear infinite" }} />Fetching from DSE...</>
+        ) : (
+          <><Icon name="download" size={16} stroke="#fff" sw={2} />Fetch Prices Now</>
+        )}
+      </button>
+
+      {/* Result / Error */}
+      {fetchMsg && (
+        <div style={{ padding: "9px 14px", borderRadius: 9, fontFamily: "inherit", fontSize: 13, fontWeight: 600,
+          background: fetchMsg.isError ? (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2") : (isDark ? "rgba(34,197,94,0.15)" : "#f0fdf4"),
+          border: `1px solid ${fetchMsg.isError ? (isDark ? "rgba(239,68,68,0.3)" : "#fecaca") : (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0")}`,
+          color: fetchMsg.isError ? C.red : C.green,
+        }}>
+          {fetchMsg.text}
+        </div>
+      )}
+      {error && !fetchMsg && (
+        <div style={{ padding: "9px 14px", borderRadius: 9, background: isDark ? "rgba(239,68,68,0.15)" : "#fef2f2", border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "#fecaca"}`, color: C.red, fontSize: 12, fontFamily: "inherit" }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return createPortal(
+      <>
+        <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dseSheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+        <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 9999, background: C.white, borderRadius: "18px 18px 0 0", border: `1.5px solid ${C.gray200}`, borderBottom: "none", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "dseSheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden", fontFamily: "inherit" }}>
+          {header}
+          {body}
+          <div style={{ padding: "0 20px 12px" }}>
+            <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <>
-      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <div ref={backdropRef} onClick={e => { if (e.target === backdropRef.current) onClose(); }}
-        style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{
-          width: "90%", maxWidth: 420, background: C.white, borderRadius: 18,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden",
-          animation: "fadeIn 0.2s ease-out", fontFamily: "inherit",
-        }}>
-          {/* Header */}
-          <div style={{ padding: "18px 22px", background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>DSE Price Updates</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>Fetch latest share prices from DSE</div>
-            </div>
-            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="x" size={16} stroke="#ffffff" sw={2.2} />
-            </button>
-          </div>
-
-          {loading ? (
-            <div style={{ padding: 32, textAlign: "center", color: C.gray400, fontSize: 13 }}>Loading...</div>
-          ) : (
-            <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Auto-Fetch Toggle */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Auto-Fetch Prices</div>
-                  <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Mon–Fri at 3:00 PM (EAT)</div>
-                </div>
-                <button onClick={toggleAutoFetch} disabled={toggling}
-                  style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none", fontFamily: "inherit" }}>
-                  <div style={{ position: "absolute", top: 3, left: enabled ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
-                </button>
-              </div>
-
-              {/* Last Fetch Status */}
-              <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Last Fetch</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: C.gray400, marginBottom: 2 }}>TIME</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmtDate(lastFetchAt)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: C.gray400, marginBottom: 2 }}>STATUS</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: statusColor }}>{lastFetchStatus || "—"}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: C.gray400, marginBottom: 2 }}>UPDATED</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{lastFetchCount || "—"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fetch Now Button */}
-              <button onClick={handleFetch} disabled={fetching}
-                style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none", background: fetching ? (isDark ? "rgba(59,130,246,0.3)" : "#93c5fd") : "#3b82f6", color: "#fff", fontWeight: 700, fontSize: 14, cursor: fetching ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.15s" }}>
-                {fetching ? (
-                  <><span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />Fetching from DSE...</>
-                ) : (
-                  <><Icon name="download" size={16} stroke="#fff" sw={2} />Fetch Prices Now</>
-                )}
-              </button>
-
-              {/* Error */}
-              {error && (
-                <div style={{ padding: "8px 12px", borderRadius: 8, background: isDark ? "rgba(239,68,68,0.15)" : "#fef2f2", border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "#fecaca"}`, color: C.red, fontSize: 12 }}>
-                  {error}
-                </div>
-              )}
-
-              {/* Success message */}
-              {fetchMsg && !error && (
-                <div style={{ padding: "8px 12px", borderRadius: 8, background: isDark ? "rgba(34,197,94,0.15)" : "#f0fdf4", border: `1px solid ${isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0"}`, color: C.green, fontSize: 12, fontWeight: 600 }}>
-                  {fetchMsg}
-                </div>
-              )}
-            </div>
-          )}
+      <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dseFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: "90%", maxWidth: 420, background: C.white, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", animation: "dseFadeIn 0.2s ease-out", fontFamily: "inherit" }}>
+          {header}
+          {body}
         </div>
       </div>
     </>,
     document.body
   );
 });
+
+// ── DSE Price Card (amber, replaces Not Priced StatCard) ──────────────
+function DSEPriceCard({ unpriced, lastFetchAt, onClick }) {
+  const { C, isDark } = useTheme();
+  const fmtShort = (iso) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+  return (
+    <div onClick={onClick} style={{
+      background: isDark ? "rgba(217,119,6,0.12)" : "#FFFBEB",
+      border: `1.5px solid ${isDark ? "rgba(217,119,6,0.35)" : "#FDE68A"}`,
+      borderRadius: 12,
+      padding: "14px 16px",
+      cursor: "pointer",
+      display: "flex", flexDirection: "column", gap: 4,
+      transition: "box-shadow 0.15s, border-color 0.15s",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+      userSelect: "none",
+    }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(217,119,6,0.2)"; e.currentTarget.style.borderColor = isDark ? "rgba(217,119,6,0.6)" : "#F59E0B"; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.04)"; e.currentTarget.style.borderColor = isDark ? "rgba(217,119,6,0.35)" : "#FDE68A"; }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <Icon name="dollarSign" size={15} stroke="#D97706" sw={2.2} />
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.05em" }}>Not Priced</span>
+        <span style={{ marginLeft: "auto", fontSize: 18, fontWeight: 900, color: "#D97706" }}>{unpriced}</span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? "#FDE68A" : "#92400E" }}>Click to Update Prices</div>
+      {lastFetchAt ? (
+        <div style={{ fontSize: 10, color: isDark ? "rgba(253,230,138,0.6)" : "#B45309", fontWeight: 500 }}>Last updated {fmtShort(lastFetchAt)}</div>
+      ) : (
+        <div style={{ fontSize: 10, color: isDark ? "rgba(253,230,138,0.5)" : "#B45309", fontWeight: 500 }}>Never fetched from DSE</div>
+      )}
+    </div>
+  );
+}
 
 // ── Amber "no price" badge helper ────────────────────────────────────
 const amberBadgeStyle = (isDark) => ({
@@ -327,6 +368,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
 
+  // ── DSE Price Fetch (hoisted so lastFetchAt is available to the card) ─
+  const {
+    enabled: dseEnabled, loading: dseLoading, toggling: dseToggling, fetching: dseFetching,
+    lastFetchAt: dseLastFetchAt, lastFetchStatus: dseLastFetchStatus, lastFetchCount: dseLastFetchCount,
+    toggleAutoFetch: dseToggleAutoFetch, fetchNow: dseFetchNow, error: dseError,
+  } = useDSEPriceFetch(supabase);
+
+  const [dseFetchMsg, setDseFetchMsg] = useState(null);
+
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
   const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -373,6 +423,18 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (fromPull) { setRefreshing(false); setPullDistance(0); }
     }
   }, [cdsNumber, showToast]);
+
+  const handleDSEFetch = useCallback(async () => {
+    setDseFetchMsg(null);
+    const result = await dseFetchNow("Manual Fetch (Portfolio)", cdsNumber);
+    if (result) {
+      const n = result.updated_count;
+      setDseFetchMsg({ text: `${n} price${n !== 1 ? "s" : ""} updated`, isError: false });
+      loadPortfolio();
+      setTimeout(() => setDseFetchMsg(null), 6000);
+    }
+    // on error: dseError prop on DSEPricePopup already shows the error from the hook
+  }, [dseFetchNow, cdsNumber, loadPortfolio]);
 
   const loadMasterList = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++masterReqRef.current;
@@ -641,7 +703,17 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           message={`Are you sure you want to delete "${deleteModal.name}"? This cannot be undone.`}
           onConfirm={confirmDelete} onClose={closeDeleteModal} />
       )}
-      {showDSEPopup && <DSEPricePopup onClose={() => setShowDSEPopup(false)} onFetchComplete={loadPortfolio} />}
+      {showDSEPopup && (
+        <DSEPricePopup
+          onClose={() => { setShowDSEPopup(false); setDseFetchMsg(null); }}
+          isMobile={isMobile}
+          enabled={dseEnabled} loading={dseLoading} toggling={dseToggling}
+          fetching={dseFetching} error={dseError} fetchMsg={dseFetchMsg}
+          lastFetchAt={dseLastFetchAt} lastFetchStatus={dseLastFetchStatus} lastFetchCount={dseLastFetchCount}
+          toggleAutoFetch={dseToggleAutoFetch}
+          onFetchNow={handleDSEFetch}
+        />
+      )}
       {historyModal.open && (
         <PriceHistoryModal
           company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null}
@@ -676,15 +748,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
             {isMobile ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14, flexShrink: 0 }}>
-                <StatCard label="Holdings"   value={portfolioStats.total}    sub="In your portfolio"    icon={<Icon name="building" size={17} />} color={C.navy} />
-                <StatCard label="Not Priced" value={portfolioStats.unpriced} sub="Tap to fetch prices" icon={<Icon name="dollarSign" size={17} sw={2.2} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} onClick={() => setShowDSEPopup(true)} />
+                <StatCard label="Holdings" value={portfolioStats.total} sub="In your portfolio" icon={<Icon name="building" size={17} />} color={C.navy} />
+                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} />
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24, flexShrink: 0 }}>
-                <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"   icon={<Icon name="building" size={17} />} color={C.navy}  />
-                <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings"  icon={<Icon name="barChart" size={17} />} color={C.green} />
-                <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"       icon={<Icon name="trophy" size={17} />} color={C.gold}  />
-                <StatCard label="Not Priced"    value={portfolioStats.unpriced}                                               sub="Click to fetch prices"    icon={<Icon name="dollarSign" size={17} sw={2.2} />} color={portfolioStats.unpriced > 0 ? C.red : C.gray400} onClick={() => setShowDSEPopup(true)} />
+                <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"  icon={<Icon name="building" size={17} />} color={C.navy}  />
+                <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings" icon={<Icon name="barChart" size={17} />} color={C.green} />
+                <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"      icon={<Icon name="trophy" size={17} />} color={C.gold}  />
+                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} />
               </div>
             )}
 
