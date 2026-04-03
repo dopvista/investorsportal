@@ -185,7 +185,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
           {sectionLabel("Last Fetch")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
             {[
-              { label: "Prices Updated", value: lastFetchCount ?? 0, color: lastFetchCount > 0 ? C.green : C.text },
+              { label: statusOk && lastFetchCount === 0 ? "Already Current" : "Prices Updated", value: statusOk && lastFetchCount === 0 ? "✓" : (lastFetchCount ?? 0), color: statusOk ? C.green : C.text },
               { label: "Status", value: statusOk ? "Success" : statusErr ? "Error" : "—", color: statusOk ? C.green : statusErr ? C.red : C.gray400 },
               { label: "Time", value: lastFetchAt ? new Date(lastFetchAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "—", color: C.text },
             ].map(({ label, value, color }) => (
@@ -233,7 +233,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>Fetch Successful</span>
                 <div style={{ display: "flex", gap: 20, fontSize: 12 }}>
                   <span style={{ color: C.gray500 }}>DSE prices: <strong style={{ color: C.text }}>{fetchMsg.result.total_dse_prices}</strong></span>
-                  <span style={{ color: C.gray500 }}>Updated: <strong style={{ color: C.green }}>{fetchMsg.result.updated_count}</strong></span>
+                  <span style={{ color: C.gray500 }}>Updated: <strong style={{ color: fetchMsg.result.updated_count > 0 ? C.green : C.gray400 }}>{fetchMsg.result.updated_count}</strong></span>
                   <span style={{ color: C.gray500 }}>Unchanged: <strong style={{ color: C.text }}>{fetchMsg.result.skipped_unchanged}</strong></span>
                 </div>
               </div>

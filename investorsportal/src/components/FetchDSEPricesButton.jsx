@@ -37,10 +37,14 @@ export default function FetchDSEPricesButton({ supabase, cdsNumber, onComplete }
         throw new Error(data.error || "Fetch failed");
       }
 
-      setResult({
-        type: "success",
-        msg: "Updated " + data.updated_count + " price" + (data.updated_count !== 1 ? "s" : "") + " from DSE",
-      });
+      const n = data.updated_count ?? 0;
+      const unchanged = data.skipped_unchanged ?? 0;
+      const msg = n > 0
+        ? `${n} price${n !== 1 ? "s" : ""} updated from DSE`
+        : unchanged > 0
+          ? `All ${unchanged} prices already up to date`
+          : "No new prices found from DSE";
+      setResult({ type: "success", msg });
 
       if (onComplete) onComplete(data);
       setTimeout(() => setResult(null), 5000);

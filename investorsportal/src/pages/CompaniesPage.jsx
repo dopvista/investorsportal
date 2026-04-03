@@ -100,7 +100,9 @@ const DSEPricePopup = memo(function DSEPricePopup({
               border: `1px solid ${lastFetchStatus === "success" ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0") : (isDark ? "rgba(239,68,68,0.3)" : "#fecaca")}`,
               padding: "2px 8px", borderRadius: 20,
             }}>
-              {lastFetchStatus === "success" ? `${lastFetchCount} updated` : "error"}
+              {lastFetchStatus === "success"
+                ? lastFetchCount > 0 ? `${lastFetchCount} updated` : "All current"
+                : "error"}
             </span>
           )}
         </div>
