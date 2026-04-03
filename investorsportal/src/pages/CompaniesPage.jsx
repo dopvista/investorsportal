@@ -178,7 +178,7 @@ function DSEPriceCard({ unpriced, lastFetchAt, onClick }) {
           <span style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Not Priced</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1 }}>{unpriced}</span>
         </div>
-        <div style={{ fontSize: 13, color: amber, fontWeight: 800, marginTop: 1 }}>Click to Update Prices</div>
+        <div style={{ fontSize: 13, color: amber, fontWeight: 800, marginTop: 1 }}>Update Prices</div>
         <div style={{ fontSize: 8, color: C.gray500, marginTop: 1 }}>
           {lastFetchAt ? `Updated ${fmtShort(lastFetchAt)}` : "Never fetched"}
         </div>
