@@ -439,7 +439,7 @@ const Empty = memo(function Empty({ msg }) {
 });
 
 // ── Mobile metric card ─────────────────────────────────────────────
-const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, accent, onClick, chevron }) {
+const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, accent, onClick, chevron, navigates }) {
   const { C } = useTheme();
   const hasAccent = !!accent;
   return (
@@ -451,6 +451,7 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
         borderRadius: 12,
         padding: "13px 14px",
         cursor: onClick ? "pointer" : "default",
+        display: "flex", flexDirection: "column",
       }}
     >
       <div style={{
@@ -470,7 +471,10 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
         )}
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, color: hasAccent ? accent : C.text, lineHeight: 1, marginBottom: 3 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>{sub}</div>}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
+        {sub && <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>{sub}</div>}
+        {navigates && <span style={{ fontSize: 11, color: hasAccent ? accent : C.gray400, fontWeight: 700, marginLeft: "auto" }}>→</span>}
+      </div>
     </div>
   );
 });
@@ -1206,21 +1210,29 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               </div>
             </div>
 
-            {/* Unrealized / Realized GL row */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            {/* Unrealized GL / Realized GL / Dividends row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               <MobileMetricCard
                 label="Unrealized GL"
                 value={loading ? "—" : metrics.hasFinancials ? `${metrics.unrealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.unrealizedGL)}` : "—"}
-                sub={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}% return` : "Set portfolio prices"}
+                sub={metrics.hasFinancials ? `${metrics.unrealizedRetPct >= 0 ? "+" : ""}${metrics.unrealizedRetPct.toFixed(2)}% return` : "Set prices"}
                 accent={metrics.hasFinancials ? (metrics.unrealizedGL >= 0 ? C.green : C.red) : undefined}
               />
               <MobileMetricCard
                 label="Realized GL"
                 value={loading ? "—" : metrics.hasRealized ? `${metrics.totalRealizedGL >= 0 ? "+" : ""}${fmtShort(metrics.totalRealizedGL)}` : "—"}
-                sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} shares sold` : "No closed positions"}
+                sub={metrics.hasRealized ? `${fmt(metrics.totalSharesSold)} sold` : "No closed"}
                 accent={metrics.hasRealized ? (metrics.totalRealizedGL >= 0 ? C.green : C.red) : undefined}
                 onClick={metrics.hasRealized ? onToggleRealized : undefined}
                 chevron={metrics.hasRealized ? (expanded === "realized" ? "open" : "closed") : undefined}
+              />
+              <MobileMetricCard
+                label="Dividends"
+                value={loading ? "—" : dividendSummary?.ytd_net > 0 ? `+${fmtShort(dividendSummary.ytd_net)}` : "—"}
+                sub={dividendSummary?.dividend_count > 0 ? `${dividendSummary.dividend_count} events` : "YTD income"}
+                accent="#f59e0b"
+                onClick={onNavDividends}
+                navigates
               />
             </div>
 
