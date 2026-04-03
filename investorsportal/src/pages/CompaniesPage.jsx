@@ -444,8 +444,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     try {
       const result = await sbCopyMarketPricesToCds(cdsNumber, "Market Price Sync");
       if (!isMountedRef.current) return;
-      const n = result.updatedCount;
-      setDseFetchMsg({ text: `${n} price${n !== 1 ? "s" : ""} updated`, isError: false });
+      const { updatedCount: n, alreadyCurrent = 0, noMarketPrice = 0 } = result;
+      const text = n > 0
+        ? `${n} price${n !== 1 ? "s" : ""} updated`
+        : alreadyCurrent > 0
+          ? `All ${alreadyCurrent} price${alreadyCurrent !== 1 ? "s" : ""} already up to date`
+          : noMarketPrice > 0
+            ? "No market prices available yet"
+            : "Nothing to update";
+      setDseFetchMsg({ text, isError: false });
       loadPortfolio();
       clearTimeout(dseMsgTimerRef.current);
       dseMsgTimerRef.current = setTimeout(() => { if (isMountedRef.current) setDseFetchMsg(null); }, 6000);

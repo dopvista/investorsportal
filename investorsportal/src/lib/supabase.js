@@ -1048,11 +1048,11 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   ]);
 
   const portfolioIds   = [...new Set(portfolioRows.map(r => r.company_id).filter(Boolean))];
-  if (!portfolioIds.length) return { updatedCount: 0, results: [], skipped: 0 };
+  if (!portfolioIds.length) return { updatedCount: 0, results: [], alreadyCurrent: 0, noMarketPrice: 0 };
 
   // Only process companies in the user's portfolio that have a market price
   const priced = companiesWithPrice.filter(c => portfolioIds.includes(c.id));
-  if (!priced.length) return { updatedCount: 0, results: [], skipped: portfolioIds.length };
+  if (!priced.length) return { updatedCount: 0, results: [], alreadyCurrent: 0, noMarketPrice: portfolioIds.length };
 
   // 2. Get existing CDS prices for this user (to know previous prices)
   const existingPrices = await _fetchGET(
@@ -1062,17 +1062,18 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   const existingMap = Object.fromEntries(existingPrices.map(p => [p.company_id, p]));
 
   // 3. Build upsert payloads and history rows — only for prices that changed
-  const upsertRows   = [];
-  const historyRows  = [];
-  const results      = [];
-  let   skipped      = 0;
+  const upsertRows     = [];
+  const historyRows    = [];
+  const results        = [];
+  let   alreadyCurrent = 0; // prices that matched — no update needed
+  const noMarketPrice  = portfolioIds.length - priced.length; // portfolio companies without a market price
 
   for (const company of priced) {
     const newPrice   = Number(company.price);
     const existing   = existingMap[company.id];
     const oldPrice   = existing ? Number(existing.price) : null;
 
-    if (oldPrice === newPrice) { skipped++; continue; }
+    if (oldPrice === newPrice) { alreadyCurrent++; continue; }
 
     const changeAmount  = oldPrice != null ? newPrice - oldPrice : null;
     const changePct     = oldPrice != null && oldPrice !== 0 ? (changeAmount / oldPrice) * 100 : null;
@@ -1104,7 +1105,7 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
     results.push({ company: company.name, old_price: oldPrice, new_price: newPrice });
   }
 
-  if (!upsertRows.length) return { updatedCount: 0, results: [], skipped };
+  if (!upsertRows.length) return { updatedCount: 0, results: [], alreadyCurrent, noMarketPrice };
 
   // 4. Batch upsert cds_prices + insert history in parallel
   await Promise.all([
@@ -1131,7 +1132,7 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   _invalidateCache(`${BASE}/rest/v1/cds_prices`);
   _invalidateCache(`${BASE}/rest/v1/cds_price_history`);
 
-  return { updatedCount: upsertRows.length, results, skipped };
+  return { updatedCount: upsertRows.length, results, alreadyCurrent, noMarketPrice };
 }
 
 // ══════════════════════════════════════════════════════════════════
