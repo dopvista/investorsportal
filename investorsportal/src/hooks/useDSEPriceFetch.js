@@ -72,7 +72,7 @@ export function useDSEPriceFetch(supabase) {
 
       if (err) {
         if (err.code === "PGRST116") {
-          setSetting({ enabled: false, schedule: "30 13 * * 1-5", last_fetch_at: null, last_fetch_status: null, last_fetch_count: 0 });
+          setSetting({ enabled: true, schedule: "30 13 * * 1-5", last_fetch_at: null, last_fetch_status: null, last_fetch_count: 0 });
         } else {
           throw err;
         }
@@ -168,7 +168,7 @@ export function useDSEPriceFetch(supabase) {
   }, [supabase]); // no longer depends on setting — reads latest via settingRef
 
   return {
-    enabled: setting?.enabled ?? false,
+    enabled: setting?.enabled ?? true,
     loading,
     toggling,
     fetching,
