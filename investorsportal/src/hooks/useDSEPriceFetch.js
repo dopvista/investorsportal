@@ -64,6 +64,7 @@ export function useDSEPriceFetch(supabase) {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [error, setError] = useState(null);
   const [fetchResult, setFetchResult] = useState(null);
 
@@ -116,6 +117,23 @@ export function useDSEPriceFetch(supabase) {
       setError(e.message);
     } finally {
       setToggling(false);
+    }
+  }, [supabase, setting]);
+
+  const updateSchedule = useCallback(async (newSchedule) => {
+    if (!setting) return;
+    try {
+      setSavingSchedule(true);
+      setError(null);
+      const newValue = { ...setting, schedule: newSchedule };
+      const token = await resolveToken(supabase);
+      await patchSiteSetting("auto_fetch_dse_prices", newValue, token);
+      setSetting(newValue);
+    } catch (e) {
+      console.error("Failed to update schedule:", e);
+      setError(e.message);
+    } finally {
+      setSavingSchedule(false);
     }
   }, [supabase, setting]);
 
@@ -188,6 +206,8 @@ export function useDSEPriceFetch(supabase) {
     lastFetchCount: setting?.last_fetch_count ?? 0,
     schedule: setting?.schedule ?? "30 13 * * 1-5",
     toggleAutoFetch,
+    updateSchedule,
+    savingSchedule,
     fetchNow,
     fetchResult,
     error,

@@ -633,7 +633,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     { id: "companies",  icon: <Icon name="building" size={14} />, label: "Companies"  },
     { id: "brokers",    icon: <Icon name="briefcase" size={14} />, label: "Brokers"    },
     { id: "login_page", icon: <Icon name="image" size={14} />, label: "Login Page" },
-    { id: "price_updates", icon: "📊", label: "Price Updates" },
+    { id: "price_updates", icon: <Icon name="barChart" size={14} />, label: "Price Updates" },
   ];
 
   return (
