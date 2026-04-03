@@ -126,16 +126,21 @@ function statPale(accentHex) {
   return PALE_COLORS.green; // default: green-tinted
 }
 
-export function StatCard({ label, value, sub, color, icon }) {
+export function StatCard({ label, value, sub, color, icon, onClick }) {
   const { C } = useTheme();
   const pale = statPale(color);
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: C.white, border: `1px solid ${C.gray200}`,
       borderRadius: 12, padding: "10px 14px",
       display: "flex", alignItems: "center", gap: 10,
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
-    }}>
+      cursor: onClick ? "pointer" : "default",
+      transition: "border-color 0.15s, box-shadow 0.15s",
+    }}
+      onMouseEnter={e => { if (onClick) { e.currentTarget.style.borderColor = color || C.gray400; e.currentTarget.style.boxShadow = `0 2px 12px ${color || C.gray400}22`; } }}
+      onMouseLeave={e => { if (onClick) { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)"; } }}
+    >
       <div style={{
         width: 36, height: 36, background: pale.bg,
         border: `1.5px solid ${pale.border}`,
