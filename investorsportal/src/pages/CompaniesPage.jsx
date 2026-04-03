@@ -76,20 +76,9 @@ const DSEPricePopup = memo(function DSEPricePopup({
         </button>
       </div>
 
-      {/* Error banner — shown above button, only on error */}
-      {(error || (fetchMsg?.isError)) && (
-        <div style={{ padding: "9px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
-          background: isDark ? "rgba(239,68,68,0.15)" : "#fef2f2",
-          border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "#fecaca"}`,
-          color: C.red,
-        }}>
-          {fetchMsg?.isError ? fetchMsg.text : error}
-        </div>
-      )}
-
-      {/* Last Fetch */}
+      {/* Last DSE auto-fetch info */}
       <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Last Fetch</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Last DSE Auto-Fetch</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmtDate(lastFetchAt)}</div>
           {lastFetchStatus && (
@@ -112,11 +101,30 @@ const DSEPricePopup = memo(function DSEPricePopup({
       <button onClick={onFetchNow} disabled={fetching}
         style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: fetching ? (isDark ? "rgba(59,130,246,0.3)" : "#93c5fd") : "#3b82f6", color: "#fff", fontWeight: 700, fontSize: 15, cursor: fetching ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.15s" }}>
         {fetching ? (
-          <><span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "dseSpin 0.8s linear infinite" }} />Fetching from DSE...</>
+          <><span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "dseSpin 0.8s linear infinite" }} />Updating prices...</>
         ) : (
-          <><Icon name="download" size={16} stroke="#fff" sw={2} />Fetch Prices Now</>
+          <><Icon name="download" size={16} stroke="#fff" sw={2} />Update Prices from DSE</>
         )}
       </button>
+
+      {/* Fetch result — shown after button click (success or error) */}
+      {(fetchMsg || error) && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 9, fontSize: 13, fontWeight: 600,
+          background: (fetchMsg && !fetchMsg.isError)
+            ? (isDark ? "rgba(34,197,94,0.12)" : "#f0fdf4")
+            : (isDark ? "rgba(239,68,68,0.15)" : "#fef2f2"),
+          border: `1px solid ${(fetchMsg && !fetchMsg.isError)
+            ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0")
+            : (isDark ? "rgba(239,68,68,0.3)" : "#fecaca")}`,
+          color: (fetchMsg && !fetchMsg.isError) ? C.green : C.red,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <Icon name={fetchMsg && !fetchMsg.isError ? "check" : "alertCircle"} size={15}
+            stroke={(fetchMsg && !fetchMsg.isError) ? C.green : C.red} sw={2.5} />
+          {fetchMsg ? fetchMsg.text : error}
+        </div>
+      )}
     </div>
   );
 
