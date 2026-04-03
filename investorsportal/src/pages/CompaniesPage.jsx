@@ -174,10 +174,12 @@ function DSEPriceCard({ unpriced, lastFetchAt, onClick }) {
         <Icon name="dollarSign" size={17} stroke="#374151" sw={2.2} />
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>Not Priced</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1 }}>{unpriced}</div>
-        <div style={{ fontSize: 10, color: amber, fontWeight: 700, marginTop: 2 }}>Click to Update Prices</div>
-        <div style={{ fontSize: 9, color: C.gray500, marginTop: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+          <span style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Not Priced</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1 }}>{unpriced}</span>
+        </div>
+        <div style={{ fontSize: 13, color: amber, fontWeight: 800, marginTop: 1 }}>Click to Update Prices</div>
+        <div style={{ fontSize: 8, color: C.gray500, marginTop: 1 }}>
           {lastFetchAt ? `Updated ${fmtShort(lastFetchAt)}` : "Never fetched"}
         </div>
       </div>
