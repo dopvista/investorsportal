@@ -1,7 +1,7 @@
 // src/hooks/useDSEPriceFetch.js
 // Hook for managing DSE price auto-fetch toggle and manual fetch trigger
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export function useDSEPriceFetch(supabase) {
   const [setting, setSetting] = useState(null);
@@ -10,6 +10,10 @@ export function useDSEPriceFetch(supabase) {
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState(null);
   const [fetchResult, setFetchResult] = useState(null);
+
+  // Keep a ref so fetchNow always reads the latest setting without stale closure
+  const settingRef = useRef(setting);
+  useEffect(() => { settingRef.current = setting; }, [setting]);
 
   const loadSetting = useCallback(async () => {
     try {
@@ -90,8 +94,9 @@ export function useDSEPriceFetch(supabase) {
       if (!res.ok || !result.success) throw new Error(result.error || "Fetch failed");
 
       setFetchResult(result);
+      // Use ref to get latest setting — avoids stale closure overwriting the toggle state
       const updatedValue = {
-        ...setting,
+        ...settingRef.current,
         last_fetch_at: result.fetched_at,
         last_fetch_status: "success",
         last_fetch_count: result.updated_count,
@@ -105,9 +110,10 @@ export function useDSEPriceFetch(supabase) {
     } catch (e) {
       console.error("Failed to fetch DSE prices:", e);
       setError(e.message);
-      if (setting) {
+      const current = settingRef.current;
+      if (current) {
         const updatedValue = {
-          ...setting,
+          ...current,
           last_fetch_at: new Date().toISOString(),
           last_fetch_status: "error: " + e.message,
         };
@@ -122,7 +128,7 @@ export function useDSEPriceFetch(supabase) {
     } finally {
       setFetching(false);
     }
-  }, [supabase, setting]);
+  }, [supabase]); // no longer depends on setting — reads latest via settingRef
 
   return {
     enabled: setting?.enabled ?? false,

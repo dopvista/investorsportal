@@ -66,7 +66,7 @@ const DSEPricePopup = memo(function DSEPricePopup({ onClose, onFetchComplete }) 
         <div style={{
           width: "90%", maxWidth: 420, background: C.white, borderRadius: 18,
           boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden",
-          animation: "fadeIn 0.2s ease-out",
+          animation: "fadeIn 0.2s ease-out", fontFamily: "inherit",
         }}>
           {/* Header */}
           <div style={{ padding: "18px 22px", background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -90,7 +90,7 @@ const DSEPricePopup = memo(function DSEPricePopup({ onClose, onFetchComplete }) 
                   <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Mon–Fri at 3:00 PM (EAT)</div>
                 </div>
                 <button onClick={toggleAutoFetch} disabled={toggling}
-                  style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
+                  style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none", fontFamily: "inherit" }}>
                   <div style={{ position: "absolute", top: 3, left: enabled ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
                 </button>
               </div>
