@@ -198,32 +198,36 @@ export function useDSEPriceFetch(supabase) {
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || "Fetch failed");
 
-      setFetchResult(result);
+      // Update UI immediately — don't block on DB persistence
       const updatedValue = {
         ...settingRef.current,
         last_fetch_at: result.fetched_at,
         last_fetch_status: "success",
         last_fetch_count: result.updated_count,
       };
-      const token = await resolveToken(supabase);
-      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
+      setFetchResult(result);
       setSetting(updatedValue);
+
+      // Persist to DB in background — failure is non-fatal for the UI
+      resolveToken(supabase)
+        .then(token => patchSiteSetting("auto_fetch_dse_prices", updatedValue, token))
+        .catch(e => console.warn("[fetchNow] Failed to persist fetch status:", e));
+
       return result;
     } catch (e) {
       console.error("Failed to fetch DSE prices:", e);
       setError(e.message);
       const current = settingRef.current;
       if (current) {
-        const updatedValue = {
+        const errValue = {
           ...current,
           last_fetch_at: new Date().toISOString(),
           last_fetch_status: "error: " + e.message,
         };
-        try {
-          const token = await resolveToken(supabase);
-          await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
-        } catch {}
-        setSetting(updatedValue);
+        setSetting(errValue);
+        resolveToken(supabase)
+          .then(token => patchSiteSetting("auto_fetch_dse_prices", errValue, token))
+          .catch(() => {});
       }
       return null;
     } finally {
