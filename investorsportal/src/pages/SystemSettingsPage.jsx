@@ -5,9 +5,10 @@ import ImageCropModal from "../components/ImageCropModal";
 import {
   sbGetSiteSettings, sbSaveSiteSettings, sbUploadSlideImage,
   sbGetAllBrokers, sbInsertBroker, sbUpdateBroker,
-  sbToggleBrokerStatus, sbDeleteBroker,
+  sbToggleBrokerStatus, sbDeleteBroker, supabase,
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
+import DSEPriceSettings from "../components/DSEPriceSettings";
 
 // ── inp(C, extra) — must receive live C from useTheme() ───────────
 function inp(C, extra = {}) {
@@ -631,6 +632,7 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     { id: "companies",  icon: "🏢", label: "Companies"  },
     { id: "brokers",    icon: "🏦", label: "Brokers"    },
     { id: "login_page", icon: "🖼️", label: "Login Page" },
+    { id: "price_updates", icon: "📊", label: "Price Updates" },
   ];
 
   return (
@@ -849,6 +851,10 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
               </button>
             </div>
           </>
+        )}
+
+        {activeMenu === "price_updates" && (
+          <DSEPriceSettings supabase={supabase} />
         )}
       </div>
 
