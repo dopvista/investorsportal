@@ -3,7 +3,8 @@ import { useState, useMemo, useEffect, useCallback, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import {
   sbInsert, sbUpdate, sbDelete,
-  sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies
+  sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
+  sbCopyMarketPricesToCds,
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
 import {
@@ -306,13 +307,17 @@ function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
     { icon: <Icon name="edit" size={14} stroke={C.text} />, label: "Edit Company", onClick: () => onEdit(c) },
     { icon: <Icon name="trash" size={14} stroke={C.red} />, label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => onDelete(c) },
   ];
+  const hasPrice = c.price != null;
   return (
     <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: "#DBEAFE", border: "1.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}><Icon name="building" size={17} stroke="#374151" sw={2.4} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-        <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>
-          {c.remarks ? <span style={{ color: C.gray500 }}>{c.remarks}</span> : c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+        <div style={{ fontSize: 11, color: C.gray400, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+          {hasPrice
+            ? <span style={{ background: C.greenBg, color: C.green, border: `1px solid #BBF7D044`, borderRadius: 6, padding: "1px 7px", fontWeight: 700, fontSize: 11 }}>TZS {fmt(c.price)}</span>
+            : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", borderRadius: 6, padding: "1px 7px", fontWeight: 700, fontSize: 11 }}>No market price</span>}
+          {c.remarks && <span style={{ color: C.gray400 }}>· {c.remarks}</span>}
         </div>
       </div>
       <ActionMenu actions={actions} />
@@ -368,13 +373,17 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
 
-  // ── DSE Price Fetch (hoisted so lastFetchAt is available to the card) ─
+  // ── DSE auto-fetch toggle state (hoisted so lastFetchAt is available to card) ─
+  // fetchNow is NOT used here — portfolio uses sbCopyMarketPricesToCds instead.
   const {
-    enabled: dseEnabled, loading: dseLoading, toggling: dseToggling, fetching: dseFetching,
+    enabled: dseEnabled, loading: dseLoading, toggling: dseToggling,
     lastFetchAt: dseLastFetchAt, lastFetchStatus: dseLastFetchStatus, lastFetchCount: dseLastFetchCount,
-    toggleAutoFetch: dseToggleAutoFetch, fetchNow: dseFetchNow, error: dseError,
+    toggleAutoFetch: dseToggleAutoFetch,
   } = useDSEPriceFetch(supabase);
 
+  // Separate local state for the portfolio copy-from-market operation
+  const [dseFetching, setDseFetching] = useState(false);
+  const [dseError,    setDseError]    = useState(null);
   const [dseFetchMsg, setDseFetchMsg] = useState(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
@@ -426,15 +435,22 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const handleDSEFetch = useCallback(async () => {
     setDseFetchMsg(null);
-    const result = await dseFetchNow("Auto Fetched", cdsNumber);
-    if (result) {
-      const n = result.updated_count;
+    setDseError(null);
+    setDseFetching(true);
+    try {
+      const result = await sbCopyMarketPricesToCds(cdsNumber, "Market Price Sync");
+      if (!isMountedRef.current) return;
+      const n = result.updatedCount;
       setDseFetchMsg({ text: `${n} price${n !== 1 ? "s" : ""} updated`, isError: false });
       loadPortfolio();
-      setTimeout(() => setDseFetchMsg(null), 6000);
+      setTimeout(() => { if (isMountedRef.current) setDseFetchMsg(null); }, 6000);
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      setDseError(e.message);
+    } finally {
+      if (isMountedRef.current) setDseFetching(false);
     }
-    // on error: dseError prop on DSEPricePopup already shows the error from the hook
-  }, [dseFetchNow, cdsNumber, loadPortfolio]);
+  }, [cdsNumber, loadPortfolio]);
 
   const loadMasterList = useCallback(async ({ fromPull = false } = {}) => {
     const reqId = ++masterReqRef.current;
@@ -957,8 +973,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
-                        {["#", "Company Name", "Sector", "Registered", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "8px 14px", textAlign: h === "Actions" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
+                        {["#", "Company Name", "Sector", "Market Price", "Registered", "Actions"].map(h => (
+                          <th key={h} style={{ padding: "8px 14px", textAlign: h === "Actions" || h === "Market Price" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -976,6 +992,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             <td style={{ padding: "8px 14px", color: C.gray400, fontWeight: 600, width: 36, fontSize: 12 }}>{i + 1}</td>
                             <td style={{ padding: "8px 14px", minWidth: 140 }}><div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{c.name}</div></td>
                             <td style={{ padding: "8px 14px", color: C.gray500, fontSize: 12 }}>{c.remarks || <span style={{ color: C.gray400 }}>—</span>}</td>
+                            <td style={{ padding: "8px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
+                              {c.price != null
+                                ? <span style={{ background: C.greenBg, color: C.green, padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(c.price)}</span>
+                                : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>No price</span>}
+                            </td>
                             <td style={{ padding: "8px 14px", color: C.gray500, fontSize: 12, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
                             <td style={{ padding: "8px 14px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>
                           </tr>

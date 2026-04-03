@@ -21,6 +21,8 @@ import {
   sbUnverifyTransactions,
   sbGetActiveBrokers,
   sbGetCdsAccount,
+  sbGetCdsPriceForCompany,
+  sbGetVerifiedTransactionsForCompany,
 } from "../lib/supabase";
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -335,22 +337,87 @@ const getRowPermissions = ({ transaction, isDE, isVR, isSAAD }) => {
   };
 };
 
+// ── FIFO realized G/L calculator (pure, no side effects) ─────────
+function calcFifoRealizedGL(txns, targetId) {
+  // txns must be all verified transactions for the company, sorted chronologically
+  let sharesHeld = 0, costHeld = 0, runningAvg = 0;
+  for (const t of txns) {
+    const tQty = Number(t.qty || 0), tTotal = Number(t.total || 0), tFees = Number(t.fees || 0);
+    if (t.type === "Buy") {
+      const cost = tTotal + tFees;
+      costHeld  += cost;
+      sharesHeld += tQty;
+      runningAvg = sharesHeld > 0 ? costHeld / sharesHeld : 0;
+    } else if (t.type === "Sell") {
+      const actualSold = Math.min(tQty, sharesHeld);
+      const costBasis  = actualSold * runningAvg;
+      const proceeds   = tTotal - tFees;
+      const gain       = proceeds - costBasis;
+      if (t.id === targetId) {
+        return {
+          gain, costBasis, proceeds,
+          avgBuyCostPerShare: runningAvg,
+          sellNetPerShare:    actualSold > 0 ? proceeds / actualSold : 0,
+          pct:                costBasis > 0 ? (gain / costBasis) * 100 : 0,
+        };
+      }
+      costHeld   -= costBasis;
+      sharesHeld -= actualSold;
+      if (sharesHeld <= 0) { sharesHeld = 0; costHeld = 0; runningAvg = 0; }
+    }
+  }
+  return null;
+}
+
 // ── Transaction Detail Modal ──────────────────────────────────────
-const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, transactions = [], companies = [], onClose }) {
+const TransactionDetailModal = memo(function TransactionDetailModal({ transaction, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
 
-  const [cdsAccountName, setCdsAccountName] = useState(null);
+  // ── Async data fetched on modal open ─────────────────────────────
+  const [cdsAccountName,  setCdsAccountName]  = useState(null);
+  const [cdsPrice,        setCdsPrice]        = useState(undefined); // undefined = loading, null = not set
+  const [allVerifiedTxns, setAllVerifiedTxns] = useState(null);     // null = loading
+
   useEffect(() => {
-    const cdsNum = transaction?.cds_number;
-    if (!cdsNum) { setCdsAccountName(""); return; }
-    setCdsAccountName(null);
-    let cancelled = false;
-    sbGetCdsAccount(cdsNum)
-      .then(acc => { if (cancelled) return; setCdsAccountName(acc?.cds_name || ""); })
-      .catch(() => { if (!cancelled) setCdsAccountName(""); });
+    const cdsNum   = transaction?.cds_number;
+    const compId   = transaction?.company_id;
+    const isBuyTx  = transaction?.type === "Buy";
+    const isVerTx  = transaction?.status === "verified";
+    let cancelled  = false;
+
+    // Always fetch CDS account name
+    if (!cdsNum) {
+      setCdsAccountName("");
+    } else {
+      setCdsAccountName(null);
+      sbGetCdsAccount(cdsNum)
+        .then(acc => { if (!cancelled) setCdsAccountName(acc?.cds_name || ""); })
+        .catch(() => { if (!cancelled) setCdsAccountName(""); });
+    }
+
+    // Fetch CDS price for unrealized G/L (Buy, Verified only)
+    if (isBuyTx && isVerTx && cdsNum && compId) {
+      setCdsPrice(undefined);
+      sbGetCdsPriceForCompany(cdsNum, compId)
+        .then(p => { if (!cancelled) setCdsPrice(p ?? null); })
+        .catch(() => { if (!cancelled) setCdsPrice(null); });
+    } else {
+      setCdsPrice(null);
+    }
+
+    // Fetch all verified txns for Sell transactions (FIFO realized G/L)
+    if (!isBuyTx && isVerTx && cdsNum && compId) {
+      setAllVerifiedTxns(null);
+      sbGetVerifiedTransactionsForCompany(cdsNum, compId)
+        .then(rows => { if (!cancelled) setAllVerifiedTxns(rows); })
+        .catch(() => { if (!cancelled) setAllVerifiedTxns([]); });
+    } else {
+      setAllVerifiedTxns([]);
+    }
+
     return () => { cancelled = true; };
-  }, [transaction?.cds_number]);
+  }, [transaction?.id]); // re-fetch only when a different transaction is opened
 
   if (!transaction) return null;
 
@@ -370,47 +437,26 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const accentBdr   = isBuy ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
-  const companiesMap = useMemo(() => new Map(companies.map(c => [c.id, c])), [companies]);
-
+  // Unrealized G/L — uses the user's personal CDS analysis price
   const unrealizedGL = useMemo(() => {
-    if (!isBuy || !isVerified || !qty) return null;
-    const company = companiesMap.get(transaction.company_id);
-    const currentPrice = Number(company?.price || company?.cds_price || 0);
-    if (!currentPrice) return null;
-    const currentValue = currentPrice * qty;
+    if (!isBuy || !isVerified || !qty || cdsPrice == null || cdsPrice <= 0) return null;
+    const currentValue = cdsPrice * qty;
     const costBasis    = gt;
     const gain         = currentValue - costBasis;
     const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
-    return { currentPrice, currentValue, costBasis, gain, pct };
-  }, [isBuy, isVerified, qty, companiesMap, transaction.company_id, gt]);
+    return { currentPrice: cdsPrice, currentValue, costBasis, gain, pct };
+  }, [isBuy, isVerified, qty, cdsPrice, gt]);
 
+  // Realized G/L — uses full verified history (not just current page)
   const realizedGL = useMemo(() => {
-    if (isBuy || !transaction.company_id) return null;
-    const companyTxns = transactions
-      .filter(t => t.company_id === transaction.company_id && t.status === "verified")
-      .map(t => ({ ...t, _ts: new Date(t.date || t.created_at || 0).getTime() }))
-      .sort((a, b) => a._ts !== b._ts ? a._ts - b._ts : new Date(a.created_at||0) - new Date(b.created_at||0));
-
-    let sharesHeld = 0, costHeld = 0, runningAvg = 0;
-    for (const t of companyTxns) {
-      const tQty = Number(t.qty || 0), tTotal = Number(t.total || 0), tFees = Number(t.fees || 0);
-      if (t.type === "Buy") {
-        const cost = tTotal + tFees; costHeld += cost; sharesHeld += tQty;
-        runningAvg = sharesHeld > 0 ? costHeld / sharesHeld : 0;
-      } else if (t.type === "Sell") {
-        const actualSold = Math.min(tQty, sharesHeld);
-        const costBasis  = actualSold * runningAvg;
-        const proceeds   = tTotal - tFees;
-        const gain       = proceeds - costBasis;
-        if (t.id === transaction.id) {
-          return { gain, costBasis, proceeds, avgBuyCostPerShare: runningAvg, sellNetPerShare: actualSold > 0 ? proceeds / actualSold : 0, pct: costBasis > 0 ? (gain / costBasis) * 100 : 0 };
-        }
-        costHeld -= costBasis; sharesHeld -= actualSold;
-        if (sharesHeld <= 0) { sharesHeld = 0; costHeld = 0; runningAvg = 0; }
-      }
-    }
-    return null;
-  }, [isBuy, transaction.id, transaction.company_id, transactions]);
+    if (isBuy || !allVerifiedTxns?.length) return null;
+    const sorted = [...allVerifiedTxns].sort((a, b) => {
+      const da = new Date(a.date || a.created_at || 0).getTime();
+      const db = new Date(b.date || b.created_at || 0).getTime();
+      return da !== db ? da - db : new Date(a.created_at||0) - new Date(b.created_at||0);
+    });
+    return calcFifoRealizedGL(sorted, transaction.id);
+  }, [isBuy, allVerifiedTxns, transaction.id]);
 
   const auditIconColor = isDark ? undefined : "#374151";
   const AUDIT_STEPS = useMemo(() => [
@@ -533,8 +579,24 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           })}
         </div>
       </div>
-      {unrealizedGL && renderGLCard(unrealizedGL, "buy")}
-      {realizedGL   && renderGLCard(realizedGL,   "sell")}
+      {/* Unrealized G/L — loading shimmer while cdsPrice is being fetched */}
+      {isBuy && isVerified && qty > 0 && (
+        cdsPrice === undefined
+          ? <div style={{ padding: "0 20px 14px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100, animation: "_txSpin 0s" }} /></div>
+          : unrealizedGL
+            ? renderGLCard(unrealizedGL, "buy")
+            : cdsPrice === null
+              ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Set your analysis price in Portfolio to see unrealized gain/loss.</div>
+              : null
+      )}
+      {/* Realized G/L — loading shimmer while history is being fetched */}
+      {!isBuy && isVerified && (
+        allVerifiedTxns === null
+          ? <div style={{ padding: "0 20px 14px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100 }} /></div>
+          : realizedGL
+            ? renderGLCard(realizedGL, "sell")
+            : null
+      )}
     </>
   );
 
@@ -1473,7 +1535,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       {importModal && <ImportTransactionsModal companies={effectiveCompanies} brokers={brokers} onImport={handleImport} onClose={closeImport} />}
       {actionModal && <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company} loading={isAnyConfirming || isAnyVerifying} onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm} onClose={closeAction} />}
       {rejectModal && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={closeReject} />}
-      {detailTransaction && <TransactionDetailModal transaction={detailTransaction} transactions={myTransactions} companies={effectiveCompanies} onClose={closeDetail} />}
+      {detailTransaction && <TransactionDetailModal transaction={detailTransaction} onClose={closeDetail} />}
 
       {/* ── Transform wrapper ── */}
       <div style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>

@@ -1,5 +1,23 @@
 {
   "buildCommand": "cd investorsportal && npm install && npm run build",
   "outputDirectory": "investorsportal/dist",
-  "framework": null
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/cron/fetch-dse-prices",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-dse-prices",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-dse-prices",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-dse-prices",
+      "schedule": "0 14 * * *"
+    }
+  ]
 }

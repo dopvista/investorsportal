@@ -1,14 +1,9 @@
 // src/hooks/useDSEPriceFetch.js
-// Hook for managing DSE price auto-fetch toggle and manual fetch trigger
+// Hook for managing DSE price auto-fetch toggle, multi-time schedule, and manual fetch trigger
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
 // ── Helpers ───────────────────────────────────────────────────────────
-// The app uses a custom auth system (sb_session in localStorage).
-// The Supabase JS SDK client never receives the user's JWT, so SDK
-// `.from()` calls run as anonymous. We resolve the token ourselves
-// and use fetch() directly to PostgREST for writes that need auth.
-
 function getSupabaseBase() {
   return import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 }
@@ -18,24 +13,20 @@ function getAnonKey() {
 function isJwtExpired(token) {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
-    // Give a 30-second buffer to avoid race conditions near expiry
     return payload.exp * 1000 < Date.now() + 30_000;
   } catch {
     return true;
   }
 }
 async function resolveToken(supabase) {
-  // Try SDK session first (works if setSession was called)
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token && !isJwtExpired(session.access_token)) return session.access_token;
   } catch {}
-  // Fall back to custom session in localStorage — skip if expired
   try {
     const s = JSON.parse(localStorage.getItem("sb_session") || "null");
     if (s?.access_token && !isJwtExpired(s.access_token)) return s.access_token;
   } catch {}
-  // Anon key as last resort (works for edge functions that use service role internally)
   return getAnonKey();
 }
 
@@ -57,6 +48,34 @@ async function patchSiteSetting(key, value, token) {
   }
 }
 
+// ── Default setting shape ─────────────────────────────────────────────
+// fetch_times: array of "HH:MM" strings (EAT)
+// fetch_days:  "weekdays" | "everyday"
+// Replaces the old single `schedule` cron string.
+const DEFAULT_SETTING = {
+  enabled: true,
+  fetch_times: ["09:00", "15:00"],
+  fetch_days: "weekdays",
+  last_fetch_at: null,
+  last_fetch_status: null,
+  last_fetch_count: 0,
+};
+
+// ── Backwards compat: migrate old { schedule } shape ─────────────────
+function migrateSetting(raw) {
+  if (!raw) return DEFAULT_SETTING;
+  // Already new shape
+  if (Array.isArray(raw.fetch_times)) return { ...DEFAULT_SETTING, ...raw };
+  // Old shape had a single `schedule` cron string — migrate gracefully
+  return {
+    ...DEFAULT_SETTING,
+    enabled: raw.enabled ?? true,
+    last_fetch_at: raw.last_fetch_at ?? null,
+    last_fetch_status: raw.last_fetch_status ?? null,
+    last_fetch_count: raw.last_fetch_count ?? 0,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────
 
 export function useDSEPriceFetch(supabase) {
@@ -68,7 +87,6 @@ export function useDSEPriceFetch(supabase) {
   const [error, setError] = useState(null);
   const [fetchResult, setFetchResult] = useState(null);
 
-  // Keep a ref so fetchNow always reads the latest setting without stale closure
   const settingRef = useRef(setting);
   useEffect(() => { settingRef.current = setting; }, [setting]);
 
@@ -83,12 +101,12 @@ export function useDSEPriceFetch(supabase) {
 
       if (err) {
         if (err.code === "PGRST116") {
-          setSetting({ enabled: true, schedule: "30 13 * * 1-5", last_fetch_at: null, last_fetch_status: null, last_fetch_count: 0 });
+          setSetting(DEFAULT_SETTING);
         } else {
           throw err;
         }
       } else {
-        setSetting(data.value);
+        setSetting(migrateSetting(data.value));
       }
     } catch (e) {
       console.error("Failed to load DSE auto-fetch setting:", e);
@@ -107,8 +125,7 @@ export function useDSEPriceFetch(supabase) {
     try {
       setToggling(true);
       setError(null);
-      const newEnabled = !setting.enabled;
-      const newValue = { ...setting, enabled: newEnabled };
+      const newValue = { ...setting, enabled: !setting.enabled };
       const token = await resolveToken(supabase);
       await patchSiteSetting("auto_fetch_dse_prices", newValue, token);
       setSetting(newValue);
@@ -120,58 +137,69 @@ export function useDSEPriceFetch(supabase) {
     }
   }, [supabase, setting]);
 
-  const updateSchedule = useCallback(async (newSchedule) => {
+  // Update fetch_times array (add or remove a time slot)
+  const updateFetchTimes = useCallback(async (times) => {
     if (!setting) return;
     try {
       setSavingSchedule(true);
       setError(null);
-      const newValue = { ...setting, schedule: newSchedule };
+      const newValue = { ...setting, fetch_times: times };
       const token = await resolveToken(supabase);
       await patchSiteSetting("auto_fetch_dse_prices", newValue, token);
       setSetting(newValue);
     } catch (e) {
-      console.error("Failed to update schedule:", e);
+      console.error("Failed to update fetch times:", e);
       setError(e.message);
     } finally {
       setSavingSchedule(false);
     }
   }, [supabase, setting]);
 
-  const fetchNow = useCallback(async (updatedBy = "Manual Fetch", cdsNumber = null) => {
+  // Update fetch_days ("weekdays" | "everyday")
+  const updateFetchDays = useCallback(async (days) => {
+    if (!setting) return;
+    try {
+      setSavingSchedule(true);
+      setError(null);
+      const newValue = { ...setting, fetch_days: days };
+      const token = await resolveToken(supabase);
+      await patchSiteSetting("auto_fetch_dse_prices", newValue, token);
+      setSetting(newValue);
+    } catch (e) {
+      console.error("Failed to update fetch days:", e);
+      setError(e.message);
+    } finally {
+      setSavingSchedule(false);
+    }
+  }, [supabase, setting]);
+
+  const fetchNow = useCallback(async (updatedBy = "Manual Fetch") => {
     try {
       setFetching(true);
       setError(null);
       setFetchResult(null);
 
-      // Edge function has verify_jwt:false and uses service role internally —
-      // no auth token needed. Send anon key only as apikey header.
-      const anonKey = getAnonKey();
-
-      const body = { updated_by: updatedBy };
-      if (cdsNumber) body.cds_number = cdsNumber;
-
       const res = await fetch(getSupabaseBase() + "/functions/v1/fetch-dse-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": anonKey,
+          "apikey": getAnonKey(),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ updated_by: updatedBy }),
       });
 
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || "Fetch failed");
 
       setFetchResult(result);
-      // Use ref to get latest setting — avoids stale closure overwriting the toggle state
       const updatedValue = {
         ...settingRef.current,
         last_fetch_at: result.fetched_at,
         last_fetch_status: "success",
         last_fetch_count: result.updated_count,
       };
-      const settingsToken = await resolveToken(supabase);
-      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, settingsToken);
+      const token = await resolveToken(supabase);
+      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
       setSetting(updatedValue);
       return result;
     } catch (e) {
@@ -194,20 +222,22 @@ export function useDSEPriceFetch(supabase) {
     } finally {
       setFetching(false);
     }
-  }, [supabase]); // no longer depends on setting — reads latest via settingRef
+  }, [supabase]);
 
   return {
-    enabled: setting?.enabled ?? true,
+    enabled:         setting?.enabled         ?? true,
+    fetchTimes:      setting?.fetch_times      ?? DEFAULT_SETTING.fetch_times,
+    fetchDays:       setting?.fetch_days       ?? "weekdays",
     loading,
     toggling,
     fetching,
-    lastFetchAt: setting?.last_fetch_at ?? null,
-    lastFetchStatus: setting?.last_fetch_status ?? null,
-    lastFetchCount: setting?.last_fetch_count ?? 0,
-    schedule: setting?.schedule ?? "30 13 * * 1-5",
-    toggleAutoFetch,
-    updateSchedule,
     savingSchedule,
+    lastFetchAt:     setting?.last_fetch_at    ?? null,
+    lastFetchStatus: setting?.last_fetch_status ?? null,
+    lastFetchCount:  setting?.last_fetch_count  ?? 0,
+    toggleAutoFetch,
+    updateFetchTimes,
+    updateFetchDays,
     fetchNow,
     fetchResult,
     error,

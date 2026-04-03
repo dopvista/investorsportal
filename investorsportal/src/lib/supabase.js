@@ -693,6 +693,37 @@ export async function sbGetTransactionsByIds(ids) {
   return rows.map((t) => _attachNames(t, nameMap));
 }
 
+/**
+ * Fetch the user's CDS analysis price for a single company.
+ * Used by TransactionDetailModal to compute unrealized G/L against
+ * the user's personal price (not the DSE market price).
+ * Returns the price as a number, or null if not set.
+ */
+export async function sbGetCdsPriceForCompany(cdsNumber, companyId) {
+  if (!cdsNumber || !companyId) return null;
+  try {
+    const rows = await _fetchGET(
+      `${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}&company_id=eq.${companyId}&select=price&limit=1`,
+      "Failed to fetch CDS price"
+    );
+    return rows[0]?.price != null ? Number(rows[0].price) : null;
+  } catch { return null; }
+}
+
+/**
+ * Fetch ALL verified transactions for a company + CDS combination,
+ * ordered chronologically. Used by TransactionDetailModal for accurate
+ * FIFO realized G/L — must not be limited to the current page.
+ * Name resolution is skipped since we only need financial fields.
+ */
+export async function sbGetVerifiedTransactionsForCompany(cdsNumber, companyId) {
+  if (!cdsNumber || !companyId) return [];
+  return _fetchGET(
+    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&company_id=eq.${companyId}&status=eq.verified&select=id,type,qty,price,total,fees,date,created_at&order=date.asc,created_at.asc`,
+    "Failed to fetch company transactions"
+  );
+}
+
 export async function sbGetFifoGainLoss(cdsNumber, companyId = null) {
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/rpc/get_fifo_gain_loss`,
@@ -986,6 +1017,121 @@ export async function sbGetAllCompanies() {
     "Failed to fetch companies",
     2 * 60_000
   );
+}
+
+/**
+ * Copy current DSE market prices (companies.price) into the user's CDS
+ * analysis prices (cds_prices table) for their portfolio companies.
+ *
+ * This is the portfolio "Update Prices" operation — it reads system-fetched
+ * market prices and writes them as the user's personal analysis prices.
+ * It does NOT call the DSE website; that is the SA system-fetch job.
+ *
+ * @returns {{ updatedCount, results[], skipped }}
+ */
+export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Price Sync") {
+  if (!cdsNumber) throw new Error("CDS number required");
+
+  const ts             = new Date().toISOString();
+  const currentUserId  = getSession()?.user?.id;
+
+  // 1. Get the user's portfolio companies + their current CDS prices
+  const [portfolioRows, companiesWithPrice] = await Promise.all([
+    _fetchGET(
+      `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
+      "Failed to fetch portfolio"
+    ),
+    _fetchGET(
+      `${BASE}/rest/v1/companies?price=not.is.null&select=id,name,price&order=name.asc`,
+      "Failed to fetch market prices"
+    ),
+  ]);
+
+  const portfolioIds   = [...new Set(portfolioRows.map(r => r.company_id).filter(Boolean))];
+  if (!portfolioIds.length) return { updatedCount: 0, results: [], skipped: 0 };
+
+  // Only process companies in the user's portfolio that have a market price
+  const priced = companiesWithPrice.filter(c => portfolioIds.includes(c.id));
+  if (!priced.length) return { updatedCount: 0, results: [], skipped: portfolioIds.length };
+
+  // 2. Get existing CDS prices for this user (to know previous prices)
+  const existingPrices = await _fetchGET(
+    `${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,company_id,price`,
+    "Failed to fetch existing CDS prices"
+  );
+  const existingMap = Object.fromEntries(existingPrices.map(p => [p.company_id, p]));
+
+  // 3. Build upsert payloads and history rows — only for prices that changed
+  const upsertRows   = [];
+  const historyRows  = [];
+  const results      = [];
+  let   skipped      = 0;
+
+  for (const company of priced) {
+    const newPrice   = Number(company.price);
+    const existing   = existingMap[company.id];
+    const oldPrice   = existing ? Number(existing.price) : null;
+
+    if (oldPrice === newPrice) { skipped++; continue; }
+
+    const changeAmount  = oldPrice != null ? newPrice - oldPrice : null;
+    const changePct     = oldPrice != null && oldPrice !== 0 ? (changeAmount / oldPrice) * 100 : null;
+
+    upsertRows.push({
+      company_id:     company.id,
+      cds_number:     cdsNumber,
+      price:          newPrice,
+      previous_price: oldPrice ?? null,
+      updated_by:     updatedBy,
+      notes:          "Market Price Sync",
+      updated_at:     ts,
+      created_by_id:  currentUserId,
+    });
+
+    historyRows.push({
+      company_id:      company.id,
+      company_name:    company.name,
+      cds_number:      cdsNumber,
+      old_price:       oldPrice ?? null,
+      new_price:       newPrice,
+      change_amount:   changeAmount,
+      change_percent:  changePct != null ? Math.round(changePct * 100) / 100 : null,
+      notes:           "Market Price Sync",
+      updated_by:      updatedBy,
+      created_at:      ts,
+    });
+
+    results.push({ company: company.name, old_price: oldPrice, new_price: newPrice });
+  }
+
+  if (!upsertRows.length) return { updatedCount: 0, results: [], skipped };
+
+  // 4. Batch upsert cds_prices + insert history in parallel
+  await Promise.all([
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
+      {
+        method:  "POST",
+        headers: { ...headers(token()), "Prefer": "return=minimal,resolution=merge-duplicates" },
+        body:    JSON.stringify(upsertRows),
+      },
+      "Failed to upsert CDS prices"
+    ),
+    fetchWithAuthRetry(
+      `${BASE}/rest/v1/cds_price_history`,
+      {
+        method:  "POST",
+        headers: headers(token()),
+        body:    JSON.stringify(historyRows),
+      },
+      "Failed to save price history"
+    ),
+  ]);
+
+  _invalidateCache(`${BASE}/rest/v1/cds_prices`);
+  _invalidateCache(`${BASE}/rest/v1/cds_price_history`);
+
+  return { updatedCount: upsertRows.length, results, skipped };
 }
 
 // ══════════════════════════════════════════════════════════════════

@@ -41,8 +41,8 @@ const SystemSettingsPage = lazy(() => import("./pages/SystemSettingsPage"));
 const NAV = [
   { id: "dashboard",       label: "Dashboard",        roles: ["SA","AD","DE","VR","RO"] },
   { id: "companies",       label: "Portfolio",         roles: ["SA","AD","DE","VR","RO"] },
-  { id: "dividends",       label: "Dividends",         roles: ["SA","AD","DE","VR","RO"] },
   { id: "transactions",    label: "Transactions",      roles: ["SA","AD","DE","VR","RO"] },
+  { id: "dividends",       label: "Dividends",         roles: ["SA","AD","DE","VR","RO"] },
   { id: "user-management", label: "User Management",   roles: ["SA","AD"] },
   { id: "system-settings", label: "System Settings",   roles: ["SA"] },
 ];
@@ -52,8 +52,8 @@ const NAV = [
 const BOTTOM_NAV = [
   { id: "dashboard",       label: "Home",      roles: ["SA","AD","DE","VR","RO"] },
   { id: "companies",       label: "Portfolio", roles: ["SA","AD","DE","VR","RO"] },
-  { id: "dividends",       label: "Dividends", roles: ["SA","AD","DE","VR","RO"] },
   { id: "transactions",    label: "Trades",    roles: ["SA","AD","DE","VR","RO"] },
+  { id: "dividends",       label: "Dividends", roles: ["SA","AD","DE","VR","RO"] },
   { id: "user-management", label: "Users",     roles: ["SA","AD"] },
 ];
 
