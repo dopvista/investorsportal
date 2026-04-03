@@ -424,7 +424,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const handleDSEFetch = useCallback(async () => {
     setDseFetchMsg(null);
-    const result = await dseFetchNow("Manual Fetch (Portfolio)", cdsNumber);
+    const result = await dseFetchNow("Auto Fetched", cdsNumber);
     if (result) {
       const n = result.updated_count;
       setDseFetchMsg({ text: `${n} price${n !== 1 ? "s" : ""} updated`, isError: false });

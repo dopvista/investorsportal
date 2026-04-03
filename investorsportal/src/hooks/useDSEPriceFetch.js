@@ -15,17 +15,27 @@ function getSupabaseBase() {
 function getAnonKey() {
   return import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
+function isJwtExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    // Give a 30-second buffer to avoid race conditions near expiry
+    return payload.exp * 1000 < Date.now() + 30_000;
+  } catch {
+    return true;
+  }
+}
 async function resolveToken(supabase) {
   // Try SDK session first (works if setSession was called)
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return session.access_token;
+    if (session?.access_token && !isJwtExpired(session.access_token)) return session.access_token;
   } catch {}
-  // Fall back to custom session in localStorage
+  // Fall back to custom session in localStorage — skip if expired
   try {
     const s = JSON.parse(localStorage.getItem("sb_session") || "null");
-    if (s?.access_token) return s.access_token;
+    if (s?.access_token && !isJwtExpired(s.access_token)) return s.access_token;
   } catch {}
+  // Anon key as last resort (works for edge functions that use service role internally)
   return getAnonKey();
 }
 
