@@ -125,7 +125,8 @@ export function useDSEPriceFetch(supabase) {
       setError(null);
       setFetchResult(null);
 
-      const token = await resolveToken(supabase);
+      // Edge function has verify_jwt:false and uses service role internally —
+      // no auth token needed. Send anon key only as apikey header.
       const anonKey = getAnonKey();
 
       const body = { updated_by: updatedBy };
@@ -135,7 +136,6 @@ export function useDSEPriceFetch(supabase) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
           "apikey": anonKey,
         },
         body: JSON.stringify(body),
@@ -152,7 +152,8 @@ export function useDSEPriceFetch(supabase) {
         last_fetch_status: "success",
         last_fetch_count: result.updated_count,
       };
-      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, token);
+      const settingsToken = await resolveToken(supabase);
+      await patchSiteSetting("auto_fetch_dse_prices", updatedValue, settingsToken);
       setSetting(updatedValue);
       return result;
     } catch (e) {
