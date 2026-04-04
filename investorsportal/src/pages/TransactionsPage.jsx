@@ -473,9 +473,9 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       transaction.created_by_name, transaction.confirmed_by_name, transaction.verified_by_name, transaction.rejected_by_name, transaction.status]);
 
   const summaryItems = [
-    { label: "Trade Value",                          value: `TZS ${fmt(tradeVal)}`,  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
-    { label: "Total Fees",                           value: `TZS ${fmt(totalFees)}`, sub: `${feePct}% of trade value`,                                     valueColor: C.gold     },
-    { label: isBuy ? "Total Paid" : "Net Received", value: `TZS ${fmt(gt)}`,         sub: isBuy ? "trade + fees" : "trade − fees",                        valueColor: accentColor },
+    { label: "Trade Value",                          currency: "TZS", amount: fmt(tradeVal),  sub: `${fmtInt(transaction.qty)} shares × ${fmt(transaction.price)}`, valueColor: C.text     },
+    { label: "Total Fees",                           currency: "TZS", amount: fmt(totalFees), sub: `${feePct}% of trade value`,                                     valueColor: C.gold     },
+    { label: isBuy ? "Total Paid" : "Net Received", currency: "TZS", amount: fmt(gt),         sub: isBuy ? "trade + fees" : "trade − fees",                        valueColor: accentColor },
   ];
 
   const transactionRows = [
@@ -654,12 +654,17 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
           {summaryItems.map((item, i) => (
-            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? accentBg : "transparent", display: "flex", alignItems: isMobile ? "center" : "block", justifyContent: isMobile ? "space-between" : "initial" }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 4 }}>{item.label}</div>
-              <div>
-                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.value}</div>
-                {!isMobile && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>}
-              </div>
+            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? accentBg : "transparent", display: isMobile ? "flex" : "block", alignItems: isMobile ? "center" : undefined, justifyContent: isMobile ? "space-between" : undefined }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 2 }}>{item.label}</div>
+              {isMobile ? (
+                <div style={{ fontSize: 14, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.currency} {item.amount}</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: item.valueColor, opacity: 0.7, lineHeight: 1, marginBottom: 2 }}>{item.currency}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.amount}</div>
+                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
+                </>
+              )}
             </div>
           ))}
         </div>
