@@ -10,6 +10,7 @@ import { Icon } from "../lib/icons";
 import {
   sbGetDividends,
   sbGetAllCompanies,
+  sbGetPortfolio,
   sbInsertDividend,
   sbUpdateDividend,
   sbDeleteDividend,
@@ -333,9 +334,6 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
         {renderSectionTitle("Tax & Income")}
         {renderKVRows(taxRows)}
-        <div style={{ margin: "6px 0 4px", padding: "5px 8px", borderRadius: 6, background: isDark ? "rgba(255,255,255,0.04)" : "#FEF3C7", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#FDE68A"}` }}>
-          <span style={{ fontSize: 10, color: isDark ? "#FBBF24" : "#92400E", fontWeight: 600 }}>DSE-listed companies: 5% WHT on dividends (Income Tax Act)</span>
-        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
@@ -673,7 +671,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     const requestId = ++companyLoadRef.current;
     if (isMountedRef.current) setLoadingCompanies(true);
     try {
-      const data = await sbGetAllCompanies();
+      // SA/AD see all companies; other roles only see their portfolio holdings
+      const data = isSAAD ? await sbGetAllCompanies() : (cdsNumber ? await sbGetPortfolio(cdsNumber) : await sbGetAllCompanies());
       if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
       setLocalCompanies(data);
     } catch (e) {
@@ -682,7 +681,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current && requestId === companyLoadRef.current) setLoadingCompanies(false);
     }
-  }, [showToast]);
+  }, [showToast, isSAAD, cdsNumber]);
 
   // ── Boot effect ─────────────────────────────────────────────────
   useEffect(() => {
