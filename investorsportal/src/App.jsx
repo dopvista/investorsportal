@@ -13,9 +13,12 @@ import {
   sbGetUserCDS,
   sbSwitchActiveCDS,
   sbGetNavCounts,
+  sbCheckCdsActive,
+  sbGetCdsActiveMap,
 } from "./lib/supabase";
 import { C as CStatic, Toast, useTheme, DatePickerStyles } from "./components/ui";
-import LoginPage        from "./pages/LoginPage";
+import LoginPage            from "./pages/LoginPage";
+import AccountInactivePage  from "./pages/AccountInactivePage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UserMenu          from "./components/UserMenu";
@@ -174,15 +177,18 @@ const CdsSwitcherPopover = memo(function CdsSwitcherPopover({
       </div>
       <div style={{ padding: "8px 0", maxHeight: 320, overflowY: "auto" }}>
         {cdsList.map((c) => {
-          const isActive = c.cds_number === activeCdsNumber;
+          const isCurrent    = c.cds_number === activeCdsNumber;
+          const isDeactivated = c.is_active === false;
           return (
-            <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: isActive ? C.green + "0a" : "transparent", borderLeft: `3px solid ${isActive ? C.green : "transparent"}` }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: isActive ? "#D1FAE5" : "#DBEAFE", border: `1.5px solid ${isActive ? "#A7F3D0" : "#BFDBFE"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={14} stroke="#374151" sw={2.2} /></div>
+            <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: isCurrent ? C.green + "0a" : "transparent", borderLeft: `3px solid ${isCurrent ? C.green : "transparent"}`, opacity: isDeactivated ? 0.5 : 1 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: isDeactivated ? "#F3F4F6" : (isCurrent ? "#D1FAE5" : "#DBEAFE"), border: `1.5px solid ${isDeactivated ? "#E5E7EB" : (isCurrent ? "#A7F3D0" : "#BFDBFE")}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="lock" size={14} stroke={isDeactivated ? "#9CA3AF" : "#374151"} sw={2.2} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: isDeactivated ? C.gray400 : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
                 <div style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
               </div>
-              {isActive ? (
+              {isDeactivated ? (
+                <span style={{ fontSize: 10, fontWeight: 700, background: C.redBg, color: C.red, border: `1px solid ${C.red}25`, borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>Inactive</span>
+              ) : isCurrent ? (
                 <span style={{ fontSize: 10, fontWeight: 700, background: C.greenBg, color: C.green, border: `1px solid ${C.green}25`, borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
               ) : (
                 <button
@@ -324,6 +330,7 @@ export default function App() {
   const [toast,           setToast]           = useState({ msg: "", type: "" });
   const [recoveryMode,    setRecoveryMode]    = useState(false);
   const [activeCds,       setActiveCds]       = useState(null);
+  const [cdsActive,       setCdsActive]       = useState(true);
   const [cdsList,         setCdsList]         = useState([]);
   const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
   const [switchTarget,    setSwitchTarget]    = useState(null);
@@ -579,7 +586,14 @@ export default function App() {
         }
         if (uid) {
           sbGetUserCDS(uid)
-            .then((list) => { if (!cancelled) setCdsList(list || []); })
+            .then(async (list) => {
+              if (cancelled || !list?.length) { if (!cancelled) setCdsList(list || []); return; }
+              try {
+                const nums = list.map(c => c.cds_number).filter(Boolean);
+                const activeMap = await sbGetCdsActiveMap(nums);
+                if (!cancelled) setCdsList(list.map(c => ({ ...c, is_active: activeMap[c.cds_number] ?? true })));
+              } catch { if (!cancelled) setCdsList(list); }
+            })
             .catch(() => { if (!cancelled) setCdsList([]); });
         } else {
           setCdsList([]);
@@ -651,7 +665,7 @@ export default function App() {
   const handleSignOut = useCallback(async () => {
     await sbSignOut();
     setSession(null); setProfile(undefined); setRole(null);
-    setActiveCds(null); setCdsList([]); setCompanies([]); setTransactions([]);
+    setActiveCds(null); setCdsActive(true); setCdsList([]); setCompanies([]); setTransactions([]);
     setLoading(false); setAppBootstrapping(false); setDbError(null);
     setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
     forceMobileDashboardOnNextLoginRef.current = false;
@@ -695,6 +709,16 @@ export default function App() {
     () => activeCds?.cds_number || profile?.cds_number,
     [activeCds, profile]
   );
+
+  // Check if the active CDS account is active (subscription gate)
+  useEffect(() => {
+    if (!activeCdsNumber || role === "SA") { setCdsActive(true); return; }
+    let cancelled = false;
+    sbCheckCdsActive(activeCdsNumber)
+      .then(active => { if (!cancelled) setCdsActive(active); })
+      .catch(() => { if (!cancelled) setCdsActive(true); }); // fail-open
+    return () => { cancelled = true; };
+  }, [activeCdsNumber, role]);
 
   // Object spread — new reference only when inputs actually change
   const activeProfile = useMemo(
@@ -840,6 +864,11 @@ export default function App() {
   const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
   if (profileIncomplete)
     return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
+
+  // ── Subscription gate — inactive CDS blocks non-SA users ──────────
+  if (!cdsActive && role !== "SA") {
+    return <AccountInactivePage cdsNumber={activeCdsNumber} onSignOut={handleSignOut} />;
+  }
 
   // ── Shared sidebar props (both desktop + mobile drawer) ───────────
   const sidebarProps = {

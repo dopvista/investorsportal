@@ -602,6 +602,41 @@ export async function sbSearchCdsAccounts(query = "") {
   );
 }
 
+export async function sbCheckCdsActive(cdsNumber) {
+  if (!cdsNumber) return true; // no CDS = not blocked
+  const rows = await _fetchGET(
+    `${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=is_active&limit=1`,
+    "Failed to check CDS status"
+  );
+  // If no row found, assume active (account not yet in cds_accounts table)
+  return rows[0]?.is_active !== false;
+}
+
+export async function sbGetCdsActiveMap(cdsNumbers) {
+  if (!cdsNumbers?.length) return {};
+  const list = `(${cdsNumbers.map(n => `"${n}"`).join(",")})`;
+  const rows = await _fetchGET(
+    `${BASE}/rest/v1/cds_accounts?cds_number=in.${list}&select=cds_number,is_active`,
+    "Failed to fetch CDS statuses"
+  );
+  const map = {};
+  for (const r of rows) map[r.cds_number] = r.is_active !== false;
+  return map;
+}
+
+export async function sbGetSuperAdminContacts() {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_all_users`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({}) },
+    "Failed to fetch admin contacts"
+  );
+  const allUsers = await res.json();
+  return (allUsers || [])
+    .filter(u => u.role_code === "SA" && u.is_active !== false)
+    .slice(0, 3)
+    .map(u => ({ full_name: u.full_name, phone: u.phone, email: u.email }));
+}
+
 export async function sbGetAllCdsAccounts() {
   return _fetchGET(
     `${BASE}/rest/v1/cds_accounts?order=cds_name.asc&select=id,cds_number,cds_name,phone,email,is_active,created_at,updated_at,last_updated_by,last_updated_at`,
