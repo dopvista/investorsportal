@@ -6,6 +6,7 @@ import {
   sbGetSiteSettings, sbSaveSiteSettings, sbUploadSlideImage,
   sbGetAllBrokers, sbInsertBroker, sbUpdateBroker,
   sbToggleBrokerStatus, sbDeleteBroker, supabase,
+  sbGetAllCdsAccounts, sbUpdateCdsAccountFull, sbToggleCdsAccountStatus,
 } from "../lib/supabase";
 import CompaniesPage from "./CompaniesPage";
 import { Icon, IconBadge } from "../lib/icons";
@@ -473,6 +474,335 @@ const BrokersSection = memo(function BrokersSection({ showToast, session }) {
 });
 
 // ══════════════════════════════════════════════════════════════════
+// ── CDS FORM MODAL ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+const CdsFormModal = memo(function CdsFormModal({ cds, onConfirm, onClose }) {
+  const { C, isDark } = useTheme();
+  const isEdit = !!cds;
+  const [form, setForm] = useState({
+    cds_number: cds?.cds_number || "",
+    cds_name:   cds?.cds_name   || "",
+    phone:      cds?.phone      || "",
+    email:      cds?.email      || "",
+  });
+  const [error, setSError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setSError(""); };
+
+  const handleSubmit = async () => {
+    if (!form.cds_number.trim()) return setSError("CDS Number is required.");
+    if (!/^CDS-[0-9A-Za-z]+$/.test(form.cds_number.trim())) return setSError("CDS Number must match format CDS-XXXX.");
+    if (!form.cds_name.trim()) return setSError("CDS Name is required.");
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      return setSError("Invalid email address.");
+    setSaving(true);
+    try { await onConfirm(form); }
+    catch (e) { setSError(e.message); setSaving(false); }
+  };
+
+  const fieldStyle = inp(C, { borderRadius: 8, padding: "10px 12px", fontSize: 13 });
+  const onFocus    = focusGreen(C);
+  const onBlur     = blurGray(C);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{
+        background: C.white, borderRadius: 18, width: "100%", maxWidth: 500,
+        border: `1.5px solid ${C.gray200}`,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden", display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 24px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff", display: "flex", alignItems: "center", gap: 8 }}>{isEdit ? <><Icon name="edit" size={16} stroke="#ffffff" /> Edit CDS Account</> : <><Icon name="plus" size={16} stroke="#ffffff" /> Register New CDS</>}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3, fontWeight: 600 }}>Fill in the CDS account details below</div>
+          </div>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
+        </div>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto" }}>
+          {error && (
+            <div style={{ background: C.redBg, border: `1px solid ${isDark ? `${C.red}55` : "#FECACA"}`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+                CDS Number <span style={{ color: C.red }}>*</span>
+              </label>
+              <input value={form.cds_number} onChange={e => set("cds_number", e.target.value.toUpperCase())}
+                placeholder="e.g. CDS-12345" style={{ ...fieldStyle, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }} onFocus={onFocus} onBlur={onBlur} autoFocus />
+              <div style={{ fontSize: 10, color: isDark ? C.gray300 : C.gray400, marginTop: 3 }}>Format: CDS-XXXX</div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
+                CDS Name <span style={{ color: C.red }}>*</span>
+              </label>
+              <input value={form.cds_name} onChange={e => set("cds_name", e.target.value)}
+                placeholder="e.g. John Doe" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Phone</label>
+              <input value={form.phone} onChange={e => set("phone", e.target.value)}
+                placeholder="e.g. +255 22 123 4567" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Email</label>
+              <input value={form.email} onChange={e => set("email", e.target.value)}
+                placeholder="e.g. john@example.com" type="email" style={fieldStyle} onFocus={onFocus} onBlur={onBlur} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.gray200}`, display: "flex", gap: 10, justifyContent: "flex-end", background: C.gray50, borderRadius: "0 0 16px 16px" }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ padding: "10px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={saving}
+            style={{ padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
+            {saving
+              ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Saving...</>
+              : <>{isEdit ? <><Icon name="save" size={14} stroke="#ffffff" /> Save Changes</> : <><Icon name="plus" size={14} stroke="#ffffff" /> Register CDS</>}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ══════════════════════════════════════════════════════════════════
+// ── CDS ACCOUNTS SECTION ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+const CdsAccountsSection = memo(function CdsAccountsSection({ showToast, session }) {
+  const { C, isDark } = useTheme();
+  const theadBg = isDark ? C.gray50 : `linear-gradient(135deg, ${C.navy}0a, ${C.navy}05)`;
+
+  const [accounts,    setAccounts]    = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [formModal,   setFormModal]   = useState({ open: false, cds: null });
+  const [togglingId,  setTogglingId]  = useState(null);
+  const [search,      setSearch]      = useState("");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+
+  const isMounted = useRef(true);
+
+  const loadAccounts = useCallback(async () => {
+    if (isMounted.current) setLoading(true);
+    try {
+      const data = await sbGetAllCdsAccounts();
+      if (!isMounted.current) return;
+      setAccounts(data);
+    } catch (e) {
+      if (!isMounted.current) return;
+      showToast("Error loading CDS accounts: " + e.message, "error");
+    } finally {
+      if (isMounted.current) setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    isMounted.current = true;
+    loadAccounts();
+    return () => { isMounted.current = false; };
+  }, [loadAccounts]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return accounts.filter(a => {
+      const matchSearch = !q ||
+        a.cds_number.toLowerCase().includes(q) ||
+        a.cds_name.toLowerCase().includes(q) ||
+        a.phone?.toLowerCase().includes(q) ||
+        a.email?.toLowerCase().includes(q);
+      const matchStatus = filterStatus === "ALL" ||
+        (filterStatus === "Active" ? a.is_active : !a.is_active);
+      return matchSearch && matchStatus;
+    });
+  }, [accounts, search, filterStatus]);
+
+  const handleFormConfirm = useCallback(async (formData) => {
+    const isEdit = !!formModal.cds;
+    try {
+      if (isEdit) {
+        const rows = await sbUpdateCdsAccountFull(formModal.cds.id, formData);
+        if (!isMounted.current) return;
+        setBrokerLike(rows);
+        showToast("CDS account updated!", "success");
+      }
+      setFormModal({ open: false, cds: null });
+    } catch (e) { throw e; }
+
+    function setBrokerLike(rows) {
+      setAccounts(p => p.map(a => a.id === formModal.cds.id ? rows[0] : a));
+    }
+  }, [formModal.cds, showToast]);
+
+  const handleToggleStatus = useCallback(async (acct) => {
+    const newActive = !acct.is_active;
+    setTogglingId(acct.id);
+    try {
+      const rows = await sbToggleCdsAccountStatus(acct.id, newActive);
+      if (!isMounted.current) return;
+      setAccounts(p => p.map(a => a.id === acct.id ? rows[0] : a));
+      showToast(`CDS ${acct.cds_number} ${newActive ? "activated" : "deactivated"}.`, "success");
+    } catch (e) {
+      if (!isMounted.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMounted.current) setTogglingId(null);
+    }
+  }, [showToast]);
+
+  const activeCount   = accounts.filter(a => a.is_active).length;
+  const inactiveCount = accounts.filter(a => !a.is_active).length;
+
+  const activeBdr   = isDark ? `${C.green}55` : "#BBF7D0";
+  const inactiveBdr = isDark ? `${C.red}55`   : "#FECACA";
+
+  const fmtDate = (d) => {
+    if (!d) return "—";
+    try { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
+    catch { return "—"; }
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)", padding: "16px 22px" }}>
+          <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 15 }}><Icon name="creditCard" size={14} /> CDS Account Manager</div>
+          <div style={{ color: "#F0B429", fontSize: 11, marginTop: 3, fontWeight: 500 }}>View, edit and manage all CDS accounts registered on the platform</div>
+        </div>
+      </div>
+
+      {/* Stats + toolbar */}
+      <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "14px 18px", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 12 }}>
+            {[
+              { label: "Total",    value: accounts.length, color: isDark ? "#93C5FD" : C.navy, bg: isDark ? `${C.navy}22` : `${C.navy}10` },
+              { label: "Active",   value: activeCount,     color: C.green,                     bg: C.greenBg                              },
+              { label: "Inactive", value: inactiveCount,   color: C.red,                       bg: C.redBg                                },
+            ].map(s => (
+              <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "6px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: s.color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              style={{ padding: "8px 12px", border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, borderRadius: 8, fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}
+              onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)}>
+              <option value="ALL">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.gray400 }}><Icon name="search" size={14} stroke={C.gray500} /></span>
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search CDS..."
+                style={{ padding: "8px 12px 8px 32px", border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, borderRadius: 8, fontSize: 12, outline: "none", width: 200, fontFamily: "inherit" }}
+                onFocus={e => (e.target.style.borderColor = C.green)}
+                onBlur={e => (e.target.style.borderColor = C.gray200)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 14, overflow: "hidden", flexShrink: 0 }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
+            <div style={{ width: 24, height: 24, border: `3px solid ${C.gray200}`, borderTop: `3px solid ${C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 10px" }} />
+            <div style={{ fontSize: 12 }}>Loading CDS accounts...</div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400 }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}><Icon name="creditCard" size={36} /></div>
+            <div style={{ fontWeight: 700, color: C.text }}>{search || filterStatus !== "ALL" ? "No CDS accounts match your filter" : "No CDS accounts registered yet"}</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>{search ? "Try a different keyword" : "CDS accounts are created when users register their CDS numbers"}</div>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: theadBg }}>
+                  {["#", "CDS Number", "CDS Name", "Phone", "Email", "Status", "Last Updated", "Actions"].map(h => (
+                    <th key={h} style={{ padding: "10px 14px", textAlign: h === "#" || h === "Actions" ? "center" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: theadBg }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a, i) => {
+                  const isActive   = a.is_active !== false;
+                  const isToggling = togglingId === a.id;
+                  return (
+                    <tr key={a.id}
+                      style={{ borderBottom: `1px solid ${C.gray100}`, background: !isActive ? C.gray50 : "transparent", opacity: isToggling ? 0.6 : 1, transition: "background 0.15s" }}
+                      onMouseEnter={e => { if (!isToggling) e.currentTarget.style.background = C.gray50; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = !isActive ? C.gray50 : "transparent"; }}
+                    >
+                      <td style={{ padding: "10px 14px", color: C.gray400, fontWeight: 600, textAlign: "center", fontSize: 12 }}>{i + 1}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{ background: isDark ? `${C.navy}22` : `${C.navy}10`, color: isDark ? "#93C5FD" : C.navy, padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>{a.cds_number}</span>
+                      </td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: C.text, maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={a.cds_name}>{a.cds_name}</td>
+                      <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 12 }}>{a.phone || <span style={{ color: C.gray400 }}>—</span>}</td>
+                      <td style={{ padding: "10px 14px", color: C.gray600, fontSize: 12 }}>{a.email || <span style={{ color: C.gray400 }}>—</span>}</td>
+                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                        <span style={{
+                          background: isActive ? C.greenBg : C.redBg,
+                          color: isDark ? "#ffffff" : (isActive ? C.green : C.red),
+                          border: `1px solid ${isActive ? activeBdr : inactiveBdr}`,
+                          padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700
+                        }}>
+                          {isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 14px", color: C.gray400, fontSize: 11, whiteSpace: "nowrap" }}>
+                        {fmtDate(a.last_updated_at || a.updated_at)}
+                      </td>
+                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap", textAlign: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+                          <button onClick={() => setFormModal({ open: true, cds: a })} disabled={isToggling} title="Edit CDS account"
+                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: isToggling ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                            <Icon name="edit" size={13} />
+                          </button>
+                          <button onClick={() => handleToggleStatus(a)} disabled={isToggling} title={isActive ? "Deactivate" : "Activate"}
+                            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${isActive ? inactiveBdr : activeBdr}`, background: isActive ? C.redBg : C.greenBg, color: isDark ? "#ffffff" : (isActive ? C.red : C.green), fontWeight: 600, fontSize: 11, cursor: isToggling ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                            {isToggling
+                              ? <div style={{ width: 11, height: 11, border: "2px solid rgba(0,0,0,0.15)", borderTop: `2px solid ${isActive ? C.red : C.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                              : isActive ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {formModal.open && (
+        <CdsFormModal cds={formModal.cds} onConfirm={handleFormConfirm} onClose={() => setFormModal({ open: false, cds: null })} />
+      )}
+    </>
+  );
+});
+
+// ══════════════════════════════════════════════════════════════════
 // ── MAIN PAGE ─────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 export default function SystemSettingsPage({ role, session, showToast, setLoginSettings, companies, setCompanies, transactions }) {
@@ -630,10 +960,11 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
   );
 
   const menuItems = [
-    { id: "companies",  icon: <Icon name="building" size={14} />, label: "Companies"  },
-    { id: "brokers",    icon: <Icon name="briefcase" size={14} />, label: "Brokers"    },
-    { id: "login_page", icon: <Icon name="image" size={14} />, label: "Login Page" },
-    { id: "price_updates", icon: <Icon name="barChart" size={14} />, label: "Price Updates" },
+    { id: "companies",    icon: <Icon name="building" size={14} />,    label: "Companies"    },
+    { id: "cds_accounts", icon: <Icon name="creditCard" size={14} />, label: "CDS Accounts" },
+    { id: "brokers",      icon: <Icon name="briefcase" size={14} />,  label: "Brokers"      },
+    { id: "login_page",   icon: <Icon name="image" size={14} />,      label: "Login Page"   },
+    { id: "price_updates", icon: <Icon name="barChart" size={14} />,  label: "Price Updates" },
   ];
 
   return (
@@ -670,6 +1001,11 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
 
       {/* ── Content ── */}
       <div className="ss-scroll" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingRight: 2 }}>
+
+        {/* ── CDS ACCOUNTS ── */}
+        {activeMenu === "cds_accounts" && (
+          <CdsAccountsSection showToast={showToast} session={session} />
+        )}
 
         {/* ── BROKERS ── */}
         {activeMenu === "brokers" && (

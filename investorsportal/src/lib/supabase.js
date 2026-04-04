@@ -602,6 +602,55 @@ export async function sbSearchCdsAccounts(query = "") {
   );
 }
 
+export async function sbGetAllCdsAccounts() {
+  return _fetchGET(
+    `${BASE}/rest/v1/cds_accounts?order=cds_name.asc&select=id,cds_number,cds_name,phone,email,is_active,created_at,updated_at,last_updated_by,last_updated_at`,
+    "Failed to fetch CDS accounts",
+    15_000
+  );
+}
+
+export async function sbUpdateCdsAccountFull(id, { cds_number, cds_name, phone, email }) {
+  const uid = getSession()?.user?.id;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts?id=eq.${id}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        cds_number: cds_number.trim(),
+        cds_name: cds_name.trim(),
+        phone: phone?.trim() || null,
+        email: email?.trim() || null,
+        last_updated_by: uid || null,
+        last_updated_at: new Date().toISOString(),
+      }),
+    },
+    "Failed to update CDS account."
+  );
+  _invalidateCache(`${BASE}/rest/v1/cds_accounts`);
+  return res.json();
+}
+
+export async function sbToggleCdsAccountStatus(id, isActive) {
+  const uid = getSession()?.user?.id;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_accounts?id=eq.${id}`,
+    {
+      method:  "PATCH",
+      headers: headers(token()),
+      body:    JSON.stringify({
+        is_active: isActive,
+        last_updated_by: uid || null,
+        last_updated_at: new Date().toISOString(),
+      }),
+    },
+    "Failed to update CDS account status."
+  );
+  _invalidateCache(`${BASE}/rest/v1/cds_accounts`);
+  return res.json();
+}
+
 // ══════════════════════════════════════════════════════════════════
 // ── TRANSACTIONS
 // ══════════════════════════════════════════════════════════════════

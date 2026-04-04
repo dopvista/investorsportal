@@ -167,7 +167,7 @@ const SlidePanel = memo(function SlidePanel({ adverts, activeAd, animated, onDot
 });
 
 // ── Biometric Registration Modal ──────────────────────────────────
-const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegister, onSkip }) {
+const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegister, onSkip, error: regError }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -213,6 +213,12 @@ const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegiste
         <div style={{ fontSize: isMobile ? 14 : 13, color: isMobile ? "rgba(255,255,255,0.6)" : C.gray400, lineHeight: 1.6, marginBottom: 28, maxWidth: 300, margin: "0 auto 28px" }}>
           Sign in faster next time with your fingerprint or face. You can manage this anytime in your Profile.
         </div>
+
+        {regError && (
+          <div style={{ fontSize: 13, color: "#ef4444", background: isMobile ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontWeight: 500 }}>
+            {regError}
+          </div>
+        )}
 
         <button
           onClick={onRegister}
@@ -367,9 +373,12 @@ export default function LoginPage({ onLogin, loginSettings }) {
     }
   }, [email, view, onLogin]);
 
+  const [registerError, setRegisterError] = useState("");
+
   const handleRegisterPasskey = useCallback(async () => {
     if (!pendingSession) return;
     setRegisterLoading(true);
+    setRegisterError("");
     try {
       // Use the session's current token (it's fresh — we just logged in)
       const nickname = `${getDeviceName()} — ${new Date().toLocaleDateString()}`;
@@ -381,13 +390,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
       onLogin(pendingSession);
     } catch (err) {
       const msg = err.message || "";
+      console.error("Passkey registration failed:", msg);
       if (msg === "cancelled" || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("abort")) {
         setRegisterLoading(false);
         // Let user try again or skip
       } else {
-        // Registration failed — proceed to app anyway
+        // Show error so the user knows registration failed — let them retry or skip
         setRegisterLoading(false);
-        onLogin(pendingSession);
+        setRegisterError("Biometric setup failed. Tap to try again or skip.");
       }
     }
   }, [pendingSession, email, onLogin]);
@@ -731,6 +741,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         <RegisterModal
           isMobile={isMobile}
           loading={registerLoading}
+          error={registerError}
           onRegister={handleRegisterPasskey}
           onSkip={handleSkipRegistration}
         />
