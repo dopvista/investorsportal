@@ -4,7 +4,7 @@ import { Icon, IconBadge } from "../lib/icons";
 import {
   sbGetAllUsers, sbGetRoles, sbAssignRole, sbDeactivateRole, sbAdminCreateUser,
   sbGetUserCDS, sbSearchCDS, sbCreateCDS, sbAssignCDS, sbRemoveCDS,
-  sbRemoveCDSFromAdminCascade, sbGetCDSAssignedUsers,
+  sbRemoveCDSFromAdminCascade, sbGetCDSAssignedUsers, sbGetCdsActiveMap,
 } from "../lib/supabase";
 import { useTheme } from "../components/ui";
 import logo from "../assets/logo.jpg";
@@ -199,7 +199,17 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
       try {
         const rows = await sbSearchCDS(query);
         if (!mountedRef.current || reqId !== searchReqRef.current) return;
-        const all = rows||[]; const filtered = all.filter(c => !isExcluded(c));
+        let all = rows||[];
+        // Enrich with is_active from cds_accounts
+        const nums = all.map(c => c.cds_number).filter(Boolean);
+        if (nums.length) {
+          try {
+            const activeMap = await sbGetCdsActiveMap(nums);
+            all = all.map(c => ({ ...c, is_active: activeMap[c.cds_number] ?? true }));
+          } catch {}
+        }
+        if (!mountedRef.current || reqId !== searchReqRef.current) return;
+        const filtered = all.filter(c => !isExcluded(c));
         setRawResults(all); setResults(filtered); setShowCreate(all.length === 0);
       } catch {
         if (!mountedRef.current || reqId !== searchReqRef.current) return;
@@ -257,15 +267,21 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
 
       {displayResults.length > 0 && !selected && (
         <div style={{ border:`1.5px solid ${C.green}`, borderRadius:10, marginTop:6, overflow:"hidden", maxHeight:200, overflowY:"auto", background:C.white, boxShadow:"0 8px 24px rgba(0,0,0,0.12)" }}>
-          {displayResults.map(c => (
-            <div key={c.id||c.cds_id||c.cds_number} onClick={() => handleSelect(c)}
-              style={{ padding:"11px 14px", cursor:"pointer", borderBottom:`1px solid ${C.gray100}`, transition:"background 0.1s" }}
-              onMouseEnter={e => e.currentTarget.style.background=C.gray50}
-              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-              <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{c.cds_number}</div>
-              <div style={{ fontSize:11, color:C.gray500, marginTop:1 }}>{c.cds_name}{c.phone ? ` · ${c.phone}` : ""}</div>
-            </div>
-          ))}
+          {displayResults.map(c => {
+            const inactive = c.is_active === false;
+            return (
+              <div key={c.id||c.cds_id||c.cds_number} onClick={() => !inactive && handleSelect(c)}
+                style={{ padding:"11px 14px", cursor: inactive ? "not-allowed" : "pointer", borderBottom:`1px solid ${C.gray100}`, transition:"background 0.1s", opacity: inactive ? 0.5 : 1 }}
+                onMouseEnter={e => { if (!inactive) e.currentTarget.style.background=C.gray50; }}
+                onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color: inactive ? C.gray400 : C.text }}>{c.cds_number}</div>
+                  {inactive && <span style={{ fontSize:9, fontWeight:700, background:C.redBg, color:C.red, border:`1px solid ${C.red}25`, borderRadius:20, padding:"1px 7px" }}>Inactive</span>}
+                </div>
+                <div style={{ fontSize:11, color:C.gray500, marginTop:1 }}>{c.cds_name}{c.phone ? ` · ${c.phone}` : ""}</div>
+              </div>
+            );
+          })}
         </div>
       )}
 
