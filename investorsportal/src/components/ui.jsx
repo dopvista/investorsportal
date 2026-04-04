@@ -1304,7 +1304,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const isEdit = !!dividend;
-  const needsCompanySelect = !company && companies?.length > 0;
+  const needsCompanySelect = !company;
 
   const [selectedCompanyId, setSelectedCompanyId] = useState(company?.id || dividend?.company_id || "");
   const [companySearch, setCompanySearch] = useState("");
@@ -1393,7 +1393,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
             <FormField label="Company" required C={C}>
               <button type="button" onClick={() => setCompanyOpen(v => !v)}
                 style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{resolvedCompany?.name || "Select company..."}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (companies?.length ? "Select company..." : "No companies available")}</span>
                 <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
               </button>
             </FormField>
