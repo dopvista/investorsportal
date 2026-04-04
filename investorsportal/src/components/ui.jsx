@@ -1418,7 +1418,9 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
             )}
           </div>
         ) : (
-          <div />
+          <FormField label="Company" C={C}>
+            <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "—"}</div>
+          </FormField>
         )}
         <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />
       </div>
