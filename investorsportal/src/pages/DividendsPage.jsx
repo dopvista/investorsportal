@@ -659,6 +659,12 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     [companies, localCompanies]
   );
 
+  // For the form dropdown: SA/AD see all companies, others see only transacted companies
+  const formCompanies = useMemo(
+    () => isSAAD ? effectiveCompanies : localCompanies,
+    [isSAAD, effectiveCompanies, localCompanies]
+  );
+
   // ── Individual loaders ──────────────────────────────────────────
   const loadDividends = useCallback(async ({ fromPull = false } = {}) => {
     const requestId = ++divLoadRef.current;
@@ -699,7 +705,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   // ── Boot effect ─────────────────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
-    const companiesNeeded = !companies?.length;
+    // Always load filtered companies for non-SA/AD (form dropdown needs transacted companies only)
+    const companiesNeeded = !companies?.length || !isSAAD;
     Promise.all([
       loadDividends(),
       companiesNeeded ? loadCompanies() : Promise.resolve().then(() => {
@@ -1107,7 +1114,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       {deleteModal && <Modal type="confirm" title="Delete Dividend" message={`Delete this dividend for "${deleteModal.company_name}"? This cannot be undone.`} onConfirm={handleDelete} onClose={closeDelete} />}
       {bulkDeleteModal && <SimpleConfirmModal title="Delete Dividends" message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} dividend(s)? This cannot be undone.`} count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete} onClose={closeBulkDelete} />}
       {bulkMarkPaidModal && <SimpleConfirmModal title="Mark as Paid" message={`Are you sure you want to mark ${bulkMarkPaidModal.ids.length} dividend(s) as paid?`} count={bulkMarkPaidModal.ids.length} loading={isAnyMarkingPaid} onConfirm={doBulkMarkPaid} onClose={closeBulkMarkPaid} />}
-      {formModal.open && <DividendFormModal key={formModal.dividend?.id || "new"} dividend={formModal.dividend} companies={effectiveCompanies} onConfirm={handleFormConfirm} onClose={closeForm} />}
+      {formModal.open && <DividendFormModal key={formModal.dividend?.id || "new"} dividend={formModal.dividend} companies={formCompanies} onConfirm={handleFormConfirm} onClose={closeForm} />}
       {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} allDividends={myDividends} onClose={closeDetail} />}
 
       {/* ── Transform wrapper ── */}
