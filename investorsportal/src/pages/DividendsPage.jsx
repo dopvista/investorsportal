@@ -659,11 +659,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     [companies, localCompanies]
   );
 
-  // For the form dropdown: SA/AD see all companies, others see only transacted companies
-  const formCompanies = useMemo(
-    () => isSAAD ? effectiveCompanies : localCompanies,
-    [isSAAD, effectiveCompanies, localCompanies]
-  );
+  // Form dropdown: only companies with transactions on this CDS, regardless of role
+  const formCompanies = localCompanies;
 
   // ── Individual loaders ──────────────────────────────────────────
   const loadDividends = useCallback(async ({ fromPull = false } = {}) => {
@@ -690,8 +687,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     const requestId = ++companyLoadRef.current;
     if (isMountedRef.current) setLoadingCompanies(true);
     try {
-      // SA/AD see all companies; other roles see companies they have transactions with (including sold)
-      const data = isSAAD ? await sbGetAllCompanies() : (cdsNumber ? await sbGetTransactionCompanies(cdsNumber) : await sbGetAllCompanies());
+      // Only companies with transactions on this CDS (for form dropdown)
+      const data = cdsNumber ? await sbGetTransactionCompanies(cdsNumber) : [];
       if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
       setLocalCompanies(data);
     } catch (e) {
@@ -700,19 +697,12 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current && requestId === companyLoadRef.current) setLoadingCompanies(false);
     }
-  }, [showToast, isSAAD, cdsNumber]);
+  }, [showToast, cdsNumber]);
 
   // ── Boot effect ─────────────────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
-    // Always load filtered companies for non-SA/AD (form dropdown needs transacted companies only)
-    const companiesNeeded = !companies?.length || !isSAAD;
-    Promise.all([
-      loadDividends(),
-      companiesNeeded ? loadCompanies() : Promise.resolve().then(() => {
-        if (isMountedRef.current) setLoadingCompanies(false);
-      }),
-    ]);
+    Promise.all([loadDividends(), loadCompanies()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { isMountedRef.current = false; };
   }, []); // intentionally run once on mount
