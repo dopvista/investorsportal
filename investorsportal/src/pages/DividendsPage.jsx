@@ -235,7 +235,7 @@ function getDivPermissions({ dividend, isDE, isSAAD }) {
 }
 
 // ── Dividend Detail Modal ─────────────────────────────────────────
-const DividendDetailModal = memo(function DividendDetailModal({ dividend, companies = [], onClose }) {
+const DividendDetailModal = memo(function DividendDetailModal({ dividend, companies = [], allDividends = [], onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
@@ -254,6 +254,33 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const companiesMap = useMemo(() => new Map(companies.map(c => [c.id, c])), [companies]);
   const company = companiesMap.get(dividend.company_id);
   const companyName = dividend.company_name || company?.name || "Unknown Company";
+
+  // Dividend yield = DPS / Market Price × 100
+  const marketPrice = Number(company?.price || 0);
+  const yieldPct = (dps > 0 && marketPrice > 0) ? ((dps / marketPrice) * 100).toFixed(2) : null;
+
+  // DPS growth vs previous dividend from same company
+  const dpsGrowth = useMemo(() => {
+    if (!dividend.company_id || dps <= 0) return null;
+    const sameCo = allDividends
+      .filter(d => d.company_id === dividend.company_id && d.id !== dividend.id)
+      .sort((a, b) => {
+        const da = a.payment_date || a.declaration_date || "";
+        const db = b.payment_date || b.declaration_date || "";
+        return db > da ? 1 : db < da ? -1 : 0;
+      });
+    // Find previous dividend (before this one)
+    const thisDate = dividend.payment_date || dividend.declaration_date || "";
+    const prev = sameCo.find(d => {
+      const dd = d.payment_date || d.declaration_date || "";
+      return dd < thisDate;
+    });
+    if (!prev) return null;
+    const prevDps = Number(prev.dividend_per_share || 0);
+    if (prevDps <= 0) return null;
+    const change = ((dps - prevDps) / prevDps) * 100;
+    return { prevDps, change };
+  }, [allDividends, dividend, dps]);
 
   const renderSectionTitle = (title) => (
     <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
@@ -275,9 +302,11 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   // Left panel: Dividend details (dates, per-share, shares, status, remarks)
   const leftRows = [
     ["Declaration Date", fmtDate(dividend.declaration_date)],
-    ["Ex-Dividend Date", fmtDate(dividend.ex_dividend_date)],
+    ["Books Closure / Ex-Date", fmtDate(dividend.ex_dividend_date)],
     ["Payment Date",     fmtDate(dividend.payment_date)],
     ["Dividend/Share",   `TZS ${fmt(dps)}`],
+    ...(yieldPct ? [["Dividend Yield", `${yieldPct}%`, C.green]] : []),
+    ...(dpsGrowth ? [["DPS Growth", `${dpsGrowth.change >= 0 ? "+" : ""}${dpsGrowth.change.toFixed(1)}% vs TZS ${fmt(dpsGrowth.prevDps)}`, dpsGrowth.change >= 0 ? C.green : C.red]] : []),
     ["Shares Held",      shares > 0 ? fmt(shares) : "\u2014"],
     ["Status",           st.label],
     ["Remarks",          dividend.remarks || "\u2014"],
@@ -304,6 +333,9 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
         {renderSectionTitle("Tax & Income")}
         {renderKVRows(taxRows)}
+        <div style={{ margin: "6px 0 4px", padding: "5px 8px", borderRadius: 6, background: isDark ? "rgba(255,255,255,0.04)" : "#FEF3C7", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#FDE68A"}` }}>
+          <span style={{ fontSize: 10, color: isDark ? "#FBBF24" : "#92400E", fontWeight: 600 }}>DSE-listed companies: 5% WHT on dividends (Income Tax Act)</span>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
@@ -462,6 +494,17 @@ const DividendMobileCard = memo(function DividendMobileCard({
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 12, color: C.gray500, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="calendar" size={12} stroke={C.gray400} /> {fmtDate(dividend.payment_date)}</span>
+        {dividend.status !== "paid" && dividend.payment_date && (() => {
+          const today = new Date(); today.setHours(0,0,0,0);
+          const payDate = new Date(dividend.payment_date + "T00:00:00");
+          const diffDays = Math.ceil((payDate - today) / 86400000);
+          if (diffDays < 0 || diffDays > 365) return null;
+          return (
+            <span style={{ fontSize: 10, fontWeight: 700, color: diffDays <= 7 ? (isDark ? "#FBBF24" : "#B45309") : C.gray500, background: diffDays <= 7 ? (isDark ? "#92400E18" : "#FFFBEB") : C.gray100, padding: "2px 7px", borderRadius: 10, border: `1px solid ${diffDays <= 7 ? (isDark ? "#92400E55" : "#FDE68A") : C.gray200}` }}>
+              {diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : `in ${diffDays} days`}
+            </span>
+          );
+        })()}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
         <div>
@@ -719,16 +762,27 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const stats = useMemo(() => {
     let total = 0, declared = 0, exDatePassed = 0, paid = 0;
     let totalGross = 0, totalTax = 0, totalNet = 0;
+    let ytdNet = 0;
+    const currentYear = new Date().getFullYear();
     for (const d of myDividends) {
       total++;
-      totalGross += Number(d.total_amount || 0);
-      totalTax   += Number(d.withholding_tax || 0);
-      totalNet   += Number(d.net_amount || 0) || (Number(d.total_amount || 0) - Number(d.withholding_tax || 0));
+      const gross = Number(d.total_amount || 0);
+      const tax = Number(d.withholding_tax || 0);
+      const net = Number(d.net_amount || 0) || (gross - tax);
+      totalGross += gross;
+      totalTax   += tax;
+      totalNet   += net;
       if      (d.status === "declared")       declared++;
       else if (d.status === "ex_date_passed") exDatePassed++;
       else if (d.status === "paid")           paid++;
+      // YTD: paid dividends in current year
+      if (d.status === "paid") {
+        const payYear = d.payment_date ? new Date(d.payment_date + "T00:00:00").getFullYear() : null;
+        if (payYear === currentYear) ytdNet += net;
+      }
     }
-    return { total, declared, exDatePassed, paid, totalGross, totalTax, totalNet };
+    const upcoming = declared + exDatePassed;
+    return { total, declared, exDatePassed, paid, totalGross, totalTax, totalNet, ytdNet, upcoming };
   }, [myDividends]);
 
   const filtered = useMemo(() => {
@@ -946,36 +1000,37 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
 
   // ── Stat cards ──────────────────────────────────────────────────
   const statCards = useMemo(() => {
+    const upcomingSub = stats.upcoming > 0 ? `${stats.upcoming} upcoming` : "None upcoming";
     if (isSAAD) return [
       { label: "Total Dividends", value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.paid} paid`,      icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
-      { label: "Total Gross",     value: `TZS ${fmtSmart(stats.totalGross)}`,    sub: `${stats.total} records`,                                    icon: <Icon name="download" size={17} />,   color: C.green },
+      { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Total Net",       value: `TZS ${fmtSmart(stats.totalNet)}`,      sub: "After tax",                                                 icon: <Icon name="barChart" size={17} />,   color: C.gold  },
+      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
     ];
     if (isDE) return [
       { label: "My Dividends",    value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.exDatePassed} ex-date`, icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
-      { label: "YTD Income",      value: `TZS ${fmtSmart(stats.totalNet)}`,      sub: "Net after tax",                                             icon: <Icon name="download" size={17} />,   color: C.green },
+      { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Declared",        value: stats.declared,                          sub: "Awaiting payment",                                          icon: <Icon name="clock" size={17} />,      color: C.gold  },
+      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
     ];
     if (isVR || isRO) return [
       { label: "Total Records",   value: stats.total,                            sub: `${stats.paid} paid`,                                        icon: <Icon name="clipboard" size={17} />,  color: C.navy  },
-      { label: "Total Net",       value: `TZS ${fmtSmart(stats.totalNet)}`,      sub: "After tax",                                                 icon: <Icon name="download" size={17} />,   color: C.green },
+      { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Paid",            value: stats.paid,                              sub: "Completed dividends",                                       icon: <Icon name="checkCircle" size={17} />,color: C.gold  },
+      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
     ];
     // fallback (same as SA/AD)
     return [
       { label: "Total Dividends", value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.paid} paid`,      icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
-      { label: "Total Gross",     value: `TZS ${fmtSmart(stats.totalGross)}`,    sub: `${stats.total} records`,                                    icon: <Icon name="download" size={17} />,   color: C.green },
+      { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Total Net",       value: `TZS ${fmtSmart(stats.totalNet)}`,      sub: "After tax",                                                 icon: <Icon name="barChart" size={17} />,   color: C.gold  },
+      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
     ];
   }, [C, stats, isSAAD, isDE, isVR, isRO]);
 
   const mobileStatCards = useMemo(() => {
     if (!isMobile) return statCards;
-    const preferred = statCards.filter(s => s.label === "Total Net" || s.label === "YTD Income" || s.label === "Total Tax");
+    const preferred = statCards.filter(s => s.label === "YTD Net Income" || s.label === "Upcoming");
     return preferred.length >= 2 ? preferred.slice(0, 2) : statCards.slice(0, 2);
   }, [isMobile, statCards]);
 
@@ -1041,7 +1096,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       {bulkDeleteModal && <SimpleConfirmModal title="Delete Dividends" message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} dividend(s)? This cannot be undone.`} count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete} onClose={closeBulkDelete} />}
       {bulkMarkPaidModal && <SimpleConfirmModal title="Mark as Paid" message={`Are you sure you want to mark ${bulkMarkPaidModal.ids.length} dividend(s) as paid?`} count={bulkMarkPaidModal.ids.length} loading={isAnyMarkingPaid} onConfirm={doBulkMarkPaid} onClose={closeBulkMarkPaid} />}
       {formModal.open && <DividendFormModal key={formModal.dividend?.id || "new"} dividend={formModal.dividend} companies={effectiveCompanies} onConfirm={handleFormConfirm} onClose={closeForm} />}
-      {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} onClose={closeDetail} />}
+      {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} allDividends={myDividends} onClose={closeDetail} />}
 
       {/* ── Transform wrapper ── */}
       <div style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
@@ -1050,6 +1105,21 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 6 : 8, marginBottom: isMobile ? 10 : 8, flexShrink: 0 }}>
           {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
+
+        {/* ── Upcoming alert strip ── */}
+        {stats.upcoming > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "8px 12px" : "8px 14px",
+            marginBottom: isMobile ? 10 : 8, borderRadius: 10, flexShrink: 0,
+            background: isDark ? "#92400E18" : "#FFFBEB",
+            border: `1px solid ${isDark ? "#92400E55" : "#FDE68A"}`,
+          }}>
+            <Icon name="clock" size={15} stroke={isDark ? "#FBBF24" : "#B45309"} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? "#FBBF24" : "#92400E" }}>
+              {stats.upcoming} upcoming dividend{stats.upcoming > 1 ? "s" : ""} — {stats.declared > 0 ? `${stats.declared} declared` : ""}{stats.declared > 0 && stats.exDatePassed > 0 ? ", " : ""}{stats.exDatePassed > 0 ? `${stats.exDatePassed} ex-date passed` : ""}
+            </span>
+          </div>
+        )}
 
         {/* ── Mobile toolbar ── */}
         {isMobile && (

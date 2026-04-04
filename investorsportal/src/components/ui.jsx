@@ -1342,11 +1342,15 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
   );
   const [error, setError] = useState("");
 
-  // Auto-calculate total when per-share × shares
+  // Auto-calculate total and WHT (5%) when per-share × shares
   useEffect(() => {
     const dps = Number(form.dividendPerShare) || 0;
     const shares = Number(form.sharesHeld) || 0;
-    if (dps > 0 && shares > 0) setForm(f => ({ ...f, totalAmount: String((dps * shares).toFixed(2)) }));
+    if (dps > 0 && shares > 0) {
+      const total = (dps * shares).toFixed(2);
+      const wht = (Number(total) * 0.05).toFixed(2);
+      setForm(f => ({ ...f, totalAmount: total, withholdingTax: wht }));
+    }
   }, [form.dividendPerShare, form.sharesHeld]);
 
   const netAmount = useMemo(() => {
@@ -1426,7 +1430,10 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
 
       {/* Row 3: Withholding Tax + Net Amount */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
-        <FInput label="Withholding Tax" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
+        <div>
+          <FInput label="Withholding Tax" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
+          <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Auto-filled at 5% (DSE WHT rate)</div>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, height: 42 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: C.gray500 }}>Net Amount</span>
           <span style={{ fontSize: 15, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
