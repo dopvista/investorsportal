@@ -626,6 +626,12 @@ export default function App() {
   // ── CDS switch ────────────────────────────────────────────────────
   const handleCdsSwitch = useCallback(async (target) => {
     if (!target || !session?.user?.id || switching) return;
+    // Block switching to inactive CDS
+    const targetActive = await sbCheckCdsActive(target.cds_number).catch(() => true);
+    if (!targetActive) {
+      showToast("This CDS account is inactive. Contact admin to activate.", "error");
+      return;
+    }
     const reqId = ++cdsSwitchReqRef.current;
     setSwitching(true);
     try {
@@ -635,8 +641,18 @@ export default function App() {
         sbGetUserCDS(uid).catch(() => cdsList),
       ]);
       if (reqId !== cdsSwitchReqRef.current) return;
+      // Enrich cdsList with is_active
+      let enrichedList = freshList || [];
+      try {
+        const nums = enrichedList.map(c => c.cds_number).filter(Boolean);
+        if (nums.length) {
+          const activeMap = await sbGetCdsActiveMap(nums);
+          enrichedList = enrichedList.map(c => ({ ...c, is_active: activeMap[c.cds_number] ?? true }));
+        }
+      } catch {}
+      if (reqId !== cdsSwitchReqRef.current) return;
       setActiveCds(freshActive || target);
-      setCdsList(freshList || []);
+      setCdsList(enrichedList);
       setCompanies([]); setTransactions([]);
       setShowCdsSwitcher(false); setSwitchTarget(null);
       showToast(`Switched to ${(freshActive || target).cds_number}`, "success");
