@@ -393,7 +393,7 @@ function ModalShell({ title, subtitle, headerRight, onClose, footer, children, m
             )}
           </div>
         </div>
-        <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
           {children}
         </div>
         {footer && (
@@ -611,7 +611,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
     </div>
   );
 
-  const colWidths = isMobile ? ["7%", "37%", "18%", "18%", "20%"] : ["5%", "27%", "15%", "15%", "20%", "18%"];
+  const colWidths = isMobile ? ["7%", "38%", "18%", "18%", "19%"] : ["5%", "35%", "16%", "16%", "28%"];
 
   return (
     <ModalShell
@@ -651,7 +651,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
-                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Updated By"].filter(Boolean).map(h => (
+                {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
                   <th key={h} style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: isMobile ? 10 : 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
                 ))}
               </tr>
@@ -668,8 +668,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
                     onMouseEnter={e => e.currentTarget.style.background = C.gray50}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
-                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px" }}>
+                    <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", overflow: "hidden" }}>
                       <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", lineHeight: 1.2 }}>{dateText} <span style={{ color: C.gray400 }}>|</span> {timeText}</div>
+                      {h.updated_by && <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.updated_by}</div>}
                     </td>
                     <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", color: C.gray600 }}>{isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}</td>
                     <td style={{ padding: isMobile ? "8px 8px" : "9px 10px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
@@ -680,11 +681,6 @@ export function PriceHistoryModal({ company, history, onClose }) {
                         </span>
                       )}
                     </td>
-                    {!isMobile && (
-                      <td style={{ padding: "9px 10px", textAlign: "left", whiteSpace: "nowrap" }}>
-                        {h.updated_by ? <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 7px" }}>{h.updated_by}</span> : <span style={{ color: C.gray400 }}>—</span>}
-                      </td>
-                    )}
                   </tr>
                 );
               })}
