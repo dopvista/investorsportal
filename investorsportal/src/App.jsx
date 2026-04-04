@@ -710,15 +710,28 @@ export default function App() {
     [activeCds, profile]
   );
 
-  // Check if the active CDS account is active (subscription gate)
+  // Check if the active CDS account is active (subscription gate).
+  // Initial check runs on CDS change; polling effect below handles re-checks.
   useEffect(() => {
     if (!activeCdsNumber || role === "SA") { setCdsActive(true); return; }
     let cancelled = false;
     sbCheckCdsActive(activeCdsNumber)
       .then(active => { if (!cancelled) setCdsActive(active); })
-      .catch(() => { if (!cancelled) setCdsActive(true); }); // fail-open
+      .catch(() => { if (!cancelled) setCdsActive(true); });
     return () => { cancelled = true; };
   }, [activeCdsNumber, role]);
+
+  // Poll every 8s while on the inactive lock page so it unlocks fast after SA activates.
+  useEffect(() => {
+    if (cdsActive || !activeCdsNumber || role === "SA") return;
+    let cancelled = false;
+    const id = setInterval(() => {
+      sbCheckCdsActive(activeCdsNumber)
+        .then(active => { if (!cancelled && active) setCdsActive(true); })
+        .catch(() => {});
+    }, 8_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [cdsActive, activeCdsNumber, role]);
 
   // Object spread — new reference only when inputs actually change
   const activeProfile = useMemo(
