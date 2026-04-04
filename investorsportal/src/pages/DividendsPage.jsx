@@ -295,9 +295,9 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   ));
 
   const summaryItems = [
-    { label: "Gross Amount",     value: `TZS ${fmt(gross)}`, sub: `${shares > 0 ? fmt(shares) : "—"} shares`, valueColor: C.text },
-    { label: "Withholding Tax (5%)", value: `TZS ${fmt(tax)}`, sub: `${taxPct}% of gross`,                      valueColor: C.red },
-    { label: "Net Amount",       value: `TZS ${fmt(net)}`,   sub: "after tax",                                valueColor: C.green },
+    { label: "Gross Amount",          currency: "TZS", amount: fmt(gross), sub: `${shares > 0 ? fmt(shares) : "—"} shares`, valueColor: C.text },
+    { label: "Withholding Tax (5%)",  currency: "TZS", amount: fmt(tax),   sub: `${taxPct}% of gross`,                      valueColor: C.red },
+    { label: "Net Amount",            currency: "TZS", amount: fmt(net),   sub: "after tax",                                valueColor: C.green },
   ];
 
   // Left panel: Dividend details (dates, per-share, shares, status, remarks)
@@ -329,61 +329,69 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     </div>
   );
 
-  const renderRightPanel = () => (
-    <>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
-        {renderSectionTitle("Tax & Income")}
-        {renderKVRows(taxRows)}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
-          <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
-        </div>
+  const renderTaxPanel = () => (
+    <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+      {renderSectionTitle("Tax & Income")}
+      {renderKVRows(taxRows)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
       </div>
-      <div style={{ padding: "14px 20px" }}>
-        {renderSectionTitle("Audit trail")}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {/* Recorded step */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.gray100, border: `1px solid ${C.gray600}22` }}>
-            <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.gray600}20`, border: `1.5px solid ${C.gray600}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon name="fileText" size={11} stroke={auditIconColor} />
+    </div>
+  );
+
+  const renderAuditTrail = () => (
+    <div style={{ padding: "14px 20px" }}>
+      {renderSectionTitle("Audit trail")}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* Recorded step */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.gray100, border: `1px solid ${C.gray600}22` }}>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.gray600}20`, border: `1.5px solid ${C.gray600}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="fileText" size={11} stroke={auditIconColor} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.gray600 }}>Recorded</div>
+            <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.created_at) || "—"}</div>
+          </div>
+          {dividend.created_by_name && (
+            <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.created_by_name}</span>
+          )}
+        </div>
+        {/* Paid step (if paid) */}
+        {dividend.status === "paid" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.greenBg, border: `1px solid ${C.green}22` }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.green}20`, border: `1.5px solid ${C.green}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="checkCircle" size={11} stroke={auditIconColor} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.gray600 }}>Recorded</div>
-              <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.created_at) || "—"}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Paid</div>
+              <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.paid_at) || fmtDateTime(dividend.updated_at) || "—"}</div>
             </div>
-            {dividend.created_by_name && (
-              <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.created_by_name}</span>
+            {dividend.paid_by_name && (
+              <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.paid_by_name}</span>
             )}
           </div>
-          {/* Paid step (if paid) */}
-          {dividend.status === "paid" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: C.greenBg, border: `1px solid ${C.green}22` }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.green}20`, border: `1.5px solid ${C.green}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="checkCircle" size={11} stroke={auditIconColor} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Paid</div>
-                <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.paid_at) || fmtDateTime(dividend.updated_at) || "—"}</div>
-              </div>
-              {dividend.paid_by_name && (
-                <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.paid_by_name}</span>
-              )}
+        )}
+        {/* Awaiting steps (if not paid) */}
+        {dividend.status !== "paid" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: "transparent", border: `1px solid ${C.gray100}`, opacity: 0.45 }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.gray100, border: `1.5px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="checkCircle" size={11} stroke={C.gray400} />
             </div>
-          )}
-          {/* Awaiting steps (if not paid) */}
-          {dividend.status !== "paid" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: "transparent", border: `1px solid ${C.gray100}`, opacity: 0.45 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.gray100, border: `1.5px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="checkCircle" size={11} stroke={C.gray400} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.gray400 }}>Paid</div>
-                <div style={{ fontSize: 10, color: C.gray400 }}>Awaiting</div>
-              </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.gray400 }}>Paid</div>
+              <div style={{ fontSize: 10, color: C.gray400 }}>Awaiting</div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+
+  const renderRightPanel = () => (
+    <>
+      {renderTaxPanel()}
+      {renderAuditTrail()}
     </>
   );
 
@@ -414,12 +422,11 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
         {/* Summary strip — 3 columns on desktop, stacked on mobile */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
           {summaryItems.map((item, i) => (
-            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? C.greenBg : "transparent", display: "flex", alignItems: isMobile ? "center" : "block", justifyContent: isMobile ? "space-between" : "initial" }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 4 }}>{item.label}</div>
-              <div>
-                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.value}</div>
-                {!isMobile && <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>}
-              </div>
+            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? C.greenBg : "transparent" }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{item.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: item.valueColor, opacity: 0.7, lineHeight: 1, marginBottom: 2 }}>{item.currency}</div>
+              <div style={{ fontSize: isMobile ? 16 : 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.amount}</div>
+              <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
             </div>
           ))}
         </div>
@@ -429,6 +436,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
           {isMobile ? (
             <>
               {renderLeftPanel()}
+              <div style={{ borderTop: `1px solid ${C.gray100}` }}>{renderAuditTrail()}</div>
             </>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
