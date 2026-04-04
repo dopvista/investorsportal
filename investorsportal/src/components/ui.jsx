@@ -1390,10 +1390,10 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       {/* Row 1: Company + Shares Held */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {needsCompanySelect ? (
-          <div ref={companyRef} style={{ position: "relative" }}>
+          <div ref={companyRef} style={{ position: "relative", minWidth: 0 }}>
             <FormField label="Company" required C={C}>
               <button type="button" onClick={() => setCompanyOpen(v => !v)}
-                style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (companies?.length ? "Select company..." : "No companies available")}</span>
                 <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
               </button>
