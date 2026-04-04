@@ -660,8 +660,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                 <div style={{ fontSize: 14, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.currency} {item.amount}</div>
               ) : (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: item.valueColor, opacity: 0.7, lineHeight: 1, marginBottom: 2 }}>{item.currency}</div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.amount}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}><span style={{ fontSize: 12, fontWeight: 600, opacity: 0.7 }}>{item.currency}</span> {item.amount}</div>
                   <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
                 </>
               )}
