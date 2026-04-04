@@ -134,20 +134,34 @@ export default function AccountInactivePage({ cdsNumber, onSignOut }) {
             Account Inactive
           </div>
 
-          <div style={{
-            fontSize: isMobile ? 14 : 13,
-            color: "rgba(255,255,255,0.55)", lineHeight: 1.6,
-            marginBottom: 6,
-          }}>
-            Your CDS account <span style={{ color: C.gold, fontWeight: 700 }}>{cdsNumber}</span> is currently inactive.
-          </div>
-          <div style={{
-            fontSize: isMobile ? 13 : 12,
-            color: "rgba(255,255,255,0.4)", lineHeight: 1.6,
-            marginBottom: 28,
-          }}>
-            Contact an administrator below to activate your account.
-          </div>
+          {isMobile ? (
+            <div style={{
+              fontSize: 14,
+              color: "rgba(255,255,255,0.55)", lineHeight: 1.6,
+              marginBottom: 28,
+            }}>
+              Your CDS account <span style={{ color: C.gold, fontWeight: 700 }}>{cdsNumber}</span> is inactive.
+              <br />
+              Contact an administrator below to activate.
+            </div>
+          ) : (
+            <>
+              <div style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.55)", lineHeight: 1.6,
+                marginBottom: 6,
+              }}>
+                Your CDS account <span style={{ color: C.gold, fontWeight: 700 }}>{cdsNumber}</span> is currently inactive.
+              </div>
+              <div style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.4)", lineHeight: 1.6,
+                marginBottom: 28,
+              }}>
+                Contact an administrator below to activate your account.
+              </div>
+            </>
+          )}
 
           {/* Admin contacts */}
           {loading ? (
