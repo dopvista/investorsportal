@@ -700,16 +700,19 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
   const cdsActiveBdr    = isDark ? `${C.green}40` : `${C.green}25`;
 
   const renderCdsList = (small = false) => cdsList.map((c, i) => {
-    const isActive = c.cds_number === activeCdsNumber;
+    const isCurrent     = c.cds_number === activeCdsNumber;
+    const isDeactivated = c.is_active === false;
     return (
-      <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: small ? "7px 9px" : "8px 10px", background: isActive ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none" }}>
+      <div key={c.cds_id || c.cds_number} style={{ display: "flex", alignItems: "center", gap: 8, padding: small ? "7px 9px" : "8px 10px", background: isCurrent ? `${C.green}07` : "transparent", borderTop: i > 0 ? `1px solid ${C.gray100}` : "none", opacity: isDeactivated ? 0.5 : 1 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: small ? 11 : 12, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
+          <div style={{ fontSize: small ? 11 : 12, fontWeight: 700, color: isDeactivated ? C.gray400 : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_number}</div>
           <div style={{ fontSize: 10, color: C.gray400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cds_name || "—"}</div>
         </div>
-        {isActive
-          ? <span style={{ fontSize: 9, fontWeight: 700, background: cdsActiveBg, color: C.green, border: `1px solid ${cdsActiveBdr}`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
-          : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: "#ffffff", border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.8"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Switch</button>
+        {isDeactivated
+          ? <span style={{ fontSize: 9, fontWeight: 700, background: C.redBg, color: C.red, border: `1px solid ${C.red}25`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Inactive</span>
+          : isCurrent
+            ? <span style={{ fontSize: 9, fontWeight: 700, background: cdsActiveBg, color: C.green, border: `1px solid ${cdsActiveBdr}`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>Active</span>
+            : <button onClick={() => { setSwitchTarget(c); setCdsExpanded(false); }} style={{ fontSize: 10, fontWeight: 700, background: C.navy, color: "#ffffff", border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.8"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Switch</button>
         }
       </div>
     );
