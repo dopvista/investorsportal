@@ -1020,6 +1020,26 @@ export async function sbGetAllCompanies() {
 }
 
 /**
+ * Get all companies the user has ANY transaction with (including fully sold).
+ * Used for dividend form dropdown — user can receive dividends from any company
+ * they've ever traded, not just current holdings.
+ */
+export async function sbGetTransactionCompanies(cdsNumber) {
+  if (!cdsNumber) return [];
+  const txRows = await _fetchGET(
+    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
+    "Failed to fetch transaction companies"
+  );
+  const ids = [...new Set(txRows.map(t => t.company_id).filter(Boolean))];
+  if (!ids.length) return [];
+  const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
+  return _fetchGET(
+    `${BASE}/rest/v1/companies?id=in.${idList}&order=name.asc`,
+    "Failed to fetch companies"
+  );
+}
+
+/**
  * Copy current DSE market prices (companies.price) into the user's CDS
  * analysis prices (cds_prices table) for their portfolio companies.
  *

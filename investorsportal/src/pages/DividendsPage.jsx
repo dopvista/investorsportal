@@ -10,7 +10,7 @@ import { Icon } from "../lib/icons";
 import {
   sbGetDividends,
   sbGetAllCompanies,
-  sbGetPortfolio,
+  sbGetTransactionCompanies,
   sbInsertDividend,
   sbUpdateDividend,
   sbDeleteDividend,
@@ -422,11 +422,17 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
         {/* Summary strip — 3 columns on desktop, stacked on mobile */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
           {summaryItems.map((item, i) => (
-            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? C.greenBg : "transparent" }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{item.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: item.valueColor, opacity: 0.7, lineHeight: 1, marginBottom: 2 }}>{item.currency}</div>
-              <div style={{ fontSize: isMobile ? 16 : 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.amount}</div>
-              <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
+            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? C.greenBg : "transparent", display: isMobile ? "flex" : "block", alignItems: isMobile ? "center" : undefined, justifyContent: isMobile ? "space-between" : undefined }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 2 }}>{item.label}</div>
+              {isMobile ? (
+                <div style={{ fontSize: 14, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.currency} {item.amount}</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: item.valueColor, opacity: 0.7, lineHeight: 1, marginBottom: 2 }}>{item.currency}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.amount}</div>
+                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -678,8 +684,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     const requestId = ++companyLoadRef.current;
     if (isMountedRef.current) setLoadingCompanies(true);
     try {
-      // SA/AD see all companies; other roles only see their portfolio holdings
-      const data = isSAAD ? await sbGetAllCompanies() : (cdsNumber ? await sbGetPortfolio(cdsNumber) : await sbGetAllCompanies());
+      // SA/AD see all companies; other roles see companies they have transactions with (including sold)
+      const data = isSAAD ? await sbGetAllCompanies() : (cdsNumber ? await sbGetTransactionCompanies(cdsNumber) : await sbGetAllCompanies());
       if (!isMountedRef.current || requestId !== companyLoadRef.current) return;
       setLocalCompanies(data);
     } catch (e) {
