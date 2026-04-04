@@ -1021,16 +1021,16 @@ export async function sbGetAllCompanies() {
 
 /**
  * Get all companies the user has ANY transaction with (including fully sold).
- * Used for dividend form dropdown — user can receive dividends from any company
- * they've ever traded, not just current holdings.
+ * Uses cds_company_stats table for fast lookup instead of scanning all transactions.
+ * Used for dividend form dropdown.
  */
 export async function sbGetTransactionCompanies(cdsNumber) {
   if (!cdsNumber) return [];
-  const txRows = await _fetchGET(
-    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
-    "Failed to fetch transaction companies"
+  const statsRows = await _fetchGET(
+    `${BASE}/rest/v1/cds_company_stats?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=company_id`,
+    "Failed to fetch CDS company stats"
   );
-  const ids = [...new Set(txRows.map(t => t.company_id).filter(Boolean))];
+  const ids = statsRows.map(r => r.company_id).filter(Boolean);
   if (!ids.length) return [];
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
   return _fetchGET(
