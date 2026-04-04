@@ -753,8 +753,9 @@ export function TransactionFormModal({ transaction, companies, transactions = []
 
   const availableCompanies = useMemo(() => {
     if (isBuy) return companies;
+    // Sell: only show companies with positive holdings
     const ownedIds = new Set(Object.entries(netMap).filter(([, qty]) => qty > 0).map(([id]) => id));
-    return ownedIds.size === 0 ? companies : companies.filter(c => ownedIds.has(c.id));
+    return companies.filter(c => ownedIds.has(c.id));
   }, [isBuy, companies, netMap]);
 
   const isSellFiltered = !isBuy && availableCompanies.length < companies.length;
@@ -853,7 +854,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           <div style={fieldLabelStyle}>Company <span style={{ color: C.red }}>*</span></div>
           <div ref={companyRef} style={{ position: "relative" }}>
             <button type="button" onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }} style={selectBtnStyle(companyOpen)}>
-              {form.companyId ? selectedCompanyName : (isSellFiltered ? "Select holding..." : "Select company...")}
+              <span style={{ color: form.companyId ? C.text : C.gray400 }}>{form.companyId ? selectedCompanyName : (!isBuy && availableCompanies.length === 0 ? "No holdings to sell" : (isSellFiltered ? "Select holding..." : "Select company..."))}</span>
               <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>{companyOpen ? "▲" : "▼"}</span>
             </button>
             {companyOpen && (
