@@ -36,6 +36,7 @@ if (typeof document !== "undefined" && !document.getElementById("lp-styles")) {
       caret-color: ${C.text};
       transition: background-color 5000s ease-in-out 0s;
     }
+    .lp-bio-btn { -webkit-tap-highlight-color: transparent; outline: none; }
     .lp-bio-btn:hover { transform: scale(1.06); }
     .lp-bio-btn:active { transform: scale(0.97); }
     .lp-link:hover { opacity: 1 !important; }
