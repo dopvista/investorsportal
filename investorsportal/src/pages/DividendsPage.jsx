@@ -296,7 +296,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
 
   const summaryItems = [
     { label: "Gross Amount",     value: `TZS ${fmt(gross)}`, sub: `${shares > 0 ? fmt(shares) : "—"} shares`, valueColor: C.text },
-    { label: "Withholding Tax",  value: `TZS ${fmt(tax)}`,   sub: `${taxPct}% of gross`,                      valueColor: C.red },
+    { label: "Withholding Tax (5%)", value: `TZS ${fmt(tax)}`, sub: `${taxPct}% of gross`,                      valueColor: C.red },
     { label: "Net Amount",       value: `TZS ${fmt(net)}`,   sub: "after tax",                                valueColor: C.green },
   ];
 
@@ -429,7 +429,6 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
           {isMobile ? (
             <>
               {renderLeftPanel()}
-              <div style={{ borderTop: `1px solid ${C.gray100}` }}>{renderRightPanel()}</div>
             </>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
