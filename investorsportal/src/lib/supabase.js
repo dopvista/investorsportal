@@ -731,7 +731,7 @@ export async function sbGetTransactions(cdsNumber, opts = {}) {
 }
 
 export async function sbGetNavCounts(cdsNumber) {
-  if (!cdsNumber) return { holdings: 0, transactions: 0 };
+  if (!cdsNumber) return { holdings: 0, transactions: 0, dividends: 0 };
   try {
     const res = await fetchWithAuthRetry(
       `${BASE}/rest/v1/rpc/get_nav_counts`,
@@ -739,7 +739,7 @@ export async function sbGetNavCounts(cdsNumber) {
       "Failed to fetch nav counts"
     );
     return res.json();
-  } catch { return { holdings: 0, transactions: 0 }; }
+  } catch { return { holdings: 0, transactions: 0, dividends: 0 }; }
 }
 
 export async function sbGetDashboardMetrics(cdsNumber) {

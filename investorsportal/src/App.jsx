@@ -781,6 +781,7 @@ export default function App() {
     () => ({
       companies: navCounts.holdings,
       transactions: navCounts.transactions?.toLocaleString?.() ?? navCounts.transactions,
+      dividends: navCounts.dividends?.toLocaleString?.() ?? navCounts.dividends,
     }),
     [navCounts]
   );
