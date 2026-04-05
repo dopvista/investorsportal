@@ -439,18 +439,39 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const accentBdr   = isBuy ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
 
-  // Net holding for this company — detect fully sold positions
-  const netHolding = useMemo(() => {
-    if (!allVerifiedTxns?.length) return null;
-    return allVerifiedTxns.reduce((sum, t) => sum + (t.type === "Buy" ? Number(t.qty || 0) : -Number(t.qty || 0)), 0);
-  }, [allVerifiedTxns]);
+  // FIFO remaining shares — how many of THIS buy's shares are still held
+  const fifoRemaining = useMemo(() => {
+    if (!isBuy || !allVerifiedTxns?.length) return null;
+    // Sort all verified txns chronologically (date, then created_at for ties)
+    const sorted = [...allVerifiedTxns].sort((a, b) => {
+      const da = new Date(a.date || a.created_at || 0).getTime();
+      const db = new Date(b.date || b.created_at || 0).getTime();
+      return da !== db ? da - db : new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    });
+    // Build FIFO buy queue with remaining qty per buy
+    const buys = sorted.filter(t => t.type === "Buy").map(t => ({ id: t.id, remaining: Number(t.qty || 0) }));
+    // Walk sells in order, consuming from oldest buys first
+    for (const t of sorted) {
+      if (t.type !== "Sell") continue;
+      let toSell = Number(t.qty || 0);
+      for (const b of buys) {
+        if (toSell <= 0) break;
+        const take = Math.min(b.remaining, toSell);
+        b.remaining -= take;
+        toSell -= take;
+      }
+    }
+    // Find remaining for this specific buy transaction
+    const match = buys.find(b => b.id === transaction.id);
+    return match ? match.remaining : null;
+  }, [isBuy, allVerifiedTxns, transaction.id]);
 
   // Unrealized G/L — uses the user's personal CDS analysis price
-  // For partially sold positions, calculate on remaining shares only
-  const holdingQty = netHolding != null && netHolding < qty ? netHolding : qty;
+  // Uses FIFO remaining shares for accurate partial-position calculation
+  const holdingQty = fifoRemaining != null ? fifoRemaining : qty;
   const unrealizedGL = useMemo(() => {
     if (!isBuy || !isVerified || !qty || cdsPrice == null || cdsPrice <= 0) return null;
-    if (holdingQty <= 0) return null; // fully sold — no unrealized G/L
+    if (holdingQty <= 0) return null; // fully sold via FIFO — no unrealized G/L
     const costPerShare = gt / qty;
     const currentValue = cdsPrice * holdingQty;
     const costBasis    = costPerShare * holdingQty;
@@ -599,12 +620,15 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       {isBuy && isVerified && qty > 0 && (
         cdsPrice === undefined
           ? <div style={{ padding: "0 20px 14px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100, animation: "_txSpin 0s" }} /></div>
-          : netHolding != null && netHolding <= 0
-            ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Position fully sold — no unrealized gain/loss.</div>
+          : fifoRemaining != null && fifoRemaining <= 0
+            ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Position fully sold (FIFO) — no unrealized gain/loss.</div>
             : unrealizedGL
               ? renderGLCard(unrealizedGL, "buy")
               : cdsPrice === null
-                ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Set your analysis price in Portfolio to see unrealized gain/loss.</div>
+                ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>
+                    {fifoRemaining != null && fifoRemaining < qty && <div style={{ marginBottom: 2 }}>{fmtInt(fifoRemaining)} of {fmtInt(qty)} shares still held (FIFO).</div>}
+                    Set your analysis price in Portfolio to see unrealized gain/loss.
+                  </div>
                 : null
       )}
       {/* Realized G/L — loading shimmer while history is being fetched */}
