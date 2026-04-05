@@ -152,7 +152,14 @@ export async function loginWithPasskey(email) {
   // 1. Get authentication options (challenge) from server
   const options = await callEdgeFunction("webauthn-auth-options", { email: resolvedEmail });
 
-  // 2. Trigger browser biometric prompt
+  // 2. If we have a stored credential ID, inject it into allowCredentials
+  //    so iOS skips the "Use Passkey?" popup and goes straight to Face ID.
+  const storedInfo = getStoredPasskeyInfo();
+  if (storedInfo?.credentialId) {
+    options.allowCredentials = [{ id: storedInfo.credentialId, type: "public-key" }];
+  }
+
+  // 3. Trigger browser biometric prompt
   let authenticationResponse;
   try {
     authenticationResponse = await startAuthentication({ optionsJSON: options });
@@ -167,7 +174,7 @@ export async function loginWithPasskey(email) {
     throw new Error(err.message || "Biometric sign-in was cancelled.");
   }
 
-  // 3. Verify server-side → returns Supabase session
+  // 4. Verify server-side → returns Supabase session
   return await callEdgeFunction("webauthn-auth-verify", { authenticationResponse, email: resolvedEmail });
 }
 

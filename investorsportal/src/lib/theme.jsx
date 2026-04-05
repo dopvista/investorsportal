@@ -61,8 +61,8 @@ function resolveIsDark(setting) {
 }
 
 function getSavedTheme() {
-  try { return localStorage.getItem("app_theme") || "default"; }
-  catch { return "default"; }
+  try { return localStorage.getItem("app_theme") || "light"; }
+  catch { return "light"; }
 }
 
 // ── Context ────────────────────────────────────────────────────────
