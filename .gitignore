@@ -3,3 +3,8 @@ dist/
 .env
 .env.local
 *.vsix
+
+# Claude Code local config
+.claude/
+.mcp.json
+CLAUDE.md
