@@ -930,7 +930,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </div>
                 <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
                   <span style={{ fontSize: 12, color: C.gray400 }}>
-                    Showing <strong style={{ color: C.text }}>1–{filteredPortfolio.length}</strong> of <strong style={{ color: C.text }}>{portfolio.length}</strong>
+                    Showing <strong style={{ color: C.text }}>{filteredPortfolio.length === 1 ? "1" : `1–${filteredPortfolio.length}`}</strong> of <strong style={{ color: C.text }}>{portfolio.length}</strong>
                   </span>
                 </div>
                 </>
@@ -1019,7 +1019,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                 </div>
                 <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderTop: `1px solid ${C.gray200}`, flexShrink: 0, background: C.gray50 }}>
                   <span style={{ fontSize: 12, color: C.gray400 }}>
-                    Showing <strong style={{ color: C.text }}>1–{masterList.length}</strong> of <strong style={{ color: C.text }}>{masterList.length}</strong>
+                    Showing <strong style={{ color: C.text }}>{masterList.length === 1 ? "1" : `1–${masterList.length}`}</strong> of <strong style={{ color: C.text }}>{masterList.length}</strong>
                   </span>
                 </div>
                 </>
