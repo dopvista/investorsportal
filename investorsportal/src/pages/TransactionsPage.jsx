@@ -446,14 +446,18 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   }, [allVerifiedTxns]);
 
   // Unrealized G/L — uses the user's personal CDS analysis price
+  // For partially sold positions, calculate on remaining shares only
+  const holdingQty = netHolding != null && netHolding < qty ? netHolding : qty;
   const unrealizedGL = useMemo(() => {
     if (!isBuy || !isVerified || !qty || cdsPrice == null || cdsPrice <= 0) return null;
-    const currentValue = cdsPrice * qty;
-    const costBasis    = gt;
+    if (holdingQty <= 0) return null; // fully sold — no unrealized G/L
+    const costPerShare = gt / qty;
+    const currentValue = cdsPrice * holdingQty;
+    const costBasis    = costPerShare * holdingQty;
     const gain         = currentValue - costBasis;
     const pct          = costBasis > 0 ? (gain / costBasis) * 100 : 0;
-    return { currentPrice: cdsPrice, currentValue, costBasis, gain, pct };
-  }, [isBuy, isVerified, qty, cdsPrice, gt]);
+    return { currentPrice: cdsPrice, currentValue, costBasis, gain, pct, holdingQty, originalQty: qty };
+  }, [isBuy, isVerified, qty, holdingQty, cdsPrice, gt]);
 
   // Realized G/L — uses full verified history (not just current page)
   const realizedGL = useMemo(() => {
@@ -520,8 +524,12 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     const glBg   = isGain ? C.greenBg : C.redBg;
     const glBdr  = isGain ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
     const glCol  = isGain ? C.green : C.red;
+    const isPartial = type === "buy" && gl.holdingQty != null && gl.holdingQty < gl.originalQty;
+    const sharesLabel = isPartial
+      ? `Current Price × ${fmtInt(gl.holdingQty)} of ${fmtInt(gl.originalQty)} shares`
+      : `Current Price × ${fmtInt(type === "buy" ? (gl.holdingQty || qty) : qty)} shares`;
     const rows   = type === "buy"
-      ? [["Current Price × " + fmtInt(qty) + " shares", `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
+      ? [[sharesLabel, `TZS ${fmt(gl.currentValue)}`], ["All-in Cost (trade + fees)", `TZS ${fmt(gl.costBasis)}`]]
       : [["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`], ["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`]];
     const cardTitle = type === "buy" ? "Unrealized Gain / Loss" : "Realized Gain / Loss";
     return (
@@ -591,11 +599,13 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       {isBuy && isVerified && qty > 0 && (
         cdsPrice === undefined
           ? <div style={{ padding: "0 20px 14px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100, animation: "_txSpin 0s" }} /></div>
-          : unrealizedGL
-            ? renderGLCard(unrealizedGL, "buy")
-            : cdsPrice === null
-              ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>{netHolding != null && netHolding <= 0 ? "Position fully sold — no unrealized gain/loss." : "Set your analysis price in Portfolio to see unrealized gain/loss."}</div>
-              : null
+          : netHolding != null && netHolding <= 0
+            ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Position fully sold — no unrealized gain/loss.</div>
+            : unrealizedGL
+              ? renderGLCard(unrealizedGL, "buy")
+              : cdsPrice === null
+                ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Set your analysis price in Portfolio to see unrealized gain/loss.</div>
+                : null
       )}
       {/* Realized G/L — loading shimmer while history is being fetched */}
       {!isBuy && isVerified && (
