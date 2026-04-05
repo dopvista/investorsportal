@@ -156,7 +156,9 @@ export async function loginWithPasskey(email) {
   //    so iOS skips the "Use Passkey?" popup and goes straight to Face ID.
   const storedInfo = getStoredPasskeyInfo();
   if (storedInfo?.credentialId) {
-    options.allowCredentials = [{ id: storedInfo.credentialId, type: "public-key" }];
+    options.allowCredentials = [
+      { id: storedInfo.credentialId, type: "public-key", transports: ["internal"] },
+    ];
   }
 
   // 3. Trigger browser biometric prompt
