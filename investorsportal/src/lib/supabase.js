@@ -636,12 +636,14 @@ export async function sbGetSuperAdminContacts() {
 export async function sbCheckUserActive(userId) {
   try {
     const res = await fetchWithAuthRetry(
-      `${BASE}/rest/v1/user_roles?user_id=eq.${userId}&select=is_active&limit=1`,
+      `${BASE}/rest/v1/user_roles?user_id=eq.${userId}&select=is_active`,
       { method: "GET", headers: headers(token()) },
       "Failed to check user status"
     );
     const rows = await res.json();
-    return rows?.[0]?.is_active !== false;
+    if (!rows?.length) return true; // no roles at all — fail-open
+    // User is active if they have ANY active role
+    return rows.some(r => r.is_active === true);
   } catch { return true; } // fail-open
 }
 
