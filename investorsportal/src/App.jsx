@@ -15,10 +15,12 @@ import {
   sbGetNavCounts,
   sbCheckCdsActive,
   sbGetCdsActiveMap,
+  sbCheckUserActive,
 } from "./lib/supabase";
 import { C as CStatic, Toast, useTheme, DatePickerStyles } from "./components/ui";
 import LoginPage            from "./pages/LoginPage";
 import AccountInactivePage  from "./pages/AccountInactivePage";
+import UserInactivePage     from "./pages/UserInactivePage";
 import ProfileSetupPage from "./pages/ProfileSetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UserMenu          from "./components/UserMenu";
@@ -331,6 +333,7 @@ export default function App() {
   const [recoveryMode,    setRecoveryMode]    = useState(false);
   const [activeCds,       setActiveCds]       = useState(null);
   const [cdsActive,       setCdsActive]       = useState(true);
+  const [userActive,      setUserActive]      = useState(true);
   const [cdsList,         setCdsList]         = useState([]);
   const [showCdsSwitcher, setShowCdsSwitcher] = useState(false);
   const [switchTarget,    setSwitchTarget]    = useState(null);
@@ -681,7 +684,7 @@ export default function App() {
   const handleSignOut = useCallback(async () => {
     await sbSignOut();
     setSession(null); setProfile(undefined); setRole(null);
-    setActiveCds(null); setCdsActive(true); setCdsList([]); setCompanies([]); setTransactions([]);
+    setActiveCds(null); setCdsActive(true); setUserActive(true); setCdsList([]); setCompanies([]); setTransactions([]);
     setLoading(false); setAppBootstrapping(false); setDbError(null);
     setDrawerOpen(false); setShowCdsSwitcher(false); setSwitchTarget(null);
     forceMobileDashboardOnNextLoginRef.current = false;
@@ -736,6 +739,30 @@ export default function App() {
       .catch(() => { if (!cancelled) setCdsActive(true); });
     return () => { cancelled = true; };
   }, [activeCdsNumber, role]);
+
+  // Check if the user's role is active (user deactivation gate).
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid || role === "SA") { setUserActive(true); return; }
+    let cancelled = false;
+    sbCheckUserActive(uid)
+      .then(active => { if (!cancelled) setUserActive(active); })
+      .catch(() => { if (!cancelled) setUserActive(true); });
+    return () => { cancelled = true; };
+  }, [session?.user?.id, role]);
+
+  // Poll every 8s while on the user inactive lock page.
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (userActive || !uid || role === "SA") return;
+    let cancelled = false;
+    const id = setInterval(() => {
+      sbCheckUserActive(uid)
+        .then(active => { if (!cancelled && active) setUserActive(true); })
+        .catch(() => {});
+    }, 8_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [userActive, session?.user?.id, role]);
 
   // Poll every 8s while on the inactive lock page so it unlocks fast after SA activates.
   useEffect(() => {
@@ -894,6 +921,11 @@ export default function App() {
   const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
   if (profileIncomplete)
     return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
+
+  // ── User deactivation gate — blocks deactivated users ─────────────
+  if (!userActive && role !== "SA") {
+    return <UserInactivePage userId={session?.user?.id} userName={profile?.full_name?.split(" ")[0]} onSignOut={handleSignOut} />;
+  }
 
   // ── Subscription gate — inactive CDS blocks non-SA users ──────────
   if (!cdsActive && role !== "SA") {

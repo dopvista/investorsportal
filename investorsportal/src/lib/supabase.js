@@ -633,6 +633,27 @@ export async function sbGetSuperAdminContacts() {
   return (await res.json()) || [];
 }
 
+export async function sbCheckUserActive(userId) {
+  try {
+    const res = await fetchWithAuthRetry(
+      `${BASE}/rest/v1/user_roles?user_id=eq.${userId}&select=is_active&limit=1`,
+      { method: "GET", headers: headers(token()) },
+      "Failed to check user status"
+    );
+    const rows = await res.json();
+    return rows?.[0]?.is_active !== false;
+  } catch { return true; } // fail-open
+}
+
+export async function sbGetUserAdminContacts(userId) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/get_user_admin_contacts`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_user_id: userId }) },
+    "Failed to fetch admin contacts"
+  );
+  return (await res.json()) || [];
+}
+
 export async function sbGetAllCdsAccounts() {
   return _fetchGET(
     `${BASE}/rest/v1/cds_accounts?order=cds_name.asc&select=id,cds_number,cds_name,phone,email,is_active,created_at,updated_at,last_updated_by,last_updated_at`,
