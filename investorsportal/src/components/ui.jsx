@@ -749,7 +749,9 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     return m;
   }, [transactions]);
 
-  const maxSellQty = form.companyId ? Math.max(0, netMap[form.companyId] || 0) : 0;
+  // When editing a sell, add back the original qty so the user can correct it
+  const editSellAdj = isEdit && transaction.type === "Sell" && form.companyId === transaction.company_id ? Number(transaction.qty || 0) : 0;
+  const maxSellQty = form.companyId ? Math.max(0, (netMap[form.companyId] || 0) + editSellAdj) : 0;
 
   const availableCompanies = useMemo(() => {
     if (isBuy) return companies;
