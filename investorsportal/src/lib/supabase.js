@@ -626,15 +626,11 @@ export async function sbGetCdsActiveMap(cdsNumbers) {
 
 export async function sbGetSuperAdminContacts() {
   const res = await fetchWithAuthRetry(
-    `${BASE}/rest/v1/rpc/get_all_users`,
+    `${BASE}/rest/v1/rpc/get_sa_contacts`,
     { method: "POST", headers: headers(token()), body: JSON.stringify({}) },
     "Failed to fetch admin contacts"
   );
-  const allUsers = await res.json();
-  return (allUsers || [])
-    .filter(u => u.role_code === "SA" && u.is_active !== false)
-    .slice(0, 3)
-    .map(u => ({ full_name: u.full_name, phone: u.phone, email: u.email }));
+  return (await res.json()) || [];
 }
 
 export async function sbGetAllCdsAccounts() {
