@@ -406,8 +406,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       setCdsPrice(null);
     }
 
-    // Fetch all verified txns for Sell transactions (FIFO realized G/L)
-    if (!isBuyTx && isVerTx && cdsNum && compId) {
+    // Fetch all verified txns (Sell: FIFO realized G/L, Buy: detect fully sold)
+    if (isVerTx && cdsNum && compId) {
       setAllVerifiedTxns(null);
       sbGetVerifiedTransactionsForCompany(cdsNum, compId)
         .then(rows => { if (!cancelled) setAllVerifiedTxns(rows); })
@@ -438,6 +438,12 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const accentBg    = isBuy ? C.greenBg : C.redBg;
   const accentBdr   = isBuy ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
   const allInCostPerShare = isBuy && qty > 0 ? gt / qty : null;
+
+  // Net holding for this company — detect fully sold positions
+  const netHolding = useMemo(() => {
+    if (!allVerifiedTxns?.length) return null;
+    return allVerifiedTxns.reduce((sum, t) => sum + (t.type === "Buy" ? Number(t.qty || 0) : -Number(t.qty || 0)), 0);
+  }, [allVerifiedTxns]);
 
   // Unrealized G/L — uses the user's personal CDS analysis price
   const unrealizedGL = useMemo(() => {
@@ -588,7 +594,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           : unrealizedGL
             ? renderGLCard(unrealizedGL, "buy")
             : cdsPrice === null
-              ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>Set your analysis price in Portfolio to see unrealized gain/loss.</div>
+              ? <div style={{ padding: "0 20px 14px", fontSize: 11, color: C.gray400 }}>{netHolding != null && netHolding <= 0 ? "Position fully sold — no unrealized gain/loss." : "Set your analysis price in Portfolio to see unrealized gain/loss."}</div>
               : null
       )}
       {/* Realized G/L — loading shimmer while history is being fetched */}
