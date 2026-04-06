@@ -65,7 +65,7 @@ const C = {
   lightGray:[200, 200, 200],
 };
 const v2f = (n) => Math.round(Number(n || 0)).toLocaleString("en-US");
-const v2fmtDate = (d) => { if (!d) return ""; const [y, m, dd] = d.split("-"); return `${dd}-${m}-${y}`; };
+const v2fmtDate = (d) => { if (!d) return ""; const iso = d.substring(0, 10); const [y, m, dd] = iso.split("-"); return `${dd}-${m}-${y}`; };
 const v2retFmt = (v) => { const n = Number(v || 0); return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`; };
 const v2fmtInt = (n) => { const v = Number(n || 0); return v === 0 ? "—" : Math.round(v).toLocaleString("en-US"); };
 
@@ -1835,5 +1835,451 @@ export async function generateGainLossExcel({ cdsNumber, cdsName, glView = "comp
   downloadBlob(
     new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
     `Gain_Loss_${cdsNumber}_${dateFrom || "all"}_to_${dateTo || "all"}.xlsx`
+  );
+}
+
+// ── 11. Dividend Income PDF (Reports Module) ────────────────────
+export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
+  const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
+  const f = v2f;
+  const isByTxn = divView === "transaction";
+
+  const logoData = logoUrl ? await loadStyledLogoBase64(logoUrl, 128) : null;
+  v2DrawHeader(doc, logoData, "Dividend Income", { pw, ml, mr });
+
+  const viewLabel = isByTxn ? "By Transaction" : "By Company";
+  let cdsBarRight = viewLabel;
+  if (status && status !== "All") cdsBarRight += `  |  ${status === "ex_date_passed" ? "Ex-Date Passed" : status.charAt(0).toUpperCase() + status.slice(1)}`;
+  if (dateFrom || dateTo) cdsBarRight += `  |  ${v2fmtDate(dateFrom || "")} to ${v2fmtDate(dateTo || "")}`;
+  let y = v2DrawCdsBar(doc, { cdsNumber, cdsName, rightText: cdsBarRight, pw, ml, mr, cw });
+
+  let tableHead, tableBody, totalRowIdx, columnStyles;
+
+  if (isByTxn) {
+    // ── By Transaction view ──────────────────────────────────
+    const fmtDateCell = (d) => { if (!d) return "—"; const iso = d.substring(0, 10); const [yr, m, dd] = iso.split("-"); return `${dd}-${m}-${yr}`; };
+    tableHead = [["#", "Date", "Company", "Per Share", "Shares", "Gross Amt", "Tax", "Net Amt", "Status"]];
+
+    let totGross = 0, totTax = 0, totNet = 0;
+
+    tableBody = dividends.map((d, i) => {
+      const gross = Number(d.total_amount || 0);
+      const tax = Number(d.withholding_tax || 0);
+      const net = Number(d.net_amount || 0) || (gross - tax);
+      totGross += gross;
+      totTax += tax;
+      totNet += net;
+      return [
+        i + 1,
+        fmtDateCell(d.payment_date || d.declaration_date),
+        d.company_name || "—",
+        f(d.dividend_per_share),
+        v2fmtInt(d.shares_held),
+        f(gross),
+        f(tax),
+        f(net),
+        d.status === "ex_date_passed" ? "Ex-Date" : d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "—",
+      ];
+    });
+
+    tableBody.push([
+      "", "TOTAL", "", "—", "—",
+      f(totGross), f(totTax), f(totNet), "—",
+    ]);
+
+    totalRowIdx = tableBody.length - 1;
+
+    // 9 cols, cw=269: #10 + Date26 + Company60 + PerShare26 + Shares24 + Gross34 + Tax32 + Net34 + Status23 = 269
+    columnStyles = {
+      0: { halign: "center", cellWidth: 10 },
+      1: { halign: "center", cellWidth: 26 },
+      2: { cellWidth: 60 },
+      3: { halign: "right", cellWidth: 26 },
+      4: { halign: "right", cellWidth: 24 },
+      5: { halign: "right", cellWidth: 34 },
+      6: { halign: "right", cellWidth: 32 },
+      7: { halign: "right", cellWidth: 34 },
+      8: { halign: "center", cellWidth: 23 },
+    };
+  } else {
+    // ── By Company view ──────────────────────────────────────
+    tableHead = [["#", "Company", "Dividends", "Gross Amount", "Tax", "Net Amount", "Avg DPS", "Last Payment"]];
+
+    let totCount = 0, totGross = 0, totTax = 0, totNet = 0;
+
+    tableBody = byCompany.map((d, i) => {
+      const count = Number(d.dividend_count || 0);
+      const gross = Number(d.total_gross || 0);
+      const tax = Number(d.total_tax || 0);
+      const net = Number(d.total_net || 0);
+      totCount += count;
+      totGross += gross;
+      totTax += tax;
+      totNet += net;
+      return [
+        i + 1,
+        d.company_name || "—",
+        count,
+        f(gross),
+        f(tax),
+        f(net),
+        f(d.avg_dps),
+        d.last_payment_date ? v2fmtDate(d.last_payment_date) : "—",
+      ];
+    });
+
+    tableBody.push([
+      "", "TOTAL", totCount, f(totGross), f(totTax), f(totNet), "—", "—",
+    ]);
+
+    totalRowIdx = tableBody.length - 1;
+
+    // 8 cols, cw=269: #10 + Company60 + Divs20 + Gross40 + Tax36 + Net40 + AvgDPS30 + LastPay33 = 269
+    columnStyles = {
+      0: { halign: "center", cellWidth: 10 },
+      1: { cellWidth: 60 },
+      2: { halign: "center", cellWidth: 20 },
+      3: { halign: "right", cellWidth: 40 },
+      4: { halign: "right", cellWidth: 36 },
+      5: { halign: "right", cellWidth: 40 },
+      6: { halign: "right", cellWidth: 30 },
+      7: { halign: "center", cellWidth: 33 },
+    };
+  }
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: ml, right: mr },
+    head: tableHead,
+    body: tableBody,
+    tableWidth: cw,
+    ...v2TableBase(),
+    columnStyles,
+    didParseCell(data) {
+      // Total row styling
+      if (data.section === "body" && data.row.index === totalRowIdx) {
+        data.cell.styles.fillColor = [230, 236, 242];
+        data.cell.styles.textColor = C.navy;
+        data.cell.styles.fontStyle = "bold";
+      }
+      // Tax column — red
+      const taxCol = isByTxn ? 6 : 4;
+      if (data.section === "body" && data.column.index === taxCol) {
+        const num = Number(String(data.cell.raw).replace(/[^0-9.-]/g, ""));
+        if (num > 0) data.cell.styles.textColor = [200, 50, 50];
+      }
+      // Net column — green (bold)
+      const netCol = isByTxn ? 7 : 5;
+      if (data.section === "body" && data.column.index === netCol) {
+        const num = Number(String(data.cell.raw).replace(/[^0-9.-]/g, ""));
+        if (num > 0) data.cell.styles.textColor = C.green;
+        if (data.row.index !== totalRowIdx) data.cell.styles.fontStyle = "bold";
+      }
+      // Status column colors (By Transaction only)
+      if (isByTxn && data.section === "body" && data.column.index === 8 && data.row.index !== totalRowIdx) {
+        const val = String(data.cell.raw);
+        if (val === "Confirmed" || val === "Ex-Date") data.cell.styles.textColor = [30, 100, 180];
+        else if (val === "Rejected") data.cell.styles.textColor = [200, 50, 50];
+        else if (val === "Pending" || val === "Declared") data.cell.styles.textColor = [180, 130, 0];
+        else if (val === "Paid") data.cell.styles.textColor = C.green;
+      }
+      // Dash cells — muted gray
+      if (data.section === "body" && data.cell.raw === "—") {
+        data.cell.styles.textColor = [153, 153, 153];
+      }
+    },
+  });
+
+  v2DrawFooter(doc, { pw, ph, ml, mr });
+
+  const dateLabel = dateFrom || dateTo ? `${dateFrom || "all"}_to_${dateTo || "all"}` : "all";
+  doc.setProperties({ title: "Dividend Income", subject: `${cdsNumber} — Dividend Income` });
+  const blobUrl = doc.output("bloburl", { filename: `Dividend_Income_${cdsNumber}_${dateLabel}.pdf` });
+  window.open(blobUrl, "_blank");
+}
+
+// ── 12. Dividend Income Excel (Reports Module) ──────────────────
+export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Dividend Income");
+  const f = (n) => Math.round(Number(n || 0));
+  const fmtBarDate = (d) => d ? v2fmtDate(d) : "";
+  const fmtDateCell = (d) => { if (!d) return "—"; const iso = d.substring(0, 10); const [yr, m, dd] = iso.split("-"); return `${dd}-${m}-${yr}`; };
+  const isByTxn = divView === "transaction";
+
+  const colCount = isByTxn ? 9 : 8;
+  const splitCol = isByTxn ? 5 : 4;
+  const lastColLetter = String.fromCharCode(64 + colCount);
+
+  // ── Colors ──────────────────────────────────────────────────
+  const navy = "0A2540";
+  const green = "00843D";
+  const redFont = "C83232";
+  const lightBg = "F8FAFC";
+  const totalBg = "E6ECF2";
+  const thinBorder = { style: "thin", color: { argb: "FFDCE0E4" } };
+  const border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+  // ── Column widths ──────────────────────────────────────────
+  if (isByTxn) {
+    ws.columns = [
+      { width: 6 },   // A: #
+      { width: 14 },  // B: Date
+      { width: 26 },  // C: Company
+      { width: 14 },  // D: Per Share
+      { width: 12 },  // E: Shares
+      { width: 16 },  // F: Gross Amt
+      { width: 14 },  // G: Tax
+      { width: 16 },  // H: Net Amt
+      { width: 12 },  // I: Status
+    ];
+  } else {
+    ws.columns = [
+      { width: 6 },   // A: #
+      { width: 26 },  // B: Company
+      { width: 12 },  // C: Dividends
+      { width: 18 },  // D: Gross Amount
+      { width: 16 },  // E: Tax
+      { width: 18 },  // F: Net Amount
+      { width: 14 },  // G: Avg DPS
+      { width: 16 },  // H: Last Payment
+    ];
+  }
+
+  // ── Helper: fill all cells in row with navy bg ─────────────
+  const fillNavy = (row) => {
+    for (let c = 1; c <= colCount; c++) {
+      const cell = row.getCell(c);
+      if (!cell.value) cell.value = "";
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${navy}` } };
+    }
+  };
+  const fillCds = (row) => {
+    for (let c = 1; c <= colCount; c++) {
+      const cell = row.getCell(c);
+      if (!cell.value) cell.value = "";
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F7FA" } };
+      cell.border = border;
+    }
+  };
+
+  // ── Row 1: Title bar ───────────────────────────────────────
+  const row1 = ws.getRow(1);
+  row1.height = 28;
+  fillNavy(row1);
+  ws.mergeCells(1, 1, 2, 1); // A1:A2 for logo
+  row1.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${navy}` } };
+
+  if (logoUrl) {
+    try {
+      const logoBase64 = await loadStyledLogoBase64(logoUrl, 128);
+      if (!logoBase64) throw new Error("Logo failed to load");
+      const base64Data = logoBase64.split(",")[1];
+      const imgId = wb.addImage({ base64: base64Data, extension: "png" });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.05 }, ext: { width: 40, height: 40 } });
+    } catch (e) { /* skip logo on error */ }
+  }
+
+  const titleCell = row1.getCell(2);
+  titleCell.value = "Investors Portal";
+  titleCell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 14 };
+  titleCell.alignment = { horizontal: "left", vertical: "middle" };
+  ws.mergeCells(1, 2, 1, splitCol - 1);
+
+  const reportCell = row1.getCell(splitCol);
+  reportCell.value = "Dividend Income";
+  reportCell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 15 };
+  reportCell.alignment = { horizontal: "right", vertical: "middle" };
+  ws.mergeCells(1, splitCol, 2, colCount);
+
+  // ── Row 2: Motto ───────────────────────────────────────────
+  const row2 = ws.getRow(2);
+  row2.height = 20;
+  fillNavy(row2);
+  const mottoCell = row2.getCell(2);
+  mottoCell.value = "Manage Your Investments Digitally";
+  mottoCell.font = { italic: true, color: { argb: "FFA0AFC3" }, size: 10 };
+  mottoCell.alignment = { horizontal: "left", vertical: "middle" };
+  ws.mergeCells(2, 2, 2, splitCol - 1);
+
+  // ── Row 3: Separator ───────────────────────────────────────
+  ws.getRow(3).height = 6;
+
+  // ── Row 4: CDS details bar ─────────────────────────────────
+  const row4 = ws.getRow(4);
+  row4.height = 22;
+  fillCds(row4);
+  const cdsLeft = row4.getCell(1);
+  cdsLeft.value = `${cdsNumber}${cdsName ? ` — ${cdsName}` : ""}`;
+  cdsLeft.font = { bold: true, color: { argb: `FF${navy}` }, size: 10 };
+  cdsLeft.alignment = { vertical: "middle" };
+  ws.mergeCells(4, 1, 4, splitCol - 1);
+
+  const viewLabel = isByTxn ? "By Transaction" : "By Company";
+  const rightParts = [viewLabel];
+  if (isByTxn && status && status !== "All") rightParts.push(status === "ex_date_passed" ? "Ex-Date Passed" : status.charAt(0).toUpperCase() + status.slice(1));
+  const periodLabel = (dateFrom || dateTo) ? `${fmtBarDate(dateFrom) || "Start"} to ${fmtBarDate(dateTo) || "Present"}` : null;
+  if (periodLabel) rightParts.push(periodLabel);
+  const cdsRight = row4.getCell(splitCol);
+  cdsRight.value = rightParts.join("  |  ");
+  cdsRight.font = { bold: true, color: { argb: "FF6E6E6E" }, size: 10 };
+  cdsRight.alignment = { horizontal: "right", vertical: "middle" };
+  ws.mergeCells(4, splitCol, 4, colCount);
+
+  // ── Row 5: Separator ───────────────────────────────────────
+  ws.getRow(5).height = 6;
+
+  // ── Row 6: Table headers ───────────────────────────────────
+  const headers = isByTxn
+    ? ["#", "Date", "Company", "Per Share", "Shares", "Gross Amt", "Tax", "Net Amt", "Status"]
+    : ["#", "Company", "Dividends", "Gross Amount", "Tax", "Net Amount", "Avg DPS", "Last Payment"];
+
+  const headerRow = ws.getRow(6);
+  headerRow.height = 22;
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(1 + i);
+    cell.value = h;
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${green}` } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border = border;
+  });
+
+  // ── Style helpers ──────────────────────────────────────────
+  const applyCell = (cell, { isAlt = false, halign = "left", bold = false, isTotalRow = false } = {}) => {
+    const bgColor = isTotalRow ? totalBg : (isAlt ? lightBg : "FFFFFF");
+    const txtColor = isTotalRow ? navy : "373737";
+    cell.font = { size: 11, color: { argb: `FF${txtColor}` }, bold: bold || isTotalRow };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${bgColor}` } };
+    cell.border = border;
+    cell.alignment = { horizontal: halign, vertical: "middle" };
+  };
+  const applyNum = (cell, opts = {}) => {
+    applyCell(cell, { ...opts, halign: "right" });
+    cell.numFmt = "#,##0";
+  };
+  const applyDash = (cell, opts = {}) => {
+    applyCell(cell, { ...opts, halign: "right" });
+    cell.font = { ...cell.font, color: { argb: "FF999999" } };
+  };
+  const applyTax = (cell, value, opts = {}) => {
+    applyCell(cell, { ...opts, halign: "right" });
+    cell.numFmt = "#,##0";
+    if (value > 0) cell.font = { ...cell.font, color: { argb: `FF${redFont}` } };
+  };
+  const applyNet = (cell, value, opts = {}) => {
+    applyCell(cell, { ...opts, halign: "right", bold: !opts.isTotalRow });
+    cell.numFmt = "#,##0";
+    if (value > 0) cell.font = { ...cell.font, color: { argb: `FF${green}` } };
+  };
+  const applyStatus = (cell, status, opts = {}) => {
+    applyCell(cell, { ...opts, halign: "center" });
+    if (status === "Paid") cell.font = { ...cell.font, color: { argb: `FF${green}` } };
+    else if (status === "Declared" || status === "Ex-Date") cell.font = { ...cell.font, color: { argb: "FF1E64B4" } };
+    else if (status === "Pending") cell.font = { ...cell.font, color: { argb: "FFB48200" } };
+  };
+
+  // ── Data rows ──────────────────────────────────────────────
+  let r = 7;
+
+  if (isByTxn) {
+    let totGross = 0, totTax = 0, totNet = 0;
+
+    dividends.forEach((d, i) => {
+      const isAlt = i % 2 === 0;
+      const gross = Number(d.total_amount || 0);
+      const tax = Number(d.withholding_tax || 0);
+      const net = Number(d.net_amount || 0) || (gross - tax);
+      totGross += gross; totTax += tax; totNet += net;
+
+      const row = ws.getRow(r++);
+      const c = (n) => row.getCell(n);
+      const statusLabel = d.status === "ex_date_passed" ? "Ex-Date" : d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "—";
+      c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });
+      c(2).value = fmtDateCell(d.payment_date || d.declaration_date); applyCell(c(2), { isAlt, halign: "center" });
+      c(3).value = d.company_name || "—"; applyCell(c(3), { isAlt });
+      c(4).value = f(d.dividend_per_share); applyNum(c(4), { isAlt });
+      c(5).value = f(d.shares_held); applyNum(c(5), { isAlt });
+      c(6).value = f(gross); applyNum(c(6), { isAlt });
+      c(7).value = f(tax); applyTax(c(7), tax, { isAlt });
+      c(8).value = f(net); applyNet(c(8), net, { isAlt });
+      c(9).value = statusLabel; applyStatus(c(9), statusLabel, { isAlt });
+    });
+
+    // Total row
+    const row = ws.getRow(r++);
+    const c = (n) => row.getCell(n);
+    ws.mergeCells(r - 1, 1, r - 1, 3);
+    c(1).value = "TOTAL"; applyCell(c(1), { isTotalRow: true, halign: "center" });
+    c(4).value = "—"; applyDash(c(4), { isTotalRow: true });
+    c(5).value = "—"; applyDash(c(5), { isTotalRow: true });
+    c(6).value = f(totGross); applyNum(c(6), { isTotalRow: true });
+    c(7).value = f(totTax); applyTax(c(7), totTax, { isTotalRow: true });
+    c(8).value = f(totNet); applyNet(c(8), totNet, { isTotalRow: true });
+    c(9).value = "—"; applyDash(c(9), { isTotalRow: true });
+  } else {
+    let totCount = 0, totGross = 0, totTax = 0, totNet = 0;
+
+    byCompany.forEach((d, i) => {
+      const isAlt = i % 2 === 0;
+      const count = Number(d.dividend_count || 0);
+      const gross = Number(d.total_gross || 0);
+      const tax = Number(d.total_tax || 0);
+      const net = Number(d.total_net || 0);
+      totCount += count; totGross += gross; totTax += tax; totNet += net;
+
+      const row = ws.getRow(r++);
+      const c = (n) => row.getCell(n);
+      c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });
+      c(2).value = d.company_name || "—"; applyCell(c(2), { isAlt });
+      c(3).value = count; applyCell(c(3), { isAlt, halign: "center" });
+      c(4).value = f(gross); applyNum(c(4), { isAlt });
+      c(5).value = f(tax); applyTax(c(5), tax, { isAlt });
+      c(6).value = f(net); applyNet(c(6), net, { isAlt });
+      c(7).value = f(d.avg_dps); applyNum(c(7), { isAlt });
+      c(8).value = d.last_payment_date ? fmtDateCell(d.last_payment_date) : "—"; applyCell(c(8), { isAlt, halign: "center" });
+    });
+
+    // Total row
+    const row = ws.getRow(r++);
+    const c = (n) => row.getCell(n);
+    ws.mergeCells(r - 1, 1, r - 1, 2);
+    c(1).value = "TOTAL"; applyCell(c(1), { isTotalRow: true, halign: "center" });
+    c(3).value = totCount; applyCell(c(3), { isTotalRow: true, halign: "center" });
+    c(4).value = f(totGross); applyNum(c(4), { isTotalRow: true });
+    c(5).value = f(totTax); applyTax(c(5), totTax, { isTotalRow: true });
+    c(6).value = f(totNet); applyNet(c(6), totNet, { isTotalRow: true });
+    c(7).value = "—"; applyDash(c(7), { isTotalRow: true });
+    c(8).value = "—"; applyDash(c(8), { isTotalRow: true });
+  }
+
+  // ── Print setup ─────────────────────────────────────────────
+  const lastRow = r - 1;
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 100,
+    printArea: `A1:${lastColLetter}${lastRow}`,
+    margins: {
+      left: 1.8 / 2.54,
+      right: 1.8 / 2.54,
+      top: 1.9 / 2.54,
+      bottom: 1.9 / 2.54,
+      header: 0.8 / 2.54,
+      footer: 0.8 / 2.54,
+    },
+    horizontalCentered: true,
+  };
+  ws.headerFooter = {
+    oddFooter: "&LInvestors Portal&RPage &P of &N",
+  };
+
+  // ── Write & download ───────────────────────────────────────
+  const buf = await wb.xlsx.writeBuffer();
+  downloadBlob(
+    new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    `Dividend_Income_${cdsNumber}_${dateFrom || "all"}_to_${dateTo || "all"}.xlsx`
   );
 }
