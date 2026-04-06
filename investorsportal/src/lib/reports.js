@@ -56,6 +56,106 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── Shared v2 constants ──────────────────────────────────────────
+const C = {
+  green:    [0, 132, 61],
+  navy:     [10, 37, 64],
+  darkGray: [55, 55, 55],
+  midGray:  [110, 110, 110],
+  lightGray:[200, 200, 200],
+};
+const v2f = (n) => Math.round(Number(n || 0)).toLocaleString("en-US");
+const v2fmtDate = (d) => { if (!d) return ""; const [y, m, dd] = d.split("-"); return `${dd}-${m}-${y}`; };
+const v2retFmt = (v) => { const n = Number(v || 0); return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`; };
+const v2fmtInt = (n) => { const v = Number(n || 0); return v === 0 ? "—" : Math.round(v).toLocaleString("en-US"); };
+
+// ── Shared v2 PDF helpers ────────────────────────────────────────
+function v2InitDoc() {
+  const doc = new jsPDF({ format: "a4", orientation: "landscape" });
+  const pw = doc.internal.pageSize.width;
+  const ph = doc.internal.pageSize.height;
+  const ml = 14, mr = 14;
+  const cw = pw - ml - mr;
+  return { doc, pw, ph, ml, mr, cw };
+}
+
+function v2DrawHeader(doc, logoData, reportName, { pw, ml, mr }) {
+  doc.setFillColor(...C.navy);
+  doc.rect(0, 0, pw, 22, "F");
+
+  let headerTextX = ml;
+  if (logoData) {
+    const logoSize = 16; // slightly larger to account for shadow/border baked into image
+    const logoX = ml + 1, logoY = 3;
+    doc.addImage(logoData, "PNG", logoX, logoY, logoSize, logoSize, undefined, "FAST");
+    headerTextX = ml + logoSize + 6;
+  }
+
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text("Investors Portal", headerTextX, 10);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(160, 175, 195);
+  doc.text("Manage Your Investments Digitally", headerTextX, 17);
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(reportName, pw - mr, 14, { align: "right" });
+}
+
+function v2DrawCdsBar(doc, { cdsNumber, cdsName, rightText, pw, ml, mr, cw }) {
+  const y = 26, boxH = 10;
+  doc.setFillColor(245, 247, 250);
+  doc.rect(ml, y, cw, boxH, "F");
+  doc.setDrawColor(...C.lightGray);
+  doc.rect(ml, y, cw, boxH, "S");
+
+  doc.setFontSize(10);
+  const textY = y + boxH / 2 + 3.2 / 2;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.navy);
+  doc.text(`${cdsNumber}${cdsName ? ` — ${cdsName}` : ""}`, ml + 4, textY);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.midGray);
+  doc.text(rightText, pw - mr - 4, textY, { align: "right" });
+  return y + 14; // start Y for table
+}
+
+function v2DrawFooter(doc, { pw, ph, ml, mr }) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(...C.lightGray);
+    doc.line(ml, ph - 12, pw - mr, ph - 12);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.midGray);
+    doc.text("Investors Portal", ml, ph - 6);
+    doc.text(`Page ${i} of ${pageCount}`, pw - mr, ph - 6, { align: "right" });
+  }
+}
+
+// Common autoTable styles
+const v2TableBase = {
+  styles: {
+    font: "helvetica", fontSize: 11, cellPadding: 2,
+    lineColor: [220, 224, 228], lineWidth: 0.3,
+    overflow: "nowrap", valign: "middle",
+  },
+  headStyles: {
+    fillColor: C.green, textColor: [255, 255, 255],
+    fontStyle: "bold", halign: "center", overflow: "nowrap",
+    cellPadding: 2.5,
+  },
+  alternateRowStyles: { fillColor: [248, 250, 252] },
+  bodyStyles: { textColor: C.darkGray },
+};
+
 // ── 1. Portfolio Statement PDF ─────────────────────────────────────
 export function generatePortfolioStatementPDF({ cdsNumber, portfolio, metrics, dividendSummary }) {
   const doc = new jsPDF();
@@ -218,17 +318,75 @@ export function generatePortfolioExcel({ cdsNumber, portfolio, metrics, dividend
 }
 
 // ── 6. Portfolio Statement v2 (Reports Module) ───────────────────────
-// Helper: load image as base64 for jsPDF embedding
-function loadImageAsBase64(src) {
+// Renders logo with rounded corners, shadow, and border on canvas (for PDF & Excel)
+function loadStyledLogoBase64(src, size = 128) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      const pad = 12; // padding for shadow
+      const total = size + pad * 2;
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext("2d").drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/jpeg", 0.92));
+      canvas.width = total;
+      canvas.height = total;
+      const ctx = canvas.getContext("2d");
+      const r = size * 0.22; // corner radius proportional to size
+      const x = pad, y = pad;
+
+      // Helper: rounded rect path
+      const rrect = (cx, cy, w, h, cr) => {
+        ctx.beginPath();
+        ctx.moveTo(cx + cr, cy);
+        ctx.lineTo(cx + w - cr, cy);
+        ctx.quadraticCurveTo(cx + w, cy, cx + w, cy + cr);
+        ctx.lineTo(cx + w, cy + h - cr);
+        ctx.quadraticCurveTo(cx + w, cy + h, cx + w - cr, cy + h);
+        ctx.lineTo(cx + cr, cy + h);
+        ctx.quadraticCurveTo(cx, cy + h, cx, cy + h - cr);
+        ctx.lineTo(cx, cy + cr);
+        ctx.quadraticCurveTo(cx, cy, cx + cr, cy);
+        ctx.closePath();
+      };
+
+      // Fill entire canvas with navy background (no transparency for Excel compatibility)
+      ctx.fillStyle = "#0A2540";
+      ctx.fillRect(0, 0, total, total);
+
+      // Shadow layers
+      for (let s = 3; s >= 1; s--) {
+        ctx.save();
+        ctx.globalAlpha = 0.04 * s;
+        ctx.fillStyle = "#000";
+        rrect(x - 2 + s * 1.2, y - 2 + s * 1.5, size + 4, size + 4, r + 1);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // White background
+      ctx.fillStyle = "#fff";
+      rrect(x - 2, y - 2, size + 4, size + 4, r + 1);
+      ctx.fill();
+
+      // Clip to rounded rect and draw image
+      ctx.save();
+      rrect(x, y, size, size, r);
+      ctx.clip();
+      ctx.drawImage(img, x, y, size, size);
+      ctx.restore();
+
+      // Navy border (thick, masks square image corners)
+      ctx.strokeStyle = "#0A2540";
+      ctx.lineWidth = size * 0.09;
+      rrect(x - 4, y - 4, size + 8, size + 8, r + 3);
+      ctx.stroke();
+
+      // Subtle off-white border on top
+      ctx.strokeStyle = "#C8D2DC";
+      ctx.lineWidth = 1.5;
+      rrect(x - 3, y - 3, size + 6, size + 6, r + 2);
+      ctx.stroke();
+
+      resolve(canvas.toDataURL("image/png"));
     };
     img.onerror = () => resolve(null);
     img.src = src;
@@ -236,98 +394,15 @@ function loadImageAsBase64(src) {
 }
 
 export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAtDate, positionType, holdings, logoUrl }) {
-  const doc = new jsPDF({ format: "a4", orientation: "landscape" }); // A4 landscape: 297 x 210 mm
-  const pw = doc.internal.pageSize.width;   // 297
-  const ph = doc.internal.pageSize.height;  // 210
-  const ml = 14, mr = 14;
-  const cw = pw - ml - mr;
+  const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
+  const logoData = logoUrl ? await loadStyledLogoBase64(logoUrl, 128) : null;
 
-  // Integer formatter (no decimals)
-  const f = (n) => Math.round(Number(n || 0)).toLocaleString("en-US");
+  v2DrawHeader(doc, logoData, "Portfolio Statement", { pw, ml, mr });
 
-  // Colors
-  const green    = [0, 132, 61];
-  const navy     = [10, 37, 64];
-  const darkGray = [55, 55, 55];
-  const midGray  = [110, 110, 110];
-  const lightGray = [200, 200, 200];
-
-  // Load logo
-  const logoData = logoUrl ? await loadImageAsBase64(logoUrl) : null;
-
-  // ── Header band ─────────────────────────────────────────────
-  doc.setFillColor(...navy);
-  doc.rect(0, 0, pw, 22, "F");
-
-  let headerTextX = ml;
-  if (logoData) {
-    const logoSize = 14;
-    const logoX = ml + 2, logoY = 4;
-    const r = 3; // corner radius
-    // Shadow layers (dark to light, offset down-right)
-    for (let s = 3; s >= 1; s--) {
-      doc.setFillColor(0, 0, 0);
-      doc.setGState(new doc.GState({ opacity: 0.04 * s }));
-      doc.roundedRect(logoX - 0.8 + s * 0.4, logoY - 0.8 + s * 0.5, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    }
-    doc.setGState(new doc.GState({ opacity: 1 }));
-    // White rounded rect background
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(logoX - 0.8, logoY - 0.8, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    // Logo image
-    doc.addImage(logoData, "JPEG", logoX, logoY, logoSize, logoSize, undefined, "FAST");
-    // Navy border overlay to mask square corners into rounded rect
-    doc.setDrawColor(10, 37, 64);
-    doc.setLineWidth(2.5);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    // Off-white border on top — visible against navy background
-    doc.setDrawColor(200, 210, 220);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    doc.setLineWidth(0.3);
-    headerTextX = ml + logoSize + 8;
-  }
-
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.text("Investors Portal", headerTextX, 10);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(160, 175, 195);
-  doc.text("Manage Your Investments Digitally", headerTextX, 17);
-
-  doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("Portfolio Statement", pw - mr, 14, { align: "right" });
-
-  // ── CDS details line ───────────────────────────────────────
-  let y = 26;
   const posLabel = positionType === "held" ? "Current Holdings" : positionType === "sold" ? "Sold Positions" : "All Positions";
-  const boxH = 10;
-  doc.setFillColor(245, 247, 250);
-  doc.rect(ml, y, cw, boxH, "F");
-  doc.setDrawColor(...lightGray);
-  doc.rect(ml, y, cw, boxH, "S");
+  let y = v2DrawCdsBar(doc, { cdsNumber, cdsName, rightText: `${posLabel}  |  As at ${asAtDate}  |  Currency: TZS`, pw, ml, mr, cw });
 
-  doc.setFontSize(10);
-  const textY = y + boxH / 2 + 3.2 / 2; // vertically centre 10pt text (~3.2mm)
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navy);
-  const leftText = `${cdsNumber}${cdsName ? ` — ${cdsName}` : ""}`;
-  doc.text(leftText, ml + 4, textY);
-
-  const rightText = `${posLabel}  |  As at ${asAtDate}  |  Currency: TZS`;
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...midGray);
-  doc.text(rightText, pw - mr - 4, textY, { align: "right" });
-
-  // ── Totals ─────────────────────────────────────────────────
-  // ── Holdings table ─────────────────────────────────────────
-  y += 14;
-
+  const f = v2f;
   const isSold = positionType === "sold";
   const glFmt = (v) => `${Number(v) >= 0 ? "+" : ""}${f(v)}`;
   const retFmt = (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(2)}%`;
@@ -451,9 +526,7 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
     head: tableHead,
     body: tableBody,
     theme: "grid",
-    styles: { fontSize: 11, cellPadding: 2, lineColor: [220, 224, 228], lineWidth: 0.3, font: "helvetica", overflow: "nowrap" },
-    headStyles: { fillColor: green, textColor: 255, fontStyle: "bold", fontSize: 11, cellPadding: 2.5, halign: "center" },
-    bodyStyles: { textColor: darkGray },
+    ...v2TableBase,
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: 14, halign: "center" },
@@ -472,12 +545,12 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
       if (data.section === "body" && data.row.index === tableBody.length - 1) {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.fillColor = [230, 236, 242];
-        data.cell.styles.textColor = navy;
+        data.cell.styles.textColor = C.navy;
       }
       if (data.section === "body" && (data.column.index === glColIdx || data.column.index === retColIdx)) {
         const raw = data.cell.raw;
         if (typeof raw === "string" && raw.startsWith("+")) {
-          data.cell.styles.textColor = [0, 132, 61];
+          data.cell.styles.textColor = C.green;
         } else if (typeof raw === "string" && raw.startsWith("-")) {
           data.cell.styles.textColor = [200, 50, 50];
         }
@@ -490,23 +563,11 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
     const noteY = doc.lastAutoTable.finalY + 5;
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
-    doc.setTextColor(...midGray);
+    doc.setTextColor(...C.midGray);
     doc.text("* Totals include held (unrealized) and sold (realized) positions. Gain/Loss combines both unrealized and realized gains.", ml, noteY);
   }
 
-  // ── Footer on all pages ────────────────────────────────────
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setDrawColor(...lightGray);
-    doc.line(ml, ph - 12, pw - mr, ph - 12);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...midGray);
-    doc.text("Investors Portal", ml, ph - 6);
-    doc.text(`Page ${i} of ${pageCount}`, pw - mr, ph - 6, { align: "right" });
-  }
-
+  v2DrawFooter(doc, { pw, ph, ml, mr });
   doc.setProperties({ title: "Portfolio Statement", subject: `${cdsNumber} — ${asAtDate}` });
   const url = doc.output("bloburl", { filename: `Portfolio_Statement_${cdsNumber}_${asAtDate}.pdf` });
   window.open(url, "_blank");
@@ -514,94 +575,22 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
 
 // ── 7. Transaction History PDF (Reports Module) ─────────────────
 export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFrom, dateTo, txnType, status, brokerName, transactions, logoUrl }) {
-  const doc = new jsPDF({ format: "a4", orientation: "landscape" });
-  const pw = doc.internal.pageSize.width;
-  const ph = doc.internal.pageSize.height;
-  const ml = 14, mr = 14;
-  const cw = pw - ml - mr;
+  const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
+  const f = v2f;
+  const logoData = logoUrl ? await loadStyledLogoBase64(logoUrl, 128) : null;
 
-  const f = (n) => Math.round(Number(n || 0)).toLocaleString("en-US");
-  const green    = [0, 132, 61];
-  const navy     = [10, 37, 64];
-  const darkGray = [55, 55, 55];
-  const midGray  = [110, 110, 110];
-  const lightGray = [200, 200, 200];
+  v2DrawHeader(doc, logoData, "Transaction History", { pw, ml, mr });
 
-  // Load logo
-  const logoData = logoUrl ? await loadImageAsBase64(logoUrl) : null;
-
-  // ── Header band ─────────────────────────────────────────────
-  doc.setFillColor(...navy);
-  doc.rect(0, 0, pw, 22, "F");
-
-  let headerTextX = ml;
-  if (logoData) {
-    const logoSize = 14;
-    const logoX = ml + 2, logoY = 4;
-    const r = 3;
-    for (let s = 3; s >= 1; s--) {
-      doc.setFillColor(0, 0, 0);
-      doc.setGState(new doc.GState({ opacity: 0.04 * s }));
-      doc.roundedRect(logoX - 0.8 + s * 0.4, logoY - 0.8 + s * 0.5, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    }
-    doc.setGState(new doc.GState({ opacity: 1 }));
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(logoX - 0.8, logoY - 0.8, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    doc.addImage(logoData, "JPEG", logoX, logoY, logoSize, logoSize, undefined, "FAST");
-    doc.setDrawColor(10, 37, 64);
-    doc.setLineWidth(2.5);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    doc.setDrawColor(200, 210, 220);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    headerTextX = ml + logoSize + 8;
-  }
-
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.text("Investors Portal", headerTextX, 10);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(160, 175, 195);
-  doc.text("Manage Your Investments Digitally", headerTextX, 17);
-
-  doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("Transaction History", pw - mr, 14, { align: "right" });
-
-  // ── CDS details line ───────────────────────────────────────
-  let y = 26;
   const typeLabel = txnType === "Buy" ? "Purchases" : txnType === "Sell" ? "Sales" : "All Transactions";
   const statusLabel = status ? status.charAt(0).toUpperCase() + status.slice(1) : "All";
-  const fmtDate = (d) => { if (!d) return null; const [y, m, dd] = d.split("-"); return `${dd}-${m}-${y}`; };
-  const periodLabel = (dateFrom || dateTo) ? `${fmtDate(dateFrom) || "Start"} to ${fmtDate(dateTo) || "Present"}` : null;
-  const showBrokerCol = !brokerName; // hide broker column if specific broker selected
+  const periodLabel = (dateFrom || dateTo) ? `${v2fmtDate(dateFrom) || "Start"} to ${v2fmtDate(dateTo) || "Present"}` : null;
+  const showBrokerCol = !brokerName;
 
-  const boxH = 10;
-  doc.setFillColor(245, 247, 250);
-  doc.rect(ml, y, cw, boxH, "F");
-  doc.setDrawColor(...lightGray);
-  doc.rect(ml, y, cw, boxH, "S");
-
-  doc.setFontSize(10);
-  const textY = y + boxH / 2 + 3.2 / 2;
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navy);
-  doc.text(`${cdsNumber}${cdsName ? ` — ${cdsName}` : ""}`, ml + 4, textY);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...midGray);
   const rightParts = [typeLabel];
   if (brokerName) rightParts.push(brokerName);
   if (periodLabel) rightParts.push(periodLabel);
   rightParts.push(`Status: ${statusLabel}`);
-  doc.text(rightParts.join("  |  "), pw - mr - 4, textY, { align: "right" });
-
-  // ── Table ──────────────────────────────────────────────────
-  y += 14;
+  let y = v2DrawCdsBar(doc, { cdsNumber, cdsName, rightText: rightParts.join("  |  "), pw, ml, mr, cw });
 
   const fmtDateCell = (d) => { if (!d) return "—"; const [y, m, dd] = d.split("-"); return `${dd}-${m}-${y}`; };
   const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : "—";
@@ -671,7 +660,7 @@ export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFr
       overflow: "linebreak", valign: "middle",
     },
     headStyles: {
-      fillColor: green, textColor: [255, 255, 255],
+      fillColor: C.green, textColor: [255, 255, 255],
       fontStyle: "bold", halign: "center", overflow: "nowrap",
     },
     columnStyles: showBrokerCol ? {
@@ -697,13 +686,13 @@ export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFr
       8: { halign: "center", cellWidth: 24 },                 // Status
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    bodyStyles: { textColor: darkGray },
+    bodyStyles: { textColor: C.darkGray },
     didParseCell(data) {
       const isTotalRow = totalRowIndices.includes(data.row.index);
       // Total row styling
       if (data.section === "body" && isTotalRow) {
         data.cell.styles.fillColor = [230, 236, 242];
-        data.cell.styles.textColor = data.row.index === sellTotalRowIdx ? [200, 50, 50] : navy;
+        data.cell.styles.textColor = data.row.index === sellTotalRowIdx ? [200, 50, 50] : C.navy;
         data.cell.styles.fontStyle = "bold";
         // Merge first 3 columns for label
         if (data.column.index === 0) data.cell.colSpan = 3;
@@ -733,19 +722,7 @@ export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFr
     },
   });
 
-  // ── Footer on all pages ────────────────────────────────────
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setDrawColor(...lightGray);
-    doc.line(ml, ph - 12, pw - mr, ph - 12);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...midGray);
-    doc.text("Investors Portal", ml, ph - 6);
-    doc.text(`Page ${i} of ${pageCount}`, pw - mr, ph - 6, { align: "right" });
-  }
-
+  v2DrawFooter(doc, { pw, ph, ml, mr });
   doc.setProperties({ title: "Transaction History", subject: `${cdsNumber} — ${dateFrom || "all"} to ${dateTo || "all"}` });
   const url = doc.output("bloburl", { filename: `Transaction_History_${cdsNumber}_${dateFrom || "all"}_to_${dateTo || "all"}.pdf` });
   window.open(url, "_blank");
@@ -753,92 +730,19 @@ export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFr
 
 // ── 9. Gain/Loss Report PDF (Reports Module) ─────────────────────
 export async function generateGainLossPDF({ cdsNumber, cdsName, asAtDate, glView = "company", holdings, sells, dateFrom, dateTo, brokerName, logoUrl }) {
-  const doc = new jsPDF({ format: "a4", orientation: "landscape" });
-  const pw = doc.internal.pageSize.width;
-  const ph = doc.internal.pageSize.height;
-  const ml = 14, mr = 14;
-  const cw = pw - ml - mr;
+  const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
+  const f = v2f;
+  const retFmt = v2retFmt;
   const isByTxn = glView === "transaction";
 
-  const f = (n) => Math.round(Number(n || 0)).toLocaleString("en-US");
-  const retFmt = (v) => { const n = Number(v || 0); return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`; };
-  const green    = [0, 132, 61];
-  const navy     = [10, 37, 64];
-  const darkGray = [55, 55, 55];
-  const midGray  = [110, 110, 110];
-  const lightGray = [200, 200, 200];
+  const logoData = logoUrl ? await loadStyledLogoBase64(logoUrl, 128) : null;
+  v2DrawHeader(doc, logoData, "Gain/Loss Report (FIFO)", { pw, ml, mr });
 
-  // Load logo
-  const logoData = logoUrl ? await loadImageAsBase64(logoUrl) : null;
-
-  // ── Header band ─────────────────────────────────────────────
-  doc.setFillColor(...navy);
-  doc.rect(0, 0, pw, 22, "F");
-
-  let headerTextX = ml;
-  if (logoData) {
-    const logoSize = 14;
-    const logoX = ml + 2, logoY = 4;
-    const r = 3;
-    for (let s = 3; s >= 1; s--) {
-      doc.setFillColor(0, 0, 0);
-      doc.setGState(new doc.GState({ opacity: 0.04 * s }));
-      doc.roundedRect(logoX - 0.8 + s * 0.4, logoY - 0.8 + s * 0.5, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    }
-    doc.setGState(new doc.GState({ opacity: 1 }));
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(logoX - 0.8, logoY - 0.8, logoSize + 1.6, logoSize + 1.6, r + 0.5, r + 0.5, "F");
-    doc.addImage(logoData, "JPEG", logoX, logoY, logoSize, logoSize, undefined, "FAST");
-    doc.setDrawColor(10, 37, 64);
-    doc.setLineWidth(2.5);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    doc.setDrawColor(200, 210, 220);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(logoX - 1.2, logoY - 1.2, logoSize + 2.4, logoSize + 2.4, r + 1, r + 1, "S");
-    headerTextX = ml + logoSize + 8;
-  }
-
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.text("Investors Portal", headerTextX, 10);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(160, 175, 195);
-  doc.text("Manage Your Investments Digitally", headerTextX, 17);
-
-  doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("Gain/Loss Report (FIFO)", pw - mr, 14, { align: "right" });
-
-  // ── CDS details line ───────────────────────────────────────
-  let y = 26;
-  const fmtDate = (d) => { if (!d) return ""; const [yr, m, dd] = d.split("-"); return `${dd}-${m}-${yr}`; };
-
-  const boxH = 10;
-  doc.setFillColor(245, 247, 250);
-  doc.rect(ml, y, cw, boxH, "F");
-  doc.setDrawColor(...lightGray);
-  doc.rect(ml, y, cw, boxH, "S");
-
-  doc.setFontSize(10);
-  const textY = y + boxH / 2 + 3.2 / 2;
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navy);
-  doc.text(`${cdsNumber}${cdsName ? ` — ${cdsName}` : ""}`, ml + 4, textY);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...midGray);
   const viewLabel = isByTxn ? "By Transaction" : "By Company";
   let cdsBarRight = viewLabel;
   if (isByTxn && brokerName) cdsBarRight += `  |  ${brokerName}`;
-  if (dateFrom || dateTo) cdsBarRight += `  |  ${fmtDate(dateFrom || "")} to ${fmtDate(dateTo || "")}`;
-  doc.text(cdsBarRight, pw - mr - 4, textY, { align: "right" });
-
-  // ── Table ──────────────────────────────────────────────────
-  y += 14;
+  if (dateFrom || dateTo) cdsBarRight += `  |  ${v2fmtDate(dateFrom || "")} to ${v2fmtDate(dateTo || "")}`;
+  let y = v2DrawCdsBar(doc, { cdsNumber, cdsName, rightText: cdsBarRight, pw, ml, mr, cw });
 
   let tableHead, tableBody, totalRowIdx, glColIdx, retColIdx, columnStyles;
 
@@ -947,35 +851,25 @@ export async function generateGainLossPDF({ cdsNumber, cdsName, asAtDate, glView
     head: tableHead,
     body: tableBody,
     tableWidth: cw,
-    styles: {
-      font: "helvetica", fontSize: 11, cellPadding: 2,
-      lineColor: [220, 224, 228], lineWidth: 0.3,
-      overflow: "nowrap", valign: "middle",
-    },
-    headStyles: {
-      fillColor: green, textColor: [255, 255, 255],
-      fontStyle: "bold", halign: "center", overflow: "nowrap",
-    },
+    ...v2TableBase,
     columnStyles,
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    bodyStyles: { textColor: darkGray },
     didParseCell(data) {
       // Total row styling
       if (data.section === "body" && data.row.index === totalRowIdx) {
         data.cell.styles.fillColor = [230, 236, 242];
-        data.cell.styles.textColor = navy;
+        data.cell.styles.textColor = C.navy;
         data.cell.styles.fontStyle = "bold";
       }
       // G/L column color coding
       if (data.section === "body" && data.column.index === glColIdx) {
         const num = Number(String(data.cell.raw).replace(/[^0-9.-]/g, ""));
-        data.cell.styles.textColor = num >= 0 ? green : [200, 50, 50];
+        data.cell.styles.textColor = num >= 0 ? C.green : [200, 50, 50];
         if (data.row.index !== totalRowIdx) data.cell.styles.fontStyle = "bold";
       }
       // Return column color coding
       if (data.section === "body" && data.column.index === retColIdx) {
         const num = parseFloat(String(data.cell.raw));
-        data.cell.styles.textColor = num >= 0 ? green : [200, 50, 50];
+        data.cell.styles.textColor = num >= 0 ? C.green : [200, 50, 50];
       }
       // Dash cells — muted gray
       if (data.section === "body" && data.cell.raw === "—") {
@@ -984,18 +878,7 @@ export async function generateGainLossPDF({ cdsNumber, cdsName, asAtDate, glView
     },
   });
 
-  // ── Footer on all pages ────────────────────────────────────
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setDrawColor(...lightGray);
-    doc.line(ml, ph - 12, pw - mr, ph - 12);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...midGray);
-    doc.text("Investors Portal", ml, ph - 6);
-    doc.text(`Page ${i} of ${pageCount}`, pw - mr, ph - 6, { align: "right" });
-  }
+  v2DrawFooter(doc, { pw, ph, ml, mr });
 
   const dateLabel = `${dateFrom || ""}_to_${dateTo || ""}`;
   doc.setProperties({ title: "Gain/Loss Report (FIFO)", subject: `${cdsNumber} — ${dateFrom} to ${dateTo}` });
@@ -1068,10 +951,11 @@ export async function generatePortfolioStatementExcelv2({ cdsNumber, cdsName, as
   // Logo — fit within A1:A2
   if (logoUrl) {
     try {
-      const logoBase64 = await loadImageAsBase64(logoUrl);
+      const logoBase64 = await loadStyledLogoBase64(logoUrl, 128);
+      if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
-      const imgId = wb.addImage({ base64: base64Data, extension: "jpeg" });
-      ws.addImage(imgId, { tl: { col: 0.5, row: 0.1 }, ext: { width: 36, height: 36 } });
+      const imgId = wb.addImage({ base64: base64Data, extension: "png" });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
@@ -1467,10 +1351,11 @@ export async function generateTransactionHistoryExcel({ cdsNumber, cdsName, date
 
   if (logoUrl) {
     try {
-      const logoBase64 = await loadImageAsBase64(logoUrl);
+      const logoBase64 = await loadStyledLogoBase64(logoUrl, 128);
+      if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
-      const imgId = wb.addImage({ base64: base64Data, extension: "jpeg" });
-      ws.addImage(imgId, { tl: { col: 0.5, row: 0.1 }, ext: { width: 36, height: 36 } });
+      const imgId = wb.addImage({ base64: base64Data, extension: "png" });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
@@ -1735,10 +1620,11 @@ export async function generateGainLossExcel({ cdsNumber, cdsName, glView = "comp
 
   if (logoUrl) {
     try {
-      const logoBase64 = await loadImageAsBase64(logoUrl);
+      const logoBase64 = await loadStyledLogoBase64(logoUrl, 128);
+      if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
-      const imgId = wb.addImage({ base64: base64Data, extension: "jpeg" });
-      ws.addImage(imgId, { tl: { col: 0.5, row: 0.1 }, ext: { width: 36, height: 36 } });
+      const imgId = wb.addImage({ base64: base64Data, extension: "png" });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
