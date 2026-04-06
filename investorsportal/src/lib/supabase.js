@@ -1073,6 +1073,215 @@ export async function sbGetPortfolio(cdsNumber) {
   }));
 }
 
+/**
+ * Fetch portfolio holdings as at a specific date.
+ * Calculates FIFO cost basis and uses CDS price (fallback: DSE system price).
+ */
+export async function sbGetPortfolioAsAt(cdsNumber, asAtDate) {
+  if (!cdsNumber) return { holdings: [], cdsName: "" };
+
+  // 1. Fetch all verified transactions up to asAtDate
+  const txns = await _fetchGET(
+    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&status=eq.verified&date=lte.${asAtDate}&select=id,type,qty,price,total,fees,date,company_id,created_at&order=date.asc,created_at.asc`,
+    "Failed to fetch transactions"
+  );
+  if (!txns.length) return { holdings: [], cdsName: "" };
+
+  // 2. Group by company — compute net shares and FIFO cost basis
+  const byCompany = {};
+  for (const t of txns) {
+    if (!byCompany[t.company_id]) byCompany[t.company_id] = [];
+    byCompany[t.company_id].push(t);
+  }
+
+  const companyIds = Object.keys(byCompany);
+  const idList = `(${companyIds.map(id => `"${id}"`).join(",")})`;
+
+  // 3. Fetch company names, CDS prices, and DSE system prices in parallel
+  const [companies, cdsPrices, cdsAccount] = await Promise.all([
+    _fetchGET(`${BASE}/rest/v1/companies?id=in.${idList}&select=id,name`, "Failed to fetch companies"),
+    _fetchGET(`${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}&company_id=in.${idList}&select=company_id,price`, "Failed to fetch CDS prices"),
+    _fetchGET(`${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=cds_name&limit=1`, "Failed to fetch CDS name"),
+  ]);
+
+  const companyMap = Object.fromEntries(companies.map(c => [c.id, c.name]));
+  const cdsPriceMap = Object.fromEntries(cdsPrices.map(p => [p.company_id, Number(p.price)]));
+  const cdsName = cdsAccount?.[0]?.cds_name || "";
+
+  // 4. Build holdings with FIFO cost basis
+  const holdings = [];
+  for (const [companyId, txList] of Object.entries(byCompany)) {
+    // FIFO buy queue + realized G/L tracking
+    const buyQueue = [];
+    let totalShares = 0;
+    let realizedGL = 0;
+    let totalSoldCost = 0;   // FIFO cost of shares sold
+    let totalSoldProceeds = 0; // actual sale proceeds
+
+    for (const t of txList) {
+      const q = Number(t.qty || 0);
+      if (t.type === "Buy") {
+        const costPerShare = (Number(t.total || 0) + Number(t.fees || 0)) / q; // all-in cost
+        buyQueue.push({ qty: q, costPerShare });
+        totalShares += q;
+      } else {
+        // Sell — consume from FIFO queue, track realized G/L
+        let remaining = q;
+        totalShares -= q;
+        const saleProceeds = Number(t.total || 0) - Number(t.fees || 0); // net proceeds
+        totalSoldProceeds += saleProceeds;
+        let saleCost = 0;
+        for (const lot of buyQueue) {
+          if (remaining <= 0) break;
+          const take = Math.min(lot.qty, remaining);
+          saleCost += take * lot.costPerShare;
+          lot.qty -= take;
+          remaining -= take;
+        }
+        totalSoldCost += saleCost;
+        realizedGL += saleProceeds - saleCost;
+      }
+    }
+
+    // Remove exhausted lots
+    const activeLots = buyQueue.filter(l => l.qty > 0);
+    const sharesHeld = activeLots.reduce((s, l) => s + l.qty, 0);
+    const costBasis = activeLots.reduce((s, l) => s + l.qty * l.costPerShare, 0);
+    const avgCostPerShare = sharesHeld > 0 ? costBasis / sharesHeld : 0;
+
+    // Price: CDS user price → fallback to 0 (no DSE price at arbitrary dates)
+    const currentPrice = cdsPriceMap[companyId] || 0;
+    const marketValue = currentPrice * sharesHeld;
+    const unrealizedGL = currentPrice > 0 ? marketValue - costBasis : 0;
+    const returnPct = costBasis > 0 && currentPrice > 0 ? (unrealizedGL / costBasis) * 100 : 0;
+    const realizedRetPct = totalSoldCost > 0 ? (realizedGL / totalSoldCost) * 100 : 0;
+
+    // Total bought and sold for the period
+    const totalBought = txList.filter(t => t.type === "Buy").reduce((s, t) => s + Number(t.qty || 0), 0);
+    const totalSold = txList.filter(t => t.type === "Sell").reduce((s, t) => s + Number(t.qty || 0), 0);
+
+    holdings.push({
+      companyId,
+      companyName: companyMap[companyId] || "Unknown",
+      shares_held: sharesHeld,
+      total_bought: totalBought,
+      total_sold: totalSold,
+      avg_cost_per_share: Math.round(avgCostPerShare),
+      cost_basis: Math.round(costBasis),
+      current_price: currentPrice,
+      market_value: Math.round(marketValue),
+      unrealized_gl: Math.round(unrealizedGL),
+      return_pct: Number(returnPct.toFixed(2)),
+      realized_gl: Math.round(realizedGL),
+      realized_ret_pct: Number(realizedRetPct.toFixed(2)),
+      sold_cost: Math.round(totalSoldCost),
+      sold_proceeds: Math.round(totalSoldProceeds),
+    });
+  }
+
+  // Sort by company name
+  holdings.sort((a, b) => a.companyName.localeCompare(b.companyName));
+
+  return { holdings, cdsName };
+}
+
+// Per-sell-transaction FIFO breakdown for Gain/Loss detailed view
+// Per-sell-transaction FIFO breakdown — supports date range and broker filter
+// Fetches ALL buys up to dateTo for correct FIFO, but only returns sells within dateFrom–dateTo
+export async function sbGetFifoSellDetails(cdsNumber, { dateFrom, dateTo } = {}) {
+  if (!cdsNumber) return { sells: [], cdsName: "" };
+  const endDate = dateTo || new Date().toISOString().split("T")[0];
+
+  // Fetch all verified transactions up to dateTo (need all buys for FIFO)
+  const txns = await _fetchGET(
+    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&status=eq.verified&date=lte.${endDate}&select=id,type,qty,price,total,fees,date,company_id,broker_id,created_at&order=date.asc,created_at.asc`,
+    "Failed to fetch transactions"
+  );
+  if (!txns.length) return { sells: [], cdsName: "" };
+
+  const companyIds = [...new Set(txns.map(t => t.company_id))];
+  const brokerIds = [...new Set(txns.filter(t => t.type === "Sell" && t.broker_id).map(t => t.broker_id))];
+  const idList = `(${companyIds.map(id => `"${id}"`).join(",")})`;
+
+  const fetches = [
+    _fetchGET(`${BASE}/rest/v1/companies?id=in.${idList}&select=id,name`, "Failed to fetch companies"),
+    _fetchGET(`${BASE}/rest/v1/cds_accounts?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=cds_name&limit=1`, "Failed to fetch CDS name"),
+  ];
+  if (brokerIds.length) {
+    const brokerIdList = `(${brokerIds.map(id => `"${id}"`).join(",")})`;
+    fetches.push(_fetchGET(`${BASE}/rest/v1/brokers?id=in.${brokerIdList}&select=id,broker_name`, "Failed to fetch brokers"));
+  }
+  const [companies, cdsAccount, brokersList] = await Promise.all(fetches);
+
+  const companyMap = Object.fromEntries(companies.map(c => [c.id, c.name]));
+  const brokerMap = Object.fromEntries((brokersList || []).map(b => [b.id, b.broker_name]));
+  const cdsName = cdsAccount?.[0]?.cds_name || "";
+
+  // Group by company and run FIFO, capturing per-sell detail
+  const byCompany = {};
+  for (const t of txns) {
+    if (!byCompany[t.company_id]) byCompany[t.company_id] = [];
+    byCompany[t.company_id].push(t);
+  }
+
+  const sells = [];
+  for (const [companyId, txList] of Object.entries(byCompany)) {
+    const buyQueue = [];
+    for (const t of txList) {
+      const q = Number(t.qty || 0);
+      if (t.type === "Buy") {
+        const costPerShare = (Number(t.total || 0) + Number(t.fees || 0)) / q;
+        buyQueue.push({ qty: q, costPerShare });
+      } else {
+        // Sell — always process FIFO to keep queue correct
+        let remaining = q;
+        let fifoCost = 0;
+        for (const lot of buyQueue) {
+          if (remaining <= 0) break;
+          const take = Math.min(lot.qty, remaining);
+          fifoCost += take * lot.costPerShare;
+          lot.qty -= take;
+          remaining -= take;
+        }
+        // Only include sell in results if within dateFrom–dateTo range
+        if (dateFrom && t.date < dateFrom) continue;
+        const proceeds = Number(t.total || 0) - Number(t.fees || 0);
+        const gl = proceeds - fifoCost;
+        const retPct = fifoCost > 0 ? (gl / fifoCost) * 100 : 0;
+        sells.push({
+          date: t.date,
+          companyName: companyMap[companyId] || "Unknown",
+          qty: q,
+          sellPrice: Number(t.price || 0),
+          sellFees: Number(t.fees || 0),
+          fifoCost: Math.round(fifoCost),
+          proceeds: Math.round(proceeds),
+          gl: Math.round(gl),
+          retPct: Number(retPct.toFixed(2)),
+          brokerId: t.broker_id || null,
+          brokerName: brokerMap[t.broker_id] || "",
+        });
+      }
+    }
+  }
+
+  // Sort by date
+  sells.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Extract unique brokers from sells for dropdown
+  const brokers = [];
+  const seenBrokers = new Set();
+  for (const s of sells) {
+    if (s.brokerId && !seenBrokers.has(s.brokerId)) {
+      seenBrokers.add(s.brokerId);
+      brokers.push({ id: s.brokerId, broker_name: s.brokerName });
+    }
+  }
+  brokers.sort((a, b) => a.broker_name.localeCompare(b.broker_name));
+
+  return { sells, brokers, cdsName };
+}
+
 export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newPrice, oldPrice, reason, updatedBy, datetime }) {
   const changeAmount  = oldPrice != null ? newPrice - oldPrice : null;
   const changePct     = oldPrice != null && oldPrice !== 0 ? (changeAmount / oldPrice) * 100 : null;

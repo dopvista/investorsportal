@@ -282,6 +282,7 @@ export function Btn({ children, variant = "primary", loading, icon, ...props }) 
   const variants = {
     primary:   { background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`, color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(0,132,61,0.3)" },
     secondary: { background: C.white, color: C.gray800, border: `1.5px solid ${C.gray200}` },
+    ghost:     { background: C.gray800, color: "#ffffff", border: `1.5px solid ${C.gray800}`, boxShadow: "none" },
     danger:    { background: C.redBg, color: C.red, border: `1.5px solid ${C.red}40` },
     navy:      { background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(11,31,58,0.3)" },
   };
@@ -358,7 +359,7 @@ export function ActionMenu({ actions }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ── MODAL SHELL ───────────────────────────────────────────────────
-function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
+export function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
 

@@ -9,6 +9,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",
     "@supabase/supabase-js": "^2.39.0",
+    "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "react": "^18.2.0",
