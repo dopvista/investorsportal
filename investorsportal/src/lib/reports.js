@@ -140,21 +140,23 @@ function v2DrawFooter(doc, { pw, ph, ml, mr }) {
   }
 }
 
-// Common autoTable styles
-const v2TableBase = {
-  styles: {
-    font: "helvetica", fontSize: 11, cellPadding: 2,
-    lineColor: [220, 224, 228], lineWidth: 0.3,
-    overflow: "nowrap", valign: "middle",
-  },
-  headStyles: {
-    fillColor: C.green, textColor: [255, 255, 255],
-    fontStyle: "bold", halign: "center", overflow: "nowrap",
-    cellPadding: 2.5,
-  },
-  alternateRowStyles: { fillColor: [248, 250, 252] },
-  bodyStyles: { textColor: C.darkGray },
-};
+// Common autoTable styles — returns fresh copy to avoid mutation by jspdf-autotable
+function v2TableBase() {
+  return {
+    styles: {
+      font: "helvetica", fontSize: 11, cellPadding: 2,
+      lineColor: [220, 224, 228], lineWidth: 0.3,
+      overflow: "nowrap", valign: "middle",
+    },
+    headStyles: {
+      fillColor: [0, 132, 61], textColor: [255, 255, 255],
+      fontStyle: "bold", halign: "center", overflow: "nowrap",
+      cellPadding: 2.5,
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    bodyStyles: { textColor: [55, 55, 55] },
+  };
+}
 
 // ── 1. Portfolio Statement PDF ─────────────────────────────────────
 export function generatePortfolioStatementPDF({ cdsNumber, portfolio, metrics, dividendSummary }) {
@@ -526,7 +528,7 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
     head: tableHead,
     body: tableBody,
     theme: "grid",
-    ...v2TableBase,
+    ...v2TableBase(),
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: 14, halign: "center" },
@@ -851,7 +853,7 @@ export async function generateGainLossPDF({ cdsNumber, cdsName, asAtDate, glView
     head: tableHead,
     body: tableBody,
     tableWidth: cw,
-    ...v2TableBase,
+    ...v2TableBase(),
     columnStyles,
     didParseCell(data) {
       // Total row styling

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo, cloneElement }
 import { useTheme, ReportsModal } from "../components/ui";
 import { Icon, IconBadge } from "../lib/icons";
 import { sbGetPortfolio, sbGetDashboardMetrics, sbGetFifoRealizedGL, sbGetAllUsers, sbGetCDSAssignedUsers, sbGetDividendSummary, sbGetDividendByCompany, sbHasTodaySnapshot, sbCaptureSnapshot, sbGetSnapshots } from "../lib/supabase";
-import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel, generateTransactionExcel } from "../lib/reports";
+import { generatePortfolioStatementPDF, generateTransactionHistoryPDF, generateGainLossReportPDF, generatePortfolioExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint hook ─────────────────────────────────────────
@@ -1714,9 +1714,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                         <tr style={{ borderTop: `2px solid ${C.gray200}`, background: C.gray50 }}>
                           <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text }}>
                             TOTAL
-                            {metrics.companyMetrics.length > 5 && (
-                              <div style={{ fontSize: 10, fontWeight: 400, color: C.gray400, marginTop: 2 }}>all {metrics.companyMetrics.length} companies</div>
-                            )}
                           </td>
                           <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.totalNetShares)}</td>
                           <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(metrics.investedCapital)}</td>
