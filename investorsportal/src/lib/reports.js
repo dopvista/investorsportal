@@ -955,7 +955,7 @@ export async function generatePortfolioStatementExcelv2({ cdsNumber, cdsName, as
       if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
       const imgId = wb.addImage({ base64: base64Data, extension: "png" });
-      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.05 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
@@ -1355,7 +1355,7 @@ export async function generateTransactionHistoryExcel({ cdsNumber, cdsName, date
       if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
       const imgId = wb.addImage({ base64: base64Data, extension: "png" });
-      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.05 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
@@ -1624,7 +1624,7 @@ export async function generateGainLossExcel({ cdsNumber, cdsName, glView = "comp
       if (!logoBase64) throw new Error("Logo failed to load");
       const base64Data = logoBase64.split(",")[1];
       const imgId = wb.addImage({ base64: base64Data, extension: "png" });
-      ws.addImage(imgId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 40, height: 40 } });
+      ws.addImage(imgId, { tl: { col: 0.2, row: 0.05 }, ext: { width: 40, height: 40 } });
     } catch (e) { /* skip logo on error */ }
   }
 
