@@ -168,7 +168,7 @@ const SlidePanel = memo(function SlidePanel({ adverts, activeAd, animated, onDot
 });
 
 // ── Biometric Registration Modal ──────────────────────────────────
-const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegister, onSkip, error: regError }) {
+const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegister, onSkip, onDecline, error: regError }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -257,7 +257,21 @@ const RegisterModal = memo(function RegisterModal({ isMobile, loading, onRegiste
             transition: "color 0.2s",
           }}
         >
-          Skip for now
+          Set Up Later
+        </button>
+
+        <button
+          onClick={onDecline}
+          disabled={loading}
+          style={{
+            width: "100%", padding: "8px", borderRadius: 12,
+            border: "none", background: "transparent",
+            color: isMobile ? "rgba(255,255,255,0.3)" : C.gray200,
+            fontWeight: 500, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+            transition: "color 0.2s",
+          }}
+        >
+          Don't ask me again
         </button>
       </div>
     </div>
@@ -330,8 +344,9 @@ export default function LoginPage({ onLogin, loginSettings }) {
     setLoading(true);
     try {
       const session = await sbSignIn(email.trim(), password);
-      // If WebAuthn is supported but no passkey registered, prompt to register
-      if (webAuthnSupported && !getStoredPasskeyInfo()) {
+      // If WebAuthn is supported but no passkey registered (and user hasn't declined), prompt
+      const declined = (() => { try { return localStorage.getItem("biometric_declined"); } catch { return null; } })();
+      if (webAuthnSupported && !getStoredPasskeyInfo() && !declined) {
         setPendingSession(session);
         setShowRegisterPrompt(true);
         setLoading(false);
@@ -404,6 +419,11 @@ export default function LoginPage({ onLogin, loginSettings }) {
   }, [pendingSession, email, onLogin]);
 
   const handleSkipRegistration = useCallback(() => {
+    if (pendingSession) onLogin(pendingSession);
+  }, [pendingSession, onLogin]);
+
+  const handleDeclineRegistration = useCallback(() => {
+    try { localStorage.setItem("biometric_declined", "1"); } catch {}
     if (pendingSession) onLogin(pendingSession);
   }, [pendingSession, onLogin]);
 
@@ -745,6 +765,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
           error={registerError}
           onRegister={handleRegisterPasskey}
           onSkip={handleSkipRegistration}
+          onDecline={handleDeclineRegistration}
         />
       )}
     </div>
