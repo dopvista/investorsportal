@@ -5,6 +5,7 @@ import {
 } from "react";
 import {
   getSession,
+  sbSaveSession,
   sbSignOut,
   sbGetProfile,
   sbGetMyRole,
@@ -16,6 +17,7 @@ import {
   sbCheckCdsActive,
   sbGetCdsActiveMap,
   sbCheckUserActive,
+  supabase,
 } from "./lib/supabase";
 import { C as CStatic, Toast, useTheme, DatePickerStyles } from "./components/ui";
 import LoginPage            from "./pages/LoginPage";
@@ -486,6 +488,32 @@ export default function App() {
       const hash   = window.location.hash;
       const search = window.location.search;
 
+      // ── OAuth callback (e.g. Google sign-in) ────────────────────
+      // Supabase redirects back with #access_token=...&type=signup (or type=magiclink)
+      // We use supabase.auth.getSession() which reads the hash automatically.
+      if (hash && hash.includes("access_token") && !hash.includes("type=recovery")) {
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token:  new URLSearchParams(hash.replace("#", "")).get("access_token"),
+            refresh_token: new URLSearchParams(hash.replace("#", "")).get("refresh_token"),
+          });
+          if (!error && data?.session) {
+            const s = {
+              access_token:  data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              expires_in:    data.session.expires_in,
+              user:          data.session.user,
+            };
+            sbSaveSession(s);
+            window.history.replaceState(null, "", window.location.pathname);
+            if (!cancelled) setSession(s);
+            return;
+          }
+        } catch {}
+        // If OAuth parsing failed, fall through to normal session check
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
       if (hash.includes("type=recovery")) {
         const params      = new URLSearchParams(hash.replace("#", ""));
         const accessToken = params.get("access_token");
@@ -528,6 +556,21 @@ export default function App() {
       }
 
       const s = await getSession();
+      // Validate stored session — if user was deleted, clear stale token
+      if (s?.access_token) {
+        try {
+          const { data, error } = await supabase.auth.getUser(s.access_token);
+          if (error || !data?.user) {
+            sbSaveSession(null);
+            if (!cancelled) setSession(null);
+            return;
+          }
+        } catch {
+          sbSaveSession(null);
+          if (!cancelled) setSession(null);
+          return;
+        }
+      }
       if (!cancelled) setSession(s || null);
     };
     resolveSession();
@@ -705,7 +748,10 @@ export default function App() {
     }
   }, []); // all deps are stable (setters + refs)
 
-  const handleProfileDone = useCallback((p) => setProfile(p), []);
+  const handleProfileDone = useCallback(() => {
+    // Full reload picks up newly assigned role, CDS link, and all app data
+    window.location.reload();
+  }, []);
 
   const handleAppRefresh = useCallback(async () => {
     try {
@@ -933,6 +979,34 @@ export default function App() {
   const profileIncomplete = !profile || !profile.full_name?.trim() || !profile.phone?.trim();
   if (profileIncomplete)
     return <ProfileSetupPage session={session} onComplete={handleProfileDone} onCancel={handleSignOut} />;
+
+  // ── Pending activation gate — self-signup users with no role/CDS ──
+  const noCds  = !profile?.cds_number?.trim();
+  const noRole = !role;
+  if (noCds && noRole) {
+    return (
+      <div style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)", fontFamily: "'Inter', system-ui, sans-serif", padding: 24, boxSizing: "border-box" }}>
+        <div style={{ background: "white", borderRadius: 20, padding: "40px 36px", width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.35)", textAlign: "center" }}>
+          <img src={logo} alt="Investors Portal" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
+          <div style={{ fontWeight: 800, fontSize: 20, color: C.text, marginBottom: 8 }}>Account Pending</div>
+          <div style={{ fontSize: 14, color: C.gray400, lineHeight: 1.6, marginBottom: 24 }}>
+            Welcome, <strong style={{ color: C.text }}>{profile?.full_name}</strong>! Your account has been created successfully.
+            <br /><br />
+            A system administrator will assign your CDS account and activate your access. You'll be able to use the portal once that's done.
+          </div>
+          <div style={{ background: C.gray50, borderRadius: 12, padding: "14px 18px", marginBottom: 24, border: `1px solid ${C.gray200}` }}>
+            <div style={{ fontSize: 12, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Signed in as</div>
+            <div style={{ fontSize: 14, color: C.text, fontWeight: 600 }}>{session?.user?.email}</div>
+          </div>
+          <button onClick={handleSignOut} style={{ width: "100%", padding: "13px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: "white", color: C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.color = C.navy; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.color = C.gray400; }}>
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── User deactivation gate — blocks deactivated users ─────────────
   if (!userActive && role !== "SA") {

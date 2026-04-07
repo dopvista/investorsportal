@@ -394,7 +394,28 @@ export async function sbSignOut() {
       8_000
     ).catch(() => {});
   }
+  // Also sign out from Supabase client (clears its own localStorage token)
+  await supabase.auth.signOut().catch(() => {});
   clearSession(); // also clears _responseCache
+}
+
+export async function sbAutoAssignRole(cdsNumber) {
+  if (!cdsNumber?.trim()) return null;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/auto_assign_role_for_cds`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_cds_number: cdsNumber.trim() }) },
+    "Failed to assign role"
+  );
+  return await res.json();
+}
+
+export async function sbSignInWithGoogle() {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function sbResetPassword(email) {
@@ -478,7 +499,7 @@ export async function sbUpsertProfile(data) {
 
   const res2 = await fetchWithAuthRetry(
     `${BASE}/rest/v1/profiles`,
-    { method: "POST", headers: headers(token()), body: JSON.stringify({ ...data, id: uid }) },
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ id: uid, cds_number: "", account_type: "Individual", ...data }) },
     "Failed to create profile"
   );
   const rows2 = await res2.json();

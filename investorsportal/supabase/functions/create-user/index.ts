@@ -67,7 +67,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 5. Create user via Admin API ───────────────────────────────
+    // ── 5. Check if user already exists ──────────────────────────────
+    const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers();
+    const exists = existingUsers?.some(
+      (u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (exists) {
+      return new Response(JSON.stringify({ error: "A user with this email already exists. To assign a new CDS account, find them in the user list and use \"Manage CDS\"." }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 6. Create new user via Admin API ──────────────────────────────
     // email_confirm: true — skips email confirmation, user can log in immediately
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -81,7 +93,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 6. Create profile row (required for user to appear in the app) ──
+    // ── 7. Create profile row (required for user to appear in the app) ──
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
       .insert({
@@ -98,8 +110,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 7. Return the new user's ID ────────────────────────────────
-    return new Response(JSON.stringify({ user: data.user }), {
+    // ── 8. Return the new user's ID ────────────────────────────────
+    return new Response(JSON.stringify({ user: data.user, existing: false }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

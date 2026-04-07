@@ -1,6 +1,6 @@
 // ── src/pages/LoginPage.jsx ───────────────────────────────────────
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
-import { sbSignIn, sbResetPassword, sbSaveSession } from "../lib/supabase";
+import { sbSignIn, sbResetPassword, sbSaveSession, sbSignInWithGoogle } from "../lib/supabase";
 import {
   loginWithPasskey,
   registerPasskey,
@@ -292,10 +292,10 @@ export default function LoginPage({ onLogin, loginSettings }) {
   const [webAuthnSupported] = useState(() => isWebAuthnSupported());
   const [hasStoredPasskey, setHasStoredPasskey] = useState(() => !!getStoredPasskeyInfo());
 
-  // View state: "biometric" | "email" | "reset"
+  // View state: "biometric" | "entry" | "email" | "reset"
   const [view, setView] = useState(() => {
     if (webAuthnSupported && getStoredPasskeyInfo()) return "biometric";
-    return "email";
+    return "entry";
   });
 
   const [email,            setEmail]            = useState("");
@@ -337,6 +337,14 @@ export default function LoginPage({ onLogin, loginSettings }) {
   }, [isMobile]);
 
   // ── Handlers ────────────────────────────────────────────────────
+  // ── Entry view "Continue" — just validate email and advance ──
+  const handleContinue = useCallback((e) => {
+    e.preventDefault();
+    setError(""); setSuccess("");
+    if (!email.trim()) return setError("Enter your email address");
+    setView("email");
+  }, [email]);
+
   const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
@@ -360,8 +368,8 @@ export default function LoginPage({ onLogin, loginSettings }) {
   }, [email, password, onLogin, webAuthnSupported]);
 
   const handleBiometricLogin = useCallback(async () => {
-    // In email view, require email; in biometric view, use stored info
-    if (view === "email" && !email.trim()) {
+    // In entry/email view, require email; in biometric view, use stored info
+    if (view !== "biometric" && !email.trim()) {
       return setError("Enter your email address first");
     }
     setError(""); setSuccess("");
@@ -381,7 +389,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         clearStoredPasskeyInfo();
         setHasStoredPasskey(false);
         setError("Passkey not found. Please sign in with email & password.");
-        if (view === "biometric") setView("email");
+        if (view === "biometric") setView("entry");
       } else {
         setError(msg || "Biometric sign-in failed. Please try again or use email.");
       }
@@ -442,6 +450,20 @@ export default function LoginPage({ onLogin, loginSettings }) {
     }
   }, [email]);
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = useCallback(async () => {
+    setError(""); setSuccess("");
+    setGoogleLoading(true);
+    try {
+      await sbSignInWithGoogle();
+      // Supabase will redirect to Google — page unloads here
+    } catch (err) {
+      setError(err.message || "Google sign-in failed");
+      setGoogleLoading(false);
+    }
+  }, []);
+
   const switchView   = useCallback((v) => { setView(v); setError(""); setSuccess(""); }, []);
   const onDotClick   = useCallback((i) => setActiveAd(i), []);
   const onHoverIn    = useCallback(() => setIsHovering(true), []);
@@ -467,7 +489,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   // ── Divider ───────────────────────────────────────────────────
   const divider = (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: isMobile ? "18px 0" : "12px 0" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: isMobile ? "14px 0" : "10px 0" }}>
       <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.12)" : C.gray200 }} />
       <span style={{ fontSize: 11, color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>or</span>
       <div style={{ flex: 1, height: 1, background: isMobile ? "rgba(255,255,255,0.12)" : C.gray200 }} />
@@ -492,7 +514,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
   // ── Form header ─────────────────────────────────────────────────
   const formHeader = (title, subtitle) => (
-    <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 14 }}>
+    <div style={{ textAlign: "center", marginBottom: isMobile ? 20 : 12 }}>
       <img src={logo} alt="Investors Portal" style={{ width: isMobile ? 56 : 38, height: isMobile ? 56 : 38, borderRadius: 11, objectFit: "cover", marginBottom: 6, boxShadow: "0 6px 20px rgba(0,0,0,0.2)" }} />
       <div style={{ fontWeight: 800, fontSize: isMobile ? 22 : 15, color: isMobile ? C.white : C.text, letterSpacing: "-0.01em" }}>
         {title}
@@ -507,7 +529,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // BIOMETRIC VIEW
   // ═════════════════════════════════════════════════════════════════
   const biometricView = (
-    <div key="biometric" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
+    <div key="biometric" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Welcome back")}
       {alerts}
 
@@ -551,7 +573,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
       {/* Switch to email login */}
       <button
         className="lp-link"
-        onClick={() => switchView("email")}
+        onClick={() => switchView("entry")}
         aria-label="Switch to email and password login"
         style={{
           width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9,
@@ -579,19 +601,136 @@ export default function LoginPage({ onLogin, loginSettings }) {
   );
 
   // ═════════════════════════════════════════════════════════════════
-  // EMAIL/PASSWORD VIEW
+  // GOOGLE SIGN-IN BUTTON (shared between entry & email views)
   // ═════════════════════════════════════════════════════════════════
-  const emailView = (
-    <div key="email" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
+  const googleBtn = (
+    <button
+      onClick={handleGoogleLogin}
+      disabled={googleLoading}
+      style={{
+        width: "100%",
+        padding: isMobile ? "13px" : "10px",
+        borderRadius: isMobile ? 12 : 9,
+        border: isMobile ? "1.5px solid rgba(255,255,255,0.15)" : `1.5px solid ${C.gray200}`,
+        background: isMobile ? "rgba(255,255,255,0.06)" : C.white,
+        color: isMobile ? C.white : C.text,
+        fontWeight: 600,
+        fontSize: isMobile ? 15 : 13,
+        cursor: googleLoading ? "not-allowed" : "pointer",
+        fontFamily: "inherit",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        transition: "all 0.2s",
+        opacity: googleLoading ? 0.6 : 1,
+      }}
+      onMouseEnter={(e) => { if (!googleLoading) { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.3)" : C.gray400; e.currentTarget.style.background = isMobile ? "rgba(255,255,255,0.1)" : C.gray50; } }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; e.currentTarget.style.background = isMobile ? "rgba(255,255,255,0.06)" : C.white; }}
+    >
+      {googleLoading ? (
+        <>
+          <div style={{ width: 16, height: 16, border: "2px solid rgba(0,0,0,0.1)", borderTop: `2px solid ${C.green}`, borderRadius: "50%", animation: "lp-spin 0.8s linear infinite" }} />
+          Connecting...
+        </>
+      ) : (
+        <>
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </>
+      )}
+    </button>
+  );
+
+  // ═════════════════════════════════════════════════════════════════
+  // ENTRY VIEW — clean, minimal: email + Continue + Google
+  // ═════════════════════════════════════════════════════════════════
+  const entryView = (
+    <div key="entry" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Sign in to your account")}
       {alerts}
 
-      <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: isMobile ? 18 : 14 }}>
+      <form onSubmit={handleContinue}>
+        <div style={{ marginBottom: isMobile ? 16 : 10 }}>
           <FormLabel text="Email Address" isMobile={isMobile} />
           <input style={inpStyle} type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" onFocus={onFocusGreen} onBlur={onBlurReset} />
         </div>
 
+        <SubmitBtn label="Continue" loadingLabel="Continue" loading={false} isMobile={isMobile} />
+      </form>
+
+      {divider}
+
+      {googleBtn}
+
+      {/* Switch to biometric view if passkey is registered */}
+      {webAuthnSupported && hasStoredPasskey && (
+        <>
+          {divider}
+          <button
+            className="lp-link"
+            onClick={() => switchView("biometric")}
+            aria-label="Switch to biometric login"
+            style={{
+              width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9,
+              border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`,
+              background: "transparent",
+              color: isMobile ? "rgba(255,255,255,0.7)" : C.gray500,
+              fontWeight: 600, fontSize: isMobile ? 14 : 12, cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              opacity: 0.85, transition: "all 0.2s",
+            }}
+          >
+            <FingerprintIcon size={14} color={isMobile ? "rgba(255,255,255,0.6)" : C.gray500} />
+            Sign in with biometrics
+          </button>
+        </>
+      )}
+
+      {/* Footer */}
+      {!isMobile && (
+        <div style={{ marginTop: 10, paddingTop: 8 }}>
+          <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
+          <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
+            &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ═════════════════════════════════════════════════════════════════
+  // EMAIL/PASSWORD VIEW (step 2 — after entering email)
+  // ═════════════════════════════════════════════════════════════════
+  const emailView = (
+    <div key="email" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
+      {formHeader("Investors Portal", "Enter your password")}
+      {alerts}
+
+      {/* Show which email, with back button */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 18 : 14,
+        padding: isMobile ? "10px 14px" : "8px 12px", borderRadius: isMobile ? 12 : 9,
+        background: isMobile ? "rgba(255,255,255,0.06)" : "rgba(240,244,248,0.7)",
+        border: isMobile ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${C.gray200}`,
+      }}>
+        <button type="button" onClick={() => switchView("entry")} aria-label="Change email"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: isMobile ? "rgba(255,255,255,0.5)" : C.gray400, flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span style={{ fontSize: isMobile ? 14 : 12, color: isMobile ? "rgba(255,255,255,0.7)" : C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {email}
+        </span>
+      </div>
+
+      <form onSubmit={handleLogin}>
         <div style={{ marginBottom: isMobile ? 22 : 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <label style={{ fontSize: isMobile ? 14 : 13, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.85)" : C.text }}>Password</label>
@@ -601,7 +740,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
             </button>
           </div>
           <div style={{ position: "relative" }}>
-            <input style={{ ...inpStyle, paddingRight: 48 }} type={showPw ? "text" : "password"} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" onFocus={onFocusGreen} onBlur={onBlurReset} />
+            <input style={{ ...inpStyle, paddingRight: 48 }} type={showPw ? "text" : "password"} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" autoFocus onFocus={onFocusGreen} onBlur={onBlurReset} />
             <button type="button" onClick={() => setShowPw(v => !v)} aria-label={showPw ? "Hide password" : "Show password"}
               style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400, lineHeight: 1, padding: 0, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -625,7 +764,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
         <SubmitBtn label="Sign In" loadingLabel="Signing in..." loading={loading} isMobile={isMobile} />
       </form>
 
-      {/* Switch back to biometric view (only if passkey is registered on this device) */}
+      {/* Biometric option if available */}
       {webAuthnSupported && hasStoredPasskey && (
         <>
           {divider}
@@ -675,7 +814,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // RESET VIEW
   // ═════════════════════════════════════════════════════════════════
   const resetView = (
-    <div key="reset" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 340, margin: "0 auto" }}>
+    <div key="reset" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
       {formHeader("Investors Portal", "Reset your password")}
 
       {!success && (
@@ -696,7 +835,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
           <SubmitBtn label="Send Reset Email" loadingLabel="Sending..." loading={loading} isMobile={isMobile} />
         </div>
 
-        <button type="button" onClick={() => switchView(hasStoredPasskey ? "biometric" : "email")}
+        <button type="button" onClick={() => switchView(hasStoredPasskey ? "biometric" : "entry")}
           style={{ width: "100%", padding: isMobile ? "13px" : "9px", borderRadius: isMobile ? 12 : 9, border: isMobile ? "1.5px solid rgba(255,255,255,0.12)" : `1.5px solid ${C.gray200}`, background: "transparent", color: isMobile ? "rgba(255,255,255,0.6)" : C.gray400, fontWeight: 600, fontSize: isMobile ? 14 : 13, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.3)" : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.12)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.6)" : C.gray400; }}>
@@ -717,7 +856,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   );
 
   // ── Select active view ──────────────────────────────────────────
-  const activeView = view === "biometric" ? biometricView : view === "email" ? emailView : resetView;
+  const activeView = view === "biometric" ? biometricView : view === "entry" ? entryView : view === "email" ? emailView : resetView;
 
   return (
     <div style={{ height: "100%", width: "100%", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", background: "radial-gradient(ellipse at 60% 40%, #0c2548 0%, #0B1F3A 50%, #080f1e 100%)" }}>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { sbUpsertProfile } from "../lib/supabase";
+import { sbUpsertProfile, sbAutoAssignRole } from "../lib/supabase";
 import { C } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
@@ -28,6 +28,7 @@ const useIsMobile = () => {
 export default function ProfileSetupPage({ session, onComplete, onCancel }) {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [cdsNumber, setCdsNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,9 +37,9 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
   const desktopInp = useMemo(
     () => ({
       width: "100%",
-      padding: "11px 14px",
-      borderRadius: 10,
-      fontSize: 14,
+      padding: "9px 12px",
+      borderRadius: 9,
+      fontSize: 13,
       border: `1.5px solid ${C.gray200}`,
       outline: "none",
       fontFamily: "inherit",
@@ -84,10 +85,18 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
 
       setLoading(true);
       try {
-        const updated = await sbUpsertProfile({
+        const profileData = {
           full_name: trimmedName,
           phone: trimmedPhone,
-        });
+        };
+        const trimmedCds = cdsNumber.trim();
+        const fullCds = trimmedCds ? `CDS-${trimmedCds}` : "";
+        if (fullCds) profileData.cds_number = fullCds;
+        const updated = await sbUpsertProfile(profileData);
+        // Auto-assign role based on CDS: AD if first user, RO if AD exists
+        if (fullCds) {
+          try { await sbAutoAssignRole(fullCds); } catch {}
+        }
         onComplete(updated);
       } catch (err) {
         setError(err.message || "Failed to save profile");
@@ -95,7 +104,7 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         setLoading(false);
       }
     },
-    [fullName, phone, onComplete]
+    [fullName, phone, cdsNumber, onComplete]
   );
 
   // ── SVG icon helpers (matching LoginPage style) ─────────────────
@@ -109,6 +118,13 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
   const phoneIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+
+  const cdsIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   );
 
@@ -135,16 +151,16 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         </div>
       )}
 
-      <div style={{ marginBottom: isMobile ? 16 : 18 }}>
-        <label style={{ fontSize: isMobile ? 13 : 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 6 }}>
+      <div style={{ marginBottom: isMobile ? 14 : 12 }}>
+        <label style={{ fontSize: isMobile ? 13 : 12, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 4 }}>
           Full Name
         </label>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, pointerEvents: "none", display: "flex" }}>
+          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, pointerEvents: "none", display: "flex" }}>
             {userIcon}
           </div>
           <input
-            style={{ ...inp, paddingLeft: 42 }}
+            style={{ ...inp, paddingLeft: 38 }}
             type="text"
             placeholder="e.g. John Doe"
             value={fullName}
@@ -157,16 +173,16 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: isMobile ? 20 : 28 }}>
-        <label style={{ fontSize: isMobile ? 13 : 14, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 6 }}>
+      <div style={{ marginBottom: isMobile ? 14 : 12 }}>
+        <label style={{ fontSize: isMobile ? 13 : 12, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 4 }}>
           Phone Number
         </label>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, pointerEvents: "none", display: "flex" }}>
+          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, pointerEvents: "none", display: "flex" }}>
             {phoneIcon}
           </div>
           <input
-            style={{ ...inp, paddingLeft: 42 }}
+            style={{ ...inp, paddingLeft: 38 }}
             type="tel"
             placeholder="e.g. +255 712 345 678"
             value={phone}
@@ -178,13 +194,37 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         </div>
       </div>
 
+      <div style={{ marginBottom: isMobile ? 18 : 16 }}>
+        <label style={{ fontSize: isMobile ? 13 : 12, fontWeight: 600, color: isMobile ? "rgba(255,255,255,0.9)" : C.text, display: "block", marginBottom: 4 }}>
+          CDS Number <span style={{ fontWeight: 400, fontSize: isMobile ? 10 : 11, color: isMobile ? "rgba(255,255,255,0.4)" : C.gray400 }}>(optional)</span>
+        </label>
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, pointerEvents: "none", display: "flex" }}>
+            {cdsIcon}
+          </div>
+          <span style={{ position: "absolute", left: 38, top: "50%", transform: "translateY(-50%)", color: isMobile ? "rgba(255,255,255,0.5)" : C.text, fontSize: isMobile ? 15 : 13, fontWeight: 600, pointerEvents: "none", fontFamily: "inherit" }}>CDS-</span>
+          <input
+            style={{ ...inp, paddingLeft: 76 }}
+            type="text"
+            placeholder="e.g. 200200"
+            value={cdsNumber}
+            onChange={(e) => setCdsNumber(e.target.value.replace(/\D/g, ""))}
+            onFocus={(e) => { e.target.style.borderColor = C.green; }}
+            onBlur={(e) => { e.target.style.borderColor = isMobile ? "rgba(255,255,255,0.15)" : C.gray200; }}
+          />
+        </div>
+        <div style={{ fontSize: 10, color: isMobile ? "rgba(255,255,255,0.35)" : C.gray400, marginTop: 3, paddingLeft: 2 }}>
+          Leave blank if you don't have one — admin can assign it later
+        </div>
+      </div>
+
       <button type="submit" disabled={loading}
-        style={{ width: "100%", padding: isMobile ? "14px" : "13px", borderRadius: isMobile ? 12 : 10, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: 15, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: isMobile ? (loading ? "none" : `0 4px 16px ${C.green}55`) : "none", transition: "background 0.2s" }}>
-        {loading ? (<><div style={{ width: isMobile ? 15 : 16, height: isMobile ? 15 : 16, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>) : "Complete Setup →"}
+        style={{ width: "100%", padding: isMobile ? "13px" : "10px", borderRadius: isMobile ? 12 : 9, border: "none", background: loading ? C.gray200 : C.green, color: C.white, fontWeight: 700, fontSize: isMobile ? 15 : 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: isMobile ? (loading ? "none" : `0 4px 16px ${C.green}55`) : "none", transition: "background 0.2s" }}>
+        {loading ? (<><div style={{ width: isMobile ? 15 : 14, height: isMobile ? 15 : 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving...</>) : "Complete Setup →"}
       </button>
 
       <button type="button" onClick={onCancel}
-        style={{ width: "100%", padding: isMobile ? "13px" : "11px", borderRadius: isMobile ? 12 : 10, marginTop: 12, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: isMobile ? "transparent" : C.white, color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+        style={{ width: "100%", padding: isMobile ? "12px" : "9px", borderRadius: isMobile ? 12 : 9, marginTop: 10, border: isMobile ? "1.5px solid rgba(255,255,255,0.2)" : `1.5px solid ${C.gray200}`, background: isMobile ? "transparent" : C.white, color: isMobile ? "rgba(255,255,255,0.7)" : C.gray400, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = isMobile ? C.white : C.navy; e.currentTarget.style.color = isMobile ? C.white : C.navy; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = isMobile ? "rgba(255,255,255,0.2)" : C.gray200; e.currentTarget.style.color = isMobile ? "rgba(255,255,255,0.7)" : C.gray400; }}>
         Sign Out
@@ -234,21 +274,21 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
           </div>
         </div>
       ) : (
-        <div style={{ position: "relative", zIndex: 1, background: C.white, borderRadius: 20, padding: "40px 36px", width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.35)", animation: "fadeIn 0.35s ease" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <img src={logo} alt="Investors Portal" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14, color: C.gray400, marginBottom: 6 }}>Investors Portal</div>
-            <div style={{ fontWeight: 800, fontSize: 20, color: C.text }}>Complete Your Profile</div>
-            <div style={{ fontSize: 14, color: C.gray400, marginTop: 4 }}>Tell us a bit about yourself to get started</div>
+        <div style={{ position: "relative", zIndex: 1, background: C.white, borderRadius: 20, padding: "28px 32px", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.35)", animation: "fadeIn 0.35s ease" }}>
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <img src={logo} alt="Investors Portal" style={{ width: 44, height: 44, borderRadius: 12, objectFit: "cover", marginBottom: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
+            <div style={{ fontWeight: 700, fontSize: 12, color: C.gray400, marginBottom: 4 }}>Investors Portal</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: C.text }}>Complete Your Profile</div>
+            <div style={{ fontSize: 12, color: C.gray400, marginTop: 3 }}>Tell us a bit about yourself to get started</div>
           </div>
           {renderForm()}
-          <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
           </div>
-          <div style={{ marginTop: 8, textAlign: "center" }}>
-            <span style={{ fontSize: 11, color: C.gray400 }}>© 2026 </span>
-            <span style={{ fontSize: 11, color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>
-            <span style={{ fontSize: 11, color: C.gray400 }}>. All rights reserved.</span>
+          <div style={{ marginTop: 6, textAlign: "center" }}>
+            <span style={{ fontSize: 10, color: C.gray400 }}>© 2026 </span>
+            <span style={{ fontSize: 10, color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>
+            <span style={{ fontSize: 10, color: C.gray400 }}>. All rights reserved.</span>
           </div>
         </div>
       )}

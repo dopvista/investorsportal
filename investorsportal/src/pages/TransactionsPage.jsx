@@ -550,7 +550,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       // App name
       ctx.globalAlpha = 0.05;
       const nameFontSize = Math.round(isMobileCapture ? logoSize * 0.3 : logoSize * 0.35);
-      const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.15 : logoSize * 0.18);
+      const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.11 : logoSize * 0.13);
       ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
       ctx.fillStyle = isDark ? "#FFFFFF" : "#0A2540";
       ctx.textAlign = "center";
