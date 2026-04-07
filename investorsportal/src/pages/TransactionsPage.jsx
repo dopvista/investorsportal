@@ -530,7 +530,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           lc.save(); rrect(pad, pad, s, s, r); lc.clip();
           lc.drawImage(img, pad, pad, s, s); lc.restore();
           // Border
-          lc.strokeStyle = "#0A2540"; lc.lineWidth = s * 0.06;
+          lc.strokeStyle = isDark ? "#FFFFFF" : "#0A2540"; lc.lineWidth = isDark ? s * 0.02 : s * 0.06;
           rrect(pad, pad, s, s, r); lc.stroke();
           const result = new Image();
           result.src = c.toDataURL("image/png");
@@ -544,7 +544,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       const logoSize = isMobileCapture ? cw * 0.135 : Math.min(cw, ch) * 0.12;
       const cx = cw / 2;
       const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
-      const topY = isMobileCapture ? ch * 0.4 - totalH / 2 : ch * 0.35 - totalH / 2;
+      const topY = isMobileCapture ? ch * 0.39 - totalH / 2 : ch * 0.35 - totalH / 2;
       const wmCx = isMobileCapture ? cx - logoSize * 1.9 : cx;
       if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
       // App name
@@ -552,7 +552,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       const nameFontSize = Math.round(isMobileCapture ? logoSize * 0.3 : logoSize * 0.35);
       const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.15 : logoSize * 0.18);
       ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
-      ctx.fillStyle = "#0A2540";
+      ctx.fillStyle = isDark ? "#FFFFFF" : "#0A2540";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText("Investors Portal", wmCx, topY + logoSize + logoSize * 0.08);
@@ -798,7 +798,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "55%" : "none" }}>ID: {transaction.id}</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleDownloadPNG} disabled={downloading} style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: downloading ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "border-color 0.15s", display: "inline-flex", alignItems: "center", gap: 5, opacity: downloading ? 0.6 : 1 }} onMouseEnter={e=>{if(!downloading)e.currentTarget.style.borderColor=C.green}} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}><Icon name="download" size={12} stroke={C.gray500} sw={2} />{downloading ? "Saving..." : "Save PNG"}</button>
+            <button onClick={handleDownloadPNG} disabled={downloading} style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: downloading ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "border-color 0.15s", display: "inline-flex", alignItems: "center", gap: 5, opacity: downloading ? 0.6 : 1 }} onMouseEnter={e=>{if(!downloading)e.currentTarget.style.borderColor=C.green}} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}><Icon name="download" size={12} stroke={C.gray500} sw={2} />{downloading ? "Saving..." : "Save"}</button>
             <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
           </div>
         </div>
