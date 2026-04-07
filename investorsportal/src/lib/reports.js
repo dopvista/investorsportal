@@ -321,7 +321,7 @@ export function generatePortfolioExcel({ cdsNumber, portfolio, metrics, dividend
 
 // ── 6. Portfolio Statement v2 (Reports Module) ───────────────────────
 // Renders logo with rounded corners, shadow, and border on canvas (for PDF & Excel)
-function loadStyledLogoBase64(src, size = 128) {
+export function loadStyledLogoBase64(src, size = 128) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";

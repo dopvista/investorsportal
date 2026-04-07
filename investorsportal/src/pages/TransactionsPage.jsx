@@ -1,5 +1,6 @@
 // ── src/pages/TransactionsPage.jsx ───────────────────────────────
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
+import html2canvas from "html2canvas";
 import {
   useTheme,
   fmt, fmtInt, fmtSmart, calcFees,
@@ -7,6 +8,8 @@ import {
   TransactionFormModal, ImportTransactionsModal,
 } from "../components/ui";
 import { Icon } from "../lib/icons";
+import { loadStyledLogoBase64 } from "../lib/reports";
+import logo from "../assets/logo.jpg";
 import {
   sbGetAllCompanies,
   sbGetTransactions,
@@ -491,6 +494,81 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     return calcFifoRealizedGL(sorted, transaction.id);
   }, [isBuy, allVerifiedTxns, transaction.id]);
 
+  const captureRef = useRef(null);
+  const auditRef = useRef(null);
+  const [downloading, setDownloading] = useState(false);
+  const handleDownloadPNG = useCallback(async () => {
+    if (!captureRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      const el = captureRef.current;
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+      const ctx = canvas.getContext("2d");
+      const cw = canvas.width, ch = canvas.height;
+      console.log("[PNG] canvas:", cw, "x", ch, "element:", el.offsetWidth, "x", el.offsetHeight, "scroll:", el.scrollHeight);
+
+      // Draw watermark in centre — render logo with rounded corners on transparent bg
+      ctx.save();
+      ctx.globalAlpha = 0.05;
+      const logoImg = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const s = 256, r = s * 0.22, pad = 4;
+          const c = document.createElement("canvas");
+          c.width = s + pad * 2; c.height = s + pad * 2;
+          const lc = c.getContext("2d");
+          // Rounded rect clip
+          const rrect = (cx, cy, w, h, cr) => {
+            lc.beginPath(); lc.moveTo(cx + cr, cy); lc.lineTo(cx + w - cr, cy);
+            lc.quadraticCurveTo(cx + w, cy, cx + w, cy + cr); lc.lineTo(cx + w, cy + h - cr);
+            lc.quadraticCurveTo(cx + w, cy + h, cx + w - cr, cy + h); lc.lineTo(cx + cr, cy + h);
+            lc.quadraticCurveTo(cx, cy + h, cx, cy + h - cr); lc.lineTo(cx, cy + cr);
+            lc.quadraticCurveTo(cx, cy, cx + cr, cy); lc.closePath();
+          };
+          // Draw clipped image
+          lc.save(); rrect(pad, pad, s, s, r); lc.clip();
+          lc.drawImage(img, pad, pad, s, s); lc.restore();
+          // Border
+          lc.strokeStyle = "#0A2540"; lc.lineWidth = s * 0.06;
+          rrect(pad, pad, s, s, r); lc.stroke();
+          const result = new Image();
+          result.src = c.toDataURL("image/png");
+          result.onload = () => resolve(result);
+          result.onerror = () => resolve(img);
+        };
+        img.onerror = () => resolve(null);
+        img.src = logo;
+      });
+      const isMobileCapture = cw / ch < 0.7; // tall narrow = mobile
+      const logoSize = isMobileCapture ? cw * 0.135 : Math.min(cw, ch) * 0.12;
+      const cx = cw / 2;
+      const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
+      const topY = isMobileCapture ? ch * 0.4 - totalH / 2 : ch * 0.35 - totalH / 2;
+      const wmCx = isMobileCapture ? cx - logoSize * 1.9 : cx;
+      if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
+      // App name
+      ctx.globalAlpha = 0.05;
+      const nameFontSize = Math.round(isMobileCapture ? logoSize * 0.3 : logoSize * 0.35);
+      const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.15 : logoSize * 0.18);
+      ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
+      ctx.fillStyle = "#0A2540";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("Investors Portal", wmCx, topY + logoSize + logoSize * 0.08);
+      // Motto
+      ctx.font = `italic ${mottoFontSize}px Helvetica, Arial, sans-serif`;
+      ctx.fillText("Manage Your Investments Digitally", wmCx, topY + logoSize + logoSize * 0.45);
+      ctx.restore();
+
+      const link = document.createElement("a");
+      link.download = `${transaction.company_name}_${transaction.type}_${transaction.date || "txn"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) { /* silent fail */ }
+    setDownloading(false);
+  }, [downloading, transaction.company_name, transaction.type, transaction.date]);
+
   const auditIconColor = isDark ? undefined : "#374151";
   const AUDIT_STEPS = useMemo(() => [
     { icon: <Icon name="fileText" size={11} stroke={auditIconColor} />, label: "Recorded",  time: transaction.created_at,   name: transaction.created_by_name,   stepColor: C.gray600, activeBg: C.gray100 },
@@ -596,7 +674,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           </div>
         )}
       </div>
-      <div style={{ padding: "14px 20px" }}>
+      <div ref={auditRef} style={{ padding: "14px 20px" }}>
         {renderSectionTitle("Audit trail")}
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {AUDIT_STEPS.map((step) => {
@@ -667,7 +745,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 720, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div ref={captureRef} style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 720, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
@@ -718,8 +796,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         </div>
 
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
-          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {transaction.id}</span>
-          <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
+          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "55%" : "none" }}>ID: {transaction.id}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleDownloadPNG} disabled={downloading} style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: downloading ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "border-color 0.15s", display: "inline-flex", alignItems: "center", gap: 5, opacity: downloading ? 0.6 : 1 }} onMouseEnter={e=>{if(!downloading)e.currentTarget.style.borderColor=C.green}} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}><Icon name="download" size={12} stroke={C.gray500} sw={2} />{downloading ? "Saving..." : "Save PNG"}</button>
+            <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
+          </div>
         </div>
       </div>
     </div>
