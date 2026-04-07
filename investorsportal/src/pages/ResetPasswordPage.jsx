@@ -24,6 +24,24 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// ── SVG eye icons (matching LoginPage style) ──────────────────────
+const EyeIcon = ({ off, size = 18, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {off ? (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    ) : (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )}
+  </svg>
+);
+
 export default function ResetPasswordPage({ onDone }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -235,7 +253,7 @@ export default function ResetPasswordPage({ onDone }) {
               <form onSubmit={handleSubmit}>
                 {error && (
                   <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "11px 14px", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>⚠️</span> {error}
+                    <span style={{ flexShrink: 0 }}>!</span> {error}
                   </div>
                 )}
 
@@ -246,8 +264,8 @@ export default function ResetPasswordPage({ onDone }) {
                       onFocus={(e) => { e.target.style.borderColor = passwordTooShort ? "#fca5a5" : C.green; }}
                       onBlur={(e) => { e.target.style.borderColor = passwordTooShort ? "#fca5a5" : "rgba(255,255,255,0.15)"; }}
                     />
-                    <button type="button" onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 17, color: "rgba(255,255,255,0.5)", padding: 0 }}>
-                      {show.pw ? "🙈" : "👁️"}
+                    <button type="button" onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))} aria-label={show.pw ? "Hide password" : "Show password"} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)", padding: 0, display: "flex" }}>
+                      <EyeIcon off={show.pw} />
                     </button>
                   </div>
                   {password && (
@@ -269,8 +287,8 @@ export default function ResetPasswordPage({ onDone }) {
                       onFocus={(e) => { e.target.style.borderColor = confirm && !passwordsMatch ? "#fca5a5" : C.green; }}
                       onBlur={(e) => { e.target.style.borderColor = confirm && !passwordsMatch ? "#fca5a5" : "rgba(255,255,255,0.15)"; }}
                     />
-                    <button type="button" onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 17, color: "rgba(255,255,255,0.5)", padding: 0 }}>
-                      {show.cf ? "🙈" : "👁️"}
+                    <button type="button" onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))} aria-label={show.cf ? "Hide password" : "Show password"} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)", padding: 0, display: "flex" }}>
+                      <EyeIcon off={show.cf} />
                     </button>
                   </div>
                   {confirm && <div style={{ fontSize: 11, marginTop: 5, fontWeight: 600, color: passwordsMatch ? C.green : "#ef4444" }}>{passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}</div>}
@@ -317,15 +335,15 @@ export default function ResetPasswordPage({ onDone }) {
           ) : (
             <form onSubmit={handleSubmit}>
               {error && (
-                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 20 }}>{error}</div>
+                <div aria-live="polite" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontSize: 13, marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ flexShrink: 0 }}>!</span> {error}</div>
               )}
 
               <div style={{ marginBottom: 18 }}>
                 <label style={{ fontSize: 14, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>New Password</label>
                 <div style={{ position: "relative" }}>
                   <input style={{ ...inp, paddingRight: 48, borderColor: passwordTooShort ? "#fca5a5" : C.gray200 }} type={show.pw ? "text" : "password"} placeholder="Min. 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-                  <button type="button" onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.gray400, padding: 0 }}>
-                    {show.pw ? "🙈" : "👁️"}
+                  <button type="button" onClick={() => setShow((s) => ({ ...s, pw: !s.pw }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.gray400, padding: 0, display: "flex" }}>
+                    <EyeIcon off={show.pw} />
                   </button>
                 </div>
                 {password && (
@@ -344,8 +362,8 @@ export default function ResetPasswordPage({ onDone }) {
                 <label style={{ fontSize: 14, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Confirm Password</label>
                 <div style={{ position: "relative" }}>
                   <input style={{ ...inp, paddingRight: 48, borderColor: confirm && !passwordsMatch ? "#fca5a5" : C.gray200 }} type={show.cf ? "text" : "password"} placeholder="Repeat your password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
-                  <button type="button" onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.gray400, padding: 0 }}>
-                    {show.cf ? "🙈" : "👁️"}
+                  <button type="button" onClick={() => setShow((s) => ({ ...s, cf: !s.cf }))} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.gray400, padding: 0, display: "flex" }}>
+                    <EyeIcon off={show.cf} />
                   </button>
                 </div>
                 {confirm && <div style={{ fontSize: 12, marginTop: 5, fontWeight: 600, color: passwordsMatch ? C.green : "#ef4444" }}>{passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}</div>}

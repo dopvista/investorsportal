@@ -41,7 +41,12 @@ Deno.serve(async (req) => {
     );
 
     // Check caller's role — only SA and AD can create users
-    const { data: roleData } = await supabaseCaller.rpc("get_my_role");
+    const { data: roleData, error: roleErr } = await supabaseCaller.rpc("get_my_role");
+    if (roleErr) {
+      return new Response(JSON.stringify({ error: "Authentication failed: " + roleErr.message }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!["SA", "AD"].includes(roleData)) {
       return new Response(JSON.stringify({ error: "Access denied: only Super Admins and Admins can create users" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -49,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     // ── 4. Parse request body ──────────────────────────────────────
-    const { email, password } = await req.json();
+    const { email, password, cds_number } = await req.json();
     if (!email || !password) {
       return new Response(JSON.stringify({ error: "Email and password are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,7 +81,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── 6. Return the new user's ID ────────────────────────────────
+    // ── 6. Create profile row (required for user to appear in the app) ──
+    const { error: profileErr } = await supabaseAdmin
+      .from("profiles")
+      .insert({
+        id: data.user.id,
+        cds_number: cds_number || "",
+        account_type: "Individual",
+      });
+
+    if (profileErr) {
+      // Profile creation failed — delete the orphaned auth user to keep things clean
+      await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      return new Response(JSON.stringify({ error: "Failed to create user profile: " + profileErr.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 7. Return the new user's ID ────────────────────────────────
     return new Response(JSON.stringify({ user: data.user }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
