@@ -800,7 +800,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Footer */}
       {!isMobile && (
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.gray200}` }}>
+        <div style={{ marginTop: 16, paddingTop: 8 }}>
           <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.

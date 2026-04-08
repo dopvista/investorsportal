@@ -497,19 +497,27 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   const captureRef = useRef(null);
   const auditRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
+  const [auditExpanded, setAuditExpanded] = useState(false);
+  const [feeExpanded, setFeeExpanded] = useState(false);
   const handleDownloadPNG = useCallback(async () => {
     if (!captureRef.current || downloading) return;
     setDownloading(true);
     try {
       const el = captureRef.current;
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+      const srcCanvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+      // Create a fresh canvas to composite html2canvas output + watermark
+      // (some mobile browsers don't allow drawing on html2canvas output)
+      const canvas = document.createElement("canvas");
+      canvas.width = srcCanvas.width;
+      canvas.height = srcCanvas.height;
       const ctx = canvas.getContext("2d");
+      ctx.drawImage(srcCanvas, 0, 0);
       const cw = canvas.width, ch = canvas.height;
-      console.log("[PNG] canvas:", cw, "x", ch, "element:", el.offsetWidth, "x", el.offsetHeight, "scroll:", el.scrollHeight);
 
-      // Draw watermark in centre — render logo with rounded corners on transparent bg
+      // Draw watermark
+      const wmAlpha = 0.08;
       ctx.save();
-      ctx.globalAlpha = 0.05;
+      ctx.globalAlpha = wmAlpha;
       const logoImg = await new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -518,18 +526,15 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           const c = document.createElement("canvas");
           c.width = s + pad * 2; c.height = s + pad * 2;
           const lc = c.getContext("2d");
-          // Rounded rect clip
-          const rrect = (cx, cy, w, h, cr) => {
-            lc.beginPath(); lc.moveTo(cx + cr, cy); lc.lineTo(cx + w - cr, cy);
-            lc.quadraticCurveTo(cx + w, cy, cx + w, cy + cr); lc.lineTo(cx + w, cy + h - cr);
-            lc.quadraticCurveTo(cx + w, cy + h, cx + w - cr, cy + h); lc.lineTo(cx + cr, cy + h);
-            lc.quadraticCurveTo(cx, cy + h, cx, cy + h - cr); lc.lineTo(cx, cy + cr);
-            lc.quadraticCurveTo(cx, cy, cx + cr, cy); lc.closePath();
+          const rrect = (rx, ry, w, h, cr) => {
+            lc.beginPath(); lc.moveTo(rx + cr, ry); lc.lineTo(rx + w - cr, ry);
+            lc.quadraticCurveTo(rx + w, ry, rx + w, ry + cr); lc.lineTo(rx + w, ry + h - cr);
+            lc.quadraticCurveTo(rx + w, ry + h, rx + w - cr, ry + h); lc.lineTo(rx + cr, ry + h);
+            lc.quadraticCurveTo(rx, ry + h, rx, ry + h - cr); lc.lineTo(rx, ry + cr);
+            lc.quadraticCurveTo(rx, ry, rx + cr, ry); lc.closePath();
           };
-          // Draw clipped image
           lc.save(); rrect(pad, pad, s, s, r); lc.clip();
           lc.drawImage(img, pad, pad, s, s); lc.restore();
-          // Border
           lc.strokeStyle = isDark ? "#FFFFFF" : "#0A2540"; lc.lineWidth = isDark ? s * 0.02 : s * 0.06;
           rrect(pad, pad, s, s, r); lc.stroke();
           const result = new Image();
@@ -540,15 +545,17 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         img.onerror = () => resolve(null);
         img.src = logo;
       });
-      const isMobileCapture = cw / ch < 0.7; // tall narrow = mobile
-      const logoSize = isMobileCapture ? cw * 0.135 : Math.min(cw, ch) * 0.12;
+      const isMobileCapture = isMobile || cw / ch < 0.7;
+      // Desktop: original tuned positions — DO NOT TOUCH
+      // Mobile: dead-centre on canvas
+      const logoSize = isMobileCapture ? Math.min(cw, ch) * 0.18 : Math.min(cw, ch) * 0.09;
       const cx = cw / 2;
       const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
-      const topY = isMobileCapture ? ch * 0.39 - totalH / 2 : ch * 0.35 - totalH / 2;
-      const wmCx = isMobileCapture ? cx - logoSize * 1.9 : cx;
+      const topY = isMobileCapture ? ch * 0.57 - totalH / 2 : ch * 0.35 - totalH / 2;
+      const wmCx = isMobileCapture ? cw / 2 : cx + cw * 0.05;
       if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
       // App name
-      ctx.globalAlpha = 0.05;
+      ctx.globalAlpha = wmAlpha;
       const nameFontSize = Math.round(isMobileCapture ? logoSize * 0.3 : logoSize * 0.35);
       const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.11 : logoSize * 0.13);
       ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
@@ -556,7 +563,6 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText("Investors Portal", wmCx, topY + logoSize + logoSize * 0.08);
-      // Motto
       ctx.font = `italic ${mottoFontSize}px Helvetica, Arial, sans-serif`;
       ctx.fillText("Manage Your Investments Digitally", wmCx, topY + logoSize + logoSize * 0.45);
       ctx.restore();
@@ -632,8 +638,8 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
       : [["Net Proceeds", `TZS ${fmt(Math.round(gl.proceeds))}`], ["Cost Basis", `TZS ${fmt(Math.round(gl.costBasis))}`]];
     const cardTitle = type === "buy" ? "Unrealized Gain / Loss" : "Realized Gain / Loss";
     return (
-      <div style={{ padding: "0 20px 14px" }}>
-        <div style={{ padding: "8px 10px", background: glBg, borderRadius: 8, border: `1px solid ${glBdr}` }}>
+      <div style={{ padding: isMobile ? "10px 18px 0" : "0 20px 14px" }}>
+        <div style={{ padding: isMobile ? "10px 12px" : "8px 10px", background: glBg, borderRadius: isMobile ? 10 : 8, border: `1px solid ${glBdr}` }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: glCol, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{cardTitle}</div>
           {rows.map(([label, value], i, arr) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: i < arr.length - 1 ? 3 : 6, ...(i === arr.length - 1 ? { paddingBottom: 6, borderBottom: `1px solid ${glBdr}` } : {}) }}>
@@ -746,12 +752,13 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={captureRef} style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 720, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {/* ═══ HEADER ═══ */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#ffffff" }}>{transaction.company_name}</span>
-              <span style={{ background: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)", padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
-              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{st.icon} {st.label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "nowrap" }}>
+              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#ffffff", whiteSpace: "nowrap" }}>{transaction.company_name}</span>
+              <span style={{ background: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{isBuy ? "▲ Buy" : "▼ Sell"}</span>
+              <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>{st.icon}{st.label}</span>
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
               <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>📅 {fmtDate(transaction.date)}</span>
@@ -770,24 +777,188 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
-          {summaryItems.map((item, i) => (
-            <div key={i} style={{ padding: isMobile ? "10px 18px" : "12px 20px", borderLeft: (!isMobile && i > 0) ? `1px solid ${C.gray200}` : "none", borderBottom: isMobile && i < 2 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? accentBg : "transparent", display: isMobile ? "flex" : "block", alignItems: isMobile ? "center" : undefined, justifyContent: isMobile ? "space-between" : undefined }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: isMobile ? 0 : 2 }}>{item.label}</div>
-              {isMobile ? (
-                <div style={{ fontSize: 14, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}>{item.currency} {item.amount}</div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}><span style={{ fontSize: 12, fontWeight: 600, opacity: 0.7 }}>{item.currency}</span> {item.amount}</div>
-                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
-                </>
+        {/* ═══ STAT CARDS (mobile) ═══ */}
+        {isMobile && (
+          <div style={{ display: "flex", alignItems: "stretch", background: C.gray50, flexShrink: 0, borderBottom: `1px solid ${C.gray200}` }}>
+            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${C.gray200}` }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: accentColor, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Shares</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: accentColor }}>{fmtInt(qty)}</div>
+            </div>
+            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: (allInCostPerShare || (realizedGL?.sellNetPerShare)) ? `1px solid ${C.gray200}` : "none" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1D4ED8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Price/Share</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: isDark ? "#93C5FD" : "#1D4ED8" }}>{fmt(transaction.price)}</div>
+            </div>
+            {allInCostPerShare && (
+              <div style={{ flex: 1, padding: "10px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: isDark ? C.gold : "#92400E", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Avg Cost/Share</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: isDark ? C.gold : "#92400E" }}>{fmt(Math.round(allInCostPerShare))}</div>
+              </div>
+            )}
+            {!isBuy && realizedGL?.sellNetPerShare && (
+              <div style={{ flex: 1, padding: "10px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: isDark ? C.gold : "#92400E", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Net Sell/Share</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: isDark ? C.gold : "#92400E" }}>{fmt(Math.round(realizedGL.sellNetPerShare))}</div>
+              </div>
+            )}
+          </div>
+        )}
+        {isMobile ? (
+          /* ═══ MOBILE SUMMARY with expandable fees ═══ */
+          <div style={{ borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
+            {/* Trade Value */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", borderBottom: `1px solid ${C.gray200}` }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Trade Value</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1 }}>TZS {fmt(tradeVal)}</div>
+            </div>
+            {/* Total Fees — tap to expand breakdown */}
+            <div style={{ borderBottom: `1px solid ${C.gray200}` }}>
+              <div
+                onClick={() => setFeeExpanded(v => !v)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", cursor: "pointer" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Fees</div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gray400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: feeExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.gold, lineHeight: 1 }}>TZS {fmt(totalFees)}</div>
+              </div>
+              {feeExpanded && (
+                <div style={{ padding: "0 18px 10px" }}>
+                  <div style={{ padding: "8px 10px", background: isDark ? "rgba(212,175,55,0.08)" : "#FFFBEB", borderRadius: 8, border: `1px solid ${isDark ? `${C.gold}33` : "#FDE68A"}` }}>
+                    {commissionRows.map(([label, value], i, arr) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: i < arr.length - 1 ? `1px solid ${isDark ? `${C.gold}22` : "#FEF3C7"}` : "none" }}>
+                        <span style={{ fontSize: 11, color: C.gray500 }}>{label}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{fmt(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          ))}
-        </div>
+            {/* Total Paid / Net Received */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", background: accentBg }}>
+              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{isBuy ? "Total Paid" : "Net Received"}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: accentColor, lineHeight: 1 }}>TZS {fmt(gt)}</div>
+            </div>
+          </div>
+        ) : (
+          /* ═══ DESKTOP SUMMARY BAR ═══ */
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
+            {summaryItems.map((item, i) => (
+              <div key={i} style={{ padding: "12px 20px", borderLeft: i > 0 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? accentBg : "transparent" }}>
+                <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{item.label}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}><span style={{ fontSize: 12, fontWeight: 600, opacity: 0.7 }}>{item.currency}</span> {item.amount}</div>
+                <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
+        {/* ═══ SCROLLABLE BODY ═══ */}
         <div className="tx-scroll" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
-          {isMobile ? renderRightPanel() : (
+          {isMobile ? (
+            <>
+              {/* ── Reference & Broker ── */}
+              <div style={{ padding: "10px 18px 0" }}>
+                <div style={{ padding: "10px 12px", background: C.gray50, borderRadius: 10, border: `1px solid ${C.gray100}` }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Reference & Broker</div>
+                  {[
+                    ["Broker",  transaction.broker_name,    false],
+                    ["Ref No.", transaction.control_number, true ],
+                    ...(transaction.remarks ? [["Remarks", transaction.remarks, false]] : []),
+                  ].map(([label, value, mono], i, arr) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none", gap: 10 }}>
+                      <span style={{ fontSize: 11, color: C.gray500, flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: value ? C.text : C.gray400, fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, textAlign: "right", wordBreak: "break-all" }}>{value || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+                {transaction.status === "rejected" && transaction.rejection_comment && (
+                  <div style={{ marginTop: 8, padding: "8px 10px", background: C.redBg, borderRadius: 10, border: `1px solid ${isDark ? `${C.red}55` : "#FECACA"}` }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.red, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Rejection reason</div>
+                    <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>{transaction.rejection_comment}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Audit Trail (collapsible) ── */}
+              <div ref={auditRef} style={{ padding: "10px 18px 0" }}>
+                <div style={{ padding: "10px 12px", background: C.gray50, borderRadius: 10, border: `1px solid ${C.gray100}` }}>
+                  {(() => {
+                    const completedSteps = AUDIT_STEPS.filter(s => !!s.time);
+                    const latestStep = completedSteps[completedSteps.length - 1];
+                    return (
+                      <>
+                        <div
+                          onClick={() => setAuditExpanded(v => !v)}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: auditExpanded ? 8 : 0 }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>Audit Trail</div>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gray400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: auditExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+                          {!auditExpanded && latestStep && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: latestStep.stepColor }}>
+                              {latestStep.label} — {fmtDate(latestStep.time)}
+                            </span>
+                          )}
+                        </div>
+                        {auditExpanded && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            {AUDIT_STEPS.map((step) => {
+                              const done = !!step.time;
+                              return (
+                                <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: done ? step.activeBg : "transparent", border: `1px solid ${done ? step.stepColor + "22" : C.gray100}`, opacity: done ? 1 : 0.45 }}>
+                                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? step.stepColor + "20" : C.gray100, border: `1.5px solid ${done ? step.stepColor + "40" : C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0 }}>{step.icon}</div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: done ? step.stepColor : C.gray400 }}>{step.label}</div>
+                                    <div style={{ fontSize: 9, color: C.gray400 }}>{done ? fmtDateTime(step.time) : "Awaiting"}</div>
+                                  </div>
+                                  {done && step.name && (
+                                    <span style={{ fontSize: 10, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.name}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* ── Unrealized G/L ── */}
+              {isBuy && isVerified && qty > 0 && (
+                cdsPrice === undefined
+                  ? <div style={{ padding: "10px 18px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100 }} /></div>
+                  : fifoRemaining != null && fifoRemaining <= 0
+                    ? <div style={{ padding: "10px 18px", fontSize: 11, color: C.gray400 }}>Position fully sold (FIFO) — no unrealized gain/loss.</div>
+                    : unrealizedGL
+                      ? renderGLCard(unrealizedGL, "buy")
+                      : cdsPrice === null
+                        ? <div style={{ padding: "10px 18px", fontSize: 11, color: C.gray400 }}>
+                            {fifoRemaining != null && fifoRemaining < qty && <div style={{ marginBottom: 2 }}>{fmtInt(fifoRemaining)} of {fmtInt(qty)} shares still held (FIFO).</div>}
+                            Set your analysis price in Portfolio to see unrealized gain/loss.
+                          </div>
+                        : null
+              )}
+              {/* ── Realized G/L ── */}
+              {!isBuy && isVerified && (
+                allVerifiedTxns === null
+                  ? <div style={{ padding: "10px 18px" }}><div style={{ height: 72, borderRadius: 8, background: isDark ? "rgba(255,255,255,0.06)" : C.gray100 }} /></div>
+                  : realizedGL
+                    ? renderGLCard(realizedGL, "sell")
+                    : null
+              )}
+              {/* Bottom spacer for consistent padding */}
+              <div style={{ height: 10 }} />
+            </>
+          ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
               <div style={{ borderRight: `1px solid ${C.gray200}` }}>{renderLeftPanel()}</div>
               <div>{renderRightPanel()}</div>
@@ -795,6 +966,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
           )}
         </div>
 
+        {/* ═══ FOOTER ═══ */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
           <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "55%" : "none" }}>ID: {transaction.id}</span>
           <div style={{ display: "flex", gap: 8 }}>
