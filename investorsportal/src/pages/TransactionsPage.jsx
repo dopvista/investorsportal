@@ -1,15 +1,13 @@
 // ── src/pages/TransactionsPage.jsx ───────────────────────────────
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
-import html2canvas from "html2canvas";
 import {
   useTheme,
-  fmt, fmtInt, fmtSmart, calcFees,
+  fmt, fmtInt, fmtSmart, calcFees, downloadPNGWithWatermark,
   Btn, StatCard, SectionCard, Modal, ActionMenu,
   TransactionFormModal, ImportTransactionsModal,
 } from "../components/ui";
 import { Icon } from "../lib/icons";
 import { loadStyledLogoBase64 } from "../lib/reports";
-import logo from "../assets/logo.jpg";
 import {
   sbGetAllCompanies,
   sbGetTransactions,
@@ -503,89 +501,14 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
     if (!captureRef.current || downloading) return;
     setDownloading(true);
     try {
-      const el = captureRef.current;
-      const srcCanvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
-      // Create a fresh canvas to composite html2canvas output + watermark
-      // (some mobile browsers don't allow drawing on html2canvas output)
-      const canvas = document.createElement("canvas");
-      canvas.width = srcCanvas.width;
-      canvas.height = srcCanvas.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(srcCanvas, 0, 0);
-      const cw = canvas.width, ch = canvas.height;
-
-      // Draw watermark
-      const wmAlpha = 0.08;
-      ctx.save();
-      ctx.globalAlpha = wmAlpha;
-      const logoImg = await new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const s = 256, r = s * 0.22, pad = 4;
-          const c = document.createElement("canvas");
-          c.width = s + pad * 2; c.height = s + pad * 2;
-          const lc = c.getContext("2d");
-          const rrect = (rx, ry, w, h, cr) => {
-            lc.beginPath(); lc.moveTo(rx + cr, ry); lc.lineTo(rx + w - cr, ry);
-            lc.quadraticCurveTo(rx + w, ry, rx + w, ry + cr); lc.lineTo(rx + w, ry + h - cr);
-            lc.quadraticCurveTo(rx + w, ry + h, rx + w - cr, ry + h); lc.lineTo(rx + cr, ry + h);
-            lc.quadraticCurveTo(rx, ry + h, rx, ry + h - cr); lc.lineTo(rx, ry + cr);
-            lc.quadraticCurveTo(rx, ry, rx + cr, ry); lc.closePath();
-          };
-          lc.save(); rrect(pad, pad, s, s, r); lc.clip();
-          lc.drawImage(img, pad, pad, s, s); lc.restore();
-          lc.strokeStyle = isDark ? "#FFFFFF" : "#0A2540"; lc.lineWidth = isDark ? s * 0.02 : s * 0.06;
-          rrect(pad, pad, s, s, r); lc.stroke();
-          const result = new Image();
-          result.src = c.toDataURL("image/png");
-          result.onload = () => resolve(result);
-          result.onerror = () => resolve(img);
-        };
-        img.onerror = () => resolve(null);
-        img.src = logo;
-      });
-      const isMobileCapture = isMobile || cw / ch < 0.7;
-
-      // ── Watermark config: MOBILE and DESKTOP are fully separated ──
-      // Edit one block without affecting the other.
-      let logoSize, topY, wmCx, nameFontSize, mottoFontSize;
-      if (isMobileCapture) {
-        // ── MOBILE watermark ──
-        logoSize    = Math.min(cw, ch) * 0.18;
-        const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
-        topY        = ch * 0.57 - totalH / 2;
-        wmCx        = cw / 2;
-        nameFontSize  = Math.round(logoSize * 0.3);
-        mottoFontSize = Math.round(logoSize * 0.11);
-      } else {
-        // ── DESKTOP watermark — DO NOT TOUCH ──
-        logoSize    = Math.min(cw, ch) * 0.09;
-        const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
-        topY        = ch * 0.35 - totalH / 2;
-        wmCx        = cw / 2 + cw * 0.05;
-        nameFontSize  = Math.round(logoSize * 0.35);
-        mottoFontSize = Math.round(logoSize * 0.13);
-      }
-      if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
-      // App name + motto
-      ctx.globalAlpha = wmAlpha;
-      ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
-      ctx.fillStyle = isDark ? "#FFFFFF" : "#0A2540";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText("Investors Portal", wmCx, topY + logoSize + logoSize * 0.08);
-      ctx.font = `italic ${mottoFontSize}px Helvetica, Arial, sans-serif`;
-      ctx.fillText("Manage Your Investments Digitally", wmCx, topY + logoSize + logoSize * 0.45);
-      ctx.restore();
-
-      const link = document.createElement("a");
-      link.download = `${transaction.company_name}_${transaction.type}_${transaction.date || "txn"}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (e) { /* silent fail */ }
+      await downloadPNGWithWatermark(
+        captureRef.current,
+        `${transaction.company_name}_${transaction.type}_${transaction.date || "txn"}.png`,
+        { isDark, isMobile }
+      );
+    } catch {}
     setDownloading(false);
-  }, [downloading, transaction.company_name, transaction.type, transaction.date]);
+  }, [downloading, transaction.company_name, transaction.type, transaction.date, isDark, isMobile]);
 
   const auditIconColor = isDark ? undefined : "#374151";
   const AUDIT_STEPS = useMemo(() => [

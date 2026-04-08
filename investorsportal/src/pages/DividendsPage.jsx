@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import {
   useTheme,
-  fmt, fmtSmart,
+  fmt, fmtSmart, downloadPNGWithWatermark,
   Btn, StatCard, SectionCard, Modal, ActionMenu,
   DividendFormModal,
 } from "../components/ui";
@@ -240,6 +240,18 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
+  const captureRef = useRef(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPNG = useCallback(async () => {
+    if (!captureRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      const name = dividend.company_name || "Dividend";
+      await downloadPNGWithWatermark(captureRef.current, `${name}_Dividend_${dividend.payment_date || "detail"}.png`, { isDark, isMobile });
+    } catch {}
+    setDownloading(false);
+  }, [downloading, dividend, isDark, isMobile]);
 
   if (!dividend) return null;
 
@@ -398,7 +410,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 680, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div ref={captureRef} style={{ background: C.white, borderRadius: isMobile ? "16px 16px 0 0" : 16, border: `1.5px solid ${C.gray200}`, borderBottom: isMobile ? "none" : undefined, width: "100%", maxWidth: isMobile ? "100%" : 680, maxHeight: isMobile ? "92vh" : "95vh", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "16px 18px 14px" : "18px 24px 16px", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -453,8 +465,11 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
 
         {/* Footer */}
         <div style={{ padding: isMobile ? "8px 18px" : "8px 24px", borderTop: `1px solid ${C.gray100}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, flexShrink: 0 }}>
-          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "65%" : "none" }}>ID: {dividend.id}</span>
-          <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
+          <span style={{ fontSize: isMobile ? 8 : 11, color: C.gray400, fontFamily: "monospace", letterSpacing: isMobile ? 0 : "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: isMobile ? "50%" : "none" }}>ID: {dividend.id}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleDownloadPNG} disabled={downloading} style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: downloading ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "border-color 0.15s", display: "inline-flex", alignItems: "center", gap: 5, opacity: downloading ? 0.6 : 1 }} onMouseEnter={e=>{if(!downloading)e.currentTarget.style.borderColor=C.green}} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}><Icon name="download" size={12} stroke={C.gray500} sw={2} />{downloading ? "Saving..." : "Save"}</button>
+            <button onClick={onClose} style={{ padding: "5px 16px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.15s" }} onMouseEnter={e=>e.currentTarget.style.borderColor=C.navy} onMouseLeave={e=>e.currentTarget.style.borderColor=C.gray200}>Close</button>
+          </div>
         </div>
       </div>
     </div>

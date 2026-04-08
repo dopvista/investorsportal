@@ -1,7 +1,9 @@
 // ── src/components/ui.jsx ────────────────────────────────────────
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
+import html2canvas from "html2canvas";
 import { Icon } from "../lib/icons";
+import logo from "../assets/logo.jpg";
 
 // ── Theme system re-exports ───────────────────────────────────────
 export { useTheme } from "../lib/theme";
@@ -30,6 +32,19 @@ export const fmt = (n) => {
 
 export const fmtInt = (n) => Number(n || 0).toLocaleString("en-US");
 
+// ── Comma-formatted input helpers ──
+// Display a raw numeric string with thousand separators (e.g. "100000.00" → "100,000.00")
+export const commaVal = (v) => {
+  if (!v && v !== 0) return "";
+  const s = String(v).replace(/,/g, "");
+  if (s === "" || s === "-") return s;
+  const parts = s.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+};
+// Strip commas from user input before storing in state
+export const stripCommas = (v) => String(v).replace(/,/g, "");
+
 export const fmtSmart = (n) => {
   const v = Number(n || 0);
   if (v >= 1_000_000_000) return (v / 1_000_000_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "B";
@@ -37,6 +52,78 @@ export const fmtSmart = (n) => {
   if (v >= 1_000)         return (v / 1_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "K";
   return v.toLocaleString("en-US");
 };
+
+// ── Shared PNG download with watermark ─────────────────────────────
+export async function downloadPNGWithWatermark(el, filename, { isDark, isMobile }) {
+  const srcCanvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+  const canvas = document.createElement("canvas");
+  canvas.width = srcCanvas.width;
+  canvas.height = srcCanvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(srcCanvas, 0, 0);
+  const cw = canvas.width, ch = canvas.height;
+  const wmAlpha = 0.08;
+  ctx.save();
+  ctx.globalAlpha = wmAlpha;
+  const logoImg = await new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const s = 256, r = s * 0.22, pad = 4;
+      const c = document.createElement("canvas");
+      c.width = s + pad * 2; c.height = s + pad * 2;
+      const lc = c.getContext("2d");
+      const rrect = (rx, ry, w, h, cr) => {
+        lc.beginPath(); lc.moveTo(rx + cr, ry); lc.lineTo(rx + w - cr, ry);
+        lc.quadraticCurveTo(rx + w, ry, rx + w, ry + cr); lc.lineTo(rx + w, ry + h - cr);
+        lc.quadraticCurveTo(rx + w, ry + h, rx + w - cr, ry + h); lc.lineTo(rx + cr, ry + h);
+        lc.quadraticCurveTo(rx, ry + h, rx, ry + h - cr); lc.lineTo(rx, ry + cr);
+        lc.quadraticCurveTo(rx, ry, rx + cr, ry); lc.closePath();
+      };
+      lc.save(); rrect(pad, pad, s, s, r); lc.clip();
+      lc.drawImage(img, pad, pad, s, s); lc.restore();
+      lc.strokeStyle = isDark ? "#FFFFFF" : "#0A2540"; lc.lineWidth = isDark ? s * 0.02 : s * 0.06;
+      rrect(pad, pad, s, s, r); lc.stroke();
+      const result = new Image();
+      result.src = c.toDataURL("image/png");
+      result.onload = () => resolve(result);
+      result.onerror = () => resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = logo;
+  });
+  const isMobileCapture = isMobile || cw / ch < 0.7;
+  let logoSize, topY, wmCx, nameFontSize, mottoFontSize;
+  if (isMobileCapture) {
+    logoSize = Math.min(cw, ch) * 0.18;
+    const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
+    topY = ch * 0.57 - totalH / 2;
+    wmCx = cw / 2;
+    nameFontSize = Math.round(logoSize * 0.3);
+    mottoFontSize = Math.round(logoSize * 0.11);
+  } else {
+    logoSize = Math.min(cw, ch) * 0.18;
+    const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
+    topY = ch * 0.55 - totalH / 2;
+    wmCx = cw / 2 + cw * 0.02;
+    nameFontSize = Math.round(logoSize * 0.35);
+    mottoFontSize = Math.round(logoSize * 0.13);
+  }
+  if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
+  ctx.globalAlpha = wmAlpha;
+  ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
+  ctx.fillStyle = isDark ? "#FFFFFF" : "#0A2540";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("Investors Portal", wmCx, topY + logoSize + logoSize * 0.08);
+  ctx.font = `italic ${mottoFontSize}px Helvetica, Arial, sans-serif`;
+  ctx.fillText("Manage Your Investments Digitally", wmCx, topY + logoSize + logoSize * 0.45);
+  ctx.restore();
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
 
 // ── DSE Fee Calculator ─────────────────────────────────────────────
 export const calcFees = (tradeValue) => {
@@ -208,7 +295,7 @@ export function FInput({ label, required, ...props }) {
     <FormField label={label} required={required} C={C}>
       <input
         {...props}
-        style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer" } : {}), ...props.style }}
+        style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer", height: 40 } : {}), ...props.style }}
         onFocus={e => !props.readOnly && (e.target.style.borderColor = C.green)}
         onBlur={e => (e.target.style.borderColor = C.gray200)}
       />
@@ -470,7 +557,7 @@ export function CompanyFormModal({ company, onConfirm, onClose }) {
       {/* FIX 1: inputMode="decimal" + autoComplete="off" suppresses the iOS/Android
           QuickType autofill bar (Key, Card, Location) on numeric fields.
           Previously type="number" alone triggered the autofill suggestion row. */}
-      {!isEdit && <FInput label="Opening Price (TZS)" required type="text" inputMode="decimal" autoComplete="new-password" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={price} onChange={e => { setPrice(e.target.value); setError(""); }} placeholder="0.00" />}
+      {!isEdit && <FInput label="Opening Price (TZS)" required type="text" inputMode="decimal" autoComplete="new-password" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-lpignore="true" value={commaVal(price)} onChange={e => { setPrice(stripCommas(e.target.value)); setError(""); }} placeholder="0" />}
       <FInput label="Sector" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="e.g. Banking, Telecom, Energy..." />
     </ModalShell>
   );
@@ -529,8 +616,8 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
           spellCheck={false}
           data-form-type="other"
           data-lpignore="true"
-          value={newPrice}
-          onChange={e => { setNewPrice(e.target.value); setError(""); }}
+          value={commaVal(newPrice)}
+          onChange={e => { setNewPrice(stripCommas(e.target.value)); setError(""); }}
           placeholder="Enter new price..."
           autoFocus
           style={{ ...fieldStyle, fontSize: 15, fontWeight: 700, border: `1.5px solid ${error ? C.red : C.gray200}` }}
@@ -950,7 +1037,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
             autoComplete="new-password" autoCorrect="off" autoCapitalize="off"
             spellCheck={false} data-form-type="other" data-lpignore="true"
             min="1" max={!isBuy && maxSellQty > 0 ? maxSellQty : undefined}
-            value={form.qty} onChange={e => { setForm(f => ({ ...f, qty: e.target.value })); setError(""); }}
+            value={commaVal(form.qty)} onChange={e => { setForm(f => ({ ...f, qty: stripCommas(e.target.value) })); setError(""); }}
             placeholder="0"
             style={!isBuy && form.qty && Number(form.qty) > maxSellQty ? { borderColor: C.red } : {}}
           />
@@ -960,9 +1047,9 @@ export function TransactionFormModal({ transaction, companies, transactions = []
           label="Price per Share (TZS)" required type="text" inputMode="decimal"
           autoComplete="new-password" autoCorrect="off" autoCapitalize="off"
           spellCheck={false} data-form-type="other" data-lpignore="true"
-          min="0.01" value={form.price}
-          onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setError(""); }}
-          placeholder="0.00"
+          min="0.01" value={commaVal(form.price)}
+          onChange={e => { setForm(f => ({ ...f, price: stripCommas(e.target.value) })); setError(""); }}
+          placeholder="0"
         />
       </div>
 
@@ -1351,14 +1438,14 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
     const dps = Number(form.dividendPerShare) || 0;
     const shares = Number(form.sharesHeld) || 0;
     if (dps > 0 && shares > 0) {
-      const total = (dps * shares).toFixed(2);
-      const wht = (Number(total) * 0.05).toFixed(2);
+      const total = String(Math.round(dps * shares));
+      const wht = String(Math.round(Number(total) * 0.05));
       setForm(f => ({ ...f, totalAmount: total, withholdingTax: wht }));
     }
   }, [form.dividendPerShare, form.sharesHeld]);
 
   const netAmount = useMemo(() => {
-    return ((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)).toFixed(2);
+    return String(Math.round((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)));
   }, [form.totalAmount, form.withholdingTax]);
 
   const handleSubmit = () => {
@@ -1425,19 +1512,19 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
             <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "—"}</div>
           </FormField>
         )}
-        <FInput label="Shares Held" type="text" inputMode="numeric" value={form.sharesHeld} onChange={e => { setForm(f => ({ ...f, sharesHeld: e.target.value })); setError(""); }} placeholder="e.g. 500" />
+        <FInput label="Shares Held" type="text" inputMode="numeric" value={commaVal(form.sharesHeld)} onChange={e => { setForm(f => ({ ...f, sharesHeld: stripCommas(e.target.value) })); setError(""); }} placeholder="e.g. 500" />
       </div>
 
       {/* Row 2: Dividend/Share + Total Amount */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={form.dividendPerShare} onChange={e => { setForm(f => ({ ...f, dividendPerShare: e.target.value })); setError(""); }} placeholder="0.00" />
-        <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={form.totalAmount} onChange={e => { setForm(f => ({ ...f, totalAmount: e.target.value })); setError(""); }} placeholder="0.00" />
+        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
+        <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={commaVal(form.totalAmount)} onChange={e => { setForm(f => ({ ...f, totalAmount: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
       </div>
 
       {/* Row 3: Withholding Tax + Net Amount */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
-          <FInput label="Withholding Tax (5%)" type="text" inputMode="decimal" value={form.withholdingTax} onChange={e => { setForm(f => ({ ...f, withholdingTax: e.target.value })); setError(""); }} placeholder="0.00" />
+          <FInput label="Withholding Tax (5%)" type="text" inputMode="decimal" value={commaVal(form.withholdingTax)} onChange={e => { setForm(f => ({ ...f, withholdingTax: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
           <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Auto-filled at 5% (DSE WHT rate)</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1472,6 +1559,8 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const [page, setPage] = useState(1);
+  const [downloading, setDownloading] = useState(false);
+  const captureRef = useRef(null);
   const PAGE_SIZE = 10;
 
   const totalNet = useMemo(() => dividends.reduce((s, d) => s + Number(d.net_amount || d.total_amount || 0), 0), [dividends]);
@@ -1483,6 +1572,15 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
     ex_date_passed: { bg: isDark ? "rgba(96,165,250,0.15)" : "#DBEAFE", color: isDark ? "#60a5fa" : "#1e40af", label: "Ex-Date" },
     paid:           { bg: isDark ? "rgba(52,211,153,0.15)" : "#D1FAE5", color: isDark ? "#34d399" : "#065f46", label: "Paid" },
   }[status] || { bg: C.gray100, color: C.gray500, label: status });
+
+  const handleDownloadPNG = useCallback(async () => {
+    if (!captureRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadPNGWithWatermark(captureRef.current, `${companyName}_Dividends.png`, { isDark, isMobile });
+    } catch {}
+    setDownloading(false);
+  }, [downloading, companyName, isDark, isMobile]);
 
   const colWidths = isMobile
     ? ["7%", "22%", "18%", "18%", "17%", "18%"]
@@ -1536,10 +1634,18 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
           <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.4 }}>
             {dividends.length} record{dividends.length !== 1 ? "s" : ""} total
           </div>
-          <Btn variant="secondary" onClick={onClose}>Close</Btn>
+          <div style={{ display: "flex", gap: 8 }}>
+            {dividends.length > 0 && (
+              <Btn variant="primary" onClick={handleDownloadPNG} disabled={downloading} icon={<Icon name="download" size={14} stroke="#ffffff" />}>
+                {downloading ? "Saving..." : "Save PNG"}
+              </Btn>
+            )}
+            <Btn variant="secondary" onClick={onClose}>Close</Btn>
+          </div>
         </div>
       }
     >
+      <div ref={captureRef} style={{ background: C.white }}>
       {dividends.length === 0 ? (
         <div style={{ textAlign: "center", padding: isMobile ? "20px 12px" : "24px 16px", color: C.gray400 }}>
           <div style={{ fontSize: 30, marginBottom: 8 }}><Icon name="dollarSign" size={32} stroke={C.gray300} sw={1.5} /></div>
@@ -1597,6 +1703,7 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
           <PaginationBar />
         </>
       )}
+      </div>
     </ModalShell>
   );
 }
