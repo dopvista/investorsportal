@@ -546,18 +546,30 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
         img.src = logo;
       });
       const isMobileCapture = isMobile || cw / ch < 0.7;
-      // Desktop: original tuned positions — DO NOT TOUCH
-      // Mobile: dead-centre on canvas
-      const logoSize = isMobileCapture ? Math.min(cw, ch) * 0.18 : Math.min(cw, ch) * 0.09;
-      const cx = cw / 2;
-      const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
-      const topY = isMobileCapture ? ch * 0.57 - totalH / 2 : ch * 0.35 - totalH / 2;
-      const wmCx = isMobileCapture ? cw / 2 : cx + cw * 0.05;
+
+      // ── Watermark config: MOBILE and DESKTOP are fully separated ──
+      // Edit one block without affecting the other.
+      let logoSize, topY, wmCx, nameFontSize, mottoFontSize;
+      if (isMobileCapture) {
+        // ── MOBILE watermark ──
+        logoSize    = Math.min(cw, ch) * 0.18;
+        const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
+        topY        = ch * 0.57 - totalH / 2;
+        wmCx        = cw / 2;
+        nameFontSize  = Math.round(logoSize * 0.3);
+        mottoFontSize = Math.round(logoSize * 0.11);
+      } else {
+        // ── DESKTOP watermark — DO NOT TOUCH ──
+        logoSize    = Math.min(cw, ch) * 0.09;
+        const totalH = logoSize + logoSize * 0.5 + logoSize * 0.3;
+        topY        = ch * 0.35 - totalH / 2;
+        wmCx        = cw / 2 + cw * 0.05;
+        nameFontSize  = Math.round(logoSize * 0.35);
+        mottoFontSize = Math.round(logoSize * 0.13);
+      }
       if (logoImg) ctx.drawImage(logoImg, wmCx - logoSize / 2, topY, logoSize, logoSize);
-      // App name
+      // App name + motto
       ctx.globalAlpha = wmAlpha;
-      const nameFontSize = Math.round(isMobileCapture ? logoSize * 0.3 : logoSize * 0.35);
-      const mottoFontSize = Math.round(isMobileCapture ? logoSize * 0.11 : logoSize * 0.13);
       ctx.font = `bold ${nameFontSize}px Helvetica, Arial, sans-serif`;
       ctx.fillStyle = isDark ? "#FFFFFF" : "#0A2540";
       ctx.textAlign = "center";
