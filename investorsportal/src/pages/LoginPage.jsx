@@ -790,7 +790,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Nudge: if WebAuthn supported but no passkey yet */}
       {webAuthnSupported && !hasStoredPasskey && (
-        <div style={{ marginTop: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <FingerprintIcon size={13} color={isMobile ? "rgba(255,255,255,0.28)" : C.gray400} />
           <span style={{ fontSize: isMobile ? 11 : 10, color: isMobile ? "rgba(255,255,255,0.28)" : C.gray400 }}>
             Biometric login available after sign-in
@@ -800,7 +800,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
 
       {/* Footer */}
       {!isMobile && (
-        <div style={{ marginTop: 16, paddingTop: 8 }}>
+        <div style={{ marginTop: 6, paddingTop: 6 }}>
           <div style={{ textAlign: "center", fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
           <div style={{ textAlign: "center", fontSize: 10, color: C.gray400, fontWeight: 500, letterSpacing: "0.03em" }}>
             &copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.
