@@ -295,14 +295,17 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
 
   const rangeDays = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
 
+  // Map DB name to DSE ticker (most are identical, handle exceptions)
+  const dseTicker = c.name === "VERTEX ETF" ? "VERTEX-ETF" : c.name;
+
   useEffect(() => {
     let cancelled = false;
     setChartLoading(true);
-    sbGetCompanyPriceHistory(c.id, rangeDays[chartRange]).then(data => {
+    sbGetCompanyPriceHistory(dseTicker, rangeDays[chartRange]).then(data => {
       if (!cancelled) { setChartData(data); setChartLoading(false); }
     }).catch(() => { if (!cancelled) { setChartData([]); setChartLoading(false); } });
     return () => { cancelled = true; };
-  }, [c.id, chartRange]);
+  }, [dseTicker, chartRange]);
 
   const chartColor = isUp ? "#f59e0b" : "#f59e0b"; // amber/orange like reference
 

@@ -1359,13 +1359,25 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
   );
 }
 
-export async function sbGetCompanyPriceHistory(companyId, days = 30) {
-  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-  return _fetchGET(
-    `${BASE}/rest/v1/company_price_history?company_id=eq.${companyId}&date=gte.${since}&order=date.asc&select=date,price,high,low,volume,change`,
-    "Failed to fetch company price history",
-    60_000
+export async function sbGetCompanyPriceHistory(companyName, days = 30) {
+  // Fetch from DSE public historical API
+  const res = await fetch(
+    `https://dse.co.tz/api/get/market/prices/for/range/duration?security_code=${encodeURIComponent(companyName)}&days=${days}&class=EQUITY`,
+    { headers: { "Accept": "application/json" } }
   );
+  if (!res.ok) return [];
+  const json = await res.json();
+  if (!json.success || !Array.isArray(json.data)) return [];
+  return json.data.map(d => ({
+    date: d.trade_date?.split("T")[0],
+    price: d.closing_price,
+    high: d.high,
+    low: d.low,
+    volume: d.volume,
+    opening_price: d.opening_price,
+    turnover: d.turnover,
+    market_cap: d.market_cap,
+  })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function sbGetAllCompanies() {
