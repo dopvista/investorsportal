@@ -285,6 +285,34 @@ Deno.serve(async (req: Request) => {
     }
 
     const updatedCount = results.filter(r => r.status === "updated").length;
+
+    // Step 4: Upsert daily price history snapshots
+    const today = now.slice(0, 10); // YYYY-MM-DD
+    const historyRows = dsePrices.map(dp => {
+      const dbName = DSE_TO_DB_MAP[dp.symbol];
+      const company = dbName ? companyMap.get(dbName) : null;
+      if (!company) return null;
+      return {
+        company_id: company.id,
+        date: today,
+        price: dp.marketPrice,
+        high: dp.high,
+        low: dp.low,
+        volume: dp.volume,
+        change: dp.change,
+      };
+    }).filter(Boolean);
+
+    if (historyRows.length > 0) {
+      try {
+        await supabase
+          .from("company_price_history")
+          .upsert(historyRows, { onConflict: "company_id,date" });
+      } catch (e) {
+        console.error("Failed to upsert price history:", e);
+      }
+    }
+
     await updateFetchStatus(supabase, "success", updatedCount);
 
     return new Response(

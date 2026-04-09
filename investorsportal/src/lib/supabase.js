@@ -1359,6 +1359,15 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
   );
 }
 
+export async function sbGetCompanyPriceHistory(companyId, days = 30) {
+  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  return _fetchGET(
+    `${BASE}/rest/v1/company_price_history?company_id=eq.${companyId}&date=gte.${since}&order=date.asc&select=date,price,high,low,volume,change`,
+    "Failed to fetch company price history",
+    60_000
+  );
+}
+
 export async function sbGetAllCompanies() {
   // Companies change rarely — cache for 2 minutes
   return _fetchGET(

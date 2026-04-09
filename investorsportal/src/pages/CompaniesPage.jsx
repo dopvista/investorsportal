@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef, memo } from "react";
 import {
   sbInsert, sbUpdate, sbDelete,
   sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
-  sbCopyMarketPricesToCds,
+  sbCopyMarketPricesToCds, sbGetCompanyPriceHistory,
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
 import {
@@ -215,6 +215,66 @@ const amberBadgeStyle = (isDark) => ({
   fontWeight: 700,
 });
 
+// ── SVG Price Chart ────────────────────────────────────────────────────
+function PriceChart({ data, color, isDark, C }) {
+  if (!data || data.length < 2) return null;
+
+  const W = 380, H = 160, PX = 0, PY = 16, PB = 22;
+  const prices = data.map(d => d.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+
+  const x = (i) => PX + (i / (data.length - 1)) * (W - PX * 2);
+  const y = (v) => PY + (1 - (v - min) / range) * (H - PY - PB);
+
+  const linePts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.price).toFixed(1)}`).join(" ");
+  const areaPts = `${x(0).toFixed(1)},${(H - PB).toFixed(1)} ${linePts} ${x(data.length - 1).toFixed(1)},${(H - PB).toFixed(1)}`;
+
+  // Y-axis labels (3 ticks)
+  const mid = (min + max) / 2;
+  const fmtK = (v) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}K` : v.toLocaleString();
+
+  // X-axis labels (up to 5)
+  const xLabels = [];
+  const step = Math.max(1, Math.floor((data.length - 1) / 4));
+  for (let i = 0; i < data.length; i += step) xLabels.push(i);
+  if (xLabels[xLabels.length - 1] !== data.length - 1) xLabels.push(data.length - 1);
+
+  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const labelColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {/* Grid lines */}
+      {[min, mid, max].map((v, i) => (
+        <g key={i}>
+          <line x1={PX} y1={y(v)} x2={W - PX} y2={y(v)} stroke={gridColor} strokeDasharray="4,3" />
+          <text x={W - PX - 2} y={y(v) - 4} textAnchor="end" fill={labelColor} fontSize="9" fontWeight="600">{fmtK(v)}</text>
+        </g>
+      ))}
+      {/* Area fill */}
+      <polygon points={areaPts} fill="url(#areaGrad)" />
+      {/* Line */}
+      <polyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* End dot */}
+      <circle cx={x(data.length - 1)} cy={y(prices[prices.length - 1])} r="3.5" fill={color} stroke={isDark ? "#1a1a2e" : "#fff"} strokeWidth="2" />
+      {/* X-axis labels */}
+      {xLabels.map(i => (
+        <text key={i} x={x(i)} y={H - 4} textAnchor="middle" fill={labelColor} fontSize="9" fontWeight="500">
+          {new Date(data[i].date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 // ── Company Detail Popup ───────────────────────────────────────────────
 function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) {
   const { C, isDark } = useTheme();
@@ -222,7 +282,6 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
   const hasCdsPrice   = c.cds_price != null;
   const marketPrice   = Number(c.market_price) || 0;
   const prevPrice     = Number(c.previous_price) || 0;
-  const openingPrice  = Number(c.closing_price) || 0;
   const dseChange     = Number(c.dse_change) || 0;
   const dseHigh       = Number(c.dse_high) || 0;
   const dseLow        = Number(c.dse_low) || 0;
@@ -230,10 +289,27 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
   const changePct     = prevPrice > 0 ? ((dseChange) / prevPrice) * 100 : 0;
   const isUp          = dseChange >= 0;
 
-  const statBox = (label, value, color) => (
-    <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}` }}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: color || C.text, lineHeight: 1.2 }}>{value}</div>
-      <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{label}</div>
+  const [chartRange, setChartRange] = useState("30D");
+  const [chartData, setChartData]   = useState(null);
+  const [chartLoading, setChartLoading] = useState(true);
+
+  const rangeDays = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
+
+  useEffect(() => {
+    let cancelled = false;
+    setChartLoading(true);
+    sbGetCompanyPriceHistory(c.id, rangeDays[chartRange]).then(data => {
+      if (!cancelled) { setChartData(data); setChartLoading(false); }
+    }).catch(() => { if (!cancelled) { setChartData([]); setChartLoading(false); } });
+    return () => { cancelled = true; };
+  }, [c.id, chartRange]);
+
+  const chartColor = isUp ? "#f59e0b" : "#f59e0b"; // amber/orange like reference
+
+  const statBox = (label, value) => (
+    <div style={{ textAlign: "center", padding: "10px 6px", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 9, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{label}</div>
     </div>
   );
 
@@ -252,7 +328,7 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
         ) : null
       }
       onClose={onClose}
-      maxWidth={440}
+      maxWidth={460}
       footer={
         <>
           <Btn variant="secondary" onClick={() => { onClose(); onViewHistory(c); }} icon={<Icon name="trendingUp" size={14} />}>Price History</Btn>
@@ -260,78 +336,49 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
         </>
       }
     >
-      {/* ── DSE Market Data ────────────────────────────────────── */}
-      {marketPrice > 0 ? (
-        <>
-          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-            Today's Market
+      {/* ── Price History Chart ─────────────────────────────── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Price History
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-            {statBox("Opening Price", openingPrice > 0 ? fmt(openingPrice) : "—")}
-            {statBox("Previous Close", prevPrice > 0 ? fmt(prevPrice) : "—")}
-            {statBox("Day Range", dseHigh > 0 && dseLow > 0 ? `${fmt(dseLow)} – ${fmt(dseHigh)}` : "—")}
-            {statBox("Volume", dseVolume > 0 ? dseVolume.toLocaleString() : "—")}
+          <div style={{ display: "flex", gap: 4 }}>
+            {Object.keys(rangeDays).map(r => (
+              <button key={r} onClick={() => setChartRange(r)}
+                style={{ padding: "3px 10px", borderRadius: 14, border: `1px solid ${r === chartRange ? "#f59e0b" : C.gray200}`, background: r === chartRange ? (isDark ? "rgba(245,158,11,0.15)" : "#fffbeb") : "transparent", color: r === chartRange ? "#f59e0b" : C.gray500, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", outline: "none" }}>
+                {r}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Last updated */}
-          {c.price_updated_at && (
-            <div style={{ fontSize: 11, color: C.gray400, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
-              <Icon name="clock" size={11} stroke={C.gray400} />
-              DSE prices updated {new Date(c.price_updated_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+        <div style={{ padding: "12px", borderRadius: 12, background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc", border: `1px solid ${C.gray200}`, minHeight: 120 }}>
+          {chartLoading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, color: C.gray400, fontSize: 12 }}>
+              <style>{`@keyframes _cpSpin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ width: 16, height: 16, border: `2px solid ${C.gray200}`, borderTop: `2px solid #f59e0b`, borderRadius: "50%", animation: "_cpSpin 0.7s linear infinite", marginRight: 8 }} />
+              Loading chart...
+            </div>
+          ) : chartData && chartData.length >= 2 ? (
+            <PriceChart data={chartData} color={chartColor} isDark={isDark} C={C} />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 120, color: C.gray400 }}>
+              <Icon name="barChart" size={24} stroke={C.gray300} />
+              <div style={{ fontSize: 12, marginTop: 8, fontWeight: 600 }}>Not enough data yet</div>
+              <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Chart builds as DSE prices are synced daily</div>
             </div>
           )}
-        </>
-      ) : (
-        <div style={{ padding: "16px", borderRadius: 10, background: isDark ? "rgba(245,158,11,0.08)" : "#fffbeb", border: `1px solid ${isDark ? "rgba(245,158,11,0.2)" : "#fde68a"}`, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-          <Icon name="info" size={16} stroke="#d97706" />
-          <div style={{ fontSize: 12, color: "#d97706" }}>No DSE market data available for this company yet. Prices will appear after the next DSE sync.</div>
+        </div>
+      </div>
+
+      {/* ── Today's Stats (compact row) ────────────────────── */}
+      {marketPrice > 0 && (
+        <div style={{ display: "flex", gap: 8 }}>
+          {statBox("High", dseHigh > 0 ? fmt(dseHigh) : "—")}
+          {statBox("Low", dseLow > 0 ? fmt(dseLow) : "—")}
+          {statBox("Volume", dseVolume > 0 ? dseVolume.toLocaleString() : "—")}
         </div>
       )}
-
-      {/* ── Your Portfolio Price ──────────────────────────────── */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-        Your Portfolio
-      </div>
-      <div style={{ padding: "14px 16px", borderRadius: 12, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}` }}>
-        {hasCdsPrice ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>Your Price</span>
-              <span style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(c.cds_price)}</span>
-            </div>
-            {marketPrice > 0 && (() => {
-              const diff = Number(c.cds_price) - marketPrice;
-              const diffPct = marketPrice > 0 ? (diff / marketPrice) * 100 : 0;
-              const above = diff >= 0;
-              return (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8, background: above ? (isDark ? "rgba(34,197,94,0.08)" : "#f0fdf4") : (isDark ? "rgba(239,68,68,0.08)" : "#fef2f2"), border: `1px solid ${above ? (isDark ? "rgba(34,197,94,0.2)" : "#bbf7d0") : (isDark ? "rgba(239,68,68,0.2)" : "#fecaca")}` }}>
-                  <span style={{ fontSize: 11, color: C.gray500 }}>vs DSE Market</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: above ? C.green : C.red }}>
-                    {above ? "+" : ""}{fmt(diff)} ({above ? "+" : ""}{diffPct.toFixed(2)}%)
-                  </span>
-                </div>
-              );
-            })()}
-            {c.cds_updated_at && (
-              <div style={{ fontSize: 11, color: C.gray400, marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                <Icon name="clock" size={11} stroke={C.gray400} />
-                Updated {new Date(c.cds_updated_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                {c.cds_updated_by && <span> by {c.cds_updated_by}</span>}
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: isDark ? "rgba(245,158,11,0.12)" : "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="dollarSign" size={18} stroke="#d97706" />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>No price set</div>
-              <div style={{ fontSize: 11, color: C.gray500 }}>Tap "Set Price" to start tracking</div>
-            </div>
-          </div>
-        )}
-      </div>
     </ModalShell>
   );
 }
