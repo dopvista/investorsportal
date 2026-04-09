@@ -202,8 +202,26 @@ Deno.serve(async (req: Request) => {
       const oldClosing  = parseFloat(company.closing_price) || 0;
       const newClosing  = dsePrice.openingPrice || 0;
 
+      // Common DSE market data fields (always update these)
+      const dseFields = {
+        dse_change: dsePrice.change,
+        dse_high:   dsePrice.high,
+        dse_low:    dsePrice.low,
+        dse_volume: dsePrice.volume,
+      };
+
       // Skip entirely if both price and closing_price are unchanged
       if (oldPrice === newPrice && (newClosing === 0 || oldClosing === newClosing)) {
+        // Still update market data fields (high/low/volume/change)
+        updateOps.push({
+          dbName,
+          oldPrice,
+          dsePrice,
+          promise: supabase
+            .from("companies")
+            .update({ ...dseFields, updated_at: now })
+            .eq("id", company.id),
+        });
         skipped.push(dbName);
         continue;
       }
@@ -216,7 +234,7 @@ Deno.serve(async (req: Request) => {
           dsePrice,
           promise: supabase
             .from("companies")
-            .update({ closing_price: newClosing, updated_at: now })
+            .update({ closing_price: newClosing, ...dseFields, updated_at: now })
             .eq("id", company.id),
         });
         continue;
@@ -233,6 +251,7 @@ Deno.serve(async (req: Request) => {
             previous_price: oldPrice,
             price: newPrice,
             closing_price: newClosing > 0 ? newClosing : oldClosing,
+            ...dseFields,
             updated_at: now,
           })
           .eq("id", company.id),

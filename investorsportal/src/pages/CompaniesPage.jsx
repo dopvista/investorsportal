@@ -215,53 +215,124 @@ const amberBadgeStyle = (isDark) => ({
   fontWeight: 700,
 });
 
-// ── Mobile Action Sheet ────────────────────────────────────────────────
-function ActionSheet({ company, onUpdatePrice, onViewHistory, onClose }) {
-  const { C } = useTheme();
-  const hasCdsPrice = company.cds_price != null;
+// ── Company Detail Popup ───────────────────────────────────────────────
+function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) {
+  const { C, isDark } = useTheme();
+  const c = company;
+  const hasCdsPrice   = c.cds_price != null;
+  const marketPrice   = Number(c.market_price) || 0;
+  const prevPrice     = Number(c.previous_price) || 0;
+  const openingPrice  = Number(c.closing_price) || 0;
+  const dseChange     = Number(c.dse_change) || 0;
+  const dseHigh       = Number(c.dse_high) || 0;
+  const dseLow        = Number(c.dse_low) || 0;
+  const dseVolume     = Number(c.dse_volume) || 0;
+  const changePct     = prevPrice > 0 ? ((dseChange) / prevPrice) * 100 : 0;
+  const isUp          = dseChange >= 0;
+
+  const statBox = (label, value, color) => (
+    <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}` }}>
+      <div style={{ fontSize: 15, fontWeight: 800, color: color || C.text, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{label}</div>
+    </div>
+  );
+
   return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 401, background: C.white, borderRadius: "18px 18px 0 0", border: `1.5px solid ${C.gray200}`, borderBottom: "none", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "sheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" }}>
-        <style>{`@keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", marginBottom: 3 }}>{company.name}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}><Icon name="pointUp" size={13} stroke="rgba(255,255,255,0.55)" /> Select an action</div>
+    <ModalShell
+      title={c.name}
+      subtitle={c.remarks ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="building" size={13} /> {c.remarks}</span> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="barChart" size={13} /> Company Details</span>}
+      headerRight={
+        marketPrice > 0 ? (
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>TZS {fmt(marketPrice)}</div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3, padding: "2px 8px", borderRadius: 12, background: isUp ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)", fontSize: 11, fontWeight: 700, color: isUp ? "#4ade80" : "#f87171" }}>
+              {isUp ? "▲" : "▼"} {Math.abs(dseChange).toLocaleString()} ({Math.abs(changePct).toFixed(2)}%)
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexShrink: 0, marginLeft: 16 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current</div>
-              {hasCdsPrice
-                ? <div style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(company.cds_price)}</div>
-                : <div style={{ fontSize: 13, color: "#F0B429", fontWeight: 700 }}>No price set</div>}
-            </div>
-            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
+        ) : null
+      }
+      onClose={onClose}
+      maxWidth={440}
+      footer={
+        <>
+          <Btn variant="secondary" onClick={() => { onClose(); onViewHistory(c); }} icon={<Icon name="trendingUp" size={14} />}>Price History</Btn>
+          <Btn variant="primary" onClick={() => { onClose(); onUpdatePrice(c); }} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>{hasCdsPrice ? "Update Price" : "Set Price"}</Btn>
+        </>
+      }
+    >
+      {/* ── DSE Market Data ────────────────────────────────────── */}
+      {marketPrice > 0 ? (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+            Today's Market
           </div>
-        </div>
-        <div style={{ padding: "14px 16px 8px", display: "flex", flexDirection: "column", gap: 9 }}>
-          <button onClick={() => { onClose(); onUpdatePrice(company); }}
-            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.green}44`, background: C.greenBg, color: C.green, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-            <span style={{ fontSize: 22, display: "flex", alignItems: "center" }}><Icon name="dollarSign" size={22} stroke={C.green} /></span>
-            <div>
-              <div style={{ fontWeight: 700 }}>{hasCdsPrice ? "Update Price" : "Set Price"}</div>
-              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>{hasCdsPrice ? "Change your current analysis price" : "Add a price to track performance"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+            {statBox("Opening Price", openingPrice > 0 ? fmt(openingPrice) : "—")}
+            {statBox("Previous Close", prevPrice > 0 ? fmt(prevPrice) : "—")}
+            {statBox("Day Range", dseHigh > 0 && dseLow > 0 ? `${fmt(dseLow)} – ${fmt(dseHigh)}` : "—")}
+            {statBox("Volume", dseVolume > 0 ? dseVolume.toLocaleString() : "—")}
+          </div>
+
+          {/* Last updated */}
+          {c.price_updated_at && (
+            <div style={{ fontSize: 11, color: C.gray400, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="clock" size={11} stroke={C.gray400} />
+              DSE prices updated {new Date(c.price_updated_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
             </div>
-          </button>
-          <button onClick={() => { onClose(); onViewHistory(company); }}
-            style={{ width: "100%", padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.gray100, color: C.text, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-            <span style={{ fontSize: 22, display: "flex", alignItems: "center" }}><Icon name="trendingUp" size={22} stroke={C.text} /></span>
-            <div>
-              <div style={{ fontWeight: 700 }}>Price History</div>
-              <div style={{ fontSize: 11, color: C.gray500, fontWeight: 500 }}>View price changes over time</div>
-            </div>
-          </button>
+          )}
+        </>
+      ) : (
+        <div style={{ padding: "16px", borderRadius: 10, background: isDark ? "rgba(245,158,11,0.08)" : "#fffbeb", border: `1px solid ${isDark ? "rgba(245,158,11,0.2)" : "#fde68a"}`, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon name="info" size={16} stroke="#d97706" />
+          <div style={{ fontSize: 12, color: "#d97706" }}>No DSE market data available for this company yet. Prices will appear after the next DSE sync.</div>
         </div>
-        <div style={{ padding: "0 16px 12px" }}>
-          <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-        </div>
+      )}
+
+      {/* ── Your Portfolio Price ──────────────────────────────── */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+        Your Portfolio
       </div>
-    </>
+      <div style={{ padding: "14px 16px", borderRadius: 12, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}` }}>
+        {hasCdsPrice ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>Your Price</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: C.green }}>TZS {fmt(c.cds_price)}</span>
+            </div>
+            {marketPrice > 0 && (() => {
+              const diff = Number(c.cds_price) - marketPrice;
+              const diffPct = marketPrice > 0 ? (diff / marketPrice) * 100 : 0;
+              const above = diff >= 0;
+              return (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8, background: above ? (isDark ? "rgba(34,197,94,0.08)" : "#f0fdf4") : (isDark ? "rgba(239,68,68,0.08)" : "#fef2f2"), border: `1px solid ${above ? (isDark ? "rgba(34,197,94,0.2)" : "#bbf7d0") : (isDark ? "rgba(239,68,68,0.2)" : "#fecaca")}` }}>
+                  <span style={{ fontSize: 11, color: C.gray500 }}>vs DSE Market</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: above ? C.green : C.red }}>
+                    {above ? "+" : ""}{fmt(diff)} ({above ? "+" : ""}{diffPct.toFixed(2)}%)
+                  </span>
+                </div>
+              );
+            })()}
+            {c.cds_updated_at && (
+              <div style={{ fontSize: 11, color: C.gray400, marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                <Icon name="clock" size={11} stroke={C.gray400} />
+                Updated {new Date(c.cds_updated_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {c.cds_updated_by && <span> by {c.cds_updated_by}</span>}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: isDark ? "rgba(245,158,11,0.12)" : "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="dollarSign" size={18} stroke="#d97706" />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>No price set</div>
+              <div style={{ fontSize: 11, color: C.gray500 }}>Tap "Set Price" to start tracking</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </ModalShell>
   );
 }
 
@@ -780,7 +851,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           company={formModal.company} onConfirm={handleFormConfirm} onClose={closeFormModal} />
       )}
       {actionSheetCompany && (
-        <ActionSheet
+        <CompanyDetailPopup
           company={actionSheetCompany}
           onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
           onViewHistory={viewHistory}
@@ -913,7 +984,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             onMouseEnter={e => { e.currentTarget.style.background = rowBgHover; }}
                             onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
                             <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
-                            <td style={{ padding: "10px 16px", minWidth: 140 }}>
+                            <td style={{ padding: "10px 16px", minWidth: 140, cursor: "pointer" }} onClick={() => setActionSheetCompany(c)}>
                               <div style={{ fontWeight: 700, color: C.text }}>{c.name}</div>
                               {c.remarks && <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{c.remarks}</div>}
                             </td>

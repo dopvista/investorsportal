@@ -1059,6 +1059,14 @@ export async function sbGetPortfolio(cdsNumber) {
         cds_updated_at:          r.cds_updated_at          ?? null,
         cds_price_id:            r.cds_price_id            ?? null,
         cds_price_created_by_id: r.cds_price_created_by_id ?? null,
+        market_price:            r.market_price             ?? null,
+        previous_price:          r.previous_price           ?? null,
+        closing_price:           r.closing_price            ?? null,
+        dse_change:              r.dse_change               ?? 0,
+        dse_high:                r.dse_high                 ?? 0,
+        dse_low:                 r.dse_low                  ?? 0,
+        dse_volume:              r.dse_volume               ?? 0,
+        price_updated_at:        r.price_updated_at         ?? null,
       }));
     }
     if (rpcRes.status !== 404) throw new Error(await rpcRes.text());
@@ -1091,6 +1099,14 @@ export async function sbGetPortfolio(cdsNumber) {
     cds_updated_at:          priceMap[c.id]?.updated_at     ?? null,
     cds_price_id:            priceMap[c.id]?.id             ?? null,
     cds_price_created_by_id: priceMap[c.id]?.created_by_id  ?? null,
+    market_price:            c.price            ?? null,
+    previous_price:          c.previous_price   ?? null,
+    closing_price:           c.closing_price    ?? null,
+    dse_change:              c.dse_change       ?? 0,
+    dse_high:                c.dse_high         ?? 0,
+    dse_low:                 c.dse_low          ?? 0,
+    dse_volume:              c.dse_volume       ?? 0,
+    price_updated_at:        c.updated_at       ?? null,
   }));
 }
 
