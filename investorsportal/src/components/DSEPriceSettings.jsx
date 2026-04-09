@@ -19,10 +19,9 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
   const { C, isDark } = useTheme();
 
   const {
-    enabled, loading, toggling, fetching, savingSchedule,
-    fetchDays,
+    enabled, loading, toggling, fetching,
     lastFetchAt, lastFetchStatus, lastFetchCount,
-    toggleAutoFetch, updateFetchDays,
+    toggleAutoFetch,
     fetchNow, error,
   } = useDSEPriceFetch(supabase);
 
@@ -32,11 +31,6 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
     setFetchMsg(null);
     const result = await fetchNow("SA Manual Fetch");
     if (result) setFetchMsg({ result });
-  };
-
-  const handleDaysChange = async (days) => {
-    if (savingSchedule || days === fetchDays) return;
-    await updateFetchDays(days);
   };
 
   const statusOk  = lastFetchStatus === "success";
@@ -96,34 +90,42 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
           </div>
 
           {/* Status pill */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 20, background: enabled ? (isDark ? "rgba(34,197,94,0.12)" : "#f0fdf4") : (isDark ? "rgba(255,255,255,0.05)" : C.gray50), border: `1px solid ${enabled ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0") : C.gray200}`, marginBottom: 16 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: enabled ? C.green : C.gray400, display: "inline-block" }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: enabled ? C.green : C.gray500 }}>
-              {enabled ? "Active" : "Disabled"}
-            </span>
-            {enabled && (
-              <span style={{ fontSize: 11, color: C.gray500 }}>
-                — Every 5 min · {fetchDays === "weekdays" ? "Weekdays" : "Every day"} · 09:00–17:00 EAT
-              </span>
-            )}
-          </div>
+          {(() => {
+            const now = new Date();
+            const eatMs = now.getTime() + 3 * 60 * 60 * 1000;
+            const eat = new Date(eatMs);
+            const day = eat.getUTCDay();
+            const hour = eat.getUTCHours();
+            const isWeekend = day === 0 || day === 6;
+            const isMarketOpen = !isWeekend && hour >= 9 && hour < 17;
 
-          {/* Day selector */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 7 }}>Fetch Days</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[
-              { value: "weekdays", label: "Mon – Fri" },
-              { value: "everyday", label: "Every Day" },
-            ].map(({ value, label }) => {
-              const active = fetchDays === value;
-              return (
-                <button key={value} onClick={() => handleDaysChange(value)} disabled={savingSchedule}
-                  style={{ flex: 1, padding: "9px 12px", borderRadius: 10, cursor: savingSchedule ? "wait" : "pointer", border: `1.5px solid ${active ? (isDark ? C.green : C.navy) : C.gray200}`, background: active ? (isDark ? `${C.green}12` : `${C.navy}08`) : C.white, fontSize: 13, fontWeight: active ? 700 : 500, color: active ? (isDark ? C.green : C.navy) : C.gray500, fontFamily: "inherit", transition: "all 0.15s" }}>
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+            const pillColor = !enabled ? C.gray400 : isMarketOpen ? C.green : "#f59e0b";
+            const pillBg = !enabled ? (isDark ? "rgba(255,255,255,0.05)" : C.gray50)
+              : isMarketOpen ? (isDark ? "rgba(34,197,94,0.12)" : "#f0fdf4")
+              : (isDark ? "rgba(245,158,11,0.12)" : "#fffbeb");
+            const pillBorder = !enabled ? C.gray200
+              : isMarketOpen ? (isDark ? "rgba(34,197,94,0.3)" : "#bbf7d0")
+              : (isDark ? "rgba(245,158,11,0.3)" : "#fde68a");
+
+            const statusText = !enabled ? "Disabled"
+              : isMarketOpen ? "Active"
+              : isWeekend ? "Paused — Weekend"
+              : hour < 9 ? "Paused — Market opens at 09:00 EAT"
+              : "Paused — Market closed, resumes 09:00 EAT";
+
+            return (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 20, background: pillBg, border: `1px solid ${pillBorder}`, marginBottom: 16 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: pillColor, display: "inline-block" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: pillColor }}>{statusText}</span>
+                {enabled && isMarketOpen && (
+                  <span style={{ fontSize: 11, color: C.gray500 }}>
+                    — Every 5 min · Mon–Fri · 09:00–17:00 EAT
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
         </>
       )}
 

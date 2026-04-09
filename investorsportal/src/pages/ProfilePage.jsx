@@ -1077,14 +1077,14 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gender</label>
-                  <select style={{ ...inp(C, { fontSize: 14, padding: "11px 13px" }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)}>
+                  <select style={{ ...inp(C, { fontSize: 14, padding: "11px 13px", height: 44 }), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)}>
                     <option value="">Select gender</option>
                     {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.gray400, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Date of Birth</label>
-                  <input style={inp(C, { fontSize: 14, padding: "11px 13px", height: 40 })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
+                  <input style={inp(C, { fontSize: 14, padding: "11px 13px", height: 44 })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} />
                 </div>
                 {renderSaveBtn()}
                 {lastSaved && <div style={{ fontSize: 10, color: C.gray400, textAlign: "center", marginTop: 6 }}>Last saved {lastSaved}</div>}
@@ -1247,12 +1247,12 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
                     <Field label="Full Name" required><input style={inp(C)} type="text" placeholder="e.g. Michael Luzigah" value={form.full_name} onChange={e => set("full_name", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} /></Field>
                     <Field label="Phone Number" required><input style={inp(C)} type="tel" placeholder="e.g. +255713262087" value={form.phone} onChange={e => set("phone", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} /></Field>
                     <Field label="Gender">
-                      <select style={{ ...inp(C), cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)}>
+                      <select style={{ ...inp(C), height: 36, cursor: "pointer" }} value={form.gender} onChange={e => set("gender", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)}>
                         <option value="">Select gender</option>
                         {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </Field>
-                    <Field label="Date of Birth"><input style={inp(C, { height: 40 })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} /></Field>
+                    <Field label="Date of Birth"><input style={inp(C, { height: 36 })} type="date" value={form.date_of_birth} onChange={e => set("date_of_birth", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} /></Field>
                     <div style={{ gridColumn: "1 / -1" }}>
                       <Field label="National ID (NIDA)"><input style={inp(C)} type="text" placeholder="e.g. 19820618114670000123" value={form.national_id} onChange={e => set("national_id", e.target.value)} onFocus={focusGreen(C)} onBlur={blurGray(C)} /></Field>
                     </div>

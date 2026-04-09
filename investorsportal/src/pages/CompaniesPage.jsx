@@ -1,6 +1,5 @@
 // ── src/pages/CompaniesPage.jsx ──────────────────────────────────────
 import { useState, useMemo, useEffect, useCallback, useRef, memo } from "react";
-import { createPortal } from "react-dom";
 import {
   sbInsert, sbUpdate, sbDelete,
   sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
@@ -8,7 +7,7 @@ import {
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
 import {
-  useTheme, fmt, fmtSmart, Btn, StatCard, SectionCard,
+  useTheme, fmt, fmtSmart, Btn, StatCard, SectionCard, ModalShell,
   Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu
 } from "../components/ui";
 import { Icon } from "../lib/icons";
@@ -33,8 +32,6 @@ const useIsMobile = () => {
 };
 
 // Explicit font — portals render into document.body which has no font set
-const DSE_FONT = "'Inter', system-ui, sans-serif";
-
 // ── DSE Price Popup (purely presentational) ──────────────────────────
 const DSEPricePopup = memo(function DSEPricePopup({
   onClose, isMobile,
@@ -50,22 +47,31 @@ const DSEPricePopup = memo(function DSEPricePopup({
     return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  const header = (
-    <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-      <div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>DSE Price Updates</div>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>Fetch latest share prices from DSE</div>
-      </div>
-      <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Icon name="x" size={16} stroke="#ffffff" sw={2.2} />
-      </button>
-    </div>
-  );
+  if (loading) {
+    return (
+      <ModalShell title="DSE Price Updates" subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="barChart" size={15} /> Manage price syncing</span>} onClose={onClose} maxWidth={440} footer={<Btn variant="secondary" onClick={onClose}>Cancel</Btn>}>
+        <div style={{ padding: 20, textAlign: "center", color: C.gray400, fontSize: 13 }}>Loading...</div>
+      </ModalShell>
+    );
+  }
 
-  const body = loading ? (
-    <div style={{ padding: 32, textAlign: "center", color: C.gray400, fontSize: 13 }}>Loading...</div>
-  ) : (
-    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+  return (
+    <ModalShell
+      title="DSE Price Updates"
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="barChart" size={15} /> Manage price syncing</span>}
+      onClose={onClose}
+      maxWidth={440}
+      footer={
+        <>
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" onClick={onFetchNow} loading={fetching} icon={<Icon name="refresh" size={14} stroke="#ffffff" />}>
+            {fetching ? "Updating..." : "Update Prices from DSE"}
+          </Btn>
+        </>
+      }
+    >
+      <style>{`@keyframes dsePulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+
       {/* Server-disabled banner */}
       {serverEnabled === false && (
         <div style={{ padding: "10px 14px", background: isDark ? "rgba(239,68,68,0.08)" : "#fef2f2", borderRadius: 10, border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#fecaca"}`, display: "flex", alignItems: "center", gap: 10 }}>
@@ -77,11 +83,11 @@ const DSEPricePopup = memo(function DSEPricePopup({
         </div>
       )}
 
-      {/* Auto-Fetch Toggle */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}`, opacity: serverEnabled === false ? 0.5 : 1 }}>
+      {/* Auto-Sync Toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 10, border: `1px solid ${C.gray200}`, opacity: serverEnabled === false ? 0.5 : 1 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Auto-Fetch Prices</div>
-          <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Syncs prices in real-time when market is open</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Auto-Sync Prices</div>
+          <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Fetches DSE prices and syncs to your portfolio</div>
         </div>
         <button onClick={toggleAutoFetch} disabled={toggling || serverEnabled === false}
           style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: (toggling || serverEnabled === false) ? "not-allowed" : "pointer", background: (enabled && serverEnabled !== false) ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
@@ -110,9 +116,9 @@ const DSEPricePopup = memo(function DSEPricePopup({
         </div>
       )}
 
-      {/* Last DSE auto-fetch info — badge shows fetch result temporarily, then reverts */}
-      <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Last DSE Auto-Fetch</div>
+      {/* Last fetch info */}
+      <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 10, border: `1px solid ${C.gray200}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Last DSE Price Fetch</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmtDate(lastFetchAt)}</div>
           {(() => {
@@ -123,7 +129,6 @@ const DSEPricePopup = memo(function DSEPricePopup({
               : lastFetchStatus === "success"
                 ? (lastFetchCount > 0 ? `${lastFetchCount} updated` : "All current")
                 : lastFetchStatus === "error" ? "error" : null;
-            const isGreen = isResultMsg || lastFetchStatus === "success";
             if (!badgeText) return null;
             return (
               <span style={{
@@ -139,50 +144,7 @@ const DSEPricePopup = memo(function DSEPricePopup({
           })()}
         </div>
       </div>
-
-      {/* Fetch Now */}
-      <button onClick={onFetchNow} disabled={fetching}
-        style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: fetching ? (isDark ? "rgba(59,130,246,0.3)" : "#93c5fd") : "#3b82f6", color: "#fff", fontWeight: 700, fontSize: 15, cursor: fetching ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.15s" }}>
-        {fetching ? (
-          <><span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "dseSpin 0.8s linear infinite" }} />Updating prices...</>
-        ) : (
-          <><Icon name="download" size={16} stroke="#fff" sw={2} />Update Prices from DSE</>
-        )}
-      </button>
-    </div>
-  );
-
-  const sheetStyle = { fontFamily: DSE_FONT, position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 9999, background: C.white, borderRadius: "18px 18px 0 0", border: `1.5px solid ${C.gray200}`, borderBottom: "none", boxShadow: "0 -8px 32px rgba(0,0,0,0.18)", paddingBottom: "env(safe-area-inset-bottom, 12px)", animation: "dseSheetIn 0.22s cubic-bezier(0.4,0,0.2,1)", willChange: "transform", overflow: "hidden" };
-  const modalStyle = { fontFamily: DSE_FONT, width: "90%", maxWidth: 420, background: C.white, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden", animation: "dseFadeIn 0.2s ease-out" };
-
-  if (isMobile) {
-    return createPortal(
-      <>
-        <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dsePulse{0%,100%{opacity:1}50%{opacity:0.4}}@keyframes dseSheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-        <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
-        <div style={sheetStyle}>
-          {header}
-          {body}
-          <div style={{ padding: "0 20px 12px" }}>
-            <button onClick={onClose} style={{ width: "100%", padding: "13px", borderRadius: 12, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-          </div>
-        </div>
-      </>,
-      document.body
-    );
-  }
-
-  return createPortal(
-    <>
-      <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dsePulse{0%,100%{opacity:1}50%{opacity:0.4}}@keyframes dseFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div onClick={e => e.stopPropagation()} style={modalStyle}>
-          {header}
-          {body}
-        </div>
-      </div>
-    </>,
-    document.body
+    </ModalShell>
   );
 });
 
@@ -227,8 +189,8 @@ function DSEPriceCard({ unpriced, lastFetchAt, onClick, autoSyncEnabled, syncing
           {serverOff
             ? (isMobile ? "Disabled by Admin" : "Auto-Sync Disabled by Admin")
             : autoSyncEnabled
-              ? (syncing ? "Syncing..." : isMobile ? "Auto-Sync ON" : "Auto-Sync DSE Prices ON")
-              : (isMobile ? "Auto-Sync OFF" : "Auto-Sync DSE Prices OFF")}
+              ? (syncing ? "Syncing..." : isMobile ? "Auto-Sync ON" : "Auto-Sync Prices ON")
+              : (isMobile ? "Auto-Sync OFF" : "Auto-Sync Prices OFF")}
         </div>
         <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>
           {serverOff

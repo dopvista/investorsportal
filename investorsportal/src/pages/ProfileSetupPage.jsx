@@ -26,7 +26,8 @@ const useIsMobile = () => {
 };
 
 export default function ProfileSetupPage({ session, onComplete, onCancel }) {
-  const [fullName, setFullName] = useState("");
+  const meta = session?.user?.user_metadata;
+  const [fullName, setFullName] = useState(() => meta?.full_name || meta?.name || "");
   const [phone, setPhone] = useState("");
   const [cdsNumber, setCdsNumber] = useState("");
   const [loading, setLoading] = useState(false);
