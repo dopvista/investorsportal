@@ -2,6 +2,7 @@
 // Compact "Fetch DSE Prices" button for the Portfolio page header
 
 import { useState } from "react";
+import { sbCopyMarketPricesToCds } from "../lib/supabase";
 
 export default function FetchDSEPricesButton({ supabase, cdsNumber, onComplete }) {
   const [fetching, setFetching] = useState(false);
@@ -35,6 +36,15 @@ export default function FetchDSEPricesButton({ supabase, cdsNumber, onComplete }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Fetch failed");
+      }
+
+      // Copy updated market prices to user's CDS portfolio
+      if (cdsNumber) {
+        try {
+          await sbCopyMarketPricesToCds(cdsNumber, "Manual Fetch");
+        } catch (e) {
+          console.warn("[FetchDSEPricesButton] CDS copy failed:", e);
+        }
       }
 
       const n = data.updated_count ?? 0;

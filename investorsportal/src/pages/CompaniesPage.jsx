@@ -13,6 +13,7 @@ import {
 } from "../components/ui";
 import { Icon } from "../lib/icons";
 import { useDSEPriceFetch } from "../hooks/useDSEPriceFetch";
+import { useDSEAutoSync } from "../hooks/useDSEAutoSync";
 
 // ── Mobile breakpoint hook ────────────────────────────────────────────
 const useIsMobile = () => {
@@ -37,9 +38,10 @@ const DSE_FONT = "'Inter', system-ui, sans-serif";
 // ── DSE Price Popup (purely presentational) ──────────────────────────
 const DSEPricePopup = memo(function DSEPricePopup({
   onClose, isMobile,
-  enabled, loading, toggling, fetching, error, fetchMsg,
+  enabled, serverEnabled, active, loading, toggling, fetching, error, fetchMsg,
   lastFetchAt, lastFetchStatus, lastFetchCount,
   toggleAutoFetch, onFetchNow,
+  syncing, lastSynced, lastSyncCount, syncError,
 }) {
   const { C, isDark } = useTheme();
 
@@ -64,17 +66,49 @@ const DSEPricePopup = memo(function DSEPricePopup({
     <div style={{ padding: 32, textAlign: "center", color: C.gray400, fontSize: 13 }}>Loading...</div>
   ) : (
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Server-disabled banner */}
+      {serverEnabled === false && (
+        <div style={{ padding: "10px 14px", background: isDark ? "rgba(239,68,68,0.08)" : "#fef2f2", borderRadius: 10, border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#fecaca"}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon name="ban" size={16} stroke={C.red} sw={2} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>Auto-Sync Disabled by Admin</div>
+            <div style={{ fontSize: 11, color: C.gray500, marginTop: 1 }}>The administrator has turned off DSE price syncing system-wide. Contact your admin to re-enable.</div>
+          </div>
+        </div>
+      )}
+
       {/* Auto-Fetch Toggle */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}`, opacity: serverEnabled === false ? 0.5 : 1 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Auto-Fetch Prices</div>
-          <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Mon–Fri at 4:30 PM (EAT)</div>
+          <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>Syncs prices in real-time when market is open</div>
         </div>
-        <button onClick={toggleAutoFetch} disabled={toggling}
-          style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
-          <div style={{ position: "absolute", top: 3, left: enabled ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+        <button onClick={toggleAutoFetch} disabled={toggling || serverEnabled === false}
+          style={{ position: "relative", width: 48, height: 26, borderRadius: 13, border: "none", cursor: (toggling || serverEnabled === false) ? "not-allowed" : "pointer", background: (enabled && serverEnabled !== false) ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
+          <div style={{ position: "absolute", top: 3, left: (enabled && serverEnabled !== false) ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
         </button>
       </div>
+
+      {/* Auto-sync live indicator */}
+      {active && (
+        <div style={{ padding: "8px 14px", background: syncing ? (isDark ? "rgba(59,130,246,0.08)" : "#eff6ff") : (isDark ? "rgba(34,197,94,0.08)" : "#f0fdf4"), borderRadius: 10, border: `1px solid ${syncing ? (isDark ? "rgba(59,130,246,0.2)" : "#bfdbfe") : (isDark ? "rgba(34,197,94,0.2)" : "#bbf7d0")}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: syncing ? "#3b82f6" : "#22c55e", animation: syncing ? "dsePulse 1s ease-in-out infinite" : "none" }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: syncing ? "#3b82f6" : C.green }}>
+              {syncing ? "Syncing..." : "Auto-sync ON"}
+            </span>
+          </div>
+          <span style={{ fontSize: 11, color: C.gray500 }}>
+            {lastSynced ? `Last: ${new Date(lastSynced).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Waiting..."}
+            {lastSyncCount > 0 && !syncing ? ` · ${lastSyncCount} updated` : ""}
+          </span>
+        </div>
+      )}
+      {syncError && (
+        <div style={{ padding: "6px 14px", fontSize: 11, color: C.red, background: isDark ? "rgba(239,68,68,0.1)" : "#fef2f2", borderRadius: 8 }}>
+          Sync error: {syncError}
+        </div>
+      )}
 
       {/* Last DSE auto-fetch info — badge shows fetch result temporarily, then reverts */}
       <div style={{ padding: "10px 14px", background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", borderRadius: 12, border: `1px solid ${C.gray200}` }}>
@@ -124,7 +158,7 @@ const DSEPricePopup = memo(function DSEPricePopup({
   if (isMobile) {
     return createPortal(
       <>
-        <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dseSheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+        <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dsePulse{0%,100%{opacity:1}50%{opacity:0.4}}@keyframes dseSheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
         <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(2px)" }} />
         <div style={sheetStyle}>
           {header}
@@ -140,7 +174,7 @@ const DSEPricePopup = memo(function DSEPricePopup({
 
   return createPortal(
     <>
-      <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dseFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes dseSpin{to{transform:rotate(360deg)}}@keyframes dsePulse{0%,100%{opacity:1}50%{opacity:0.4}}@keyframes dseFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div onClick={e => e.stopPropagation()} style={modalStyle}>
           {header}
@@ -152,14 +186,21 @@ const DSEPricePopup = memo(function DSEPricePopup({
   );
 });
 
-// ── DSE Price Card — same structure as StatCard, amber accent ─────────
-function DSEPriceCard({ unpriced, lastFetchAt, onClick }) {
+// ── DSE Price Card — reflects auto-sync state ──────────────────────
+function DSEPriceCard({ unpriced, lastFetchAt, onClick, autoSyncEnabled, syncing, lastSynced, isMobile, serverEnabled }) {
   const { C } = useTheme();
   const fmtShort = (iso) => {
     if (!iso) return null;
     return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   };
-  const amber = "#D97706";
+  const fmtTime = (iso) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
+  const serverOff = serverEnabled === false;
+  const accent = serverOff ? "#94a3b8" : autoSyncEnabled ? "#22c55e" : "#D97706";
+  const accentBg = serverOff ? "#f1f5f9" : autoSyncEnabled ? "#f0fdf4" : "#FEF3C7";
+  const accentBorder = serverOff ? "#cbd5e1" : autoSyncEnabled ? "#bbf7d0" : "#FDE68A";
   return (
     <div onClick={onClick} style={{
       background: C.white, border: `1px solid ${C.gray200}`,
@@ -168,20 +209,33 @@ function DSEPriceCard({ unpriced, lastFetchAt, onClick }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)", minWidth: 0,
       cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s",
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = amber; e.currentTarget.style.boxShadow = `0 2px 12px ${amber}22`; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = `0 2px 12px ${accent}22`; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)"; }}
     >
-      <div style={{ width: 36, height: 36, background: "#FEF3C7", border: "1.5px solid #FDE68A", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Icon name="dollarSign" size={17} stroke="#374151" sw={2.2} />
+      <style>{`@keyframes cardPulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+      <div style={{ width: 36, height: 36, background: accentBg, border: `1.5px solid ${accentBorder}`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative" }}>
+        <Icon name={serverOff ? "ban" : autoSyncEnabled ? "refresh" : "dollarSign"} size={17} stroke={serverOff ? "#94a3b8" : autoSyncEnabled ? "#16a34a" : "#374151"} sw={2.2} />
+        {autoSyncEnabled && !serverOff && (
+          <div style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: "50%", background: syncing ? "#3b82f6" : "#22c55e", border: `1.5px solid ${C.white}`, animation: syncing ? "cardPulse 1s ease-in-out infinite" : "none" }} />
+        )}
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-          <span style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Not Priced</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1 }}>{unpriced}</span>
+        <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>
+          {serverOff ? "DSE Prices" : autoSyncEnabled ? "Live Prices" : "DSE Prices"}
         </div>
-        <div style={{ fontSize: 13, color: amber, fontWeight: 800, marginTop: 1 }}>Update Prices</div>
-        <div style={{ fontSize: 8, color: C.gray500, marginTop: 1 }}>
-          {lastFetchAt ? `Updated ${fmtShort(lastFetchAt)}` : "Never fetched"}
+        <div style={{ fontSize: 16, fontWeight: 700, color: accent, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {serverOff
+            ? (isMobile ? "Disabled by Admin" : "Auto-Sync Disabled by Admin")
+            : autoSyncEnabled
+              ? (syncing ? "Syncing..." : isMobile ? "Auto-Sync ON" : "Auto-Sync DSE Prices ON")
+              : (isMobile ? "Auto-Sync OFF" : "Auto-Sync DSE Prices OFF")}
+        </div>
+        <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>
+          {serverOff
+            ? "Contact admin to re-enable"
+            : autoSyncEnabled
+              ? (lastSynced ? `Synced ${fmtTime(lastSynced)}` : "Waiting for first sync...")
+              : (lastSynced ? `Last synced ${fmtTime(lastSynced)}` : "Tap to enable live prices")}
         </div>
       </div>
     </div>
@@ -377,12 +431,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   useEffect(() => { setActiveTab(manageOnly ? "manage" : "portfolio"); }, [manageOnly]);
 
-  // ── DSE auto-fetch toggle state (hoisted so lastFetchAt is available to card) ─
-  // fetchNow is NOT used here — portfolio uses sbCopyMarketPricesToCds instead.
+  // ── DSE auto-fetch state from site_settings (for last-fetch info display) ──
   const {
-    enabled: dseEnabled, loading: dseLoading, toggling: dseToggling,
+    loading: dseLoading,
     lastFetchAt: dseLastFetchAt, lastFetchStatus: dseLastFetchStatus, lastFetchCount: dseLastFetchCount,
-    toggleAutoFetch: dseToggleAutoFetch,
   } = useDSEPriceFetch(supabase);
 
   // Separate local state for the portfolio copy-from-market operation
@@ -436,6 +488,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       if (fromPull) { setRefreshing(false); setPullDistance(0); }
     }
   }, [cdsNumber, showToast]);
+
+  // ── Client-side 1-minute auto-sync (calls edge function → syncs CDS prices) ──
+  const {
+    enabled: dseEnabled, serverEnabled: dseServerEnabled, active: dseActive,
+    syncing: dseSyncing, lastSynced: dseLastSynced,
+    lastCount: dseLastSyncCount, error: dseSyncError, toggle: dseToggleAutoFetch,
+  } = useDSEAutoSync(cdsNumber, loadPortfolio);
 
   const handleDSEFetch = useCallback(async () => {
     setDseFetchMsg(null);
@@ -735,10 +794,12 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
         <DSEPricePopup
           onClose={() => { setShowDSEPopup(false); setDseFetchMsg(null); }}
           isMobile={isMobile}
-          enabled={dseEnabled} loading={dseLoading} toggling={dseToggling}
+          enabled={dseEnabled} serverEnabled={dseServerEnabled} active={dseActive}
+          loading={dseLoading} toggling={false}
           fetching={dseFetching} error={dseError} fetchMsg={dseFetchMsg}
           lastFetchAt={dseLastFetchAt} lastFetchStatus={dseLastFetchStatus} lastFetchCount={dseLastFetchCount}
           toggleAutoFetch={dseToggleAutoFetch}
+          syncing={dseSyncing} lastSynced={dseLastSynced} lastSyncCount={dseLastSyncCount} syncError={dseSyncError}
           onFetchNow={handleDSEFetch}
         />
       )}
@@ -777,14 +838,14 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
             {isMobile ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14, flexShrink: 0 }}>
                 <StatCard label="Holdings" value={portfolioStats.total} sub="In your portfolio" icon={<Icon name="building" size={17} />} color={C.navy} />
-                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} />
+                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} autoSyncEnabled={dseActive} syncing={dseSyncing} lastSynced={dseLastSynced} isMobile={isMobile} serverEnabled={dseServerEnabled} />
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24, flexShrink: 0 }}>
                 <StatCard label="Holdings"      value={portfolioStats.total}                                                  sub="Companies with transactions"  icon={<Icon name="building" size={17} />} color={C.navy}  />
                 <StatCard label="Avg. Price"    value={portfolioStats.avgPrice  ? `TZS ${fmtSmart(portfolioStats.avgPrice)}`  : "—"} sub="Across priced holdings" icon={<Icon name="barChart" size={17} />} color={C.green} />
                 <StatCard label="Highest Price" value={portfolioStats.highest   ? `TZS ${fmtSmart(portfolioStats.highest)}`   : "—"} sub="Top priced holding"      icon={<Icon name="trophy" size={17} />} color={C.gold}  />
-                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} />
+                <DSEPriceCard unpriced={portfolioStats.unpriced} lastFetchAt={dseLastFetchAt} onClick={() => setShowDSEPopup(true)} autoSyncEnabled={dseActive} syncing={dseSyncing} lastSynced={dseLastSynced} isMobile={isMobile} serverEnabled={dseServerEnabled} />
               </div>
             )}
 

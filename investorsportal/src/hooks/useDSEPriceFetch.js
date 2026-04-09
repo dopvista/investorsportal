@@ -186,10 +186,12 @@ export function useDSEPriceFetch(supabase) {
       setError(null);
       setFetchResult(null);
 
+      const token = await resolveToken(supabase);
       const res = await fetch(getSupabaseBase() + "/functions/v1/fetch-dse-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
           "apikey": getAnonKey(),
         },
         body: JSON.stringify({ updated_by: updatedBy }),

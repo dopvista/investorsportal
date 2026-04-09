@@ -1338,7 +1338,7 @@ export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newP
 
 export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
   return _fetchGET(
-    `${BASE}/rest/v1/cds_price_history?company_id=eq.${companyId}&cds_number=eq.${encodeURIComponent(cdsNumber)}&order=created_at.desc`,
+    `${BASE}/rest/v1/cds_price_history?company_id=eq.${companyId}&cds_number=eq.${encodeURIComponent(cdsNumber)}&order=created_at.desc&limit=100`,
     "Failed to fetch CDS price history"
   );
 }
@@ -1388,8 +1388,8 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   const ts             = new Date().toISOString();
   const currentUserId  = getSession()?.user?.id;
 
-  // 1. Get the user's CURRENT holdings (net qty > 0) + market prices in parallel
-  const [txRows, companiesWithPrice] = await Promise.all([
+  // 1. Get holdings, market prices, and existing CDS prices in parallel (Fix #6)
+  const [txRows, companiesWithPrice, existingPrices] = await Promise.all([
     _fetchGET(
       `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&status=eq.verified&select=company_id,type,qty`,
       "Failed to fetch portfolio transactions"
@@ -1397,6 +1397,10 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
     _fetchGET(
       `${BASE}/rest/v1/companies?price=not.is.null&select=id,name,price&order=name.asc`,
       "Failed to fetch market prices"
+    ),
+    _fetchGET(
+      `${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,company_id,price`,
+      "Failed to fetch existing CDS prices"
     ),
   ]);
 
@@ -1410,14 +1414,11 @@ export async function sbCopyMarketPricesToCds(cdsNumber, updatedBy = "Market Pri
   if (!portfolioIds.length) return { updatedCount: 0, results: [], alreadyCurrent: 0, noMarketPrice: 0 };
 
   // Only process companies in the user's portfolio that have a market price
-  const priced = companiesWithPrice.filter(c => portfolioIds.includes(c.id));
+  const portfolioIdSet = new Set(portfolioIds);
+  const priced = companiesWithPrice.filter(c => portfolioIdSet.has(c.id));
   if (!priced.length) return { updatedCount: 0, results: [], alreadyCurrent: 0, noMarketPrice: portfolioIds.length };
 
-  // 2. Get existing CDS prices for this user (to know previous prices)
-  const existingPrices = await _fetchGET(
-    `${BASE}/rest/v1/cds_prices?cds_number=eq.${encodeURIComponent(cdsNumber)}&select=id,company_id,price`,
-    "Failed to fetch existing CDS prices"
-  );
+  // 2. Build existing CDS price lookup
   const existingMap = Object.fromEntries(existingPrices.map(p => [p.company_id, p]));
 
   // 3. Build upsert payloads and history rows — only for prices that changed
