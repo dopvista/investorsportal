@@ -44,6 +44,7 @@ const ProfilePage        = lazy(() => import("./pages/ProfilePage"));
 const ReportsPage        = lazy(() => import("./pages/ReportsPage"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const SystemSettingsPage = lazy(() => import("./pages/SystemSettingsPage"));
+const ChatAssistant      = lazy(() => import("./components/ChatAssistant"));
 
 // ── Static nav data (outside component — never recreated) ─────────
 const NAV = [
@@ -357,6 +358,7 @@ export default function App() {
   );
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [drawerOpen,      setDrawerOpen]      = useState(false);
+  const [aiEnabled,       setAiEnabled]       = useState(true); // AI assistant toggle
 
   const cdsChipRef                    = useRef(null);
   const toastTimerRef                 = useRef(null);
@@ -599,6 +601,15 @@ export default function App() {
     } catch {
       return () => { cancelled = true; };
     }
+  }, []);
+
+  // ── AI assistant enabled setting ──────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    sbGetSiteSettings("ai_assistant_enabled").then(data => {
+      if (!cancelled && data) setAiEnabled(data.enabled !== false);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // ── App core data load ────────────────────────────────────────────
@@ -1335,6 +1346,18 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {session && profile && role && aiEnabled && (
+        <Suspense fallback={null}>
+          <ChatAssistant
+            session={session}
+            role={role}
+            currentPage={tab}
+            cdsNumber={activeCdsNumber}
+            userName={profile?.full_name?.split(" ")[0] || ""}
+          />
+        </Suspense>
       )}
 
       <Toast msg={toast.msg} type={toast.type} />
