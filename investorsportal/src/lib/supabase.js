@@ -1360,13 +1360,13 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
 }
 
 export async function sbGetCompanyPriceHistory(companyName, days = 30) {
-  // Fetch from DSE public historical API
+  // Proxy through our edge function to avoid browser TLS/CORS issues
   try {
-    const res = await fetch(
-      `https://dse.co.tz/api/get/market/prices/for/range/duration?security_code=${encodeURIComponent(companyName)}&days=${days}&class=EQUITY`,
-      { headers: { "Accept": "application/json" } }
+    const res = await fetchWithTimeout(
+      `${BASE}/functions/v1/dse-price-history?symbol=${encodeURIComponent(companyName)}&days=${days}`,
+      { method: "GET", headers: { ...headers(token()), "Accept": "application/json" } }
     );
-    if (!res.ok) { console.warn("[PriceHistory] DSE API status:", res.status); return []; }
+    if (!res.ok) { console.warn("[PriceHistory] proxy status:", res.status); return []; }
     const json = await res.json();
     if (!json.success || !Array.isArray(json.data)) return [];
     return json.data.map(d => ({
