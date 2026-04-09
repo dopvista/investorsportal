@@ -1362,9 +1362,9 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
 export async function sbGetCompanyPriceHistory(companyName, days = 30) {
   // Proxy through our edge function to avoid browser TLS/CORS issues
   try {
-    const res = await fetchWithTimeout(
+    const res = await fetch(
       `${BASE}/functions/v1/dse-price-history?symbol=${encodeURIComponent(companyName)}&days=${days}`,
-      { method: "GET", headers: { ...headers(token()), "Accept": "application/json" } }
+      { headers: { "Authorization": `Bearer ${token()}`, "apikey": KEY } }
     );
     if (!res.ok) { console.warn("[PriceHistory] proxy status:", res.status); return []; }
     const json = await res.json();
