@@ -45,6 +45,19 @@ export const commaVal = (v) => {
 // Strip commas from user input before storing in state
 export const stripCommas = (v) => String(v).replace(/,/g, "");
 
+// Convert to Proper Case — "oscar mollel" → "Oscar Mollel"
+export const toProperCase = (s) =>
+  (s || "").replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+// Standardize TZ phone to E.164: +255XXXXXXXXX
+export const formatPhoneTZ = (p) => {
+  const d = (p || "").replace(/[\s\-()]/g, "");
+  if (/^\+255\d{9}$/.test(d)) return d;           // already correct
+  if (/^0\d{9}$/.test(d)) return "+255" + d.slice(1); // 0712… → +255712…
+  if (/^\d{9}$/.test(d)) return "+255" + d;         // 712… → +255712…
+  return d; // non-TZ or unusual — return cleaned
+};
+
 export const fmtSmart = (n) => {
   const v = Number(n || 0);
   if (v >= 1_000_000_000) return (v / 1_000_000_000).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "B";

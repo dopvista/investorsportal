@@ -9,6 +9,9 @@ import {
 import { useTheme } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
+// Protected Super Admin — cannot be deactivated via UI
+const PROTECTED_SA_ID = "435d4d00-feda-4d66-9807-c55d494678bf";
+
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768
@@ -647,13 +650,16 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
   const [sel, setSel]       = useState(() => roles.find(r=>r.code===user.role_code)?.id ?? "");
   const [saving, setSaving] = useState(false);
 
+  const isProtectedSA = user.id === PROTECTED_SA_ID && user.role_code === "SA";
+
   const handleSave = useCallback(async () => {
+    if (isProtectedSA) { showToast("Cannot change role for the protected Super Admin","error"); return; }
     if (!sel) return showToast("Select a role","error");
     setSaving(true);
     try { await onSave(user.id, parseInt(sel, 10)); onClose(); }
     catch (e) { showToast(e.message, "error"); }
     finally { setSaving(false); }
-  }, [sel, showToast, onSave, user.id, onClose]);
+  }, [sel, showToast, onSave, user.id, onClose, isProtectedSA]);
 
   return (
     <Modal title="Change Role" subtitle={`Assigning to ${user.full_name||"user"}`} onClose={onClose} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSave} label="Save Role" loading={saving}/></>}>
@@ -692,25 +698,44 @@ const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onCon
   const { C } = useTheme();
   const [saving, setSaving] = useState(false);
   const deactivating = user.is_active;
+  const isProtected = user.id === PROTECTED_SA_ID && deactivating;
 
   const handleConfirm = useCallback(async () => {
+    if (isProtected) return;
     setSaving(true);
     try { await onConfirm(user); onClose(); }
     catch (e) { setSaving(false); showToast(e.message, "error"); }
-  }, [onConfirm, user, onClose, showToast]);
+  }, [onConfirm, user, onClose, showToast, isProtected]);
 
   return (
     <Modal
       title={deactivating ? "Deactivate User" : "Reactivate User"}
       onClose={onClose}
-      footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleConfirm} label={deactivating ? "Yes, Deactivate" : "Yes, Reactivate"} color={deactivating ? C.red : C.green} loading={saving}/></>}
+      footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleConfirm} label={deactivating ? "Yes, Deactivate" : "Yes, Reactivate"} color={isProtected ? C.gray400 : (deactivating ? C.red : C.green)} loading={saving} disabled={isProtected}/></>}
     >
       <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
-        <div style={{ width:56, height:56, borderRadius:14, background:deactivating ? "#FEE2E2" : "#D1FAE5", border:`1.5px solid ${deactivating ? "#FECACA" : "#A7F3D0"}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}><Icon name={deactivating ? "ban" : "checkCircle"} size={28} stroke="#374151" sw={2} /></div>
-        <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:8 }}>{deactivating ? `Deactivate ${user.full_name}?` : `Reactivate ${user.full_name}?`}</div>
-        <div style={{ fontSize:13, color:C.gray500, lineHeight:1.7 }}>
-          {deactivating ? "This user will lose access immediately. Their data is preserved and they can be reactivated anytime." : "This user will regain access with their previous role restored."}
-        </div>
+        {isProtected ? (
+          <>
+            <div style={{ width:56, height:56, borderRadius:14, background:"#FEF3C7", border:"1.5px solid #FDE68A", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
+              <Icon name="shield" size={28} stroke="#D97706" sw={2} />
+            </div>
+            <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:8 }}>Protected Account</div>
+            <div style={{ fontSize:13, color:C.gray500, lineHeight:1.7, marginBottom:10 }}>
+              <strong>{user.full_name}</strong> is the system owner and Super Admin. This account cannot be deactivated.
+            </div>
+            <div style={{ padding:"8px 14px", borderRadius:8, background:"#FFFBEB", border:"1px solid #FDE68A", fontSize:12, color:"#92400E", fontWeight:600 }}>
+              This protection is enforced at the database level.
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ width:56, height:56, borderRadius:14, background:deactivating ? "#FEE2E2" : "#D1FAE5", border:`1.5px solid ${deactivating ? "#FECACA" : "#A7F3D0"}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}><Icon name={deactivating ? "ban" : "checkCircle"} size={28} stroke="#374151" sw={2} /></div>
+            <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:8 }}>{deactivating ? `Deactivate ${user.full_name}?` : `Reactivate ${user.full_name}?`}</div>
+            <div style={{ fontSize:13, color:C.gray500, lineHeight:1.7 }}>
+              {deactivating ? "This user will lose access immediately. Their data is preserved and they can be reactivated anytime." : "This user will regain access with their previous role restored."}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

@@ -1,6 +1,6 @@
 // ── src/pages/ProfilePage.jsx ───────────────────────────────────── 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { useTheme } from "../components/ui";
+import { useTheme, toProperCase, formatPhoneTZ } from "../components/ui";
 import { ROLE_META } from "../lib/constants";
 import AvatarCropModal from "../components/AvatarCropModal";
 import logo from "../assets/logo.jpg";
@@ -626,7 +626,8 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     try {
       const tok  = session?.access_token || KEY;
       const uid2 = session?.user?.id || profile?.id;
-      const res  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, { method: "PATCH", headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" }, body: JSON.stringify(form) });
+      const saveForm = { ...form, full_name: toProperCase(form.full_name), phone: formatPhoneTZ(form.phone) };
+      const res  = await fetch(`${BASE}/rest/v1/profiles?id=eq.${uid2}`, { method: "PATCH", headers: { "Content-Type": "application/json", apikey: KEY, "Authorization": `Bearer ${tok}`, "Prefer": "return=representation" }, body: JSON.stringify(saveForm) });
       if (!res.ok) { const errText = await res.text().catch(() => "Save failed"); throw new Error(errText); }
       const rows = await res.json();
       if (!isMountedRef.current) return;

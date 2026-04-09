@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { sbUpsertProfile, sbAutoAssignRole } from "../lib/supabase";
-import { C } from "../components/ui";
+import { C, toProperCase, formatPhoneTZ } from "../components/ui";
 import logo from "../assets/logo.jpg";
 
 // ── Mobile breakpoint — 80ms debounce, consistent with all other pages ──
@@ -86,8 +86,8 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
       setLoading(true);
       try {
         const profileData = {
-          full_name: trimmedName,
-          phone: trimmedPhone,
+          full_name: toProperCase(trimmedName),
+          phone: formatPhoneTZ(trimmedPhone),
         };
         const trimmedCds = cdsNumber.trim();
         const fullCds = trimmedCds ? `CDS-${trimmedCds}` : "";
