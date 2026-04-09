@@ -712,7 +712,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
     </div>
   );
 
-  const colWidths = isMobile ? ["7%", "37%", "18%", "18%", "20%"] : ["4%", "23%", "13%", "13%", "16%", "31%"];
+  const colWidths = ["7%", "33%", "20%", "20%", "20%"];
 
   return (
     <ModalShell
@@ -725,7 +725,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
         </div>
       }
       onClose={onClose}
-      maxWidth={isMobile ? 560 : 740}
+      maxWidth={440}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 10 }}>
           <div style={{ fontSize: 12, color: C.gray400, lineHeight: 1.4 }}>
@@ -752,7 +752,7 @@ export function PriceHistoryModal({ company, history, onClose }) {
             </colgroup>
             <thead>
               <tr style={{ background: C.gray50 }}>
-                {["#", "Date & Time", "Old Price", "New Price", "Change", !isMobile && "Updated By"].filter(Boolean).map(h => (
+                {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
                   <th key={h} style={{ padding: isMobile ? "8px 8px" : "9px 8px", textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: isMobile ? 10 : 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
                 ))}
               </tr>
@@ -781,13 +781,6 @@ export function PriceHistoryModal({ company, history, onClose }) {
                         </span>
                       )}
                     </td>
-                    {!isMobile && (
-                      <td style={{ padding: "9px 8px", textAlign: "left", overflow: "hidden" }}>
-                        {h.updated_by
-                          ? <span style={{ fontSize: 11, color: C.gray600, background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 6, padding: "2px 7px", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.updated_by}</span>
-                          : <span style={{ color: C.gray400 }}>—</span>}
-                      </td>
-                    )}
                   </tr>
                 );
               })}

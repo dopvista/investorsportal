@@ -7,8 +7,8 @@ import {
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
 import {
-  useTheme, fmt, fmtSmart, Btn, StatCard, SectionCard, ModalShell,
-  Modal, PriceHistoryModal, UpdatePriceModal, CompanyFormModal, ActionMenu
+  useTheme, fmt, fmtSmart, commaVal, stripCommas, Btn, StatCard, SectionCard, ModalShell,
+  Modal, UpdatePriceModal, CompanyFormModal, ActionMenu
 } from "../components/ui";
 import { Icon } from "../lib/icons";
 import { useDSEPriceFetch } from "../hooks/useDSEPriceFetch";
@@ -215,90 +215,205 @@ const amberBadgeStyle = (isDark) => ({
   fontWeight: 700,
 });
 
-// ── SVG Price Chart ────────────────────────────────────────────────────
-function PriceChart({ data, color, isDark, C }) {
-  if (!data || data.length < 2) return null;
+// ── Interactive SVG Price Chart ────────────────────────────────────────
+// Nice-number Y-axis ticks: round intervals like 500, 1K, 2K, 5K
+function niceYTicks(dataMin, dataMax, targetCount = 5) {
+  const rawRange = dataMax - dataMin || 1;
+  const rawStep = rawRange / (targetCount - 1);
+  // Round step to nearest "nice" number: 1, 2, 5, 10, 20, 50, 100, 200, 500...
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const residual = rawStep / mag;
+  const niceStep = residual <= 1.5 ? mag : residual <= 3 ? 2 * mag : residual <= 7 ? 5 * mag : 10 * mag;
+  const lo = Math.floor(dataMin / niceStep) * niceStep;
+  const hi = Math.ceil(dataMax / niceStep) * niceStep;
+  const ticks = [];
+  for (let v = lo; v <= hi + niceStep * 0.01; v += niceStep) ticks.push(Math.round(v));
+  return { ticks, lo, hi };
+}
 
-  const W = 380, H = 160, PX = 0, PY = 16, PB = 22;
-  const prices = data.map(d => d.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
+// Chart layout constants — hoisted to avoid recreation
+const CHART_W = 420, CHART_H = 180, CHART_PL = 36, CHART_PR = 10, CHART_PT = 30, CHART_PB = 20;
+const CHART_CW = CHART_W - CHART_PL - CHART_PR;
+const CHART_CH = CHART_H - CHART_PT - CHART_PB;
+const DAY_MS = 86400000;
+const RANGE_DAYS = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
 
-  const x = (i) => PX + (i / (data.length - 1)) * (W - PX * 2);
-  const y = (v) => PY + (1 - (v - min) / range) * (H - PY - PB);
+const PriceChart = memo(function PriceChart({ data, color, isDark, C, onHover }) {
+  const svgRef = useRef(null);
+  const [hoverIdx, setHoverIdx] = useState(null);
 
-  const linePts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.price).toFixed(1)}`).join(" ");
-  const areaPts = `${x(0).toFixed(1)},${(H - PB).toFixed(1)} ${linePts} ${x(data.length - 1).toFixed(1)},${(H - PB).toFixed(1)}`;
+  // Memoize all heavy chart computations
+  const chartCalc = useMemo(() => {
+    if (!data || data.length < 2) return null;
 
-  // Y-axis labels (3 ticks)
-  const mid = (min + max) / 2;
-  const fmtK = (v) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}K` : v.toLocaleString();
+    const prices = data.map(d => d.price);
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < prices.length; i++) {
+      if (prices[i] < min) min = prices[i];
+      if (prices[i] > max) max = prices[i];
+    }
 
-  // X-axis labels (up to 5)
-  const xLabels = [];
-  const step = Math.max(1, Math.floor((data.length - 1) / 4));
-  for (let i = 0; i < data.length; i += step) xLabels.push(i);
-  if (xLabels[xLabels.length - 1] !== data.length - 1) xLabels.push(data.length - 1);
+    const { ticks: yTicks, lo: yLo, hi: yHi } = niceYTicks(min, max, 5);
+    const yRange = yHi - yLo || 1;
+    const timestamps = data.map(d => new Date(d.date).getTime());
+    const tMin = timestamps[0], tMax = timestamps[timestamps.length - 1];
+    const tRange = tMax - tMin || 1;
+
+    const xFromTime = (t) => CHART_PL + ((t - tMin) / tRange) * CHART_CW;
+    const xPos = (i) => xFromTime(timestamps[i]);
+    const yPos = (v) => CHART_PT + (1 - (v - yLo) / yRange) * CHART_CH;
+
+    const linePts = data.map((d, i) => `${xPos(i).toFixed(1)},${yPos(d.price).toFixed(1)}`).join(" ");
+    const areaPts = `${xPos(0).toFixed(1)},${yPos(yLo).toFixed(1)} ${linePts} ${xPos(data.length - 1).toFixed(1)},${yPos(yLo).toFixed(1)}`;
+
+    const needsDec = yTicks.some(v => v >= 1000 && v % 1000 !== 0);
+    const fmtK = (v) => {
+      if (v >= 10000) return `${Math.round(v / 1000)}K`;
+      if (v >= 1000) return `${(v / 1000).toFixed(needsDec ? 1 : 0)}K`;
+      return v.toLocaleString();
+    };
+
+    const totalDays = (tMax - tMin) / DAY_MS;
+    const xLabelTimes = [tMin];
+    let dateFmt;
+    if (totalDays > 180) {
+      dateFmt = { month: "short" };
+      const start = new Date(tMin);
+      let m = new Date(start.getFullYear(), start.getMonth() + 2, 1);
+      while (m.getTime() <= tMax) { xLabelTimes.push(m.getTime()); m = new Date(m.getFullYear(), m.getMonth() + 2, 1); }
+    } else if (totalDays > 60) {
+      dateFmt = { day: "2-digit", month: "short" };
+      let d = tMin + 15 * DAY_MS;
+      while (d <= tMax) { xLabelTimes.push(d); d += 15 * DAY_MS; }
+    } else if (totalDays > 14) {
+      dateFmt = { day: "2-digit", month: "short" };
+      let d = tMin + 5 * DAY_MS;
+      while (d <= tMax) { xLabelTimes.push(d); d += 5 * DAY_MS; }
+    } else {
+      dateFmt = { day: "2-digit", month: "short" };
+      let d = tMin + DAY_MS;
+      while (d <= tMax) { xLabelTimes.push(d); d += DAY_MS; }
+    }
+
+    return { prices, yTicks, yLo, xFromTime, xPos, yPos, linePts, areaPts, fmtK, xLabelTimes, dateFmt, timestamps, tMin, tRange };
+  }, [data]);
+
+  if (!chartCalc) return null;
+  const { prices, yTicks, yLo, xFromTime, xPos, yPos, linePts, areaPts, fmtK, xLabelTimes, dateFmt, timestamps, tMin, tRange } = chartCalc;
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-  const labelColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
+  const labelColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
+  const hintColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)";
+
+  const handleMove = useCallback((e) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const scaleX = CHART_W / rect.width;
+    const svgX = (clientX - rect.left) * scaleX;
+    if (svgX < CHART_PL || svgX > CHART_PL + CHART_CW) { setHoverIdx(null); onHover?.(null); return; }
+    const pct = (svgX - CHART_PL) / CHART_CW;
+    const hoverT = tMin + pct * tRange;
+    let best = 0, bestDist = Math.abs(timestamps[0] - hoverT);
+    for (let i = 1; i < timestamps.length; i++) {
+      const dist = Math.abs(timestamps[i] - hoverT);
+      if (dist < bestDist) { best = i; bestDist = dist; }
+      if (timestamps[i] > hoverT) break;
+    }
+    setHoverIdx(best);
+    onHover?.(data[best]);
+  }, [data, onHover, timestamps, tMin, tRange]);
+  const handleLeave = useCallback(() => { setHoverIdx(null); onHover?.(null); }, [onHover]);
+
+  const hi = hoverIdx;
+  const hx = hi !== null ? xPos(hi) : 0;
+  const hy = hi !== null ? yPos(prices[hi]) : 0;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+      style={{ width: "100%", height: "auto", display: "block", cursor: "default", touchAction: "none" }}
+      onMouseMove={handleMove} onMouseLeave={handleLeave}
+      onTouchMove={handleMove} onTouchEnd={handleLeave}>
       <defs>
         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
           <stop offset="100%" stopColor={color} stopOpacity="0.02" />
         </linearGradient>
       </defs>
-      {/* Grid lines */}
-      {[min, mid, max].map((v, i) => (
+      {/* Y-axis grid lines + labels on the LEFT */}
+      {yTicks.map((v, i) => (
         <g key={i}>
-          <line x1={PX} y1={y(v)} x2={W - PX} y2={y(v)} stroke={gridColor} strokeDasharray="4,3" />
-          <text x={W - PX - 2} y={y(v) - 4} textAnchor="end" fill={labelColor} fontSize="9" fontWeight="600">{fmtK(v)}</text>
+          <line x1={CHART_PL} y1={yPos(v)} x2={CHART_W - CHART_PR} y2={yPos(v)} stroke={gridColor} strokeDasharray="4,3" />
+          <text x={CHART_PL - 6} y={yPos(v) + 3.5} textAnchor="end" fill={labelColor} fontSize="9" fontWeight="600">{fmtK(v)}</text>
         </g>
       ))}
-      {/* Area fill */}
-      <polygon points={areaPts} fill="url(#areaGrad)" />
-      {/* Line */}
-      <polyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* End dot */}
-      <circle cx={x(data.length - 1)} cy={y(prices[prices.length - 1])} r="3.5" fill={color} stroke={isDark ? "#1a1a2e" : "#fff"} strokeWidth="2" />
-      {/* X-axis labels */}
-      {xLabels.map(i => (
-        <text key={i} x={x(i)} y={H - 4} textAnchor="middle" fill={labelColor} fontSize="9" fontWeight="500">
-          {new Date(data[i].date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-        </text>
+      {/* X-axis vertical grid lines at each label */}
+      {xLabelTimes.map((t, i) => i > 0 && i < xLabelTimes.length - 1 && (
+        <line key={i} x1={xFromTime(t)} y1={CHART_PT} x2={xFromTime(t)} y2={yPos(yLo)} stroke={gridColor} strokeDasharray="4,3" />
       ))}
+      {/* Area fill + line */}
+      <polygon points={areaPts} fill="url(#areaGrad)" />
+      <polyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Default end dot */}
+      {hi === null && (
+        <circle cx={xPos(data.length - 1)} cy={yPos(prices[prices.length - 1])} r="3" fill={color} stroke={isDark ? "#1a1a2e" : "#fff"} strokeWidth="1.5" />
+      )}
+      {/* Hover: dot + vertical line + fixed top-center text */}
+      {hi !== null && (
+        <g>
+          <line x1={hx} y1={CHART_PT} x2={hx} y2={yPos(yLo)} stroke={color} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.3" />
+          <circle cx={hx} cy={hy} r="3.5" fill={color} opacity="0.9" />
+          <text x={CHART_W / 2} y={CHART_PT - 5} textAnchor="middle" fill={hintColor} fontSize="9" fontWeight="600">
+            TZS {prices[hi].toLocaleString()} — {new Date(data[hi].date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+          </text>
+        </g>
+      )}
+      {/* X-axis date labels at equal time intervals — skip if too close */}
+      {xLabelTimes.map((t, li) => {
+        const cx = xFromTime(t);
+        // Skip label if it would overlap with the previous one (min 28px gap)
+        if (li > 0) {
+          const prevX = xFromTime(xLabelTimes[li - 1]);
+          if (cx - prevX < 28) return null;
+        }
+        return (
+          <text key={li} x={li === 0 ? CHART_PL - 2 : cx} y={CHART_H - 3}
+            textAnchor={li === 0 ? "start" : li === xLabelTimes.length - 1 ? "end" : "middle"}
+            fill={labelColor} fontSize="9" fontWeight="500">
+            {new Date(t).toLocaleDateString("en-GB", dateFmt)}
+          </text>
+        );
+      })}
     </svg>
   );
-}
+});
 
 // ── Company Detail Popup ───────────────────────────────────────────────
-function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) {
+function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initialTab = "chart" }) {
   const { C, isDark } = useTheme();
+  const isMobile = useIsMobile();
   const c = company;
-  const hasCdsPrice   = c.cds_price != null;
+  const hasCdsPrice = c.cds_price != null;
+  const cdsPrice    = Number(c.cds_price) || 0;
   const marketPrice   = Number(c.market_price) || 0;
   const prevPrice     = Number(c.previous_price) || 0;
   const dseChange     = Number(c.dse_change) || 0;
-  const dseHigh       = Number(c.dse_high) || 0;
-  const dseLow        = Number(c.dse_low) || 0;
-  const dseVolume     = Number(c.dse_volume) || 0;
   const changePct     = prevPrice > 0 ? ((dseChange) / prevPrice) * 100 : 0;
   const isUp          = dseChange >= 0;
 
+  const [tab, setTab] = useState(initialTab); // "chart" | "history" | "update"
+  const [prevTab, setPrevTab] = useState(initialTab); // to go back from update
+
+  // ── Chart state ──────────────────────────────────────────
   const [chartRange, setChartRange] = useState("30D");
-  const [allData, setAllData]       = useState(null);   // full 1Y dataset
+  const [allData, setAllData]       = useState(null);
   const [chartLoading, setChartLoading] = useState(true);
+  const [hoverPoint, setHoverPoint] = useState(null);
 
-  const rangeDays = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
-
-  // Map DB name to DSE ticker (most are identical, handle exceptions)
   const dseTicker = c.name === "VERTEX ETF" ? "VERTEX-ETF" : c.name;
+  const chartColor = "#f59e0b";
 
-  // Fetch 1Y once — derive smaller ranges client-side (instant switching)
   useEffect(() => {
     let cancelled = false;
     setChartLoading(true);
@@ -308,21 +423,86 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
     return () => { cancelled = true; };
   }, [dseTicker]);
 
-  // Derive visible data from the full dataset based on selected range
   const chartData = useMemo(() => {
     if (!allData || !allData.length) return allData;
-    const days = rangeDays[chartRange];
+    const days = RANGE_DAYS[chartRange];
     if (days >= 365) return allData;
     const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
     return allData.filter(d => d.date >= cutoff);
   }, [allData, chartRange]);
 
-  const chartColor = "#f59e0b";
+  const openingPrice = chartData?.length ? chartData[0].price : 0;
+  const closingPrice = chartData?.length ? chartData[chartData.length - 1].price : 0;
+  const periodChange = closingPrice - openingPrice;
+  const displayPrice = hoverPoint ? hoverPoint.price : closingPrice;
+  const displayChange = hoverPoint ? (hoverPoint.price - openingPrice) : periodChange;
+  const displayChangePct = openingPrice > 0 ? (displayChange / openingPrice) * 100 : 0;
+  const displayPositive = displayChange >= 0;
 
-  const statBox = (label, value) => (
-    <div style={{ textAlign: "center", padding: "10px 6px", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{value}</div>
-      <div style={{ fontSize: 9, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{label}</div>
+  // ── History state ────────────────────────────────────────
+  const [history, setHistory]         = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [histPage, setHistPage]       = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Fetch history on first switch to history tab
+  useEffect(() => {
+    if (tab !== "history" || history !== null || !cdsNumber) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    sbGetCdsPriceHistory(c.id, cdsNumber).then(data => {
+      if (!cancelled) { setHistory(data || []); setHistoryLoading(false); }
+    }).catch(() => { if (!cancelled) { setHistory([]); setHistoryLoading(false); } });
+    return () => { cancelled = true; };
+  }, [tab, history, c.id, cdsNumber]);
+
+  const meaningful = useMemo(() => {
+    if (!history) return [];
+    return history.filter(h => {
+      const isInitial = !h.old_price || Number(h.old_price) === 0;
+      if (isInitial) return true;
+      return Number(h.change_amount) !== 0;
+    });
+  }, [history]);
+
+  const nowStable = useMemo(() => new Date(), []);
+  const thisMonth = useMemo(() => meaningful.filter(h => {
+    const d = new Date(h.created_at);
+    return d.getFullYear() === nowStable.getFullYear() && d.getMonth() === nowStable.getMonth();
+  }), [meaningful, nowStable]);
+  const monthLabel = nowStable.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const totalPages = Math.ceil(thisMonth.length / PAGE_SIZE);
+  const pagedHistory = thisMonth.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE);
+
+  // ── Update price state ────────────────────────────────────
+  const localDatetime = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  }, []);
+  const [newPrice, setNewPrice] = useState("");
+  const [upDatetime, setUpDatetime] = useState(localDatetime);
+  const [upReason, setUpReason]     = useState("Normal Price Change");
+  const [upError, setUpError]       = useState("");
+
+  const handleUpdateConfirm = () => {
+    if (!newPrice || isNaN(Number(newPrice)) || Number(newPrice) <= 0) { setUpError("Please enter a valid price greater than 0."); return; }
+    if (cdsPrice !== 0 && Number(newPrice) === cdsPrice) { setUpError("No change — same as current price."); return; }
+    setUpError("");
+    onConfirmPrice?.({ newPrice: Number(newPrice), datetime: upDatetime, reason: upReason });
+  };
+
+  const upChangeAmt = newPrice ? Number(newPrice) - cdsPrice : null;
+  const upChangePct = upChangeAmt !== null && cdsPrice !== 0 ? (upChangeAmt / cdsPrice) * 100 : null;
+  const upUp = upChangeAmt !== null ? upChangeAmt >= 0 : null;
+  const upFieldStyle = { border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box", background: C.white };
+
+  const switchTab = (t) => { if (t === "update") setPrevTab(tab); setTab(t); };
+
+  // ── Shared helpers ───────────────────────────────────────
+  const statBox = (label, value, color) => (
+    <div style={{ position: "relative", textAlign: "center", padding: "12px 4px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1, minWidth: 0 }}>
+      <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", padding: "0 6px", background: isDark ? C.white : "#fff", fontSize: 8, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", lineHeight: "14px" }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: color || C.text, lineHeight: 1 }}>{value}</div>
     </div>
   );
 
@@ -341,55 +521,190 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
         ) : null
       }
       onClose={onClose}
-      maxWidth={460}
+      maxWidth={440}
       footer={
-        <>
-          <Btn variant="secondary" onClick={() => { onClose(); onViewHistory(c); }} icon={<Icon name="trendingUp" size={14} />}>Price History</Btn>
-          <Btn variant="primary" onClick={() => { onClose(); onUpdatePrice(c); }} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>{hasCdsPrice ? "Update Price" : "Set Price"}</Btn>
-        </>
+        tab === "update" ? (
+          <>
+            <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" onClick={() => setTab(prevTab)} icon={<Icon name={prevTab === "history" ? "clock" : "barChart"} size={14} stroke="#ffffff" />}>
+              {prevTab === "history" ? "History" : "Chart"}
+            </Btn>
+            <Btn variant="navy" onClick={handleUpdateConfirm} icon={<Icon name="save" size={14} stroke="#ffffff" />}>Update Price</Btn>
+          </>
+        ) : (
+          <>
+            <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" onClick={() => switchTab(tab === "chart" ? "history" : "chart")} icon={<Icon name={tab === "chart" ? "clock" : "barChart"} size={14} stroke="#ffffff" />}>
+              {tab === "chart" ? "History" : "Chart"}
+            </Btn>
+            {isMobile && (
+              <Btn variant="navy" onClick={() => switchTab("update")} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>
+                {hasCdsPrice ? "Update" : "Set Price"}
+              </Btn>
+            )}
+          </>
+        )
       }
     >
-      {/* ── Price History Chart ─────────────────────────────── */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? C.gray300 : C.navy, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Price History
-          </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            {Object.keys(rangeDays).map(r => (
-              <button key={r} onClick={() => setChartRange(r)}
-                style={{ padding: "3px 10px", borderRadius: 14, border: `1px solid ${r === chartRange ? "#f59e0b" : C.gray200}`, background: r === chartRange ? (isDark ? "rgba(245,158,11,0.15)" : "#fffbeb") : "transparent", color: r === chartRange ? "#f59e0b" : C.gray500, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", outline: "none" }}>
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <div style={{ padding: "12px", borderRadius: 12, background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc", border: `1px solid ${C.gray200}`, minHeight: 120 }}>
-          {chartLoading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, color: C.gray400, fontSize: 12 }}>
-              <style>{`@keyframes _cpSpin{to{transform:rotate(360deg)}}`}</style>
-              <div style={{ width: 16, height: 16, border: `2px solid ${C.gray200}`, borderTop: `2px solid #f59e0b`, borderRadius: "50%", animation: "_cpSpin 0.7s linear infinite", marginRight: 8 }} />
-              Loading chart...
+      {/* ── CHART TAB ──────────────────────────────────────── */}
+      {tab === "chart" && (
+        <>
+          <div style={{ position: "relative", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc", border: `1px solid ${C.gray200}`, marginBottom: 14, overflow: "hidden" }}>
+            {/* Range buttons inside chart, top-right */}
+            <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 3, zIndex: 2 }}>
+              {Object.keys(RANGE_DAYS).map(r => (
+                <button key={r} onClick={() => setChartRange(r)}
+                  style={{ padding: "2px 7px", borderRadius: 10, border: `1px solid ${r === chartRange ? "#f59e0b" : (isDark ? "rgba(255,255,255,0.12)" : C.gray200)}`, background: r === chartRange ? (isDark ? "rgba(245,158,11,0.2)" : "#fffbeb") : (isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.85)"), color: r === chartRange ? "#f59e0b" : C.gray500, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", outline: "none", lineHeight: "14px" }}>
+                  {r}
+                </button>
+              ))}
             </div>
-          ) : chartData && chartData.length >= 2 ? (
-            <PriceChart data={chartData} color={chartColor} isDark={isDark} C={C} />
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 120, color: C.gray400 }}>
-              <Icon name="barChart" size={24} stroke={C.gray300} />
-              <div style={{ fontSize: 12, marginTop: 8, fontWeight: 600 }}>Not enough data yet</div>
-              <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Chart builds as DSE prices are synced daily</div>
+            {chartLoading ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 140, color: C.gray400, fontSize: 12 }}>
+                <style>{`@keyframes _cpSpin{to{transform:rotate(360deg)}}`}</style>
+                <div style={{ width: 16, height: 16, border: `2px solid ${C.gray200}`, borderTop: `2px solid #f59e0b`, borderRadius: "50%", animation: "_cpSpin 0.7s linear infinite", marginRight: 8 }} />
+                Loading chart...
+              </div>
+            ) : chartData && chartData.length >= 2 ? (
+              <PriceChart data={chartData} color={chartColor} isDark={isDark} C={C} onHover={setHoverPoint} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 140, color: C.gray400 }}>
+                <Icon name="barChart" size={22} stroke={C.gray300} />
+                <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600 }}>Not enough data yet</div>
+                <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Chart builds as DSE prices are synced daily</div>
+              </div>
+            )}
+          </div>
+
+          {chartData && chartData.length >= 2 && (
+            <div style={{ display: "flex", gap: 8 }}>
+              {statBox("Opening", fmt(openingPrice), isDark ? "#60a5fa" : "#2563eb")}
+              {statBox(
+                hoverPoint ? "Change" : "Changes",
+                <span>{`${displayPositive ? "+" : "−"}${fmt(Math.abs(displayChange))}`} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.7 }}>{`${displayPositive ? "+" : "−"}${Math.abs(displayChangePct).toFixed(1)}%`}</span></span>,
+                displayPositive ? C.green : C.red
+              )}
+              {statBox(
+                hoverPoint ? new Date(hoverPoint.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Closing",
+                fmt(displayPrice),
+                displayPositive ? C.green : C.red
+              )}
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* ── Today's Stats (compact row) ────────────────────── */}
-      {marketPrice > 0 && (
-        <div style={{ display: "flex", gap: 8 }}>
-          {statBox("High", dseHigh > 0 ? fmt(dseHigh) : "—")}
-          {statBox("Low", dseLow > 0 ? fmt(dseLow) : "—")}
-          {statBox("Volume", dseVolume > 0 ? dseVolume.toLocaleString() : "—")}
+      {/* ── HISTORY TAB ────────────────────────────────────── */}
+      {tab === "history" && (
+        <>
+          {historyLoading || history === null ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 140, color: C.gray400, fontSize: 12 }}>
+              <style>{`@keyframes _cpSpin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ width: 16, height: 16, border: `2px solid ${C.gray200}`, borderTop: `2px solid ${C.navy}`, borderRadius: "50%", animation: "_cpSpin 0.7s linear infinite", marginRight: 8 }} />
+              Loading history...
+            </div>
+          ) : thisMonth.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 16px", color: C.gray400 }}>
+              <div style={{ fontWeight: 600 }}>No price changes in {monthLabel}</div>
+              <div style={{ fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+                {meaningful.length > 0 ? `${meaningful.length} update${meaningful.length !== 1 ? "s" : ""} exist in previous months` : "No price history recorded yet"}
+              </div>
+            </div>
+          ) : (
+            <>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+                <colgroup>
+                  {["7%", "33%", "20%", "20%", "20%"].map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+                <thead>
+                  <tr style={{ background: C.gray50 }}>
+                    {["#", "Date & Time", "Old Price", "New Price", "Change"].map(h => (
+                      <th key={h} style={{ padding: "8px", textAlign: ["Old Price", "New Price", "Change"].includes(h) ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`, whiteSpace: "nowrap", background: C.gray50 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedHistory.map((h, i) => {
+                    const globalIdx = (histPage - 1) * PAGE_SIZE + i;
+                    const isFirstEntry = !h.old_price || Number(h.old_price) === 0;
+                    const up = !isFirstEntry && h.change_amount >= 0;
+                    const dateText = new Date(h.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                    const timeText = new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <tr key={h.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.gray50}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <td style={{ padding: "8px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
+                        <td style={{ padding: "8px" }}>
+                          <div style={{ fontWeight: 600, color: C.text, whiteSpace: "nowrap", lineHeight: 1.2 }}>{dateText} <span style={{ color: C.gray400 }}>|</span> {timeText}</div>
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "right", color: C.gray600 }}>{isFirstEntry ? <span style={{ color: C.gray400 }}>—</span> : fmt(h.old_price)}</td>
+                        <td style={{ padding: "8px", textAlign: "right", fontWeight: 700, color: C.text }}>{fmt(h.new_price)}</td>
+                        <td style={{ padding: "8px", textAlign: "right" }}>
+                          {isFirstEntry ? <span style={{ fontSize: 11, color: C.gray400 }}>Initial</span> : (
+                            <span style={{ background: up ? C.greenBg : C.redBg, color: up ? C.green : C.red, padding: "2px 7px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                              {up ? "▲" : "▼"} {Math.abs(Number(h.change_amount)).toLocaleString()}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0 0" }}>
+                  <button onClick={() => setHistPage(p => Math.max(1, p - 1))} disabled={histPage === 1}
+                    style={{ padding: "4px 10px", borderRadius: 7, border: `1px solid ${C.gray200}`, background: C.white, color: histPage === 1 ? C.gray400 : C.text, cursor: histPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>‹ Prev</button>
+                  <span style={{ fontSize: 12, color: C.gray500 }}>{histPage} / {totalPages}</span>
+                  <button onClick={() => setHistPage(p => Math.min(totalPages, p + 1))} disabled={histPage === totalPages}
+                    style={{ padding: "4px 10px", borderRadius: 7, border: `1px solid ${C.gray200}`, background: C.white, color: histPage === totalPages ? C.gray400 : C.text, cursor: histPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "inherit" }}>Next ›</button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── UPDATE PRICE TAB (mobile) ──────────────────────── */}
+      {tab === "update" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              New Price (TZS) <span style={{ color: C.red }}>*</span>
+            </label>
+            <input type="text" inputMode="decimal" autoComplete="new-password" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+              data-form-type="other" data-lpignore="true"
+              value={commaVal(newPrice)} onChange={e => { setNewPrice(stripCommas(e.target.value)); setUpError(""); }}
+              placeholder="Enter new price..." autoFocus
+              style={{ ...upFieldStyle, fontSize: 15, fontWeight: 700, border: `1.5px solid ${upError ? C.red : C.gray200}` }}
+              onFocus={e => !upError && (e.target.style.borderColor = C.green)}
+              onBlur={e => !upError && (e.target.style.borderColor = C.gray200)} />
+            {upError && <div style={{ fontSize: 12, color: C.red }}>{upError}</div>}
+          </div>
+
+          {upChangeAmt !== null && newPrice && (
+            <div style={{ background: upUp ? C.greenBg : C.redBg, border: `1px solid ${upUp ? C.green : C.red}44`, borderRadius: 10, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 12, color: C.gray600, fontWeight: 600 }}>Price Movement</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: upUp ? C.green : C.red }}>{upUp ? "▲" : "▼"} {fmt(Math.abs(upChangeAmt))}</span>
+                {upChangePct !== null && <span style={{ background: upUp ? C.green : C.red, color: "#ffffff", padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{upUp ? "+" : ""}{upChangePct.toFixed(2)}%</span>}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Date & Time</label>
+            <input type="datetime-local" value={upDatetime} onChange={e => setUpDatetime(e.target.value)} style={upFieldStyle}
+              onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Reason</label>
+            <input type="text" value={upReason} onChange={e => setUpReason(e.target.value)} placeholder="Reason for price change..." style={upFieldStyle}
+              onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)} />
+          </div>
         </div>
       )}
     </ModalShell>
@@ -494,11 +809,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const [search, setSearch]                 = useState("");
   const [deleting, setDeleting]             = useState(null);
   const [updating, setUpdating]             = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(null);
-
   const [actionSheetCompany, setActionSheetCompany] = useState(null);
+  const [actionSheetTab, setActionSheetTab]         = useState("chart");
   const [deleteModal, setDeleteModal]   = useState(null);
-  const [historyModal, setHistoryModal] = useState({ open: false, company: null, history: [] });
   const [updateModal, setUpdateModal]   = useState({ open: false, company: null });
   const [formModal, setFormModal]       = useState({ open: false, company: null });
 
@@ -539,10 +852,9 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
   const todayIso         = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const closeDeleteModal  = useCallback(() => setDeleteModal(null), []);
-  const closeHistoryModal = useCallback(() => setHistoryModal({ open: false, company: null, history: [] }), []);
   const closeUpdateModal  = useCallback(() => setUpdateModal({ open: false, company: null }), []);
   const closeFormModal    = useCallback(() => setFormModal({ open: false, company: null }), []);
-  const closeActionSheet  = useCallback(() => setActionSheetCompany(null), []);
+  const closeActionSheet  = useCallback(() => { setActionSheetCompany(null); setActionSheetTab("chart"); }, []);
   const openNewCompanyModal = useCallback(() => setFormModal({ open: true, company: null }), []);
 
   const getScrollParent = useCallback((el) => {
@@ -760,24 +1072,10 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     }
   }, [updateModal.company, cdsNumber, profile?.full_name, showToast]);
 
-  // FIX 1: viewHistory — guard against concurrent requests for the same company.
-  // loadingHistory is already set before the request so a second tap on the
-  // same company while loading is in progress is no-ops immediately.
-  const viewHistory = useCallback(async (company) => {
-    // Guard: don't fire a second request for the same company
-    if (loadingHistory === company.id) return;
-    setLoadingHistory(company.id);
-    try {
-      const history = await sbGetCdsPriceHistory(company.id, cdsNumber);
-      if (!isMountedRef.current) return;
-      setHistoryModal({ open: true, company, history });
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error loading history: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setLoadingHistory(null);
-    }
-  }, [cdsNumber, loadingHistory, showToast]);
+  const openCompanyPopup = useCallback((company, tab = "chart") => {
+    setActionSheetCompany(company);
+    setActionSheetTab(tab);
+  }, []);
 
   const handleFormConfirm = useCallback(async ({ name, price, remarks }) => {
     const editingCompany = formModal.company;
@@ -896,11 +1194,6 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           onFetchNow={handleDSEFetch}
         />
       )}
-      {historyModal.open && (
-        <PriceHistoryModal
-          company={historyModal.company ? { ...historyModal.company, price: historyModal.company.cds_price } : null}
-          history={historyModal.history} onClose={closeHistoryModal} />
-      )}
       {updateModal.open && (
         <UpdatePriceModal key={updateModal.company?.id}
           company={updateModal.company ? { ...updateModal.company, price: updateModal.company.cds_price ?? 0 } : null}
@@ -913,8 +1206,38 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
       {actionSheetCompany && (
         <CompanyDetailPopup
           company={actionSheetCompany}
-          onUpdatePrice={(c) => setUpdateModal({ open: true, company: c })}
-          onViewHistory={viewHistory}
+          cdsNumber={cdsNumber}
+          initialTab={actionSheetTab}
+          onConfirmPrice={({ newPrice, datetime, reason }) => {
+            // Set updateModal so confirmUpdatePrice can read the company
+            setUpdateModal({ open: false, company: actionSheetCompany });
+            // Then call the handler directly
+            const company = actionSheetCompany;
+            const oldPrice = company.cds_price != null ? Number(company.cds_price) : null;
+            setUpdating(company.id);
+            (async () => {
+              try {
+                const resolvedUpdatedAt = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
+                const upsertedRow = await sbUpsertCdsPrice({
+                  companyId: company.id, companyName: company.name, cdsNumber,
+                  newPrice, oldPrice, reason,
+                  updatedBy: profile?.full_name || "Unknown", datetime,
+                });
+                if (!isMountedRef.current) return;
+                setPortfolio(prev => prev.map(c => {
+                  if (c.id !== company.id) return c;
+                  return { ...c, cds_price: newPrice, cds_previous_price: oldPrice, cds_updated_by: profile?.full_name || "Unknown", cds_updated_at: upsertedRow?.updated_at || resolvedUpdatedAt, cds_price_id: upsertedRow?.id ?? c.cds_price_id, cds_price_created_by_id: upsertedRow?.created_by_id ?? c.cds_price_created_by_id };
+                }));
+                showToast(`${company.name} price updated to TZS ${newPrice.toLocaleString()}`, "success");
+              } catch (e) {
+                if (!isMountedRef.current) return;
+                showToast("Error: " + e.message, "error");
+              } finally {
+                if (isMountedRef.current) setUpdating(null);
+              }
+            })();
+            closeActionSheet();
+          }}
           onClose={closeActionSheet} />
       )}
       {/* Transform wrapper */}
@@ -993,7 +1316,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                       onTap={setActionSheetCompany}
                       // FIX 3: pass busy state so the card suppresses tap while
                       // a price update or history fetch is in progress.
-                      isBusy={updating === c.id || loadingHistory === c.id}
+                      isBusy={updating === c.id}
                     />
                   ))}
                 </div>
@@ -1022,7 +1345,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         // Previously neither action had disabled: true, so a double-tap
                         // on "Price History" would fire two concurrent requests and open
                         // two sequential modals. Same issue for "Update Price".
-                        const isRowBusy = updating === c.id || loadingHistory === c.id;
+                        const isRowBusy = updating === c.id;
                         const portfolioActions = [
                           {
                             icon: <Icon name="dollarSign" size={14} stroke={C.green} />,
@@ -1031,10 +1354,14 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             onClick: () => setUpdateModal({ open: true, company: c }),
                           },
                           {
-                            icon: <Icon name="trendingUp" size={14} stroke={C.text} />,
-                            label: loadingHistory === c.id ? "Loading..." : "Price History",
-                            disabled: isRowBusy,
-                            onClick: () => viewHistory(c),
+                            icon: <Icon name="barChart" size={14} stroke={C.text} />,
+                            label: "Chart",
+                            onClick: () => openCompanyPopup(c, "chart"),
+                          },
+                          {
+                            icon: <Icon name="clock" size={14} stroke={C.text} />,
+                            label: "History",
+                            onClick: () => openCompanyPopup(c, "history"),
                           },
                         ];
 
