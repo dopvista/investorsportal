@@ -1359,17 +1359,24 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
   );
 }
 
+// In-memory cache: key → { data, ts }
+const _chartCache = new Map();
+const CHART_CACHE_TTL = 5 * 60_000; // 5 minutes
+
 export async function sbGetCompanyPriceHistory(companyName, days = 30) {
-  // Proxy through our edge function to avoid browser TLS/CORS issues
+  const cacheKey = `${companyName}:${days}`;
+  const cached = _chartCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CHART_CACHE_TTL) return cached.data;
+
   try {
     const res = await fetch(
       `${BASE}/functions/v1/dse-price-history?symbol=${encodeURIComponent(companyName)}&days=${days}`,
-      { headers: { "Authorization": `Bearer ${token()}`, "apikey": KEY } }
+      { headers: { "apikey": KEY } }
     );
-    if (!res.ok) { console.warn("[PriceHistory] proxy status:", res.status); return []; }
+    if (!res.ok) return cached?.data || [];
     const json = await res.json();
-    if (!json.success || !Array.isArray(json.data)) return [];
-    return json.data.map(d => ({
+    if (!json.success || !Array.isArray(json.data)) return cached?.data || [];
+    const data = json.data.map(d => ({
       date: d.trade_date?.split("T")[0],
       price: d.closing_price,
       high: d.high,
@@ -1379,9 +1386,10 @@ export async function sbGetCompanyPriceHistory(companyName, days = 30) {
       turnover: d.turnover,
       market_cap: d.market_cap,
     })).sort((a, b) => a.date.localeCompare(b.date));
+    _chartCache.set(cacheKey, { data, ts: Date.now() });
+    return data;
   } catch (e) {
-    console.warn("[PriceHistory] Fetch failed:", e.message);
-    return [];
+    return cached?.data || [];
   }
 }
 

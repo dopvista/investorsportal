@@ -290,7 +290,7 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
   const isUp          = dseChange >= 0;
 
   const [chartRange, setChartRange] = useState("30D");
-  const [chartData, setChartData]   = useState(null);
+  const [allData, setAllData]       = useState(null);   // full 1Y dataset
   const [chartLoading, setChartLoading] = useState(true);
 
   const rangeDays = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
@@ -298,16 +298,26 @@ function CompanyDetailPopup({ company, onUpdatePrice, onViewHistory, onClose }) 
   // Map DB name to DSE ticker (most are identical, handle exceptions)
   const dseTicker = c.name === "VERTEX ETF" ? "VERTEX-ETF" : c.name;
 
+  // Fetch 1Y once — derive smaller ranges client-side (instant switching)
   useEffect(() => {
     let cancelled = false;
     setChartLoading(true);
-    sbGetCompanyPriceHistory(dseTicker, rangeDays[chartRange]).then(data => {
-      if (!cancelled) { setChartData(data); setChartLoading(false); }
-    }).catch(() => { if (!cancelled) { setChartData([]); setChartLoading(false); } });
+    sbGetCompanyPriceHistory(dseTicker, 365).then(data => {
+      if (!cancelled) { setAllData(data); setChartLoading(false); }
+    }).catch(() => { if (!cancelled) { setAllData([]); setChartLoading(false); } });
     return () => { cancelled = true; };
-  }, [dseTicker, chartRange]);
+  }, [dseTicker]);
 
-  const chartColor = isUp ? "#f59e0b" : "#f59e0b"; // amber/orange like reference
+  // Derive visible data from the full dataset based on selected range
+  const chartData = useMemo(() => {
+    if (!allData || !allData.length) return allData;
+    const days = rangeDays[chartRange];
+    if (days >= 365) return allData;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    return allData.filter(d => d.date >= cutoff);
+  }, [allData, chartRange]);
+
+  const chartColor = "#f59e0b";
 
   const statBox = (label, value) => (
     <div style={{ textAlign: "center", padding: "10px 6px", borderRadius: 10, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1 }}>
