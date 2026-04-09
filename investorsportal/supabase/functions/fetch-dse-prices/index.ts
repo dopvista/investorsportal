@@ -111,8 +111,8 @@ async function shouldProceed(supabase: any): Promise<{ proceed: boolean; reason?
   if (fetchDays === "weekdays" && (eatDay === 0 || eatDay === 6)) {
     return { proceed: false, reason: "weekend" };
   }
-  if (eatHour < 9 || eatHour >= 16) {
-    return { proceed: false, reason: `outside market hours (EAT ${eatHour}:xx, market 09:00-16:00)` };
+  if (eatHour < 9 || eatHour >= 17) {
+    return { proceed: false, reason: `outside market hours (EAT ${eatHour}:xx, market 09:00-17:00)` };
   }
   return { proceed: true };
 }

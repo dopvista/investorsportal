@@ -87,7 +87,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>Enable Server Cron</div>
-              <div style={{ fontSize: 12, color: C.gray500 }}>Fetches DSE prices every 5 minutes during market hours (09:00–16:00 EAT)</div>
+              <div style={{ fontSize: 12, color: C.gray500 }}>Fetches DSE prices every 5 minutes during market hours (09:00–17:00 EAT)</div>
             </div>
             <button onClick={toggleAutoFetch} disabled={toggling}
               style={{ position: "relative", width: 52, height: 28, borderRadius: 14, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
@@ -103,7 +103,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
             </span>
             {enabled && (
               <span style={{ fontSize: 11, color: C.gray500 }}>
-                — Every 5 min · {fetchDays === "weekdays" ? "Weekdays" : "Every day"} · 09:00–16:00 EAT
+                — Every 5 min · {fetchDays === "weekdays" ? "Weekdays" : "Every day"} · 09:00–17:00 EAT
               </span>
             )}
           </div>

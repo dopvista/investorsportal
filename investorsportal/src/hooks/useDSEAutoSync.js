@@ -1,6 +1,6 @@
 // src/hooks/useDSEAutoSync.js
 // Client-side 1-minute auto-polling: calls existing edge function → syncs to CDS prices
-// Only runs during market hours (Mon–Fri 09:00–16:00 EAT), pauses when tab is hidden.
+// Only runs during market hours (Mon–Fri 09:00–17:00 EAT), pauses when tab is hidden.
 // Respects the master switch in site_settings (SA System Settings).
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -17,7 +17,7 @@ function getAnonKey() {
   return import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
 
-/** True when EAT is weekday 09:00–16:00 */
+/** True when EAT is weekday 09:00–17:00 */
 function isMarketOpen() {
   const now = new Date();
   const eatMs = now.getTime() + 3 * 60 * 60 * 1000;
@@ -25,7 +25,7 @@ function isMarketOpen() {
   const day = eat.getUTCDay();   // 0=Sun, 6=Sat
   const hour = eat.getUTCHours();
   if (day === 0 || day === 6) return false;
-  return hour >= 9 && hour < 16;
+  return hour >= 9 && hour < 17;
 }
 
 /** Check if another client already updated companies within STALENESS_MS */
@@ -109,13 +109,16 @@ export function useDSEAutoSync(cdsNumber, onSyncComplete) {
 
   const doSync = useCallback(async (force = false) => {
     if (!activeRef.current || !cdsNumber) return;
+    // Regular polling: skip entirely outside market hours (prices don't change)
+    // Force (toggle-on / tab-return): run once to copy latest prices to CDS
+    if (!force && !isMarketOpen()) return;
     if (syncingRef.current) return;
 
     try {
       syncingRef.current = true;
       if (mountedRef.current) setSyncing(true);
 
-      // Only call DSE edge function during market hours (avoids stale API hits after close)
+      // Only call DSE edge function during market hours
       const marketOpen = isMarketOpen();
       const stale = marketOpen && await isCompaniesStale();
       if (stale) {
