@@ -120,7 +120,7 @@ Shows portfolio overview for the active CDS account:
 - **Pull to refresh** on mobile: pull down to reload all data
 
 ## Portfolio Page (Companies)
-Two views: **Portfolio holdings** (all roles) and **Company registry** (SA only, via Manage section).
+Shows your CDS portfolio holdings. (Company registration is in **System Settings**, not here.)
 
 ### Portfolio View
 - **Stat Cards**: Holdings (count) | Avg. Price | Highest Price | DSE Prices (auto-sync status)
@@ -156,10 +156,11 @@ Two views: **Portfolio holdings** (all roles) and **Company registry** (SA only,
 - **"Fetch Prices Now"** button: manual one-time fetch (shows "Fetching from DSE..." while loading)
 - Sync copies DSE market prices from the global companies table into user's CDS portfolio prices
 
-### Company Registry (SA only)
-- **Stat Cards**: Total Companies | Registered Today
-- **"Register New Company"** button → form: Company Name (required) | Opening Price (required) | Sector (optional) → click **"Register Company"** to save
-- Table: Company Name | Sector | Market Price | Registered | Actions (Edit, Delete)
+### Company Registry
+- The Company Registry is NOT on the Portfolio page. It lives in **System Settings → Companies** (SA only).
+- To register a company: go to **System Settings** (sidebar) → click **"Companies"** in the left menu → click **"Register New Company"** button → fill the form: **Company Name** (required) | **Opening Price** (required) | **Sector** (optional) → click **"Register Company"** to save
+- Table shows: Company Name | Sector | Market Price | Registered | Actions (Edit, Delete)
+- **Stat Cards** on the Companies section: Total Companies | Registered Today
 
 ## Transactions Page
 Records all Buy and Sell trades with automatic fee calculation.
@@ -319,10 +320,13 @@ There are two ways a user account can be created in Investors Portal:
 - **RO (Read Only)**: View-only. Cannot edit, create, or delete anything.
 
 ## System Settings (SA only)
-- **DSE Price Updates**: Toggle **"Enable Server Cron"** to enable/disable auto-sync (master switch). Shows "Every 5 min · Weekdays · 09:00–16:00 EAT". Manual **"Fetch Prices Now"** button for immediate fetch. This is the master switch — when disabled, ALL user auto-sync is paused system-wide.
-- **Broker Management**: Click **"Register New Broker"** → fill Broker Name, Broker Code (short unique code), Status (Active/Inactive), Contact Phone, Contact Email, Remarks → click **"Register Broker"** (or **"Save Changes"** when editing)
-- **CDS Account Management**: View all CDS accounts with number, name, phone, email, status. Edit details or activate/deactivate accounts.
-- **Login Page Slideshow**: Manage homepage carousel — add/remove/reorder slides with titles, subtitles, images, and color themes (Forest, Navy, Purple, Gold, Slate, Teal)
+System Settings has a left sidebar with these sections: **Companies** | **CDS Accounts** | **Brokers** | **Login Page** | **Price Updates**
+
+- **Companies**: Register, edit and manage listed DSE companies. Click **"Register New Company"** → fill Company Name, Opening Price (TZS), Sector → click **"Register Company"**. Table shows all companies with Edit and Delete actions.
+- **Price Updates**: Toggle **"Enable Server Cron"** to enable/disable auto-sync (master switch). Shows "Every 5 min · Weekdays · 09:00–16:00 EAT". Manual **"Fetch Prices Now"** button for immediate fetch. This is the master switch — when disabled, ALL user auto-sync is paused system-wide.
+- **Brokers**: Click **"Register New Broker"** → fill Broker Name, Broker Code (short unique code), Status (Active/Inactive), Contact Phone, Contact Email, Remarks → click **"Register Broker"** (or **"Save Changes"** when editing)
+- **CDS Accounts**: View all CDS accounts with number, name, phone, email, status. Edit details or activate/deactivate accounts.
+- **Login Page**: Manage homepage carousel — add/remove/reorder slides with titles, subtitles, images, and color themes (Forest, Navy, Purple, Gold, Slate, Teal)
 
 ## FIFO Cost Basis
 Investors Portal uses First-In-First-Out for all gain/loss calculations:
