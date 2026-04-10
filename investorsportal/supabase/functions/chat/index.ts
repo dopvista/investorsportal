@@ -166,56 +166,61 @@ Shows your CDS portfolio holdings. (Company registration is in **System Settings
 Records all Buy and Sell trades with automatic fee calculation.
 
 ### How to Record a Transaction
-1. Click **"Record Transaction"** button (or **"+ Record"** on mobile)
+1. Click **"Record Transaction"** button (or **"+ Record"** on mobile) — visible to DE and SA/AD only
 2. Fill the form:
-   - **Date** — required (defaults to today)
-   - **Company** — required (searchable dropdown; for Sell, shows remaining shares next to each company name)
-   - **Type** — required (toggle: "Buy" or "Sell")
-   - **Quantity** — required; for Sell shows label **"Quantity (max X)"** where X = shares held
+   - **Type** — required: **Buy** or **Sell** (dropdown)
+   - **Date** — required
+   - **Company** — required (searchable dropdown; for Sell, only companies with holdings are shown)
+   - **Quantity** — required; for Sell the label becomes **"Quantity (max X)"** where X = shares held; shows **"⚠ Exceeds your X shares"** if over
    - **Price per Share (TZS)** — required
    - **Broker** — required (searchable dropdown, shows broker code badge)
    - **Reference No.** — optional
    - **Remarks** — optional
-3. As you type, the form auto-calculates and shows:
-   - **Trade Value** = Quantity × Price/Share
-   - **Fees** (expandable breakdown: Broker, CMSA, DSE, CSDR, Fidelity)
-   - **Total Paid** (Buy) or **Net Proceeds** (Sell)
-   - For Sell: if quantity exceeds your shares, shows **"⚠ Exceeds your X shares"**
+3. As you type, a summary bar auto-calculates:
+   - **Trade Value**, **Fees** (click ⓘ to expand full fee breakdown), **Total Paid** (Buy) or **Net Proceeds** (Sell)
 4. Click **"Record Transaction"** to submit (or **"Save Changes"** when editing)
 5. Transaction is created with status **"Pending"**
 
+### Search & Filters
+- **Search bar**: search by company, date, type, broker, status, remarks
+- **Type filter**: **All** | **Buy** | **Sell**
+- **Status filter** dropdown: **All** | **Pending** | **Confirmed** | **Verified** | **Rejected**
+- **Reset** button appears when any filter is active
+
 ### Transaction Status Workflow
-- **Pending** (orange badge) → initial state. DE/SA/AD can edit or delete.
-- **Confirmed** (blue badge) → DE clicks **"Confirm"**. Means data is correct.
-- **Verified** (green badge) → VR clicks **"Verify"**. Transaction is locked — no more edits. VR can click **"UnVerify"** to move back to Pending.
-- **Rejected** (red badge) → VR clicks **"Reject"** → must enter a **"Rejection Reason"** (required, visible to the Data Entrant). Rejected transactions can be edited by DE and re-confirmed (button shows **"Re-Confirm"**).
+- **Pending** (orange badge) → initial state after recording
+- **Confirmed** (blue badge) → DE or SA/AD clicks **"Confirm"**. Means data is verified as correct.
+- **Verified** (green badge) → VR or SA/AD clicks **"Verify"**. Transaction is locked — no more edits or deletes.
+- **Rejected** (red badge) → VR or SA/AD clicks **"Reject"** → must enter a **Rejection Reason** (shown to the DE). Rejected transactions can be edited and re-submitted — button shows **"Re-Confirm"**.
 
 Who can do what:
-- **DE**: Create, edit (if not verified), delete (if pending), confirm/re-confirm
-- **VR**: Verify, reject, unverify. Cannot create or edit.
-- **SA/AD**: All of the above
-- **RO**: View only
+- **DE**: Create, edit (if pending or rejected), delete (if pending or rejected), confirm/re-confirm
+- **VR**: Verify, reject. Cannot create, edit, delete, or UnVerify.
+- **SA/AD**: All actions including **UnVerify** (moves verified → pending)
+- **RO**: View only — no actions, no checkboxes
 
 ### Bulk Actions
-Select multiple transactions via checkboxes, then use toolbar: **Confirm | Verify | Reject | UnVerify | Delete** (each shows count of selected)
+Select multiple transactions via checkboxes, then use the toolbar:
+- **Confirm** (DE/SA/AD) | **Verify** (VR/SA/AD) | **Reject** (VR/SA/AD) | **UnVerify** (SA/AD only) | **Delete** (DE/SA/AD)
+- Each button shows the count of eligible selected rows
 
 ### Transaction Detail Modal
-Shows full details when you tap/click a transaction:
-- Header: Company name | Buy/Sell badge | Status badge | Trade date | CDS account
-- **Quick Stats** (mobile): Shares | Price/Share | Avg Cost/Share (buy) or Net Sell/Share (sell)
-- **Summary**: Trade Value | **Total Fees** (full breakdown always visible) | **Total Paid** (buy) or **Net Received** (sell)
-- **Fee Breakdown**: Broker (+VAT) | CMSA (0.14%) | DSE (+VAT) | CSDR (+VAT) | Fidelity (0.02%) | Total Fees
-- **Unrealized G/L** (Buy, if verified & holding > 0): Current Price × shares = Current Value vs Cost Basis
-- **Realized G/L** (Sell, if verified): Net Proceeds vs FIFO Cost Basis
-- **Audit Trail**: 4 steps: **Recorded** → **Confirmed** → **Verified** or **Rejected** (with reason). Each step shows timestamp and who performed it. Pending steps show "Awaiting".
+Click any transaction row to open the full detail view:
+- Header: status badge, trade date, company, transaction ID
+- **Summary cards**: Trade Value | Total Fees | Total Paid (buy) or Net Received (sell)
+- **Commission Breakdown** (always visible on desktop, expandable on mobile): Broker (+VAT) | CMSA (0.14%) | DSE (+VAT) | CSDR (+VAT) | Fidelity (0.02%)
+- **Broker & Reference**: broker name, control number, remarks (if any)
+- **Unrealized G/L** (Buy only, verified, if portfolio price is set): Current Value vs Cost Basis — shows "Set your analysis price in Portfolio to see unrealized gain/loss" if no price
+- **Realized G/L** (Sell only, verified): Net Proceeds vs FIFO Cost Basis with per-share breakdown
+- **Audit Trail**: steps **Recorded → Confirmed → Verified/Rejected** with timestamp and who performed each step. Pending steps show "Awaiting".
 
 ### Excel Import
-1. Click **"Import"** button → "Import Transactions" modal
-2. Download the template (.xlsx) or drag-drop your file
-3. Required columns: Date | Company | Type | Qty | Price | Broker
+1. Click **"Import"** button (DE/SA/AD only) → Import modal opens
+2. Download the official template (.xlsx)
+3. Fill required columns: Date | Company | Type (Buy/Sell) | Qty | Price | Broker
 4. Optional columns: Control Number | Remarks
-5. System validates each row, shows errors in preview
-6. Click **"Import"** to insert valid rows
+5. Upload file — system validates each row and shows errors in preview (max 500 rows)
+6. Click **"Import"** to insert all valid rows
 
 ### Fee Calculation Formula
 Trade Value = Quantity × Price/Share
