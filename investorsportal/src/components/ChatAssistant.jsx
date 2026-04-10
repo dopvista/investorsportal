@@ -487,7 +487,7 @@ const ChatAssistant = memo(function ChatAssistant({
         },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          context: { role, currentPage, cdsNumber, userName },
+          context: { role, currentPage, cdsNumber, userName, device: isMobile ? "mobile" : "desktop" },
         }),
       });
 
