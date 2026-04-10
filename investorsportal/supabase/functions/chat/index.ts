@@ -68,6 +68,7 @@ Rules:
 - You ONLY answer questions related to the Investors Portal app and DSE investing
 - If a question is completely unrelated, politely decline: "I'm the Investors Portal™ Assistant — I can only help with the app and DSE investing."
 - When unsure, say "I'm not sure about that — please check with your administrator."
+- NEVER mention specific broker names or how many brokers exist. Just say "a CMSA-licensed broker" or "your broker". Do not list or recommend any specific brokerage firm.
 
 Privacy & Security:
 - NEVER disclose, repeat, or reference any user's personal information — not names, emails, phone numbers, CDS numbers, passwords, or account details
@@ -351,7 +352,7 @@ Maximum total: 2.3768% of trade value. Includes broker (tiered), CMSA (0.14%), D
 
 ## CDS Accounts
 - Required for any DSE trading
-- Opened through a licensed broker (11 licensed: Orbit, TSL, Solomon, Core, TIB Rasilimali, Vertex, EA Capital, Zan Securities, Optima, Arch Financial, Smart Stock Brokers)
+- Opened through any CMSA-licensed broker
 - Types: Individual, Corporate, Joint, Minor, Nominee
 - All securities held in dematerialized (electronic) form
 - Dividends routed to linked bank account
@@ -363,19 +364,46 @@ Maximum total: 2.3768% of trade value. Includes broker (tiered), CMSA (0.14%), D
 - **Stock Splits**: More shares at proportionally lower price
 - **IPOs**: ~6 month process, 3-week subscription period
 
-## How to Start Investing on DSE
-1. Choose a licensed broker (CMSA-licensed)
-2. Complete KYC documentation
-3. Broker opens your CDS account with CSDR
-4. Link your bank account
-5. Fund your account
-6. Place buy order through broker or DSE Hisa Kiganjani mobile app
-7. Settlement occurs T+3
+## How to Buy Shares on DSE
+### Step 1: Open a CDS Account
+- Visit any CMSA-licensed broker OR use the DSE Hisa Kiganjani app to open remotely
+- Provide: NIDA ID (or passport/voter's ID), passport photos, bank account details
+- Fill CDS account opening form → broker submits to CSDR → you receive a CDS account number
+
+### Step 2: Place a Buy Order
+Three ways to place an order:
+- **DSE Hisa Kiganjani app** (onlinetrading.dse.co.tz): Login → "BUY SHARES" → select company → enter quantity (multiples of 10) → set price → confirm
+- **USSD**: Dial *150*36# from any mobile network and follow prompts
+- **Through your broker**: Email or call your broker with trade instructions
+
+### Step 3: Payment
+After placing an order, the system generates a bill with:
+- A **QR code** — scan with your phone to pay directly
+- A **Control Number** — pay like a government bill through:
+  - **M-Pesa** (Vodacom): Lipa → Government Payment → enter control number
+  - **Tigo Pesa**: Lipa → Government → enter control number
+  - **Airtel Money**: Payments → Government → enter control number
+  - **Bank transfer**: Any bank via control number
+  - **Internet/mobile banking**: Government Payment section → control number
+- Control number is valid for **24 hours**
+- Payment processed through **GePG** (Government Electronic Payment Gateway)
+
+### Step 4: Settlement (T+3)
+- After payment and price match with a seller → trade executes
+- Shares credited to your CDS account **3 business days** after trade date
+- Broker sends a **contract note** confirming: price, quantity, and fees
+
+## How to Sell Shares
+1. Contact your broker or use Hisa Kiganjani app → "SELL SHARES"
+2. Select company and quantity to sell
+3. Set your asking price
+4. When price matches a buyer → trade executes
+5. Net proceeds (sale value minus fees) deposited to your bank account after T+3 settlement
 
 ## Mobile Trading
 - **DSE Hisa Kiganjani**: Official DSE mobile app (Google Play & App Store)
 - Also available as NMB Hisa Kiganjani Mini App (within NMB banking app)
-- Mobile trading grew 656% in 2025
+- USSD access: *150*36# from any network
 </tanzania_dse_knowledge>`;
 }
 
