@@ -282,29 +282,17 @@ const ChatPanel = memo(function ChatPanel({
     }, 50);
   }, []);
 
-  // On mobile, open panel toward the side with more space.
-  // Button is 52px tall; btnBottom is distance from screen bottom.
-  const btnTop = window.innerHeight - (btnBottom || 80) - 52;
-  const openUpward = btnTop > window.innerHeight / 2; // button in lower half → open up
-  const PANEL_H = Math.min(window.innerHeight * 0.65, 520);
-  const mobileAnchor = openUpward
-    ? { bottom: (btnBottom || 80) + 52 + 8 }  // panel sits above button
-    : { top: btnTop + 52 + 8 };               // panel sits below button
-
   const panelStyle = isMobile ? {
-    position: "fixed",
-    right: 12,
-    ...mobileAnchor,
-    width: "calc(100vw - 24px)",
-    height: PANEL_H,
-    maxHeight: PANEL_H,
-    borderRadius: 18,
+    position: "fixed", bottom: 0, left: 0, right: 0,
+    height: "72vh", maxHeight: "72vh",
+    borderRadius: "18px 18px 0 0",
     zIndex: 9998,
     display: "flex", flexDirection: "column",
     background: C.white,
-    boxShadow: "0 8px 40px rgba(0,0,0,0.28)",
+    boxShadow: "0 -8px 40px rgba(0,0,0,0.25)",
     border: `1px solid ${C.gray200}`,
     overflow: "hidden",
+    animation: "chat-sheet-in 0.28s cubic-bezier(0.4,0,0.2,1)",
   } : {
     position: "fixed", bottom: 24, right: 24,
     width: 360, height: 540,
@@ -319,13 +307,13 @@ const ChatPanel = memo(function ChatPanel({
 
   return (
     <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{
-        position: "fixed", inset: 0, background: isMobile ? "rgba(10,31,58,0.4)" : "transparent",
-        backdropFilter: isMobile ? "blur(1px)" : "none",
-        zIndex: 9997,
-        pointerEvents: isMobile ? "auto" : "none",
-      }} />
+      {/* Backdrop on mobile */}
+      {isMobile && (
+        <div onClick={onClose} style={{
+          position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", backdropFilter: "blur(2px)",
+          zIndex: 9997,
+        }} />
+      )}
 
       <div style={panelStyle}>
         {/* Header */}
@@ -362,7 +350,14 @@ const ChatPanel = memo(function ChatPanel({
         </div>
 
         {/* Messages */}
-        <style>{`.chat-scroll::-webkit-scrollbar{width:5px}.chat-scroll::-webkit-scrollbar-track{background:transparent}.chat-scroll::-webkit-scrollbar-thumb{border-radius:10px;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}}.chat-scroll::-webkit-scrollbar-thumb:hover{background:${isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)"}}.chat-scroll{scrollbar-width:thin;scrollbar-color:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"} transparent}`}</style>
+        <style>{`
+          .chat-scroll::-webkit-scrollbar{width:5px}
+          .chat-scroll::-webkit-scrollbar-track{background:transparent}
+          .chat-scroll::-webkit-scrollbar-thumb{border-radius:10px;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}}
+          .chat-scroll::-webkit-scrollbar-thumb:hover{background:${isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)"}}
+          .chat-scroll{scrollbar-width:thin;scrollbar-color:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"} transparent}
+          @keyframes chat-sheet-in{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        `}</style>
         <div className="chat-scroll" style={{
           flex: 1, overflowY: "auto", padding: "14px 14px 8px",
           display: "flex", flexDirection: "column",
@@ -557,9 +552,6 @@ const ChatAssistant = memo(function ChatAssistant({
     }
 
     // ── MOBILE: touch drag + tap ──────────────────────────────
-    // Prevent synthetic click so the opening tap doesn't land on a panel button
-    e.preventDefault();
-
     const clientY = e.touches[0].clientY;
     // Read actual bottom offset from DOM (handles CSS calc safe-area correctly)
     const rect = btnRef.current?.getBoundingClientRect();
@@ -594,8 +586,9 @@ const ChatAssistant = memo(function ChatAssistant({
         // Save final position
         try { localStorage.setItem(STORAGE_KEY, String(btnY >= 0 ? btnY : actualBottom)); } catch {}
       } else {
-        // Clean tap — open the panel
-        setOpen(true);
+        // Clean tap — defer slightly so the button unmounts before any
+        // synthetic click event fires, preventing auto-select of first item.
+        setTimeout(() => setOpen(true), 50);
       }
     };
 
