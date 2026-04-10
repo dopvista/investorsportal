@@ -115,8 +115,10 @@ function renderMarkdown(text, isDark) {
   };
 
   const formatInline = (str, keyPrefix) => {
+    // Strip stray single *italic* markers (AI occasionally outputs *word* for emphasis)
+    const cleaned = str.replace(/\*(?!\*)([^*]+)\*(?!\*)/g, "$1");
     // Bold: **text** or __text__; "Investors Portal™" always renders bold + brand color
-    const boldParts = str.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
+    const boldParts = cleaned.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
     return boldParts.flatMap((part, i) => {
       const isBold = /^\*\*(.+)\*\*$/.test(part) || /^__(.+)__$/.test(part);
       const text = isBold ? part.slice(2, -2) : part;
