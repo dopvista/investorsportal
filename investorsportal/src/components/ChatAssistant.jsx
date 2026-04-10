@@ -115,12 +115,18 @@ function renderMarkdown(text, isDark) {
   };
 
   const formatInline = (str, keyPrefix) => {
-    // Bold: **text** or __text__
-    const parts = str.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
-    return parts.map((part, i) => {
-      if (/^\*\*(.+)\*\*$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
-      if (/^__(.+)__$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
-      return part;
+    // Bold: **text** or __text__; "Investors Portal™" always renders bold + brand color
+    const boldParts = str.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
+    return boldParts.flatMap((part, i) => {
+      const isBold = /^\*\*(.+)\*\*$/.test(part) || /^__(.+)__$/.test(part);
+      const text = isBold ? part.slice(2, -2) : part;
+      const ipParts = text.split(/(Investors Portal™)/g);
+      return ipParts.map((seg, j) => {
+        if (!seg) return null;
+        if (seg === "Investors Portal™")
+          return <strong key={`${keyPrefix}-${i}-${j}`} style={{ color: "#00843D" }}>Investors Portal™</strong>;
+        return isBold ? <strong key={`${keyPrefix}-${i}-${j}`}>{seg}</strong> : seg;
+      }).filter(Boolean);
     });
   };
 
