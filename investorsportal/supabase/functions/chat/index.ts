@@ -48,9 +48,10 @@ Your purpose:
 - Guide through step-by-step workflows: adding transactions, recording dividends, generating reports, managing prices
 
 Rules:
-- BE BRIEF. ${isMobile ? "The user is on a MOBILE phone — keep responses under 3-4 short sentences or a tight bullet list (max 5 bullets). No walls of text." : "The user is on desktop — keep responses concise, max 6-8 sentences or a focused bullet list. Avoid unnecessary elaboration."}
-- Get straight to the point. Answer the question directly, then add context only if needed.
-- Use short sentences. Prefer bullet points over paragraphs.
+- BE BRIEF. Match your response length to the question — general questions get a short overview (2-4 lines), specific questions get targeted detail. NEVER dump everything you know about a topic.
+- ${isMobile ? "MOBILE: max 3-4 short sentences or 4 bullets. No walls of text." : "DESKTOP: max 4-6 sentences or 5 bullets for general questions. Only go longer if the user asks for step-by-step detail."}
+- If a question covers multiple topics (e.g. 'explain features'), give ONE short sentence per topic — not a full breakdown of each. Let the user ask follow-up questions for detail.
+- Get straight to the point. Answer the question directly, then stop.
 - If a question can be answered in one sentence, answer it in one sentence.
 - NEVER give financial advice — no buy/sell recommendations, no price predictions
 - Only provide educational guidance and factual information
@@ -472,7 +473,7 @@ Deno.serve(async (req: Request) => {
       signal: controller.signal,
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 512,
+        max_tokens: 300,
         // Prompt caching: system prompt cached for 5 min → ~90% cost reduction on input tokens
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: recentMessages.map((m: { role: string; content: string }) => ({

@@ -292,61 +292,53 @@ const ChatPanel = memo(function ChatPanel({
           flex: 1, overflowY: "auto", padding: "14px 14px 8px",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Welcome card */}
+          {/* Welcome card + suggestions */}
           {messages.length === 0 && !loading && (
-            <div style={{ marginBottom: 12 }}>
-              {/* Brand header */}
-              <div style={{ textAlign: "center", padding: "14px 10px 10px" }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, marginBottom: 3 }}>
-                  <span style={{ color: isDark ? "#fff" : C.navy }}>Investors </span>
-                  <span style={{ color: "#D4A017" }}>Portal</span>
-                  <sup style={{ fontSize: "0.9em", fontWeight: 800, marginLeft: 2, verticalAlign: "top", color: "#D4A017" }}>™</sup>
-                  <span style={{ color: C.gray400, fontWeight: 600 }}> Assistant</span>
-                </div>
-                <div style={{ fontSize: 11, color: C.gray400 }}>Here's what I can help with:</div>
-              </div>
-              {/* Capabilities list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* Capabilities */}
+              <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>What I can help with</div>
               {[
-                { icon: "home",      color: "#00843D", text: "Navigate the app — which page or button to click" },
-                { icon: "briefcase", color: "#2563eb", text: "Guide workflows — transactions, dividends, reports" },
-                { icon: "barChart",  color: "#7c3aed", text: "Explain features — FIFO gains, fees, price sync" },
-                { icon: "shield",    color: "#d97706", text: "Role questions — what you can and cannot do" },
-                { icon: "globe",     color: "#0891b2", text: "DSE context — investing concepts in the app" },
-              ].map(({ icon, color, text }) => (
-                <div key={icon} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "7px 10px", borderRadius: 9, marginBottom: 4,
-                  background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc",
-                  border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#e2e8f0"}`,
-                }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 7, background: `${color}20`, border: `1px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon name={icon} size={13} stroke={color} sw={2} />
+                { icon: "home",      color: "#00843D", text: "Navigate the app",       q: "How do I navigate the app? What pages are available?" },
+                { icon: "briefcase", color: "#2563eb", text: "Guide workflows",         q: "Walk me through the main workflows — transactions, dividends, and reports." },
+                { icon: "barChart",  color: "#7c3aed", text: "Explain features",        q: "Explain the key features — FIFO gains, fee calculation, and price sync." },
+                { icon: "shield",    color: "#d97706", text: "Answer role questions",   q: "What can I do with my current role? What are my permissions?" },
+                { icon: "globe",     color: "#0891b2", text: "DSE investing context",   q: "Explain DSE investing and how Investors Portal handles it." },
+              ].map(({ icon, color, text, q }) => (
+                <button key={icon} onClick={() => onSend(q)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "5px 8px", borderRadius: 8,
+                    background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+                    border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "#e2e8f0"}`,
+                    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    transition: "all 0.15s ease", width: "100%",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${color}12`; e.currentTarget.style.borderColor = `${color}40`; e.currentTarget.style.transform = "translateX(2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.03)" : "#f8fafc"; e.currentTarget.style.borderColor = isDark ? "rgba(255,255,255,0.05)" : "#e2e8f0"; e.currentTarget.style.transform = "translateX(0)"; }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: `${color}18`, border: `1px solid ${color}35`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name={icon} size={11} stroke={color} sw={2} />
                   </div>
-                  <span style={{ fontSize: 11.5, color: C.text, lineHeight: 1.4 }}>{text}</span>
-                </div>
+                  <span style={{ fontSize: 11, color: C.text }}>{text}</span>
+                </button>
               ))}
-            </div>
-          )}
-
-          {/* Suggested questions */}
-          {messages.length === 0 && !loading && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "6px 0" }}>
+              {/* Suggested questions */}
+              <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Try asking</div>
               {suggestions.map((q, i) => (
                 <button key={i} onClick={() => onSend(q)}
                   style={{
-                    padding: "10px 14px", borderRadius: 11,
+                    padding: "7px 10px", borderRadius: 9,
                     border: `1px solid ${C.gray200}`,
                     background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc",
-                    color: C.text, fontSize: 12.5, fontWeight: 500,
+                    color: C.text, fontSize: 11.5, fontWeight: 500,
                     cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                    transition: "all 0.15s ease",
-                    lineHeight: 1.4,
-                    display: "flex", alignItems: "center", gap: 10,
+                    transition: "all 0.15s ease", lineHeight: 1.4,
+                    display: "flex", alignItems: "center", gap: 8,
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(0,132,61,0.12)" : "#f0fdf4"; e.currentTarget.style.borderColor = isDark ? "rgba(0,132,61,0.3)" : "#86efac"; e.currentTarget.style.transform = "translateX(2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.transform = "translateX(0)"; }}
                 >
-                  <span style={{ width: 20, height: 20, borderRadius: 6, background: isDark ? "rgba(0,132,61,0.15)" : "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11 }}>→</span>
+                  <Icon name="arrowRight" size={11} stroke={isDark ? "#00843D" : "#16a34a"} sw={2.5} style={{ flexShrink: 0 }} />
                   {q}
                 </button>
               ))}
