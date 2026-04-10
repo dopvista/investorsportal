@@ -540,14 +540,23 @@ const ChatAssistant = memo(function ChatAssistant({
     try {
       // Get token from custom session store; refresh if expired or expiring soon
       let token = getSession()?.access_token;
-      if (!token) throw new Error("Not authenticated");
+      if (!token) throw new Error("Session expired — please sign in again.");
+
+      // Decode JWT expiry without a library
+      let jwtExpired = false;
       try {
         const { exp } = JSON.parse(atob(token.split(".")[1]));
-        if (exp * 1000 < Date.now() + 60_000) {
-          const fresh = await refreshSession();
-          if (fresh) token = fresh;
+        jwtExpired = exp * 1000 < Date.now() + 60_000;
+      } catch { /* malformed JWT, assume valid */ }
+
+      if (jwtExpired) {
+        const fresh = await refreshSession();
+        if (fresh) {
+          token = fresh;
+        } else {
+          throw new Error("Session expired — please sign in again.");
         }
-      } catch { /* malformed JWT — proceed with existing token */ }
+      }
 
       const res = await fetch(`${BASE}/functions/v1/chat`, {
         method: "POST",
@@ -575,7 +584,9 @@ const ChatAssistant = memo(function ChatAssistant({
         role: "assistant",
         content: err.name === "AbortError"
           ? "Request timed out. Please try again."
-          : "Sorry, something went wrong. Please try again.",
+          : err.message?.includes("Session expired")
+            ? err.message
+            : "Sorry, something went wrong. Please try again.",
       }]);
     } finally {
       setLoading(false);
