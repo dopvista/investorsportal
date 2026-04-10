@@ -12,50 +12,90 @@ const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const STORAGE_KEY = "ip_chat_btn_y";
 const POSITION_VER = "ip_chat_pos_v2"; // change to force-reset all saved positions
 
-// ── Suggested questions by page ──────────────────────────────────
-const SUGGESTIONS = {
+// ── Suggested questions pool by page (randomly picks 3 on each open) ────
+const SUGGESTION_POOL = {
   dashboard: [
     "What do my portfolio metrics mean?",
     "How is unrealized gain calculated?",
     "How do I read the performance chart?",
+    "What is the difference between realized and unrealized gain?",
+    "How is my market value calculated?",
+    "What does the Dividend Income card show?",
+    "How does the daily snapshot work?",
   ],
   transactions: [
     "How do I record a buy trade?",
     "What are DSE trading fees?",
     "What is the transaction workflow?",
+    "How do I confirm a transaction?",
+    "What happens after a transaction is verified?",
+    "How do I import transactions from Excel?",
+    "Can I edit a verified transaction?",
+    "How do I record a sell trade?",
   ],
   dividends: [
     "How is withholding tax calculated?",
-    "What is dividend yield?",
     "How do I record a dividend payment?",
+    "What is the difference between declared and paid dividends?",
+    "How do I mark a dividend as paid?",
+    "What does ex-dividend date mean?",
+    "How is net dividend amount calculated?",
+    "What is YTD dividend income?",
   ],
   companies: [
     "How does FIFO cost basis work?",
     "How do I sync DSE prices?",
     "How do I set a custom price?",
+    "How do I view price history for a company?",
+    "What does auto-sync do?",
+    "How do I read the price chart?",
+    "How do I register a new company?",
   ],
   reports: [
     "What reports can I generate?",
     "How do I export to Excel?",
     "How is the gain/loss report calculated?",
+    "What does the Portfolio Statement show?",
+    "How do I filter a report by date range?",
+    "What is included in the Transaction History report?",
+    "How do I generate a Dividend Income report?",
   ],
   "system-settings": [
     "What are the role permissions?",
     "How do I add a new user?",
     "How does DSE price sync work?",
+    "How do I enable the server cron job?",
+    "How do I manage brokers?",
+    "What is a CDS account?",
+    "How do I manage login page slides?",
   ],
   "user-management": [
     "What are the role permissions?",
     "How do I activate a user?",
     "How do I assign a CDS account?",
+    "How do I invite a new user?",
+    "What is the difference between SA and AD roles?",
+    "How do I change a user's role?",
+    "What can a Read Only user do?",
   ],
 };
 
-const DEFAULT_SUGGESTIONS = [
-  "What can you help me with?",
+const DEFAULT_POOL = [
   "How do I navigate this app?",
-  "Tell me about DSE investing",
+  "What pages are available to me?",
+  "How do I record a transaction?",
+  "What is FIFO and how is it used?",
+  "How are DSE fees calculated?",
+  "How do I generate a report?",
+  "What is my role and what can I do?",
+  "How does dividend withholding tax work?",
 ];
+
+function pickSuggestions(page) {
+  const pool = SUGGESTION_POOL[page] || DEFAULT_POOL;
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
 
 // ── Minimal markdown rendering ───────────────────────────────────
 function renderMarkdown(text, isDark) {
@@ -534,14 +574,17 @@ const ChatAssistant = memo(function ChatAssistant({
     }
   }, [messages, session, role, currentPage, cdsNumber, userName]);
 
+  const [suggestions, setSuggestions] = useState(() => pickSuggestions(currentPage));
+
   const clearChat = useCallback(() => {
     setMessages([]);
-  }, []);
-
-  // ── Suggestions based on current page ──────────────────────
-  const suggestions = useMemo(() => {
-    return SUGGESTIONS[currentPage] || DEFAULT_SUGGESTIONS;
+    setSuggestions(pickSuggestions(currentPage));
   }, [currentPage]);
+
+  // Re-randomize suggestions each time the chat is opened
+  useEffect(() => {
+    if (open) setSuggestions(pickSuggestions(currentPage));
+  }, [open, currentPage]);
 
   // ── Render ─────────────────────────────────────────────────
   return (
