@@ -283,7 +283,7 @@ const ChatPanel = memo(function ChatPanel({
     border: `1px solid ${C.gray200}`,
   } : {
     position: "fixed", bottom: 24, right: 24,
-    width: 360, height: 480,
+    width: 360, height: 540,
     borderRadius: 18,
     zIndex: 9998,
     display: "flex", flexDirection: "column",
@@ -346,8 +346,6 @@ const ChatPanel = memo(function ChatPanel({
           {/* Welcome card + suggestions */}
           {messages.length === 0 && !loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Capabilities */}
-              <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>What I can help with</div>
               {[
                 { icon: "info",      color: "#B8960C", text: "About Investors Portal™", q: "What is Investors Portal™? Tell me about it — what problem does it solve, who is it for, and what can I do here?" },
                 { icon: "home",      color: "#00843D", text: "Navigate the app",         q: "How do I navigate the app? What pages are available?" },
@@ -371,7 +369,11 @@ const ChatPanel = memo(function ChatPanel({
                   <div style={{ width: 20, height: 20, borderRadius: 6, background: `${color}18`, border: `1px solid ${color}35`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Icon name={icon} size={11} stroke={color} sw={2} />
                   </div>
-                  <span style={{ fontSize: 11, color: C.text }}>{text}</span>
+                  <span style={{ fontSize: 11, color: C.text }}>
+                    {text === "About Investors Portal™"
+                      ? <><span style={{ color: isDark ? "#ffffff" : "#0A2540", fontWeight: 700 }}>Investors </span><span style={{ color: "#B8960C", fontWeight: 700 }}>Portal™</span></>
+                      : text}
+                  </span>
                 </button>
               ))}
               {/* Suggested questions */}
@@ -534,8 +536,10 @@ const ChatAssistant = memo(function ChatAssistant({
         // Save position
         try { localStorage.setItem(STORAGE_KEY, String(btnBottom)); } catch {}
       } else {
-        // Tap — toggle panel
-        setOpen(prev => !prev);
+        // Tap — toggle panel. Defer one tick so any pending click event
+        // from this same gesture fires before the panel renders (prevents
+        // the first panel button from receiving the opening tap).
+        setTimeout(() => setOpen(prev => !prev), 0);
       }
     };
     document.addEventListener("mousemove", onMove);
