@@ -124,7 +124,7 @@ Two views: **Portfolio holdings** (all roles) and **Company registry** (SA only,
 ### Portfolio View
 - **Stat Cards**: Holdings (count) | Avg. Price | Highest Price | DSE Prices (auto-sync status)
 - **Table columns (desktop)**: # | Company | New Price | Change | Prev. Price | Last Updated | Updated By | Actions
-- **Mobile**: Tap a company card to open detail modal with tabs: **Chart** | **History**
+- **Mobile**: Tap a company card to open a bottom sheet modal with tabs: **Chart** | **History** | **Update**
 
 ### How to Update a Price
 1. In Portfolio tab, click the company's **action menu** → **"Update Price"** (or **"Set Price"** if no price set yet)
@@ -134,10 +134,11 @@ Two views: **Portfolio holdings** (all roles) and **Company registry** (SA only,
 5. Click **"Update Price"** to save
 
 ### How to View Price History
-1. Click the company's action menu → **"History"**
+1. Click the company's **action menu** → **"History"**
 2. On mobile: tap the company card → **History** tab
-3. Shows paginated table: Date & Time | Old Price | New Price | Change
-4. "Initial" badge on first price entry, ▲/▼ badges for subsequent changes
+3. Shows a paginated table: # | Date & Time | Old Price | New Price | Change
+4. First entry: Old Price shows **—** and Change column shows **"Initial"**
+5. Subsequent entries: Change column shows **▲** (green) or **▼** (red) badge with the amount
 
 ### Price Chart
 1. Click the company's action menu → **"Chart"**
@@ -166,12 +167,12 @@ Records all Buy and Sell trades with automatic fee calculation.
 1. Click **"Record Transaction"** button (or **"+ Record"** on mobile)
 2. Fill the form:
    - **Date** — required (defaults to today)
-   - **Company** — required (searchable dropdown)
+   - **Company** — required (searchable dropdown; for Sell, shows remaining shares next to each company name)
    - **Type** — required (toggle: "Buy" or "Sell")
-   - **Quantity** — required (number of shares)
-   - **Price/Share** — required (price per share in TZS)
-   - **Broker** — required (searchable dropdown)
-   - **Control Number (Ref No.)** — optional
+   - **Quantity** — required; for Sell shows label **"Quantity (max X)"** where X = shares held
+   - **Price per Share (TZS)** — required
+   - **Broker** — required (searchable dropdown, shows broker code badge)
+   - **Reference No.** — optional
    - **Remarks** — optional
 3. As you type, the form auto-calculates and shows:
    - **Trade Value** = Quantity × Price/Share
@@ -182,29 +183,29 @@ Records all Buy and Sell trades with automatic fee calculation.
 5. Transaction is created with status **"Pending"**
 
 ### Transaction Status Workflow
-- **Pending** (gray badge) → initial state. DE/SA/AD can edit or delete.
-- **Confirmed** (blue badge) → DE clicks **"Confirm"**. Means data is correct. Can be undone with **"Re-Confirm"**.
+- **Pending** (orange badge) → initial state. DE/SA/AD can edit or delete.
+- **Confirmed** (blue badge) → DE clicks **"Confirm"**. Means data is correct.
 - **Verified** (green badge) → VR clicks **"Verify"**. Transaction is locked — no more edits. VR can click **"UnVerify"** to move back to Pending.
-- **Rejected** (red badge) → VR clicks **"Reject"** → must enter a **"Rejection Reason"** explaining why. Rejected transactions can be edited and resubmitted.
+- **Rejected** (red badge) → VR clicks **"Reject"** → must enter a **"Rejection Reason"** (required, visible to the Data Entrant). Rejected transactions can be edited by DE and re-confirmed (button shows **"Re-Confirm"**).
 
 Who can do what:
-- **DE**: Create, edit (if not verified), delete (if pending), confirm
+- **DE**: Create, edit (if not verified), delete (if pending), confirm/re-confirm
 - **VR**: Verify, reject, unverify. Cannot create or edit.
 - **SA/AD**: All of the above
 - **RO**: View only
 
 ### Bulk Actions
-Select multiple transactions via checkboxes, then use toolbar: **Confirm Selected | Verify Selected | Reject Selected | Delete Selected**
+Select multiple transactions via checkboxes, then use toolbar: **Confirm | Verify | Reject | UnVerify | Delete** (each shows count of selected)
 
 ### Transaction Detail Modal
 Shows full details when you tap/click a transaction:
 - Header: Company name | Buy/Sell badge | Status badge | Trade date | CDS account
-- **Quick Stats** (mobile bar): Shares | Price/Share | Avg Cost/Share (buy) or Net Sell/Share (sell)
-- **Summary**: Trade Value | Total Fees (expandable) | **Total Paid** (buy) or **Net Received** (sell)
+- **Quick Stats** (mobile): Shares | Price/Share | Avg Cost/Share (buy) or Net Sell/Share (sell)
+- **Summary**: Trade Value | **Total Fees** (full breakdown always visible) | **Total Paid** (buy) or **Net Received** (sell)
 - **Fee Breakdown**: Broker (+VAT) | CMSA (0.14%) | DSE (+VAT) | CSDR (+VAT) | Fidelity (0.02%) | Total Fees
 - **Unrealized G/L** (Buy, if verified & holding > 0): Current Price × shares = Current Value vs Cost Basis
 - **Realized G/L** (Sell, if verified): Net Proceeds vs FIFO Cost Basis
-- **Audit Trail**: Shows 4 steps: **Recorded** (creation) → **Confirmed** (DE verified data) → **Verified** (VR approved) or **Rejected** (VR declined with reason). Each step shows timestamp and who performed it. Inactive steps show "Awaiting".
+- **Audit Trail**: 4 steps: **Recorded** → **Confirmed** → **Verified** or **Rejected** (with reason). Each step shows timestamp and who performed it. Pending steps show "Awaiting".
 
 ### Excel Import
 1. Click **"Import"** button → "Import Transactions" modal

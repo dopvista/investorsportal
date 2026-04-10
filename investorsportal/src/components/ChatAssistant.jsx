@@ -302,7 +302,7 @@ const ChatPanel = memo(function ChatPanel({
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-            <img src={logo} alt="" style={{ width: isMobile ? 38 : 32, height: isMobile ? 38 : 32, borderRadius: isMobile ? 11 : 9, objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", border: "1.5px solid rgba(255,255,255,0.2)", flexShrink: 0 } />
+            <img src={logo} alt="" style={{ width: 38, height: 38, borderRadius: 11, objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", border: "1.5px solid rgba(255,255,255,0.2)", flexShrink: 0 }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1.2 }}><span style={{ color: "#fff" }}>Investors </span><span style={{ color: "#D4A017" }}>Portal</span><sup style={{ fontSize: "130%", verticalAlign: "top", color: "#D4A017", fontWeight: 800, marginLeft: 1, position: "relative", top: "-0.15em" }}>™</sup></div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 600, lineHeight: 1.2, marginTop: 2 }}>AI Assistant</div>
@@ -491,7 +491,7 @@ const ChatAssistant = memo(function ChatAssistant({
   // Compute button bottom position
   const btnBottom = useMemo(() => {
     if (btnY >= 0) return btnY;
-    return isMobile ? 76 : 24; // default: bottom of screen
+    return isMobile ? 80 : 24; // default: above bottom nav bar
   }, [btnY, isMobile]);
 
   // ── Drag handlers ──────────────────────────────────────────
@@ -507,7 +507,9 @@ const ChatAssistant = memo(function ChatAssistant({
       }
       if (dragState.current.dragging) {
         ev.preventDefault();
-        const newBottom = Math.max(10, Math.min(window.innerHeight - 70, dragState.current.startBtnY + delta));
+        const minBottom = isMobile ? 76 : 10;
+        const maxBottom = window.innerHeight - (isMobile ? 120 : 120); // keep below header (56px) + button (52px) + gap
+        const newBottom = Math.max(minBottom, Math.min(maxBottom, dragState.current.startBtnY + delta));
         setBtnY(newBottom);
       }
     };
