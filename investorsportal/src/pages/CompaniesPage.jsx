@@ -189,14 +189,14 @@ function DSEPriceCard({ unpriced, lastFetchAt, onClick, autoSyncEnabled, syncing
           {serverOff
             ? (isMobile ? "Disabled by Admin" : "Auto-Sync Disabled by Admin")
             : autoSyncEnabled
-              ? (syncing ? "Syncing..." : isMobile ? "Auto-Sync ON" : "Auto-Sync Prices ON")
-              : (isMobile ? "Auto-Sync OFF" : "Auto-Sync Prices OFF")}
+              ? (syncing ? "Syncing..." : isMobile ? "Sync ON" : "Auto-Sync Prices ON")
+              : (isMobile ? "Sync OFF" : "Auto-Sync Prices OFF")}
         </div>
         <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>
           {serverOff
             ? "Contact admin to re-enable"
             : autoSyncEnabled
-              ? (lastSynced ? `Synced ${fmtTime(lastSynced)}` : "Waiting for first sync...")
+              ? (lastSynced ? `Synced ${fmtTime(lastSynced)}` : "Syncing...")
               : (lastSynced ? `Last synced ${fmtTime(lastSynced)}` : "Tap to enable live prices")}
         </div>
       </div>

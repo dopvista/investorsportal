@@ -176,7 +176,7 @@ function ThinkingDots({ C }) {
 }
 
 // ── Message bubble ───────────────────────────────────────────────
-const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
+const MessageBubble = memo(function MessageBubble({ msg, C, isDark, isMobile }) {
   const isUser = msg.role === "user";
   return (
     <div style={{
@@ -205,7 +205,7 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
           ? (isDark ? "rgba(34,197,94,0.2)" : "#bbf7d0")
           : (isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0")}`,
         color: C.text,
-        fontSize: 11.5,
+        fontSize: isMobile ? 13 : 11.5,
         lineHeight: 1.5,
         wordBreak: "break-word",
       }}>
@@ -302,7 +302,7 @@ const ChatPanel = memo(function ChatPanel({
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-            <img src={logo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", border: "1.5px solid rgba(255,255,255,0.2)", flexShrink: 0 }} />
+            <img src={logo} alt="" style={{ width: isMobile ? 38 : 32, height: isMobile ? 38 : 32, borderRadius: isMobile ? 11 : 9, objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", border: "1.5px solid rgba(255,255,255,0.2)", flexShrink: 0 } />
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1.2 }}><span style={{ color: "#fff" }}>Investors </span><span style={{ color: "#D4A017" }}>Portal</span><sup style={{ fontSize: "130%", verticalAlign: "top", color: "#D4A017", fontWeight: 800, marginLeft: 1, position: "relative", top: "-0.15em" }}>™</sup></div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 600, lineHeight: 1.2, marginTop: 2 }}>AI Assistant</div>
@@ -387,7 +387,7 @@ const ChatPanel = memo(function ChatPanel({
 
           {/* Message list */}
           {messages.map((msg, i) => (
-            <MessageBubble key={i} msg={msg} C={C} isDark={isDark} />
+            <MessageBubble key={i} msg={msg} C={C} isDark={isDark} isMobile={isMobile} />
           ))}
 
           {/* Thinking indicator */}
