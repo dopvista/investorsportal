@@ -344,40 +344,15 @@ const ChatPanel = memo(function ChatPanel({
           {/* Welcome card + suggestions */}
           {messages.length === 0 && !loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* About card */}
-              <div style={{
-                background: isDark ? "linear-gradient(135deg, rgba(0,132,61,0.1) 0%, rgba(10,37,64,0.25) 100%)" : "linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%)",
-                border: `1px solid ${isDark ? "rgba(0,132,61,0.22)" : "#bbf7d0"}`,
-                borderRadius: 12, padding: "11px 13px", marginBottom: 2,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 11.5, marginBottom: 5, display: "flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="info" size={12} stroke={isDark ? "#4ade80" : "#16a34a"} sw={2} />
-                  <span style={{ color: isDark ? "#fff" : "#0A2540" }}>About </span>
-                  <span style={{ color: isDark ? "#fff" : "#0A2540" }}>Investors </span>
-                  <span style={{ color: "#B8960C" }}>Portal™</span>
-                </div>
-                <div style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,0.62)" : "#475569", lineHeight: 1.65, marginBottom: 8 }}>
-                  A digital portfolio management platform for DSE investors — track holdings, compute FIFO gains, calculate broker fees, manage dividends with WHT, and generate PDF/Excel reports across multiple CDS accounts in real time.
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {["Real-time DSE prices", "FIFO gain/loss", "Multi-CDS", "Dividend + WHT", "PDF & Excel"].map(tag => (
-                    <span key={tag} style={{
-                      fontSize: 9.5, fontWeight: 600, padding: "2px 7px", borderRadius: 10,
-                      background: isDark ? "rgba(0,132,61,0.15)" : "#dcfce7",
-                      color: isDark ? "#4ade80" : "#15803d",
-                      border: `1px solid ${isDark ? "rgba(0,132,61,0.28)" : "#86efac"}`,
-                    }}>{tag}</span>
-                  ))}
-                </div>
-              </div>
               {/* Capabilities */}
               <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>What I can help with</div>
               {[
-                { icon: "home",      color: "#00843D", text: "Navigate the app",       q: "How do I navigate the app? What pages are available?" },
-                { icon: "briefcase", color: "#2563eb", text: "Guide workflows",         q: "Walk me through the main workflows — transactions, dividends, and reports." },
-                { icon: "barChart",  color: "#7c3aed", text: "Explain features",        q: "Explain the key features — FIFO gains, fee calculation, and price sync." },
-                { icon: "shield",    color: "#d97706", text: "Answer role questions",   q: "What can I do with my current role? What are my permissions?" },
-                { icon: "globe",     color: "#0891b2", text: "DSE investing context",   q: "Explain DSE investing and how Investors Portal handles it." },
+                { icon: "info",      color: "#B8960C", text: "About Investors Portal™", q: "What is Investors Portal™? Tell me about it — what problem does it solve, who is it for, and what can I do here?" },
+                { icon: "home",      color: "#00843D", text: "Navigate the app",         q: "How do I navigate the app? What pages are available?" },
+                { icon: "briefcase", color: "#2563eb", text: "Guide workflows",           q: "Walk me through the main workflows — transactions, dividends, and reports." },
+                { icon: "barChart",  color: "#7c3aed", text: "Explain features",          q: "Explain the key features — FIFO gains, fee calculation, and price sync." },
+                { icon: "shield",    color: "#d97706", text: "Answer role questions",     q: "What can I do with my current role? What are my permissions?" },
+                { icon: "globe",     color: "#0891b2", text: "DSE investing context",     q: "Explain DSE investing and how Investors Portal handles it." },
               ].map(({ icon, color, text, q }) => (
                 <button key={icon} onClick={() => onSend(q)}
                   style={{
