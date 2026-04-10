@@ -525,43 +525,69 @@ const ChatAssistant = memo(function ChatAssistant({
   // Numeric value for drag arithmetic (read actual position from DOM when needed)
   const btnBottomNum = isDragged ? btnY : (isMobile ? 80 : 24);
 
-  // ── Drag handlers ──────────────────────────────────────────
+  // ── Drag handlers (mobile only — desktop is untouched) ────────
   const handlePointerDown = useCallback((e) => {
     const isTouch = !!e.touches;
-    // Prevent browser from generating emulated mouse/click events after touch —
-    // this stops the first panel button from receiving the opening tap on mobile.
-    if (isTouch) e.preventDefault();
-    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-    // Read actual bottom from DOM to handle CSS calc values correctly
+
+    // ── DESKTOP: simple click toggle, no changes ──────────────
+    if (!isTouch) {
+      const onUp = () => {
+        document.removeEventListener("mouseup", onUp);
+        if (!dragState.current.dragging) {
+          setTimeout(() => setOpen(prev => !prev), 0);
+        }
+      };
+      dragState.current = { dragging: false };
+      document.addEventListener("mouseup", onUp);
+      return;
+    }
+
+    // ── MOBILE: touch drag + tap ──────────────────────────────
+    // Prevent synthetic click so the opening tap doesn't land on a panel button
+    e.preventDefault();
+
+    const clientY = e.touches[0].clientY;
+    // Read actual bottom offset from DOM (handles CSS calc safe-area correctly)
     const rect = btnRef.current?.getBoundingClientRect();
     const actualBottom = rect ? window.innerHeight - rect.bottom : btnBottomNum;
-    dragState.current = { dragging: false, startY: clientY, startBtnY: actualBottom, isTouch };
-    // Add move/up listeners
+
+    dragState.current = { dragging: false, startY: clientY, startBtnY: actualBottom };
+
+    const HEADER_H = 56;  // app top bar height
+    const FOOTER_H = 68;  // bottom nav bar height
+    const BTN_H    = 52;  // button diameter
+    const PADDING  = 8;   // extra breathing room
+
     const onMove = (ev) => {
-      const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
-      const delta = dragState.current.startY - cy;
-      if (!dragState.current.dragging && Math.abs(delta) > 5) {
+      const cy = ev.touches[0].clientY;
+      const delta = dragState.current.startY - cy; // positive = dragging up
+      if (!dragState.current.dragging && Math.abs(delta) > 6) {
         dragState.current.dragging = true;
       }
       if (dragState.current.dragging) {
         ev.preventDefault();
-        // Keep button in the bottom zone only — no dragging allowed
-        return;
+        const minBottom = FOOTER_H + PADDING;                          // above footer
+        const maxBottom = window.innerHeight - HEADER_H - BTN_H - PADDING; // below header
+        const newBottom = Math.max(minBottom, Math.min(maxBottom, dragState.current.startBtnY + delta));
+        setBtnY(newBottom);
       }
     };
+
     const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
       document.removeEventListener("touchmove", onMove, { passive: false });
       document.removeEventListener("touchend", onUp);
-      // Tap — open panel (button is hidden when open, so this only fires to open).
-      setOpen(true);
+      if (dragState.current.dragging) {
+        // Save final position
+        try { localStorage.setItem(STORAGE_KEY, String(btnY >= 0 ? btnY : actualBottom)); } catch {}
+      } else {
+        // Clean tap — open the panel
+        setOpen(true);
+      }
     };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("touchend", onUp);
-  }, [btnBottomNum, isMobile]);
+  }, [btnBottomNum, btnY]);
 
   // ── Send message ───────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
