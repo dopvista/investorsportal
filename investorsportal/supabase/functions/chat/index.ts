@@ -106,12 +106,17 @@ Name: ${ctx.userName || "User"} | Role: ${ctx.role || "?"} (${roleDesc}) | Curre
 
 ## Dashboard Page
 Shows portfolio overview for the active CDS account:
-- **Metric Cards**: Market Value | Invested Capital | Unrealized G/L | Unrealized Return % | Realized G/L | Realized Return % | Dividend Income (YTD) | Pending Actions
-- **Performance Chart**: Shows portfolio value trend. Range buttons to change time period.
-- **Realized G/L Section**: Expandable panel showing closed positions gain/loss by company
-- **Dividend Summary**: YTD paid dividends, top earners, total tax withheld
-- **User List** (SA/AD only): Shows all users assigned to this CDS with their roles
+- **Metric Cards (desktop)**: Market Value | Invested Capital | Unrealized G/L | Unrealized Return % | Realized G/L | Realized Return % | Dividend Income | Awaiting Action
+- **Metric Cards (mobile)**: Invested | Return | Holdings (smaller pills)
+- If no prices set: metric shows **"Set prices in Portfolio to compute"**
+- If no verified transactions: shows **"No verified transactions yet"**
+- **Performance Chart** ("Portfolio Performance"): Shows portfolio value trend over time
+- **Realized G/L Section** ("Realized Gain / Loss — Closed Positions"): Expandable table with realized gains by company
+- **Top 5 Holdings by Market Value**: Table showing company, shares held, invested capital, current price, market value, unrealized G/L, return %, days held, portfolio weight %
+- **Top 5 Dividends by Company**: Shows top dividend earners
+- **User List** (SA/AD only): All users assigned to this CDS with roles and status (Active/Inactive)
 - **Snapshot**: System auto-captures daily portfolio snapshot for historical tracking
+- **Pull to refresh** on mobile: pull down to reload all data
 
 ## Portfolio Page (Companies)
 Two views: **Portfolio holdings** (all roles) and **Company registry** (SA only, via Manage section).
@@ -168,15 +173,19 @@ Records all Buy and Sell trades with automatic fee calculation.
    - **Broker** — required (searchable dropdown)
    - **Control Number (Ref No.)** — optional
    - **Remarks** — optional
-3. Fees are calculated automatically as you type (shown below the form)
+3. As you type, the form auto-calculates and shows:
+   - **Trade Value** = Quantity × Price/Share
+   - **Fees** (expandable breakdown: Broker, CMSA, DSE, CSDR, Fidelity)
+   - **Total Paid** (Buy) or **Net Proceeds** (Sell)
+   - For Sell: if quantity exceeds your shares, shows **"⚠ Exceeds your X shares"**
 4. Click **"Record Transaction"** to submit (or **"Save Changes"** when editing)
 5. Transaction is created with status **"Pending"**
 
 ### Transaction Status Workflow
 - **Pending** (gray badge) → initial state. DE/SA/AD can edit or delete.
-- **Confirmed** (blue badge) → DE clicks **"Confirm"**. Means data is correct.
-- **Verified** (green badge) → VR clicks "Verify". Transaction is locked — no more edits.
-- **Rejected** (red badge) → VR clicks "Reject" with a reason comment.
+- **Confirmed** (blue badge) → DE clicks **"Confirm"**. Means data is correct. Can be undone with **"Re-Confirm"**.
+- **Verified** (green badge) → VR clicks **"Verify"**. Transaction is locked — no more edits. VR can click **"UnVerify"** to move back to Pending.
+- **Rejected** (red badge) → VR clicks **"Reject"** → must enter a **"Rejection Reason"** explaining why. Rejected transactions can be edited and resubmitted.
 
 Who can do what:
 - **DE**: Create, edit (if not verified), delete (if pending), confirm
@@ -189,12 +198,13 @@ Select multiple transactions via checkboxes, then use toolbar: **Confirm Selecte
 
 ### Transaction Detail Modal
 Shows full details when you tap/click a transaction:
-- Header: Company name | Buy/Sell badge | Status badge | Trade date
-- **Summary**: Trade Value | Total Fees (expandable breakdown) | Total Paid (Buy) or Net Received (Sell)
+- Header: Company name | Buy/Sell badge | Status badge | Trade date | CDS account
+- **Quick Stats** (mobile bar): Shares | Price/Share | Avg Cost/Share (buy) or Net Sell/Share (sell)
+- **Summary**: Trade Value | Total Fees (expandable) | **Total Paid** (buy) or **Net Received** (sell)
 - **Fee Breakdown**: Broker (+VAT) | CMSA (0.14%) | DSE (+VAT) | CSDR (+VAT) | Fidelity (0.02%) | Total Fees
 - **Unrealized G/L** (Buy, if verified & holding > 0): Current Price × shares = Current Value vs Cost Basis
 - **Realized G/L** (Sell, if verified): Net Proceeds vs FIFO Cost Basis
-- **Audit Trail**: Recorded → Confirmed → Verified/Rejected with timestamps and who performed each step
+- **Audit Trail**: Shows 4 steps: **Recorded** (creation) → **Confirmed** (DE verified data) → **Verified** (VR approved) or **Rejected** (VR declined with reason). Each step shows timestamp and who performed it. Inactive steps show "Awaiting".
 
 ### Excel Import
 1. Click **"Import"** button → "Import Transactions" modal
@@ -231,16 +241,16 @@ Tracks dividend income with automatic WHT calculation.
    - **Shares Held** — optional (if entered, Total Amount auto-calculates)
    - **Total Amount** — required (auto-calculated: DPS × Shares)
    - **Withholding Tax (5%)** — auto-calculated
-   - **Status** — dropdown: Declared | Ex-Date Passed | Paid
+   - **Status** — dropdown: **Declared** | **Ex-Date Passed** | **Paid**
    - **Remarks** — optional
 3. **Net Amount** (read-only) = Total Amount − Withholding Tax
 4. Click **"Record Dividend"** to save (or **"Update"** when editing)
 
 ### Dividend Status Workflow
 - **Declared** (orange badge) → initial state
-- **Ex-Date Passed** (blue badge) → after ex-dividend date
+- **Ex-Date** (blue badge) → ex-dividend date has passed
 - **Paid** (green badge) → dividend has been paid
-- Actions: "Mark as Paid" | "Revert to Declared" | Edit | Delete
+- Actions: **"Mark as Paid"** | **"Revert to Declared"** | **Edit** | **Delete**
 
 ### WHT Calculation
 Withholding Tax = 5% of gross dividend amount (for DSE-listed companies). This is automatically calculated and shown in the form. Net Amount = Gross − WHT.
@@ -289,8 +299,8 @@ There are two ways a user account can be created in Investors Portal:
 **1. Admin Invite (SA/AD only)**
 1. Go to **User Management** page
 2. Click **"+ Invite User"** (desktop) or **"+ Invite"** (mobile)
-3. Fill: Email Address (required) | CDS Account (required) | Temporary Password (required) | Assign Role (required)
-4. Click **"Create & Invite"** → user receives email invite with login credentials
+3. Fill: **Email Address** (required) | **CDS Account** (required) | **Temporary Password** (required, min 8 chars with upper, lower, number, symbol) | **Assign Role** (required: Super Admin / Admin / Data Entrant / Verifier / Read Only)
+4. Click **"Create & Invite"** → user receives email with login credentials
 5. The user is immediately active with the assigned role and CDS account.
 
 **2. Google OAuth Self-Signup**
@@ -308,9 +318,9 @@ There are two ways a user account can be created in Investors Portal:
 
 ## System Settings (SA only)
 - **DSE Price Updates**: Toggle **"Enable Server Cron"** to enable/disable auto-sync (master switch). Shows "Every 5 min · Weekdays · 09:00–16:00 EAT". Manual **"Fetch Prices Now"** button for immediate fetch. This is the master switch — when disabled, ALL user auto-sync is paused system-wide.
-- **Broker Management**: Add/edit/delete brokers (Name, Code)
-- **CDS Account Management**: Create/edit CDS accounts (Number, Name, Owner, Status)
-- **Login Page Slideshow**: Manage homepage carousel images
+- **Broker Management**: Click **"Register New Broker"** → fill Broker Name, Broker Code (short unique code), Status (Active/Inactive), Contact Phone, Contact Email, Remarks → click **"Register Broker"** (or **"Save Changes"** when editing)
+- **CDS Account Management**: View all CDS accounts with number, name, phone, email, status. Edit details or activate/deactivate accounts.
+- **Login Page Slideshow**: Manage homepage carousel — add/remove/reorder slides with titles, subtitles, images, and color themes (Forest, Navy, Purple, Gold, Slate, Teal)
 
 ## FIFO Cost Basis
 Investors Portal uses First-In-First-Out for all gain/loss calculations:
@@ -333,8 +343,15 @@ After the first email/password login, if your device supports biometrics and no 
 - **"Don't ask me again"** — permanently disables the prompt (can still set up later via Profile)
 
 ### Profile Page
-Update: Full Name | Phone Number | National ID (NIDA) | Nationality | Postal Address | Gender | Date of Birth.
-Change password (min 6 chars, max 3 changes/day). Manage passkeys (add, edit nickname, delete).
+- **Personal Info**: Full Name (required) | Phone Number (required) | Gender | Date of Birth | National ID (NIDA) | Nationality | Postal Address → click **"Save Changes"**
+- **Profile Picture**: Click your avatar → upload photo (max 10MB) → crop → saved at 200×200px
+- **Change Password**: Click **"Change Password"** → click **"Send Verification Code"** (8-digit code sent to email) → enter code + new password (min 6 chars) + confirm → click **"Update Password"**. Max 3 changes/day.
+- **Biometric Passkeys**: View registered devices. Click **+** to add current device. Click **✕** to remove a passkey.
+- **Account Type**: Shows "Corporate" (multiple users on CDS) or "Individual" (single user)
+
+### Account Inactive / Deactivated
+- If your CDS account is inactive: screen shows **"Account Inactive"** with admin contact cards (phone + email). Contact your admin to reactivate.
+- If your user account is deactivated: screen shows **"Account Deactivated"** with admin contacts. Click **"← Sign Out"** to return to login.
 
 ### Auto-logout
 5 minutes idle → automatic sign-out. Any action resets the timer.
