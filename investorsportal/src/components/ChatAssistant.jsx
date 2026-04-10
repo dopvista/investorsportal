@@ -151,7 +151,7 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
           border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#e2e8f0"}`,
           marginBottom: 2,
         }}>
-          <img src="/src/assets/logo.jpg" alt="IP" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src={logo} alt="IP" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
       )}
       <div style={{
