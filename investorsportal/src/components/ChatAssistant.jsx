@@ -370,12 +370,12 @@ const ChatPanel = memo(function ChatPanel({
               {[
                 { icon: "info",      color: "#B8960C", text: "About Investors Portal™", q: "What is Investors Portal™? Tell me about it — what problem does it solve, who is it for, and what can I do here?" },
                 { icon: "home",      color: "#00843D", text: "Navigate the app",         q: "How do I navigate the app? What pages are available?" },
-                { icon: "briefcase", color: "#2563eb", text: "Guide workflows",           q: "Walk me through the main workflows — transactions, dividends, and reports." },
-                { icon: "barChart",  color: "#7c3aed", text: "Explain features",          q: "Explain the key features — FIFO gains, fee calculation, and price sync." },
+                { icon: "briefcase", color: "#2563eb", text: "Guide workflows",           q: "What is the core workflow in Investors Portal™ — from recording a transaction to seeing your gain/loss?" },
+                { icon: "barChart",  color: "#7c3aed", text: "Explain features",          q: "What are the key features of Investors Portal™ and what does each one do?" },
                 { icon: "shield",    color: "#d97706", text: "Answer role questions",     q: "What can I do with my current role? What are my permissions?" },
-                { icon: "globe",     color: "#0891b2", text: "DSE investing context",     q: "Explain DSE investing and how Investors Portal handles it." },
+                { icon: "globe",     color: "#0891b2", text: "DSE investing context",     q: "What is the DSE and how does Investors Portal™ help me manage my DSE investments?" },
               ].map(({ icon, color, text, q }) => (
-                <button key={icon} onClick={() => populateInput(q)}
+                <button key={icon} onClick={() => onSend(q)}
                   style={{
                     display: "flex", alignItems: "center", gap: 8,
                     padding: "5px 8px", borderRadius: 8,
@@ -400,7 +400,7 @@ const ChatPanel = memo(function ChatPanel({
               {/* Suggested questions */}
               <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Try asking</div>
               {suggestions.map((q, i) => (
-                <button key={i} onClick={() => populateInput(q)}
+                <button key={i} onClick={() => onSend(q)}
                   style={{
                     padding: "7px 10px", borderRadius: 9,
                     border: `1px solid ${C.gray200}`,
