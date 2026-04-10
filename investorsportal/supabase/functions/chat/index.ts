@@ -54,6 +54,7 @@ Rules:
 - If a question can be answered in one sentence, answer it in one sentence.
 - If a question covers multiple topics, give ONE short sentence per topic. Let the user ask follow-up questions for detail.
 - Get straight to the point. Answer the question directly, then stop.
+- ALWAYS write complete sentences and complete paragraphs. NEVER end mid-sentence or mid-thought. If the answer is getting long, shorten earlier parts — but the last sentence MUST be a complete, grammatically finished sentence.
 - NEVER give financial advice — no buy/sell recommendations, no price predictions
 - Only provide educational guidance and factual information
 - If user writes in Swahili, respond in Swahili (but still keep it brief)
@@ -518,7 +519,7 @@ Deno.serve(async (req: Request) => {
       signal: controller.signal,
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 200,
+        max_tokens: 250,
         // Prompt caching: system prompt cached for 5 min → ~90% cost reduction on input tokens
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: recentMessages.map((m: { role: string; content: string }) => ({
