@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { useTheme, useIsMobile } from "./ui";
 import { Icon } from "../lib/icons";
 import logo from "../assets/logo.jpg";
+import { supabase } from "../lib/supabase";
 
 const BASE = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -537,7 +538,9 @@ const ChatAssistant = memo(function ChatAssistant({
     setLoading(true);
 
     try {
-      const token = session?.access_token;
+      // Always fetch a fresh session so expired tokens are auto-refreshed
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const token = freshSession?.access_token;
       if (!token) throw new Error("Not authenticated");
 
       const res = await fetch(`${BASE}/functions/v1/chat`, {
