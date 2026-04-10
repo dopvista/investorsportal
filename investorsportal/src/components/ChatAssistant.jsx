@@ -114,12 +114,9 @@ function renderMarkdown(text, isDark) {
   };
 
   const formatInline = (str, keyPrefix) => {
-    // First: replace "Investors Portal" with branded version (before bold processing)
-    const branded = str.replace(/Investors\s+Portal(?:™|®)?/g, "{{IP_BRAND}}");
     // Bold: **text** or __text__
-    const parts = branded.split(/(\*\*[^*]+\*\*|__[^_]+__|{{IP_BRAND}})/g);
+    const parts = str.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
     return parts.map((part, i) => {
-      if (part === "{{IP_BRAND}}") return <strong key={`${keyPrefix}-${i}`}><span style={{ color: isDark ? "#fff" : "#0B1F3A" }}>Investors </span><span style={{ color: "#D4A017" }}>Portal</span><sup style={{ fontSize: "130%", verticalAlign: "top", color: "#D4A017", fontWeight: 800, marginLeft: 1, position: "relative", top: "-0.15em" }}>™</sup></strong>;
       if (/^\*\*(.+)\*\*$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
       if (/^__(.+)__$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
       return part;
