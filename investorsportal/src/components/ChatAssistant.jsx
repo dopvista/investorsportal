@@ -272,6 +272,16 @@ const ChatPanel = memo(function ChatPanel({
     }
   }, [handleSend]);
 
+  // Populate input with suggestion text (don't auto-send)
+  const populateInput = useCallback((text) => {
+    setInput(text);
+    // Focus and move cursor to end
+    setTimeout(() => {
+      const el = inputRef.current;
+      if (el) { el.focus(); el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 80) + "px"; }
+    }, 50);
+  }, []);
+
   const panelStyle = isMobile ? {
     position: "fixed", bottom: 0, left: 0, right: 0,
     height: "70vh", maxHeight: "70vh",
@@ -356,7 +366,7 @@ const ChatPanel = memo(function ChatPanel({
                 { icon: "shield",    color: "#d97706", text: "Answer role questions",     q: "What can I do with my current role? What are my permissions?" },
                 { icon: "globe",     color: "#0891b2", text: "DSE investing context",     q: "Explain DSE investing and how Investors Portal handles it." },
               ].map(({ icon, color, text, q }) => (
-                <button key={icon} onClick={() => onSend(q)}
+                <button key={icon} onClick={() => populateInput(q)}
                   style={{
                     display: "flex", alignItems: "center", gap: 8,
                     padding: "5px 8px", borderRadius: 8,
@@ -381,7 +391,7 @@ const ChatPanel = memo(function ChatPanel({
               {/* Suggested questions */}
               <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Try asking</div>
               {suggestions.map((q, i) => (
-                <button key={i} onClick={() => onSend(q)}
+                <button key={i} onClick={() => populateInput(q)}
                   style={{
                     padding: "7px 10px", borderRadius: 9,
                     border: `1px solid ${C.gray200}`,
@@ -505,10 +515,15 @@ const ChatAssistant = memo(function ChatAssistant({
   const defaultY = isMobile ? null : null; // We use bottom positioning
 
   // Compute button bottom position
-  const btnBottom = useMemo(() => {
-    if (btnY >= 0) return btnY;
-    return isMobile ? 80 : 24; // default: above bottom nav bar
-  }, [btnY, isMobile]);
+  // When default (not dragged): use CSS calc with safe-area for mobile
+  // When dragged: use the saved numeric value
+  const isDragged = btnY >= 0;
+  const btnBottomCSS = useMemo(() => {
+    if (isDragged) return btnY;
+    return isMobile ? "calc(68px + env(safe-area-inset-bottom, 0px))" : 24;
+  }, [btnY, isDragged, isMobile]);
+  // Numeric value for drag arithmetic (read actual position from DOM when needed)
+  const btnBottomNum = isDragged ? btnY : (isMobile ? 80 : 24);
 
   // ── Drag handlers ──────────────────────────────────────────
   const handlePointerDown = useCallback((e) => {
@@ -517,7 +532,10 @@ const ChatAssistant = memo(function ChatAssistant({
     // this stops the first panel button from receiving the opening tap on mobile.
     if (isTouch) e.preventDefault();
     const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-    dragState.current = { dragging: false, startY: clientY, startBtnY: btnBottom, isTouch };
+    // Read actual bottom from DOM to handle CSS calc values correctly
+    const rect = btnRef.current?.getBoundingClientRect();
+    const actualBottom = rect ? window.innerHeight - rect.bottom : btnBottomNum;
+    dragState.current = { dragging: false, startY: clientY, startBtnY: actualBottom, isTouch };
     // Add move/up listeners
     const onMove = (ev) => {
       const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
@@ -527,10 +545,8 @@ const ChatAssistant = memo(function ChatAssistant({
       }
       if (dragState.current.dragging) {
         ev.preventDefault();
-        const minBottom = isMobile ? 76 : 10;
-        const maxBottom = window.innerHeight - (isMobile ? 120 : 120);
-        const newBottom = Math.max(minBottom, Math.min(maxBottom, dragState.current.startBtnY + delta));
-        setBtnY(newBottom);
+        // Keep button in the bottom zone only — no dragging allowed
+        return;
       }
     };
     const onUp = () => {
@@ -538,26 +554,14 @@ const ChatAssistant = memo(function ChatAssistant({
       document.removeEventListener("mouseup", onUp);
       document.removeEventListener("touchmove", onMove, { passive: false });
       document.removeEventListener("touchend", onUp);
-      if (dragState.current.dragging) {
-        // Save position
-        try { localStorage.setItem(STORAGE_KEY, String(btnBottom)); } catch {}
-      } else {
-        // Tap — toggle panel.
-        // Touch: preventDefault above blocked synthetic click, safe to open immediately.
-        // Mouse: defer one tick so the pending click event fires before the panel
-        //        renders, preventing the first panel button from receiving it.
-        if (dragState.current.isTouch) {
-          setOpen(prev => !prev);
-        } else {
-          setTimeout(() => setOpen(prev => !prev), 0);
-        }
-      }
+      // Tap — open panel (button is hidden when open, so this only fires to open).
+      setOpen(true);
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("touchend", onUp);
-  }, [btnBottom]);
+  }, [btnBottomNum, isMobile]);
 
   // ── Send message ───────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
@@ -646,7 +650,7 @@ const ChatAssistant = memo(function ChatAssistant({
           style={{
             position: "fixed",
             right: isMobile ? 16 : 24,
-            bottom: btnBottom,
+            bottom: btnBottomCSS,
             width: 52, height: 52,
             borderRadius: "50%",
             background: "linear-gradient(135deg, #00843D 0%, #006B32 100%)",
