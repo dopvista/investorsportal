@@ -510,8 +510,12 @@ const ChatAssistant = memo(function ChatAssistant({
 
   // ── Drag handlers ──────────────────────────────────────────
   const handlePointerDown = useCallback((e) => {
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    dragState.current = { dragging: false, startY: clientY, startBtnY: btnBottom };
+    const isTouch = !!e.touches;
+    // Prevent browser from generating emulated mouse/click events after touch —
+    // this stops the first panel button from receiving the opening tap on mobile.
+    if (isTouch) e.preventDefault();
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+    dragState.current = { dragging: false, startY: clientY, startBtnY: btnBottom, isTouch };
     // Add move/up listeners
     const onMove = (ev) => {
       const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
@@ -522,7 +526,7 @@ const ChatAssistant = memo(function ChatAssistant({
       if (dragState.current.dragging) {
         ev.preventDefault();
         const minBottom = isMobile ? 76 : 10;
-        const maxBottom = window.innerHeight - (isMobile ? 120 : 120); // keep below header (56px) + button (52px) + gap
+        const maxBottom = window.innerHeight - (isMobile ? 120 : 120);
         const newBottom = Math.max(minBottom, Math.min(maxBottom, dragState.current.startBtnY + delta));
         setBtnY(newBottom);
       }
@@ -536,10 +540,15 @@ const ChatAssistant = memo(function ChatAssistant({
         // Save position
         try { localStorage.setItem(STORAGE_KEY, String(btnBottom)); } catch {}
       } else {
-        // Tap — toggle panel. Defer one tick so any pending click event
-        // from this same gesture fires before the panel renders (prevents
-        // the first panel button from receiving the opening tap).
-        setTimeout(() => setOpen(prev => !prev), 0);
+        // Tap — toggle panel.
+        // Touch: preventDefault above blocked synthetic click, safe to open immediately.
+        // Mouse: defer one tick so the pending click event fires before the panel
+        //        renders, preventing the first panel button from receiving it.
+        if (dragState.current.isTouch) {
+          setOpen(prev => !prev);
+        } else {
+          setTimeout(() => setOpen(prev => !prev), 0);
+        }
       }
     };
     document.addEventListener("mousemove", onMove);
