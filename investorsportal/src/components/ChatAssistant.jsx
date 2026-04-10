@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { useTheme, useIsMobile } from "./ui";
 import { Icon } from "../lib/icons";
+import logo from "../assets/logo.jpg";
 
 const BASE = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -56,7 +57,7 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 // ── Minimal markdown rendering ───────────────────────────────────
-function renderMarkdown(text) {
+function renderMarkdown(text, isDark) {
   if (!text) return null;
   const lines = text.split("\n");
   const elements = [];
@@ -72,9 +73,12 @@ function renderMarkdown(text) {
   };
 
   const formatInline = (str, keyPrefix) => {
+    // First: replace "Investors Portal" with branded version (before bold processing)
+    const branded = str.replace(/Investors\s+Portal(?:™|®)?/g, "{{IP_BRAND}}");
     // Bold: **text** or __text__
-    const parts = str.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
+    const parts = branded.split(/(\*\*[^*]+\*\*|__[^_]+__|{{IP_BRAND}})/g);
     return parts.map((part, i) => {
+      if (part === "{{IP_BRAND}}") return <strong key={`${keyPrefix}-${i}`}><span style={{ color: isDark ? "#fff" : "#0B1F3A" }}>Investors </span><span style={{ color: "#D4A017" }}>Portal</span><sup style={{ fontSize: "130%", verticalAlign: "top", color: "#D4A017", fontWeight: 800, marginLeft: 1, position: "relative", top: "-0.15em" }}>™</sup></strong>;
       if (/^\*\*(.+)\*\*$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
       if (/^__(.+)__$/.test(part)) return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
       return part;
@@ -136,22 +140,50 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
   return (
     <div style={{
       display: "flex", justifyContent: isUser ? "flex-end" : "flex-start",
-      marginBottom: 8,
+      alignItems: "flex-end", gap: 6, marginBottom: 10,
     }}>
+      {/* Assistant avatar */}
+      {!isUser && (
+        <div style={{
+          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+          background: isDark ? "rgba(0,132,61,0.2)" : "#dcfce7",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${isDark ? "rgba(0,132,61,0.3)" : "#bbf7d0"}`,
+          marginBottom: 2,
+        }}>
+          <Icon name="aiSpark" size={12} stroke={isDark ? "#4ade80" : "#16a34a"} sw={2} />
+        </div>
+      )}
       <div style={{
-        maxWidth: "85%",
+        maxWidth: "82%",
         padding: "10px 14px",
         borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
         background: isUser
-          ? (isDark ? "rgba(34,197,94,0.2)" : "#dcfce7")
-          : (isDark ? "rgba(255,255,255,0.08)" : "#f1f5f9"),
+          ? (isDark ? "rgba(34,197,94,0.15)" : "#dcfce7")
+          : (isDark ? "rgba(255,255,255,0.06)" : "#f8fafc"),
+        border: `1px solid ${isUser
+          ? (isDark ? "rgba(34,197,94,0.2)" : "#bbf7d0")
+          : (isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0")}`,
         color: C.text,
-        fontSize: 13,
+        fontSize: 11.5,
         lineHeight: 1.5,
         wordBreak: "break-word",
       }}>
-        {isUser ? msg.content : renderMarkdown(msg.content)}
+        {isUser ? msg.content : renderMarkdown(msg.content, isDark)}
       </div>
+      {/* User avatar */}
+      {isUser && (
+        <div style={{
+          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+          background: isDark ? "rgba(59,130,246,0.2)" : "#dbeafe",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${isDark ? "rgba(59,130,246,0.3)" : "#93c5fd"}`,
+          marginBottom: 2, fontSize: 10, fontWeight: 700,
+          color: isDark ? "#60a5fa" : "#2563eb",
+        }}>
+          U
+        </div>
+      )}
     </div>
   );
 });
@@ -192,7 +224,7 @@ const ChatPanel = memo(function ChatPanel({
 
   const panelStyle = isMobile ? {
     position: "fixed", bottom: 0, left: 0, right: 0,
-    height: "75vh", maxHeight: "75vh",
+    height: "70vh", maxHeight: "70vh",
     borderRadius: "18px 18px 0 0",
     zIndex: 9998,
     display: "flex", flexDirection: "column",
@@ -201,15 +233,14 @@ const ChatPanel = memo(function ChatPanel({
     border: `1px solid ${C.gray200}`,
   } : {
     position: "fixed", bottom: 24, right: 24,
-    width: 380, height: 520,
-    borderRadius: 16,
+    width: 360, height: 480,
+    borderRadius: 18,
     zIndex: 9998,
     display: "flex", flexDirection: "column",
     background: C.white,
-    boxShadow: isDark
-      ? "0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)"
-      : "0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
-    border: `1px solid ${C.gray200}`,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    border: `1.5px solid ${C.gray200}`,
+    overflow: "hidden",
   };
 
   return (
@@ -217,7 +248,7 @@ const ChatPanel = memo(function ChatPanel({
       {/* Backdrop on mobile */}
       {isMobile && (
         <div onClick={onClose} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+          position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", backdropFilter: "blur(2px)",
           zIndex: 9997,
         }} />
       )}
@@ -225,51 +256,47 @@ const ChatPanel = memo(function ChatPanel({
       <div style={panelStyle}>
         {/* Header */}
         <div style={{
-          padding: "14px 16px",
-          background: "linear-gradient(135deg, #0c2548 0%, #0B1F3A 60%, #080f1e 100%)",
-          borderRadius: isMobile ? "18px 18px 0 0" : "16px 16px 0 0",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "18px 20px 14px" : "18px 20px 14px",
+          background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
+          borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0",
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between",
           flexShrink: 0,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Icon name="aiSpark" size={16} stroke="#fbbf24" sw={2} />
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>Portal AI</span>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 500 }}>Assistant</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+            <img src={logo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)", border: "1.5px solid rgba(255,255,255,0.2)", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1.2 }}><span style={{ color: "#fff" }}>Investors </span><span style={{ color: "#D4A017" }}>Portal</span><sup style={{ fontSize: "130%", verticalAlign: "top", color: "#D4A017", fontWeight: 800, marginLeft: 1, position: "relative", top: "-0.15em" }}>™</sup></div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 600, lineHeight: 1.2, marginTop: 2 }}>AI Assistant</div>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 12, flexShrink: 0 }}>
             {messages.length > 0 && (
               <button onClick={onClear} title="Clear chat"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center" }}>
-                <Icon name="trash" size={14} stroke="rgba(255,255,255,0.5)" sw={1.5} />
+                style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}>
+                <Icon name="trash" size={14} stroke="#ffffff" sw={1.8} />
               </button>
             )}
             <button onClick={onClose}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center" }}>
-              <Icon name="x" size={16} stroke="rgba(255,255,255,0.7)" sw={2} />
+              style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}>
+              <Icon name="x" size={16} stroke="#ffffff" sw={2.2} />
             </button>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="ui-dd-scroll" style={{
+        <style>{`.chat-scroll::-webkit-scrollbar{width:5px}.chat-scroll::-webkit-scrollbar-track{background:transparent}.chat-scroll::-webkit-scrollbar-thumb{border-radius:10px;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}}.chat-scroll::-webkit-scrollbar-thumb:hover{background:${isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)"}}.chat-scroll{scrollbar-width:thin;scrollbar-color:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"} transparent}`}</style>
+        <div className="chat-scroll" style={{
           flex: 1, overflowY: "auto", padding: "14px 14px 8px",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Welcome message if no messages */}
+          {/* Welcome hint if no messages */}
           {messages.length === 0 && !loading && (
-            <div style={{ textAlign: "center", padding: "20px 10px 14px" }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: "50%",
-                background: isDark ? "rgba(251,191,36,0.15)" : "#fef3c7",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 10px",
-              }}>
-                <Icon name="aiSpark" size={20} stroke="#f59e0b" sw={2} />
-              </div>
-              <div style={{ fontWeight: 700, color: C.text, fontSize: 14, marginBottom: 4 }}>
-                How can I help you?
-              </div>
-              <div style={{ fontSize: 12, color: C.gray500, lineHeight: 1.5 }}>
+            <div style={{ textAlign: "center", padding: "18px 10px 10px" }}>
+              <div style={{ fontSize: 11.5, color: C.gray400, lineHeight: 1.5 }}>
                 Ask about the app, DSE investing, or your portfolio
               </div>
             </div>
@@ -277,21 +304,23 @@ const ChatPanel = memo(function ChatPanel({
 
           {/* Suggested questions */}
           {messages.length === 0 && !loading && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "6px 0" }}>
               {suggestions.map((q, i) => (
                 <button key={i} onClick={() => onSend(q)}
                   style={{
-                    padding: "9px 14px", borderRadius: 10,
+                    padding: "10px 14px", borderRadius: 11,
                     border: `1px solid ${C.gray200}`,
                     background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc",
-                    color: C.text, fontSize: 12, fontWeight: 500,
+                    color: C.text, fontSize: 12.5, fontWeight: 500,
                     cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                    transition: "background 0.15s, border-color 0.15s",
+                    transition: "all 0.15s ease",
                     lineHeight: 1.4,
+                    display: "flex", alignItems: "center", gap: 10,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "#f1f5f9"; e.currentTarget.style.borderColor = isDark ? "rgba(255,255,255,0.15)" : "#94a3b8"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; e.currentTarget.style.borderColor = C.gray200; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(0,132,61,0.12)" : "#f0fdf4"; e.currentTarget.style.borderColor = isDark ? "rgba(0,132,61,0.3)" : "#86efac"; e.currentTarget.style.transform = "translateX(2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.transform = "translateX(0)"; }}
                 >
+                  <span style={{ width: 20, height: 20, borderRadius: 6, background: isDark ? "rgba(0,132,61,0.15)" : "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11 }}>→</span>
                   {q}
                 </button>
               ))}
@@ -326,7 +355,7 @@ const ChatPanel = memo(function ChatPanel({
           padding: "10px 14px", borderTop: `1px solid ${C.gray200}`,
           display: "flex", alignItems: "flex-end", gap: 8, flexShrink: 0,
           background: C.white,
-          borderRadius: isMobile ? 0 : "0 0 16px 16px",
+          borderRadius: isMobile ? 0 : "0 0 18px 18px",
         }}>
           <textarea
             ref={inputRef}
@@ -340,7 +369,7 @@ const ChatPanel = memo(function ChatPanel({
               flex: 1, resize: "none", border: `1.5px solid ${C.gray200}`,
               borderRadius: 10, padding: "9px 12px", fontSize: 13,
               fontFamily: "inherit", color: C.text, background: C.white,
-              outline: "none", maxHeight: 80, lineHeight: 1.4,
+              outline: "none", maxHeight: 80, lineHeight: 1.4, overflow: "hidden",
               transition: "border-color 0.15s",
             }}
             onFocus={e => e.target.style.borderColor = "#f59e0b"}
@@ -358,7 +387,7 @@ const ChatPanel = memo(function ChatPanel({
               border: "none", cursor: (!input.trim() || loading) ? "not-allowed" : "pointer",
               background: (!input.trim() || loading)
                 ? (isDark ? "rgba(255,255,255,0.08)" : C.gray100)
-                : "#f59e0b",
+                : C.green,
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0, transition: "background 0.15s",
             }}
@@ -506,8 +535,8 @@ const ChatAssistant = memo(function ChatAssistant({
             bottom: btnBottom,
             width: 52, height: 52,
             borderRadius: "50%",
-            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-            boxShadow: "0 4px 16px rgba(245,158,11,0.4), 0 2px 4px rgba(0,0,0,0.1)",
+            background: "linear-gradient(135deg, #00843D 0%, #006B32 100%)",
+            boxShadow: "0 4px 16px rgba(0,132,61,0.4), 0 2px 4px rgba(0,0,0,0.12)",
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
             zIndex: 201,
