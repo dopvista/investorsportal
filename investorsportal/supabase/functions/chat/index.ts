@@ -15,8 +15,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
+const ANTHROPIC_BASE = "https://api.anthropic.com/v1/messages";
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -32,12 +33,6 @@ const ROLE_DESC: Record<string, string> = {
   RO: "Read Only — view-only access to all data",
 };
 
-// ── Auto model selection ──────────────────────────────────────────
-function pickModel(message: string): string {
-  const isSwahili = /\b(nina|nataka|vipi|nini|wapi|nisaidie|habari|shukran|tafadhali|kwa|nikusaidie|saidia|naomba|nimefanya|sijui|eleza|naweza|jinsi|gani|kodi|hisa|soko|bei|faida|hasara|mgao)\b/i.test(message);
-  const isComplex = message.length > 120 || /\b(explain|compare|difference|why|how does.*work|calculate|eleza|tofauti|linganisha|fafanua|what happens if|step.?by.?step)\b/i.test(message);
-  return (isSwahili || isComplex) ? "gemini-2.5-flash" : "gemini-2.5-flash-lite";
-}
 
 // ── System prompt ─────────────────────────────────────────────────
 function buildSystemPrompt(ctx: { userName?: string; role?: string; currentPage?: string; cdsNumber?: string; device?: string }): string {
@@ -64,13 +59,16 @@ Rules:
 - ALWAYS use **bold** (markdown **text**) for: page names, module names, button labels, report names, field names, status names, and any UI element name. Example: Go to the **Transactions** page and click **"Record Transaction"**.
 - Use TZS for currency references, format numbers with commas (e.g., 1,500,000)
 - ALWAYS refer to the application as "Investors Portal" (exactly this spelling). Never abbreviate or shorten it.
+- NEVER use template placeholders like {{IP_BRAND}} or {{APP_NAME}} in your responses. Always write "Investors Portal" in plain text.
+- NEVER make political statements, use political opinions, support or criticise any government, political party, leader, or political figure. If asked political questions, decline: "I can only help with Investors Portal and DSE investing matters."
+- Use professional, respectful language at all times. NEVER use profanity, offensive language, insults, or inappropriate content of any kind.
 - ALWAYS start your answer by connecting it to the Investors Portal app. Example: "In the Investors Portal, FIFO is used to..." or "The Investors Portal calculates fees by..."
 - Even for DSE/Tanzania domain questions, frame the answer in context of how Investors Portal handles it
 - You ONLY answer questions related to the Investors Portal app and DSE investing
 - If a question is completely unrelated, politely decline in the user's language. English: "I'm the Investors Portal™ Assistant — I can only help with the app and investing matters." Swahili: "Mimi ni Msaidizi wa Investors Portal™ — ninaweza kukusaidia tu na programu na masuala ya uwekezaji."
 - When unsure, say "I'm not sure about that — please check with your administrator."
 - NEVER mention specific broker names or how many brokers exist. Just say "a CMSA-licensed broker" or "your broker". Do not list or recommend any specific brokerage firm.
-- NEVER make political statements, criticize or praise any government, government institution, leader, or political figure. Stay strictly neutral on all political and governmental topics. If asked about government policies, only explain factual regulatory/tax rules relevant to DSE investing without commentary.
+- If asked about government policies or tax rules, only explain factual regulatory/tax rules relevant to DSE investing without commentary or opinion.
 
 Privacy & Security:
 - NEVER disclose, repeat, or reference any user's personal information — not names, emails, phone numbers, CDS numbers, passwords, or account details
@@ -411,13 +409,6 @@ After placing an order, the system generates a bill with:
 </tanzania_dse_knowledge>`;
 }
 
-// ── Convert chat messages to Gemini format ────────────────────────
-function toGeminiContents(messages: { role: string; content: string }[]) {
-  return messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-}
 
 // ── Main handler ──────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
@@ -442,7 +433,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: "messages array required" }, 400);
     }
 
-    if (!GEMINI_API_KEY) {
+    if (!ANTHROPIC_API_KEY) {
       return json({ error: "AI service not configured" }, 503);
     }
 
@@ -460,52 +451,58 @@ Deno.serve(async (req: Request) => {
       // No setting found = enabled by default
     }
 
-    // ── Build system prompt + select model ──────────────────────
+    // ── Build system prompt ──────────────────────────────────────
     const systemPrompt = buildSystemPrompt(context || {});
-    const lastMessage = messages[messages.length - 1]?.content || "";
-    const model = pickModel(lastMessage);
 
-    // ── Call Gemini API ─────────────────────────────────────────
-    const geminiUrl = `${GEMINI_BASE}/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    // ── Call Claude API ──────────────────────────────────────────
+    // Cap history to last 10 messages to control token cost
+    const recentMessages = messages.slice(-10);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const timeoutId = setTimeout(() => controller.abort(), 20_000);
 
-    const geminiRes = await fetch(geminiUrl, {
+    const claudeRes = await fetch(ANTHROPIC_BASE, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
       signal: controller.signal,
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: toGeminiContents(messages),
-        generationConfig: {
-          maxOutputTokens: 512,
-          temperature: 0.7,
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
-        ],
+        model: CLAUDE_MODEL,
+        max_tokens: 512,
+        // Prompt caching: system prompt cached for 5 min → ~90% cost reduction on input tokens
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        messages: recentMessages.map((m: { role: string; content: string }) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        })),
       }),
     });
     clearTimeout(timeoutId);
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("Gemini API error:", geminiRes.status, errText);
-      return json({ error: "AI service unavailable", detail: geminiRes.status }, 502);
+    if (!claudeRes.ok) {
+      const errText = await claudeRes.text();
+      console.error("Claude API error:", claudeRes.status, errText);
+      if (claudeRes.status === 429) {
+        return json({ error: "Too many requests. Please try again in a moment." }, 429);
+      }
+      if (claudeRes.status === 401) {
+        return json({ error: "AI service not configured correctly." }, 503);
+      }
+      return json({ error: "AI service unavailable", detail: claudeRes.status }, 502);
     }
 
-    const geminiData = await geminiRes.json();
-    const reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const claudeData = await claudeRes.json();
+    const reply = claudeData?.content?.[0]?.text || "";
 
     if (!reply) {
       return json({ error: "No response from AI" }, 502);
     }
 
-    return json({ reply, model });
+    return json({ reply, model: CLAUDE_MODEL });
   } catch (err: any) {
     if (err.name === "AbortError") {
       return json({ error: "AI request timed out" }, 504);

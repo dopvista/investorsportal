@@ -530,7 +530,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // ═════════════════════════════════════════════════════════════════
   const biometricView = (
     <div key="biometric" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
-      {formHeader("Investors Portal", "Welcome back")}
+      {formHeader(<>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></>, "Welcome back")}
       {alerts}
 
       {/* Large biometric button */}
@@ -652,7 +652,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // ═════════════════════════════════════════════════════════════════
   const entryView = (
     <div key="entry" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
-      {formHeader("Investors Portal", "Sign in to your account")}
+      {formHeader(<>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></>, "Sign in to your account")}
       {alerts}
 
       <form onSubmit={handleContinue}>
@@ -709,7 +709,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // ═════════════════════════════════════════════════════════════════
   const emailView = (
     <div key="email" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
-      {formHeader("Investors Portal", "Enter your password")}
+      {formHeader(<>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></>, "Enter your password")}
       {alerts}
 
       {/* Show which email, with back button */}
@@ -815,7 +815,7 @@ export default function LoginPage({ onLogin, loginSettings }) {
   // ═════════════════════════════════════════════════════════════════
   const resetView = (
     <div key="reset" style={{ animation: "lp-slideUp 0.45s ease-out", width: "100%", maxWidth: isMobile ? "none" : 300, margin: "0 auto" }}>
-      {formHeader("Investors Portal", "Reset your password")}
+      {formHeader(<>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></>, "Reset your password")}
 
       {!success && (
         <div style={{ marginBottom: 16, background: isMobile ? "rgba(245,158,11,0.12)" : `${C.gold}18`, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "10px 14px", fontSize: isMobile ? 13 : 12, color: C.gold, fontWeight: 600, textAlign: "center" }}>

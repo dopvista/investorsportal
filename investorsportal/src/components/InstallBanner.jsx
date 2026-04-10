@@ -239,7 +239,7 @@ export default function InstallBanner() {
                 Add to Home Screen
               </div>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>
-                Install Investors Portal for instant access from your home screen — no browser bar.
+                Install Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup> for instant access from your home screen — no browser bar.
               </div>
 
               <div style={{ background: "#F0F4F8", borderRadius: 16, padding: "14px 16px", marginBottom: 22 }}>
@@ -274,7 +274,7 @@ export default function InstallBanner() {
                 Install from {androidLabel}
               </div>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>
-                Add Investors Portal to your home screen for quick, full-screen access.
+                Add Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup> to your home screen for quick, full-screen access.
               </div>
 
               <div style={{ background: "#F0F4F8", borderRadius: 16, padding: "14px 16px", marginBottom: 22 }}>
@@ -308,7 +308,7 @@ export default function InstallBanner() {
                   style={{ width: 64, height: 64, borderRadius: 16, boxShadow: "0 4px 14px rgba(0,0,0,0.16)", flexShrink: 0 }}
                 />
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0B1F3A" }}>Investors Portal</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0B1F3A" }}>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
                   <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>Finance & investments</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 5 }}>
                     {[1,2,3,4,5].map(i => (
@@ -374,7 +374,7 @@ export default function InstallBanner() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 260px", minWidth: 0 }}>
           <img src={logo} alt="" style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Install Investors Portal</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Install Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.80)", marginTop: 1 }}>
               {mode === "prompt"
                 ? "Get a dedicated app window with faster access and offline support."

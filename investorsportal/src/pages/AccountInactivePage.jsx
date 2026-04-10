@@ -113,7 +113,7 @@ export default function AccountInactivePage({ cdsNumber, onSignOut }) {
           />
 
           <div style={{ fontWeight: 800, fontSize: isMobile ? 22 : 20, color: C.white, marginBottom: 6 }}>
-            Investors Portal
+            Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup>
           </div>
 
           {/* Lock icon */}

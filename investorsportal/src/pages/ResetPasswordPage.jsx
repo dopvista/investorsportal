@@ -316,7 +316,7 @@ export default function ResetPasswordPage({ onDone }) {
         <div style={{ position: "relative", zIndex: 1, background: C.white, borderRadius: 20, padding: "40px 36px", width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.35)", animation: "fadeIn 0.35s ease" }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <img src={logo} alt="Investors Portal" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", marginBottom: 14, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14, color: C.gray400, marginBottom: 6 }}>Investors Portal</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: C.gray400, marginBottom: 6 }}>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
             <div style={{ fontWeight: 800, fontSize: 20, color: C.text }}>Set New Password</div>
             <div style={{ fontSize: 14, color: C.gray400, marginTop: 4 }}>Choose a strong password for your account</div>
           </div>

@@ -259,7 +259,7 @@ const SidebarInner = memo(function SidebarInner({
           <div>
             <div style={{ fontSize: 17, lineHeight: 1.2, fontWeight: 800 }}>
               <span style={{ color: "#ffffff" }}>Investors</span>{" "}
-              <span style={{ color: C.gold }}>Portal</span>
+              <span style={{ color: C.gold }}>Portal</span><sup style={{ fontSize: "0.9em", fontWeight: 800, marginLeft: 2, verticalAlign: "top", color: C.gold }}>™</sup>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
               <div style={{ width: 6, height: 6, background: C.green, borderRadius: "50%", flexShrink: 0 }} />
@@ -936,7 +936,7 @@ export default function App() {
           <div style={{ animation: "pulse 1.8s ease-in-out infinite", marginBottom: 20 }}>
             <img src={logo} alt="Investors Portal" style={{ width: 64, height: 64, borderRadius: 16, objectFit: "cover", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }} />
           </div>
-          <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "0.01em" }}>Investors Portal</div>
+          <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "0.01em" }}>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>Checking your session...</div>
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             {[0,1,2].map((i) => (<div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
@@ -959,7 +959,7 @@ export default function App() {
           <div style={{ animation: "pulse 1.8s ease-in-out infinite", marginBottom: 22 }}>
             <img src={logo} alt="Investors Portal" style={{ width: 72, height: 72, borderRadius: 18, objectFit: "cover", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", border: "3px solid rgba(255,255,255,0.15)" }} />
           </div>
-          <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: "0.01em" }}>Investors Portal</div>
+          <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: "0.01em" }}>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
           <div style={{ margin: "20px auto 0", width: 180, height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 4, overflow: "hidden" }}>
             <div style={{ height: "100%", background: `linear-gradient(90deg,${C.green},${C.gold})`, borderRadius: 4, animation: "bar 2s ease-in-out infinite" }} />
           </div>

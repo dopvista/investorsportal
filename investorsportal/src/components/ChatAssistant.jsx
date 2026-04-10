@@ -10,6 +10,7 @@ import logo from "../assets/logo.jpg";
 const BASE = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const STORAGE_KEY = "ip_chat_btn_y";
+const POSITION_VER = "ip_chat_pos_v2"; // change to force-reset all saved positions
 
 // ── Suggested questions by page ──────────────────────────────────
 const SUGGESTIONS = {
@@ -142,16 +143,15 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
       display: "flex", justifyContent: isUser ? "flex-end" : "flex-start",
       alignItems: "flex-end", gap: 6, marginBottom: 10,
     }}>
-      {/* Assistant avatar */}
+      {/* Assistant avatar — system logo */}
       {!isUser && (
         <div style={{
-          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-          background: isDark ? "rgba(0,132,61,0.2)" : "#dcfce7",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          border: `1px solid ${isDark ? "rgba(0,132,61,0.3)" : "#bbf7d0"}`,
+          width: 24, height: 24, borderRadius: 7, flexShrink: 0,
+          overflow: "hidden",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#e2e8f0"}`,
           marginBottom: 2,
         }}>
-          <Icon name="aiSpark" size={12} stroke={isDark ? "#4ade80" : "#16a34a"} sw={2} />
+          <img src="/src/assets/logo.jpg" alt="IP" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
       )}
       <div style={{
@@ -171,17 +171,16 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark }) {
       }}>
         {isUser ? msg.content : renderMarkdown(msg.content, isDark)}
       </div>
-      {/* User avatar */}
+      {/* User avatar — person icon */}
       {isUser && (
         <div style={{
-          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+          width: 24, height: 24, borderRadius: 7, flexShrink: 0,
           background: isDark ? "rgba(59,130,246,0.2)" : "#dbeafe",
           display: "flex", alignItems: "center", justifyContent: "center",
           border: `1px solid ${isDark ? "rgba(59,130,246,0.3)" : "#93c5fd"}`,
-          marginBottom: 2, fontSize: 10, fontWeight: 700,
-          color: isDark ? "#60a5fa" : "#2563eb",
+          marginBottom: 2,
         }}>
-          U
+          <Icon name="user" size={13} stroke={isDark ? "#60a5fa" : "#2563eb"} sw={2} />
         </div>
       )}
     </div>
@@ -293,12 +292,39 @@ const ChatPanel = memo(function ChatPanel({
           flex: 1, overflowY: "auto", padding: "14px 14px 8px",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Welcome hint if no messages */}
+          {/* Welcome card */}
           {messages.length === 0 && !loading && (
-            <div style={{ textAlign: "center", padding: "18px 10px 10px" }}>
-              <div style={{ fontSize: 11.5, color: C.gray400, lineHeight: 1.5 }}>
-                Ask about the app, DSE investing, or your portfolio
+            <div style={{ marginBottom: 12 }}>
+              {/* Brand header */}
+              <div style={{ textAlign: "center", padding: "14px 10px 10px" }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, marginBottom: 3 }}>
+                  <span style={{ color: isDark ? "#fff" : C.navy }}>Investors </span>
+                  <span style={{ color: "#D4A017" }}>Portal</span>
+                  <sup style={{ fontSize: "0.9em", fontWeight: 800, marginLeft: 2, verticalAlign: "top", color: "#D4A017" }}>™</sup>
+                  <span style={{ color: C.gray400, fontWeight: 600 }}> Assistant</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.gray400 }}>Here's what I can help with:</div>
               </div>
+              {/* Capabilities list */}
+              {[
+                { icon: "home",      color: "#00843D", text: "Navigate the app — which page or button to click" },
+                { icon: "briefcase", color: "#2563eb", text: "Guide workflows — transactions, dividends, reports" },
+                { icon: "barChart",  color: "#7c3aed", text: "Explain features — FIFO gains, fees, price sync" },
+                { icon: "shield",    color: "#d97706", text: "Role questions — what you can and cannot do" },
+                { icon: "globe",     color: "#0891b2", text: "DSE context — investing concepts in the app" },
+              ].map(({ icon, color, text }) => (
+                <div key={icon} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "7px 10px", borderRadius: 9, marginBottom: 4,
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#e2e8f0"}`,
+                }}>
+                  <div style={{ width: 24, height: 24, borderRadius: 7, background: `${color}20`, border: `1px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name={icon} size={13} stroke={color} sw={2} />
+                  </div>
+                  <span style={{ fontSize: 11.5, color: C.text, lineHeight: 1.4 }}>{text}</span>
+                </div>
+              ))}
             </div>
           )}
 
@@ -415,8 +441,13 @@ const ChatAssistant = memo(function ChatAssistant({
   // ── Draggable button state ──────────────────────────────────
   const [btnY, setBtnY] = useState(() => {
     try {
+      // Reset saved position if version changed (clears stale positions from old defaults)
+      if (!localStorage.getItem(POSITION_VER)) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(POSITION_VER, "1");
+      }
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? Number(saved) : -1; // -1 = use default
+      return saved ? Number(saved) : -1; // -1 = use default (bottom)
     } catch { return -1; }
   });
   const dragState = useRef({ dragging: false, startY: 0, startBtnY: 0 });
@@ -428,7 +459,7 @@ const ChatAssistant = memo(function ChatAssistant({
   // Compute button bottom position
   const btnBottom = useMemo(() => {
     if (btnY >= 0) return btnY;
-    return isMobile ? 76 : 24; // 76px on mobile to clear bottom nav
+    return isMobile ? 76 : 24; // default: bottom of screen
   }, [btnY, isMobile]);
 
   // ── Drag handlers ──────────────────────────────────────────

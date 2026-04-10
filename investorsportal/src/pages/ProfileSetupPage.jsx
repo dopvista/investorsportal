@@ -278,7 +278,7 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
         <div style={{ position: "relative", zIndex: 1, background: C.white, borderRadius: 20, padding: "28px 32px", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.35)", animation: "fadeIn 0.35s ease" }}>
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <img src={logo} alt="Investors Portal" style={{ width: 44, height: 44, borderRadius: 12, objectFit: "cover", marginBottom: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }} />
-            <div style={{ fontWeight: 700, fontSize: 12, color: C.gray400, marginBottom: 4 }}>Investors Portal</div>
+            <div style={{ fontWeight: 700, fontSize: 12, color: C.gray400, marginBottom: 4 }}>Investors Portal<sup style={{fontSize:"0.9em",fontWeight:800,marginLeft:2,verticalAlign:"top"}}>™</sup></div>
             <div style={{ fontWeight: 800, fontSize: 17, color: C.text }}>Complete Your Profile</div>
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 3 }}>Tell us a bit about yourself to get started</div>
           </div>
