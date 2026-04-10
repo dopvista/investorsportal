@@ -115,7 +115,7 @@ Shows portfolio overview for the active CDS account:
 - **Realized G/L Section** ("Realized Gain / Loss — Closed Positions"): Expandable table with realized gains by company
 - **Top 5 Holdings by Market Value**: Table showing company, shares held, invested capital, current price, market value, unrealized G/L, return %, days held, portfolio weight %
 - **Top 5 Dividends by Company**: Shows top dividend earners
-- **User List** (SA/AD only): All users assigned to this CDS with roles and status (Active/Inactive)
+- **Team Members**: All CDS members with roles and status (Active/Inactive) — visible to all roles. The **"Go to User Management"** link in the panel is SA/AD only.
 - **Snapshot**: System auto-captures daily portfolio snapshot for historical tracking
 - **Pull to refresh** on mobile: pull down to reload all data
 
@@ -215,12 +215,31 @@ Click any transaction row to open the full detail view:
 - **Audit Trail**: steps **Recorded → Confirmed → Verified/Rejected** with timestamp and who performed each step. Pending steps show "Awaiting".
 
 ### Excel Import
-1. Click **"Import"** button (DE/SA/AD only) → Import modal opens
-2. Download the official template (.xlsx)
-3. Fill required columns: Date | Company | Type (Buy/Sell) | Qty | Price | Broker
-4. Optional columns: Control Number | Remarks
-5. Upload file — system validates each row and shows errors in preview (max 500 rows)
-6. Click **"Import"** to insert all valid rows
+Visible to DE and SA/AD only. Two-step process:
+
+**Step 1 — Upload:**
+1. Click **"Import"** button → modal opens
+2. Download the official template (click **"Download Import_Transactions_Template.xlsx"**)
+3. Fill in your transactions in the **Transactlons** sheet inside the template (note: sheet name has a typo by design)
+4. Select your filled file (.xlsx or .xls)
+
+**Required columns** (must match exactly):
+- **Date** (column A) — required
+- **Company** (column B) — required, must match a company name in the system (case-insensitive)
+- **Type** (column C) — required, must be exactly **"Buy"** or **"Sell"** (capital first letter — case-sensitive)
+- **Quantity** (column D) — required, must be > 0
+- **Price** (column E) — required, must be > 0
+- Columns F & G — leave blank (not used)
+- **Broker** (column H) — required, enter broker name or broker code (either works)
+- **Control Number** (column I) — optional
+- **Remarks** (column J) — optional
+
+**Step 2 — Preview:**
+5. System validates every row and shows: valid rows count, error rows count, error details
+6. Rows with errors are **skipped** — valid rows still proceed
+7. Click **"Import {N} Transactions"** to import all valid rows
+8. All imported transactions are created with status **"Pending"** and appear at the top of the list
+- Maximum 500 rows per import file
 
 ### Fee Calculation Formula
 Trade Value = Quantity × Price/Share
@@ -244,7 +263,7 @@ Tracks dividend income with automatic WHT calculation.
    - **Company** — required (searchable dropdown)
    - **Declaration Date** — optional
    - **Ex-Dividend Date** — optional
-   - **Payment Date** — required
+   - **Payment Date** — optional
    - **Dividend Per Share** — required (TZS)
    - **Shares Held** — optional (if entered, Total Amount auto-calculates)
    - **Total Amount** — required (auto-calculated: DPS × Shares)
@@ -258,7 +277,11 @@ Tracks dividend income with automatic WHT calculation.
 - **Declared** (orange badge) → initial state
 - **Ex-Date** (blue badge) → ex-dividend date has passed
 - **Paid** (green badge) → dividend has been paid
-- Actions: **"Mark as Paid"** | **"Revert to Declared"** | **Edit** | **Delete**
+
+Who can do what:
+- **DE**: Record, edit (non-paid only), delete (**Declared** status only), mark as paid
+- **SA/AD**: All actions including **"Revert to Declared"** (unpay a paid dividend) and delete any non-paid dividend
+- **VR / RO**: View and download PNG only — no add, edit, delete, or status actions
 
 ### WHT Calculation
 Withholding Tax = 5% of gross dividend amount (for DSE-listed companies). This is automatically calculated and shown in the form. Net Amount = Gross − WHT.
@@ -275,19 +298,19 @@ Generate PDF and Excel reports.
 ### Available Reports
 1. **Portfolio Statement** — Holdings snapshot: company, qty, avg cost, current price, market value, unrealized G/L
    - Filters: CDS Account | As At Date | Position Type (Held / Sold / All)
-   - Formats: Excel (.xlsx)
+   - Formats: PDF (.pdf) | Excel (.xlsx)
 
 2. **Transaction History** — Trade log with fees and status
    - Filters: CDS Account | Date From | Date To | Type (All/Buy/Sell) | Status | Broker
-   - Formats: Excel (.xlsx)
+   - Formats: PDF (.pdf) | Excel (.xlsx)
 
 3. **Gain/Loss Report** — FIFO-based realized gains per company
    - Filters: CDS Account | Date From | Date To | View (By Company / By Transaction) | Broker
-   - Formats: Excel (.xlsx)
+   - Formats: PDF (.pdf) | Excel (.xlsx)
 
 4. **Dividend Income** — Payment records with WHT
    - Filters: CDS Account | Date From | Date To | View (By Company / By Transaction) | Status
-   - Formats: Excel (.xlsx)
+   - Formats: PDF (.pdf) | Excel (.xlsx)
 
 5. **Fee Summary** — Coming Soon (grayed out)
 
