@@ -240,7 +240,7 @@ const MessageBubble = memo(function MessageBubble({ msg, C, isDark, isMobile }) 
 
 // ── Chat Panel ───────────────────────────────────────────────────
 const ChatPanel = memo(function ChatPanel({
-  messages, loading, onSend, onClose, onClear, suggestions, C, isDark, isMobile,
+  messages, loading, onSend, onClose, onClear, suggestions, C, isDark, isMobile, btnBottom,
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -282,15 +282,29 @@ const ChatPanel = memo(function ChatPanel({
     }, 50);
   }, []);
 
+  // On mobile, open panel toward the side with more space.
+  // Button is 52px tall; btnBottom is distance from screen bottom.
+  const btnTop = window.innerHeight - (btnBottom || 80) - 52;
+  const openUpward = btnTop > window.innerHeight / 2; // button in lower half → open up
+  const PANEL_H = Math.min(window.innerHeight * 0.65, 520);
+  const mobileAnchor = openUpward
+    ? { bottom: (btnBottom || 80) + 52 + 8 }  // panel sits above button
+    : { top: btnTop + 52 + 8 };               // panel sits below button
+
   const panelStyle = isMobile ? {
-    position: "fixed", bottom: 0, left: 0, right: 0,
-    height: "70vh", maxHeight: "70vh",
-    borderRadius: "18px 18px 0 0",
+    position: "fixed",
+    right: 12,
+    ...mobileAnchor,
+    width: "calc(100vw - 24px)",
+    height: PANEL_H,
+    maxHeight: PANEL_H,
+    borderRadius: 18,
     zIndex: 9998,
     display: "flex", flexDirection: "column",
     background: C.white,
-    boxShadow: "0 -8px 40px rgba(0,0,0,0.25)",
+    boxShadow: "0 8px 40px rgba(0,0,0,0.28)",
     border: `1px solid ${C.gray200}`,
+    overflow: "hidden",
   } : {
     position: "fixed", bottom: 24, right: 24,
     width: 360, height: 540,
@@ -305,13 +319,13 @@ const ChatPanel = memo(function ChatPanel({
 
   return (
     <>
-      {/* Backdrop on mobile */}
-      {isMobile && (
-        <div onClick={onClose} style={{
-          position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", backdropFilter: "blur(2px)",
-          zIndex: 9997,
-        }} />
-      )}
+      {/* Backdrop */}
+      <div onClick={onClose} style={{
+        position: "fixed", inset: 0, background: isMobile ? "rgba(10,31,58,0.4)" : "transparent",
+        backdropFilter: isMobile ? "blur(1px)" : "none",
+        zIndex: 9997,
+        pointerEvents: isMobile ? "auto" : "none",
+      }} />
 
       <div style={panelStyle}>
         {/* Header */}
@@ -708,6 +722,7 @@ const ChatAssistant = memo(function ChatAssistant({
           C={C}
           isDark={isDark}
           isMobile={isMobile}
+          btnBottom={btnBottomNum}
         />
       )}
     </>
