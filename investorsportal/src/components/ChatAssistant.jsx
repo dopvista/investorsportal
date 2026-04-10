@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { useTheme, useIsMobile } from "./ui";
 import { Icon } from "../lib/icons";
 import logo from "../assets/logo.jpg";
-import { supabase } from "../lib/supabase";
+import { getSession, refreshSession } from "../lib/supabase";
 
 const BASE = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -538,10 +538,16 @@ const ChatAssistant = memo(function ChatAssistant({
     setLoading(true);
 
     try {
-      // Always fetch a fresh session so expired tokens are auto-refreshed
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      const token = freshSession?.access_token;
+      // Get token from custom session store; refresh if expired or expiring soon
+      let token = getSession()?.access_token;
       if (!token) throw new Error("Not authenticated");
+      try {
+        const { exp } = JSON.parse(atob(token.split(".")[1]));
+        if (exp * 1000 < Date.now() + 60_000) {
+          const fresh = await refreshSession();
+          if (fresh) token = fresh;
+        }
+      } catch { /* malformed JWT — proceed with existing token */ }
 
       const res = await fetch(`${BASE}/functions/v1/chat`, {
         method: "POST",
@@ -574,7 +580,7 @@ const ChatAssistant = memo(function ChatAssistant({
     } finally {
       setLoading(false);
     }
-  }, [messages, session, role, currentPage, cdsNumber, userName]);
+  }, [messages, role, currentPage, cdsNumber, userName]);
 
   const [suggestions, setSuggestions] = useState(() => pickSuggestions(currentPage));
 
