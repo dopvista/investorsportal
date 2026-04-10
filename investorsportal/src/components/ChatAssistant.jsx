@@ -346,6 +346,8 @@ const ChatPanel = memo(function ChatPanel({
           {/* Welcome card + suggestions */}
           {messages.length === 0 && !loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* Capabilities */}
+              <div style={{ fontSize: 10.5, color: C.gray400, padding: "8px 2px 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>What I can help with</div>
               {[
                 { icon: "info",      color: "#B8960C", text: "About Investors Portal™", q: "What is Investors Portal™? Tell me about it — what problem does it solve, who is it for, and what can I do here?" },
                 { icon: "home",      color: "#00843D", text: "Navigate the app",         q: "How do I navigate the app? What pages are available?" },
