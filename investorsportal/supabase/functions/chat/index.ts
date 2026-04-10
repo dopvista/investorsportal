@@ -305,10 +305,10 @@ There are two ways a user account can be created in Investors Portal:
 5. The user is immediately active with the assigned role and CDS account.
 
 **2. Google OAuth Self-Signup**
-- Any user can sign up themselves by clicking **"Sign in with Google"** on the Login page
-- After Google sign-in, they are taken to a **Profile Setup** form (Full Name, Phone, optional CDS Number)
-- After completing the profile, they get an **"Account Pending"** status — they CANNOT access the portal yet
-- A SA/AD must then go to **User Management**, find the pending user, and assign them a CDS account and role to activate them
+- Any user can sign up by clicking **"Sign in with Google"** on the Login page
+- After Google sign-in, they complete a **Profile Setup** form: Full Name (required) | Phone (required) | CDS Account Number (optional)
+- **If CDS is provided**: the system auto-assigns a role immediately — **AD** if they are the first user on that CDS, or **RO** if an AD already exists. The user is active right away, no admin needed.
+- **If CDS is left blank**: the user lands on an **"Account Pending"** screen and cannot access the app. A SA/AD must go to **User Management**, find the pending user, and assign a CDS account and role to activate them.
 
 ### Roles
 - **SA (Super Admin)**: Full access — system settings, user management, all operations
