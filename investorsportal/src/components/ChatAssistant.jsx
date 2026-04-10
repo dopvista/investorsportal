@@ -124,7 +124,7 @@ function renderMarkdown(text, isDark) {
       return ipParts.map((seg, j) => {
         if (!seg) return null;
         if (seg === "Investors Portal™")
-          return <strong key={`${keyPrefix}-${i}-${j}`} style={{ color: "#00843D" }}>Investors Portal™</strong>;
+          return <strong key={`${keyPrefix}-${i}-${j}`} style={{ color: "#B8860B" }}>Investors Portal™</strong>;
         return isBold ? <strong key={`${keyPrefix}-${i}-${j}`}>{seg}</strong> : seg;
       }).filter(Boolean);
     });
