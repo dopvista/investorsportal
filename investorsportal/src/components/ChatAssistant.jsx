@@ -676,31 +676,42 @@ const ChatAssistant = memo(function ChatAssistant({
     <>
       {/* Floating AI button */}
       {!open && (
-        <div
-          ref={btnRef}
-          onMouseDown={handlePointerDown}
-          onTouchStart={handlePointerDown}
-          style={{
-            position: "fixed",
-            right: isMobile ? 16 : 24,
-            bottom: btnBottomCSS,
-            width: 52, height: 52,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #00843D 0%, #006B32 100%)",
-            boxShadow: "0 4px 16px rgba(0,132,61,0.4), 0 2px 4px rgba(0,0,0,0.12)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer",
-            zIndex: 201,
-            transition: dragState.current.dragging ? "none" : "bottom 0.2s ease, transform 0.15s ease",
-            userSelect: "none",
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "none",
-          }}
-          onMouseEnter={e => { if (!dragState.current.dragging) e.currentTarget.style.transform = "scale(1.08)"; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-        >
-          <Icon name="aiSpark" size={24} stroke="#fff" sw={2} />
-        </div>
+        <>
+          <style>{`@keyframes _chatBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}`}</style>
+          <div
+            ref={btnRef}
+            onMouseDown={handlePointerDown}
+            onTouchStart={handlePointerDown}
+            style={{
+              position: "fixed",
+              right: isMobile ? 16 : 24,
+              bottom: btnBottomCSS,
+              width: 52, height: 52,
+              zIndex: 201,
+              animation: "_chatBob 3s ease-in-out infinite",
+              transition: dragState.current.dragging ? "none" : "bottom 0.2s ease",
+              userSelect: "none",
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "none",
+            }}
+          >
+            <div
+              style={{
+                width: 52, height: 52,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #00843D 0%, #006B32 100%)",
+                boxShadow: "0 4px 16px rgba(0,132,61,0.4), 0 2px 4px rgba(0,0,0,0.12)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={e => { if (!dragState.current.dragging) e.currentTarget.style.transform = "scale(1.08)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+            >
+              <Icon name="aiSpark" size={24} stroke="#fff" sw={2} />
+            </div>
+          </div>
+        </>
       )}
 
       {/* Chat panel */}
