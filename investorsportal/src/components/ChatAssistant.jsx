@@ -534,24 +534,51 @@ const ChatAssistant = memo(function ChatAssistant({
   // Numeric value for drag arithmetic (read actual position from DOM when needed)
   const btnBottomNum = isDragged ? btnY : (isMobile ? 80 : 24);
 
-  // ── Drag handlers (mobile only — desktop is untouched) ────────
+  // ── Drag handlers ─────────────────────────────────────────────
   const handlePointerDown = useCallback((e) => {
     const isTouch = !!e.touches;
 
-    // ── DESKTOP: simple click toggle, no changes ──────────────
+    // ── DESKTOP: mouse drag + click ───────────────────────────
     if (!isTouch) {
+      const clientY = e.clientY;
+      const rect = btnRef.current?.getBoundingClientRect();
+      const actualBottom = rect ? window.innerHeight - rect.bottom : btnBottomNum;
+
+      dragState.current = { dragging: false, startY: clientY, startBtnY: actualBottom };
+
+      const HEADER_H = 56;
+      const BTN_H    = 52;
+      const PADDING  = 8;
+
+      const onMove = (ev) => {
+        const delta = dragState.current.startY - ev.clientY; // positive = dragging up
+        if (!dragState.current.dragging && Math.abs(delta) > 5) {
+          dragState.current.dragging = true;
+        }
+        if (dragState.current.dragging) {
+          const minBottom = PADDING;
+          const maxBottom = window.innerHeight - HEADER_H - BTN_H - PADDING;
+          const newBottom = Math.max(minBottom, Math.min(maxBottom, dragState.current.startBtnY + delta));
+          setBtnY(newBottom);
+        }
+      };
+
       const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
-        if (!dragState.current.dragging) {
+        if (dragState.current.dragging) {
+          try { localStorage.setItem(STORAGE_KEY, String(btnY >= 0 ? btnY : actualBottom)); } catch {}
+        } else {
           setTimeout(() => setOpen(prev => !prev), 0);
         }
       };
-      dragState.current = { dragging: false };
+
+      document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
       return;
     }
 
-    // ── MOBILE: touch drag + tap ──────────────────────────────
+    // ── MOBILE: touch drag + tap (untouched) ─────────────────
     const clientY = e.touches[0].clientY;
     // Read actual bottom offset from DOM (handles CSS calc safe-area correctly)
     const rect = btnRef.current?.getBoundingClientRect();
