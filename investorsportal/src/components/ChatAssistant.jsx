@@ -36,12 +36,16 @@ const SUGGESTION_POOL = {
   ],
   dividends: [
     "How is withholding tax calculated?",
-    "How do I record a dividend payment?",
-    "What is the difference between declared and paid dividends?",
+    "How do I record a dividend?",
+    "What do the dividend statuses mean?",
+    "How do I confirm a dividend as Data Entrant?",
     "How do I mark a dividend as paid?",
+    "How do I reject a dividend as Verifier?",
+    "What can I do after a dividend is rejected?",
     "What does ex-dividend date mean?",
     "How is net dividend amount calculated?",
     "What is YTD dividend income?",
+    "Who can delete a dividend?",
   ],
   companies: [
     "How does FIFO cost basis work?",
@@ -129,7 +133,7 @@ function renderMarkdown(text, isDark) {
           return (
             <strong key={`${keyPrefix}-${i}-${j}`}>
               <span style={{ color: isDark ? "#ffffff" : "#0A2540" }}>Investors </span>
-              <span style={{ color: "#B8960C" }}>Portal™</span>
+              <span style={{ color: isDark ? "#D4A017" : "#B8960C" }}>Portal™</span>
             </strong>
           );
         return isBold ? <strong key={`${keyPrefix}-${i}-${j}`}>{seg}</strong> : seg;
@@ -392,7 +396,7 @@ const ChatPanel = memo(function ChatPanel({
                   </div>
                   <span style={{ fontSize: 11, color: C.text }}>
                     {text === "About Investors Portal™"
-                      ? <><span style={{ color: isDark ? "#ffffff" : "#0A2540", fontWeight: 700 }}>Investors </span><span style={{ color: "#B8960C", fontWeight: 700 }}>Portal™</span></>
+                      ? <><span style={{ color: isDark ? "#ffffff" : "#0A2540", fontWeight: 700 }}>Investors </span><span style={{ color: isDark ? "#D4A017" : "#B8960C", fontWeight: 700 }}>Portal™</span></>
                       : text}
                   </span>
                 </button>

@@ -274,7 +274,7 @@ const CDSSearchBox = memo(function CDSSearchBox({ callerRole, adCdsList=[], excl
             const inactive = c.is_active === false;
             return (
               <div key={c.id||c.cds_id||c.cds_number} onClick={() => !inactive && handleSelect(c)}
-                style={{ padding:"11px 14px", cursor: inactive ? "not-allowed" : "pointer", borderBottom:`1px solid ${C.gray100}`, transition:"background 0.1s", opacity: inactive ? 0.5 : 1 }}
+                style={{ padding:"11px 14px", cursor: inactive ? "not-allowed" : "pointer", borderBottom:`1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, transition:"background 0.1s", opacity: inactive ? 0.5 : 1 }}
                 onMouseEnter={e => { if (!inactive) e.currentTarget.style.background=C.gray50; }}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -393,7 +393,7 @@ const CDSPoolPicker = memo(function CDSPoolPicker({ pool=[], excludeCdsIds=[], e
             const isSel=selected.some(s=>s.cds_number===c.cds_number);
             return (
               <div key={c.id||c.cds_id||c.cds_number} onClick={() => toggle(c)}
-                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", cursor:"pointer", background:isSel?`${C.green}09`:"transparent", borderBottom:i<available.length-1?`1px solid ${C.gray100}`:"none", transition:"background 0.1s" }}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", cursor:"pointer", background:isSel?`${C.green}09`:"transparent", borderBottom:i<available.length-1?`1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`:"none", transition:"background 0.1s" }}
                 onMouseEnter={e => { if(!isSel)e.currentTarget.style.background=C.gray50; }}
                 onMouseLeave={e => { e.currentTarget.style.background=isSel?`${C.green}09`:"transparent"; }}>
                 <div style={{ width:16, height:16, borderRadius:mode==="single"?"50%":4, border:`2px solid ${isSel?C.green:C.gray200}`, background:isSel?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
@@ -612,7 +612,7 @@ const CascadeRemoveModal = memo(function CascadeRemoveModal({ admin, cdsEntry, o
             </div>
             <div style={{ maxHeight:140, overflowY:"auto", marginBottom:14, border:`1px solid ${C.gray200}`, borderRadius:10, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
               {affectedUsers.map((u,i) => (
-                <div key={u.user_id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:i%2?C.gray50:C.white, borderBottom:i<affectedUsers.length-1?`1px solid ${C.gray100}`:"none" }}>
+                <div key={u.user_id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:i%2?C.gray50:C.white, borderBottom:i<affectedUsers.length-1?`1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`:"none" }}>
                   <div style={{ width:24, height:24, borderRadius:6, background:C.gray100, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:C.text, flexShrink:0 }}>{(u.full_name||"?")[0]?.toUpperCase()}</div>
                   <div style={{ flex:1, fontSize:12, fontWeight:600, color:C.text }}>{u.full_name||"—"}</div>
                   <span style={{ fontSize:10, fontWeight:700, color:C.gray400 }}>{u.role_code||"—"}</span>
@@ -1366,7 +1366,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
             </div>
 
             <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", flex:1, display:"flex", flexDirection:"column", minHeight:0, minWidth:0, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-              <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.gray100}`, background:C.gray50, flexShrink:0 }}>
+              <div style={{ padding:"10px 16px", borderBottom:`1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, background:C.gray50, flexShrink:0 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{`User Management (${filtered.length}${filtered.length !== stats.total ? ` of ${stats.total}` : ""})`}</div>
                 <div style={{ fontSize:11, color:C.gray400, marginTop:1 }}>Manage user roles, accounts & permissions</div>
               </div>
@@ -1384,7 +1384,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                     </div>
                   ) : filtered.map((user,idx)=>(
                     <div key={user.id}
-                      style={{ display:"grid", gridTemplateColumns:GRID, padding:"10px 14px", minWidth:940, borderBottom:`1px solid ${C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.62 }}
+                      style={{ display:"grid", gridTemplateColumns:GRID, padding:"10px 14px", minWidth:940, borderBottom:`1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, alignItems:"center", transition:"background 0.12s", opacity:user.is_active?1:0.62 }}
                       onMouseEnter={e=>e.currentTarget.style.background=C.gray50}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}
                     >

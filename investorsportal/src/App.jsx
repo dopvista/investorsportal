@@ -883,7 +883,7 @@ export default function App() {
 
   // TAB_META references profile name — only recompute when name changes
   const tabMeta = useMemo(() => ({
-    dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"} 👋`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
+    dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"}`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
     companies:        { title: "Portfolio",        sub: "Your CDS portfolio holdings" },
     transactions:     { title: "Transactions",     sub: "Record and view all buy/sell activity" },
     reports:          { title: "Reports",          sub: "Generate and download portfolio reports" },

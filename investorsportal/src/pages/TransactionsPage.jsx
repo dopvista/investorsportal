@@ -190,9 +190,9 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
         <div style={{ padding: "20px" }}>
           <div style={{ background: accentBg, border: `1px solid ${accentBdr}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
             <span style={{ fontSize: 18, marginTop: 1 }}>{isVerify ? <Icon name="search" size={18} /> : <Icon name="clipboard" size={18} />}</span>
-            <div style={{ fontSize: 13, color: accentColor, lineHeight: 1.5 }}>{description}</div>
+            <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,0.85)" : accentColor, lineHeight: 1.5 }}>{description}</div>
           </div>
-          <div style={{ fontSize: 13, color: C.gray600 }}>Are you sure you want to proceed?</div>
+          <div style={{ fontSize: 13, color: isDark ? C.gray800 : C.gray600 }}>Are you sure you want to proceed?</div>
         </div>
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
@@ -208,25 +208,36 @@ const ConfirmActionModal = memo(function ConfirmActionModal({ action, count = 1,
 });
 
 // ── Simple Confirm Modal ──────────────────────────────────────────
-const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, count, onConfirm, onClose, loading }) {
-  const { C } = useTheme();
+const SimpleConfirmModal = memo(function SimpleConfirmModal({
+  title, message, count, onConfirm, onClose, loading,
+  accentColor, accentBg, accentBdr, icon, confirmLabel = "Confirm", itemLabel = "transaction",
+}) {
+  const { C, isDark } = useTheme();
+  const color = accentColor || C.red;
+  const bg    = accentBg  || (isDark ? `${color}28` : `${color}18`);
+  const bdr   = accentBdr || (isDark ? `${color}55` : `${color}44`);
+  const ico   = icon || <Icon name="trash" size={18} />;
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>{title}</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count} transaction{count > 1 ? "s" : ""} selected</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count} {itemLabel}{count > 1 ? "s" : ""} selected</div>
           </div>
           <button onClick={onClose} disabled={loading} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
         <div style={{ padding: "20px" }}>
-          <div style={{ fontSize: 14, color: C.text, marginBottom: 16 }}>{message}</div>
+          <div style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+            <span style={{ color, marginTop: 1, flexShrink: 0 }}>{ico}</span>
+            <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,0.85)" : color, lineHeight: 1.5 }}>{message}</div>
+          </div>
+          <div style={{ fontSize: 13, color: isDark ? C.gray800 : C.gray600 }}>Are you sure you want to proceed?</div>
         </div>
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
-          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : "Confirm"}
+          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : color, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : confirmLabel}
           </button>
         </div>
       </div>
@@ -548,7 +559,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
   ];
 
   const renderKVRows = (rows) => rows.map(([label, value], i, arr) => (
-    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none" }}>
+    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` : "none" }}>
       <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{typeof value === "number" ? fmt(value) : value}</span>
     </div>
@@ -596,14 +607,14 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
   const renderRightPanel = () => (
     <>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
         {renderSectionTitle("Reference & Broker")}
         {[
           ["Broker",  transaction.broker_name,    false],
           ["Ref No.", transaction.control_number, true ],
           ["Remarks", transaction.remarks,        false],
         ].map(([label, value, mono]) => (
-          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}`, gap: 10 }}>
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, gap: 10 }}>
             <span style={{ fontSize: 12, color: C.gray500, flexShrink: 0 }}>{label}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: value ? C.text : C.gray400, fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, textAlign: "right", wordBreak: "break-all" }}>{value || "—"}</span>
           </div>
@@ -663,14 +674,14 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
 
   const renderLeftPanel = () => (
     <>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
         {renderSectionTitle("Transaction")}
         {renderKVRows(transactionRows)}
       </div>
       <div style={{ padding: "14px 20px" }}>
         {renderSectionTitle("Commission breakdown")}
         {commissionRows.map(([label, value]) => (
-          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${C.gray100}` }}>
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
             <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(value)}</span>
           </div>
@@ -804,7 +815,7 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
                     ["Ref No.", transaction.control_number, true ],
                     ...(transaction.remarks ? [["Remarks", transaction.remarks, false]] : []),
                   ].map(([label, value, mono], i, arr) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none", gap: 10 }}>
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: i < arr.length - 1 ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` : "none", gap: 10 }}>
                       <span style={{ fontSize: 11, color: C.gray500, flexShrink: 0 }}>{label}</span>
                       <span style={{ fontSize: 11, fontWeight: 600, color: value ? C.text : C.gray400, fontFamily: mono ? "monospace" : "inherit", letterSpacing: mono ? "0.04em" : 0, textAlign: "right", wordBreak: "break-all" }}>{value || "—"}</span>
                     </div>
@@ -1039,7 +1050,7 @@ const TransactionRow = memo(function TransactionRow({
   const sellBdr = isDark ? `${C.red}55`   : "#FECACA";
 
   return (
-    <tr style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+    <tr style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
       onClick={() => onOpenDetail(transaction.id)}
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = rowBgHover; }}
       onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
@@ -1763,8 +1774,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
 
       {/* ── Modals ── */}
       {deleteModal && <Modal type="confirm" title="Delete Transaction" message={`Delete this ${deleteModal.type} transaction for "${deleteModal.company}"? This cannot be undone.`} onConfirm={handleDelete} onClose={closeDelete} />}
-      {bulkDeleteModal   && <SimpleConfirmModal title="Delete Transactions"   message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} transaction(s)? This cannot be undone.`}                               count={bulkDeleteModal.ids.length}   loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete}   onClose={closeBulkDelete}   />}
-      {bulkUnverifyModal && <SimpleConfirmModal title="Unverify Transactions" message={`Are you sure you want to unverify ${bulkUnverifyModal.ids.length} transaction(s)? They will be moved back to Pending.`}             count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying}         onConfirm={doBulkUnverify} onClose={closeBulkUnverify} />}
+      {bulkDeleteModal   && <SimpleConfirmModal title="Delete Transactions"   message="Deleting these transactions cannot be undone."                                          count={bulkDeleteModal.ids.length}   loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete}   onClose={closeBulkDelete}   icon={<Icon name="trash" size={18} />}  confirmLabel="Delete"   itemLabel="transaction" />}
+      {bulkUnverifyModal && <SimpleConfirmModal title="Unverify Transactions" message="These transactions will be moved back to Pending status."                               count={bulkUnverifyModal.ids.length} loading={isAnyUnverifying}         onConfirm={doBulkUnverify} onClose={closeBulkUnverify} accentColor="#EA580C" icon={<Icon name="undo" size={18} stroke="#EA580C" />} confirmLabel="Unverify" itemLabel="transaction" />}
       {formModal.open && <TransactionFormModal key={formModal.transaction?.id || "new"} transaction={formModal.transaction} companies={effectiveCompanies} transactions={myTransactions} brokers={brokers} onConfirm={handleFormConfirm} onClose={closeForm} />}
       {importModal && <ImportTransactionsModal companies={effectiveCompanies} brokers={brokers} onImport={handleImport} onClose={closeImport} />}
       {actionModal && <ConfirmActionModal action={actionModal.action} count={actionModal.ids.length} company={actionModal.company} loading={isAnyConfirming || isAnyVerifying} onConfirm={actionModal.action === "verify" ? doVerify : doBulkConfirm} onClose={closeAction} />}
@@ -1820,7 +1831,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
               </div>
               {["All", "Buy", "Sell"].map(t => (
                 <button key={t} onClick={() => { setTypeFilter(t); resetPage(); }}
-                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? "#0B1F3A" : C.gray200}`, background: typeFilter === t ? "#0B1F3A" : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${typeFilter === t ? (isDark ? "rgba(255,255,255,0.35)" : "#0B1F3A") : C.gray200}`, background: typeFilter === t ? (isDark ? "rgba(255,255,255,0.18)" : "#0B1F3A") : C.white, color: typeFilter === t ? "#ffffff" : C.gray600, fontWeight: 600, cursor: "pointer" }}>
                   {t}
                 </button>
               ))}
@@ -1838,7 +1849,7 @@ export default function TransactionsPage({ companies, transactions, setTransacti
                   {canBulkConfirm  && <button onClick={() => setActionModal({ action: "confirm", ids: selectedBuckets.pendingRejected, company: null })} disabled={isAnyConfirming}  style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming  ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming  ? "not-allowed" : "pointer" }}>{isAnyConfirming  ? <><Spinner size={12} color="#888" /> Confirming...</>  : <><Icon name="checkCircle" size={12} /> Confirm {selectedBuckets.pendingRejected.length}</>}</button>}
                   {canBulkVerify   && <button onClick={() => handleVerify(selectedBuckets.confirmed)}                                                     disabled={isAnyVerifying}   style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyVerifying   ? C.gray200 : C.green,   color: "#ffffff", fontWeight: 700, cursor: isAnyVerifying   ? "not-allowed" : "pointer" }}>{isAnyVerifying   ? <><Spinner size={12} color="#888" /> Verifying...</>   : <><Icon name="check" size={12} /> Verify {selectedBuckets.confirmed.length}</>}</button>}
                   {canBulkReject   && <button onClick={() => setRejectModal({ ids: selectedBuckets.confirmed })}                                          disabled={isAnyRejecting}   style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting   ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting   ? "not-allowed" : "pointer" }}>{isAnyRejecting   ? <><Spinner size={12} color={C.red} /> Rejecting...</>   : <><Icon name="xCircle" size={12} /> Reject {selectedBuckets.confirmed.length}</>}</button>}
-                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}                                     disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.gray200}`, background: isAnyUnverifying ? C.gray100 : C.white, color: C.gray600, fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color={C.gray400} /> Unverifying...</> : <><Icon name="undo" size={12} /> UnVerify {selectedBuckets.verified.length}</>}</button>}
+                  {canBulkUnverify && <button onClick={() => setBulkUnverifyModal({ ids: selectedBuckets.verified })}                                     disabled={isAnyUnverifying} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #EA580C55`, background: isAnyUnverifying ? C.gray100 : (isDark ? "rgba(234,88,12,0.15)" : "#FFF7ED"), color: "#EA580C", fontWeight: 700, cursor: isAnyUnverifying ? "not-allowed" : "pointer" }}>{isAnyUnverifying ? <><Spinner size={12} color="#EA580C" /> Unverifying...</> : <><Icon name="undo" size={12} stroke="#EA580C" /> UnVerify {selectedBuckets.verified.length}</>}</button>}
                   {canBulkDelete   && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })}                                      disabled={isAnyDeleting}    style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting    ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting    ? "not-allowed" : "pointer" }}>{isAnyDeleting    ? <><Spinner size={12} color={C.red} /> Deleting...</>    : <><Icon name="trash" size={12} /> Delete {selectedBuckets.deletable.length}</>}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>

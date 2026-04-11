@@ -309,6 +309,9 @@ const StatCard = memo(function StatCard({
   const h = (accent || "").toLowerCase();
   const pale = h.includes("f59e") || h.includes("f0b4") ? { bg: "#FEF3C7", bdr: "#FDE68A" }  // amber
     : h.includes("ef44") || h.includes("ef6e") ? { bg: "#FEE2E2", bdr: "#FECACA" }            // red
+    : h.includes("d4a0") || h.includes("b896") ? { bg: "#FEF8E8", bdr: "#F0D88A" }            // gold
+    : h.includes("0b1f") || h.includes("0a25") ? { bg: "#E6EAF2", bdr: "#C0CBDF" }            // navy
+    : h.includes("0891") ? { bg: "#E0F7FA", bdr: "#80DEEA" }                                   // teal
     : h.includes("2563") || h.includes("3b6f") ? { bg: "#DBEAFE", bdr: "#BFDBFE" }            // blue
     : { bg: "#D1FAE5", bdr: "#A7F3D0" };                                                       // green
   const paleBg = pale.bg;
@@ -1396,22 +1399,22 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14,
               marginBottom: (expanded === "companies" || expanded === "users" || expanded === "dividends") ? 0 : 22,
             }}>
-              <StatCard icon={<Icon name="building" size={19} stroke="#3b6fc4" sw={2.2} />} label="Companies"
+              <StatCard icon={<Icon name="building" size={19} stroke="#0B1F3A" sw={2.2} />} label="Companies"
                 value={loading ? "—" : metrics.totalCompanies}
                 subLabel={`${metrics.totalBuyTransactionCount} buy transactions`}
-                accent="#3b6fc4" accentBg="#3b6fc4"
+                accent="#0B1F3A" accentBg="#0B1F3A"
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
               />
-              <StatCard icon={<Icon name="dollarSign" size={19} stroke="#7c3aed" sw={2.2} />} label="Dividend Income"
+              <StatCard icon={<Icon name="dollarSign" size={19} stroke="#D4A017" sw={2.2} />} label="Dividend Income"
                 value={loading ? "—" : `TZS ${Number(dividendSummary?.ytd_net || 0).toLocaleString()}`}
                 subLabel={dividendSummary ? `${dividendSummary.dividend_count || 0} from ${dividendSummary.company_count || 0} co.` : "YTD net"}
-                accent="#7c3aed" accentBg="#7c3aed"
+                accent="#D4A017" accentBg="#D4A017"
                 onClick={onToggleDividends} active={expanded === "dividends"} loading={loading}
               />
-              <StatCard icon={<Icon name="users" size={19} stroke="#2563eb" sw={2.2} />} label="Total Users"
+              <StatCard icon={<Icon name="users" size={19} stroke="#0891b2" sw={2.2} />} label="Total Users"
                 value={loading ? "—" : (cds ? cdsUsers.length : (userCount ?? "—"))}
                 subLabel={cds ? `active on ${cds}` : `${allUsers.length} total`}
-                accent="#2563eb" accentBg="#2563eb"
+                accent="#0891b2" accentBg="#0891b2"
                 onClick={onToggleUsers} active={expanded === "users"} loading={loading}
               />
               <StatCard icon={<Icon name="alertTriangle" size={19} stroke="#f59e0b" sw={2.2} />} label="Awaiting Action"
@@ -1424,7 +1427,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Companies expand panel */}
             {expanded === "companies" && (
-              <ExpandPanel title={<><Icon name="building" size={14} /> Companies</>} accentColor="#3b6fc4" onClose={onCloseExpand}>
+              <ExpandPanel title={<><Icon name="building" size={14} /> Companies</>} accentColor="#0B1F3A" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : metrics.companyMetrics.length === 0 ? <Empty msg="No active positions found." /> : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1501,7 +1504,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Users expand panel */}
             {expanded === "users" && (
-              <ExpandPanel title={<><Icon name="users" size={14} /> {cds ? `CDS ${cds}` : "All"} — Members ({cdsUsers.length})</>} accentColor="#2563eb" onClose={onCloseExpand}>
+              <ExpandPanel title={<><Icon name="users" size={14} /> {cds ? `CDS ${cds}` : "All"} — Members ({cdsUsers.length})</>} accentColor="#0891b2" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : cdsUsers.length === 0 ? <Empty msg="No users found for this CDS account." /> : (
                   <>
                     <div style={{ overflowX: "auto" }}>
@@ -1572,7 +1575,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
             {/* Dividends expand panel */}
             {expanded === "dividends" && (
-              <ExpandPanel title={<><Icon name="dollarSign" size={14} /> Top 5 Dividends by Company</>} accentColor="#7c3aed" onClose={onCloseExpand}>
+              <ExpandPanel title={<><Icon name="dollarSign" size={14} /> Top 5 Dividends by Company</>} accentColor="#D4A017" onClose={onCloseExpand}>
                 {loading ? <Spinner /> : dividendByCompany.length === 0 ? <Empty msg="No dividends recorded yet." /> : (
                   <>
                     <div style={{ overflowX: "auto" }}>

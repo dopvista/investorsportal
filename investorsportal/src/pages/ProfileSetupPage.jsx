@@ -269,9 +269,9 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
             </div>
             {renderForm()}
           </div>
-          <div style={{ marginTop: 22, textAlign: "center", opacity: 0.72 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontWeight: 500, letterSpacing: "0.01em" }}>Manage Your Investments Digitally</div>
-            <div style={{ marginTop: 5, fontSize: 10, color: "rgba(255,255,255,0.34)", fontWeight: 500, letterSpacing: "0.01em" }}>© 2026 Dopvista Creative Hub. All rights reserved.</div>
+          <div style={{ marginTop: 22, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontWeight: 500, letterSpacing: "0.01em" }}>Powered by Claude AI</div>
+            <div style={{ marginTop: 5, fontSize: 10, color: "rgba(255,255,255,0.28)", fontWeight: 500, letterSpacing: "0.01em" }}>&copy; 2026 <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.</div>
           </div>
         </div>
       ) : (
@@ -283,13 +283,9 @@ export default function ProfileSetupPage({ session, onComplete, onCancel }) {
             <div style={{ fontSize: 12, color: C.gray400, marginTop: 3 }}>Tell us a bit about yourself to get started</div>
           </div>
           {renderForm()}
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, color: C.gray400, fontWeight: 500 }}>Manage Your Investments Digitally</span>
-          </div>
-          <div style={{ marginTop: 6, textAlign: "center" }}>
-            <span style={{ fontSize: 10, color: C.gray400 }}>© 2026 </span>
-            <span style={{ fontSize: 10, color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>
-            <span style={{ fontSize: 10, color: C.gray400 }}>. All rights reserved.</span>
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.gray200}`, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: C.gray400, fontWeight: 500, marginBottom: 4 }}>Powered by Claude AI</div>
+            <div style={{ fontSize: 10, color: C.gray400 }}>&copy; 2026 <span style={{ color: C.navy, fontWeight: 700 }}>Dopvista Creative Hub</span>. All rights reserved.</div>
           </div>
         </div>
       )}

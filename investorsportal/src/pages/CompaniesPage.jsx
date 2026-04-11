@@ -632,7 +632,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                     const dateText = new Date(h.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
                     const timeText = new Date(h.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
                     return (
-                      <tr key={h.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                      <tr key={h.id} style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}
                         onMouseEnter={e => e.currentTarget.style.background = C.gray50}
                         onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                         <td style={{ padding: "8px", color: C.gray400, fontWeight: 600 }}>{globalIdx + 1}</td>
@@ -1367,7 +1367,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
                         return (
                           <tr key={c.id}
-                            style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s", background: rowBg }}
+                            style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, transition: "background 0.15s", background: rowBg }}
                             onMouseEnter={e => { e.currentTarget.style.background = rowBgHover; }}
                             onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
                             <td style={{ padding: "10px 16px", color: C.gray400, fontWeight: 600, width: 36 }}>{i + 1}</td>
@@ -1479,7 +1479,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                         ];
                         return (
                           <tr key={c.id}
-                            style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s" }}
+                            style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, transition: "background 0.15s" }}
                             onMouseEnter={e => { e.currentTarget.style.background = C.gray50; }}
                             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
                             <td style={{ padding: "8px 14px", color: C.gray400, fontWeight: 600, width: 36, fontSize: 12 }}>{i + 1}</td>
