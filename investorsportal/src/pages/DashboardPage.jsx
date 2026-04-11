@@ -1263,6 +1263,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 display: "grid",
                 gridTemplateColumns: "1.1fr 1fr 1fr 1fr 1fr",
                 gap: 14,
+                paddingTop: 4,
                 marginBottom: (expanded === "realized" || expanded === "companies" || expanded === "users" || expanded === "dividends") ? 14 : 20,
               }}
             >
