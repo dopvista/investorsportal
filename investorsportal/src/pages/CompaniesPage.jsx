@@ -364,7 +364,7 @@ const PriceChart = memo(function PriceChart({ data, color, isDark, C, onHover })
         <g>
           <line x1={hx} y1={CHART_PT} x2={hx} y2={yPos(yLo)} stroke={color} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.3" />
           <circle cx={hx} cy={hy} r="3.5" fill={color} opacity="0.9" />
-          <text x={CHART_W / 2} y={CHART_PT - 5} textAnchor="middle" fill={hintColor} fontSize="9" fontWeight="600">
+          <text x={CHART_PL} y={CHART_PT - 5} textAnchor="start" fill={hintColor} fontSize="11" fontWeight="600">
             TZS {prices[hi].toLocaleString()} — {new Date(data[hi].date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
           </text>
         </g>
@@ -406,7 +406,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   const [prevTab, setPrevTab] = useState(initialTab); // to go back from update
 
   // ── Chart state ──────────────────────────────────────────
-  const [chartRange, setChartRange] = useState("30D");
+  const [chartRange, setChartRange] = useState("90D");
   const [allData, setAllData]       = useState(null);
   const [chartLoading, setChartLoading] = useState(true);
   const [hoverPoint, setHoverPoint] = useState(null);
@@ -501,7 +501,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   // ── Shared helpers ───────────────────────────────────────
   const statBox = (label, value, color) => (
     <div style={{ position: "relative", textAlign: "center", padding: "12px 4px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1, minWidth: 0 }}>
-      <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", padding: "0 6px", background: isDark ? C.white : "#fff", fontSize: 8, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", lineHeight: "14px" }}>{label}</div>
+      <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", padding: "0 6px", background: isDark ? C.white : "#fff", fontSize: 8, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", lineHeight: "14px", borderRadius: 20, border: `1px solid rgba(0,0,0,0.08)` }}>{label}</div>
       <div style={{ fontSize: 13, fontWeight: 800, color: color || C.text, lineHeight: 1 }}>{value}</div>
     </div>
   );
@@ -586,7 +586,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                 displayPositive ? C.green : C.red
               )}
               {statBox(
-                hoverPoint ? new Date(hoverPoint.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Closing",
+                "Closing",
                 fmt(displayPrice),
                 displayPositive ? C.green : C.red
               )}
