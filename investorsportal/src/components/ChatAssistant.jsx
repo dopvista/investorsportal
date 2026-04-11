@@ -11,7 +11,7 @@ import { getSession, refreshSession } from "../lib/supabase";
 const BASE = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const STORAGE_KEY = "ip_chat_btn_y";
-const POSITION_VER = "ip_chat_pos_v2"; // change to force-reset all saved positions
+const POSITION_VER = "ip_chat_pos_v3"; // bump to force-reset all saved positions
 
 // ── Suggested questions pool by page (randomly picks 3 on each open) ────
 const SUGGESTION_POOL = {
@@ -519,9 +519,6 @@ const ChatAssistant = memo(function ChatAssistant({
   });
   const dragState = useRef({ dragging: false, startY: 0, startBtnY: 0 });
   const btnRef = useRef(null);
-
-  // Default Y position
-  const defaultY = isMobile ? null : null; // We use bottom positioning
 
   // Compute button bottom position
   // When default (not dragged): use CSS calc with safe-area for mobile
