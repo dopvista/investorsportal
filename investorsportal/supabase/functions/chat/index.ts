@@ -37,8 +37,8 @@ const supabase = createClient(
 const ROLE_DESC: Record<string, string> = {
   SA: "Super Admin — full system access, system settings, user management",
   AD: "Admin — user management, all analytics, no system config",
-  DE: "Data Entrant — create/confirm transactions, edit dividends, edit company data",
-  VR: "Verifier — verify/reject transactions, view analytics",
+  DE: "Data Entrant — record/confirm transactions and dividends, edit/delete pending and rejected records, update portfolio prices",
+  VR: "Verifier — verify/reject confirmed transactions; mark paid or reject declared/ex-date dividends; view-only everywhere else",
   RO: "Read Only — view-only access to all data",
 };
 
@@ -196,7 +196,7 @@ A: Investors Portal™ is built around six core features that work together to g
 - **FIFO Gain/Loss** — automatic cost basis tracking. Open any verified transaction to see **Unrealized G/L** (buys) or **Realized G/L** (sells) with per-share breakdown
 - **Fee Calculator** — every transaction auto-calculates: **Broker** (tiered + VAT), **CMSA** (0.14%), **DSE** (+VAT), **CSDR** (+VAT), **Fidelity** (0.02%). Click the **ⓘ** icon for the full breakdown
 - **DSE Price Sync** — on the **Portfolio** page, tap the **DSE Prices** card → toggle **Auto-Sync** for live prices every 60 seconds, or click **"Fetch Prices Now"** for an instant update
-- **Dividend Tracker** — go to **Dividends** → **"Record Dividend"** → enter **DPS** and **Shares Held** → **WHT (5%)** and **Net Amount** calculate automatically
+- **Dividend Tracker** — go to **Dividends** → **"Record Dividend"** → enter **DPS** and **Shares Held** → **WHT (5%)** and **Net Amount** calculate automatically. Dividends follow a role-gated workflow: DE records (Pending) → DE confirms (Declared) → VR marks paid or rejects
 - **Multi-CDS** — switch between CDS accounts using the **CDS Account Switcher** in the header. All data is scoped to the active CDS
 - **Reports** — go to **Reports** → pick a report card → set filters → click **"Excel"** or **"PDF"** to download. Available: **Portfolio Statement**, **Transaction History**, **Gain/Loss Report**, **Dividend Income**
 
@@ -228,8 +228,8 @@ A: **Investors Portal™** has five roles that control what you can see and do. 
 
 - **Super Admin (SA)** — full access to everything including **System Settings**, **User Management**, and special actions like **"UnVerify"** and **"Revert to Declared"**
 - **Admin (AD)** — same as SA but without access to **System Settings**
-- **Data Entrant (DE)** — can record transactions via **"Record Transaction"**, **"Confirm"** pending trades, record and edit dividends, and update portfolio prices
-- **Verifier (VR)** — can **"Verify"** or **"Reject"** confirmed transactions but cannot create, edit, or delete anything
+- **Data Entrant (DE)** — record transactions and dividends; **"Confirm"** pending/rejected transactions and dividends (moves them into VR's queue); edit and delete **Pending** and **Rejected** records only — once confirmed, DE hands off to VR and loses edit/delete rights on that record; update portfolio prices
+- **Verifier (VR)** — **"Verify"** or **"Reject"** confirmed transactions; **"Mark as Paid"** or **"Reject"** declared/ex-date dividends. Cannot create, edit, or delete any record.
 - **Read Only (RO)** — view-only access across all pages with no action buttons or checkboxes
 
 > Each role sees different stat cards — for example, VR sees **"Awaiting Review"** while DE sees **"My Transactions"** and RO sees **"Total Records"**.
@@ -353,26 +353,39 @@ A: **FIFO** stands for **First-In, First-Out** — it means your oldest shares a
 The key difference: unrealized is what you could gain or lose; realized is what you actually gained or lost.
 
 Q: "How do I record a dividend?"
-A: Go to **Dividends** and click **"Record Dividend"** (or **"+ Record"** on mobile) to open the form.
+A: Go to **Dividends** and click **"Record Dividend"** (or **"+ Record"** on mobile). Only DE and SA/AD can record dividends.
 
 **Form fields:**
 
-- **Company** (required, searchable dropdown)
-- **Declaration Date**, **Ex-Date**, **Payment Date** (all optional)
-- **Dividend Per Share** (required, in TZS)
-- **Shares Held** (optional — if entered, **Total Amount** auto-calculates as DPS × Shares)
-- **Withholding Tax (5%)** — auto-calculated from the gross amount
-- **Net Amount** — read-only, shows Gross minus WHT
-- **Status** — choose **Declared**, **Ex-Date Passed**, or **Paid**
-- **Remarks** (optional)
+- **Company** — required (searchable dropdown)
+- **Declaration Date**, **Ex-Dividend Date**, **Payment Date** — all optional
+- **Dividend Per Share** — required (TZS)
+- **Shares Held** — optional; if entered, **Total Amount** auto-calculates as DPS × Shares
+- **Withholding Tax (5%)** — auto-calculated
+- **Net Amount** — read-only: Gross minus WHT
+- **Remarks** — optional
 
-Click **"Record Dividend"** to save. The stat cards at the top show: **Total Dividends** | **YTD Net Income** | **Total Tax** | **Upcoming**.
+Click **"Record Dividend"** to save. New dividends always start as **Pending** — status is set by the workflow, not the form.
 
-**Permissions:**
+**Next step:** A Data Entrant must click **"Confirm"** on the pending record to move it to **Declared**, at which point the Verifier can act on it.
 
-- **DE** — record, edit (non-paid), delete (**Declared** only), and click **"Mark as Paid"**
-- **SA/AD** — everything DE can do, plus **"Revert to Declared"**
-- **VR and RO** — view-only
+Q: "What do the dividend statuses mean?"
+A: Dividends in **Investors Portal™** follow a five-step workflow controlled by role — status cannot be set manually.
+
+**Status flow:**
+
+- **Pending** (gray badge) — just recorded by DE. DE can still edit, delete, or confirm at this stage. VR has no actions yet.
+- **Declared** (orange badge) — DE clicked **"Confirm"**. Now in VR's queue. DE loses edit/delete rights on this record.
+- **Ex-Date** (blue badge) — the ex-dividend date has passed. VR can still mark paid or reject.
+- **Paid** (green badge) — VR or SA/AD clicked **"Mark as Paid"** and confirmed the actual payment date in the popup.
+- **Rejected** (red badge) — VR or SA/AD clicked **"Reject"** and entered a rejection reason. DE can see the reason, fix the data, and click **"Re-Confirm"** to resubmit.
+
+**Who can act at each stage:**
+
+- **Pending / Rejected** — DE (Confirm, Edit, Delete) · SA/AD (Edit, Delete)
+- **Declared / Ex-Date** — VR (Mark as Paid, Reject) · SA/AD (all)
+- **Paid** — SA/AD only (**"Revert to Declared"**)
+- **RO** — view-only at every stage
 
 Q: "What reports can I generate? What filters are available?"
 A: Go to **Reports** and click on any report card. Each one opens a modal titled **"Set parameters and generate report"** where you set your filters, then click **"Excel"** or **"PDF"** to download.
@@ -591,42 +604,79 @@ Trade Value = Quantity × Price/Share
 - **Sell**: Grand Total = Trade Value − Total Fees
 
 ## Dividends Page
-Tracks dividend income with automatic WHT calculation.
+Tracks dividend income with automatic WHT calculation. Only companies with transactions on the active CDS appear in the company dropdown.
 
 ### How to Record a Dividend
-1. Click **"Record Dividend"** button (or **"+ Record"** on mobile)
+1. Click **"Record Dividend"** button (or **"+ Record"** on mobile) — visible to DE and SA/AD only
 2. Fill the form:
    - **Company** — required (searchable dropdown)
-   - **Declaration Date** — optional
-   - **Ex-Dividend Date** — optional
-   - **Payment Date** — optional
+   - **Declaration Date** — optional: when the company announced the dividend
+   - **Ex-Dividend Date** — optional: last date to own shares to qualify
+   - **Payment Date** — optional: scheduled payment date
    - **Dividend Per Share** — required (TZS)
-   - **Shares Held** — optional (if entered, Total Amount auto-calculates)
+   - **Shares Held** — optional (if entered, Total Amount auto-calculates as DPS × Shares)
    - **Total Amount** — required (auto-calculated: DPS × Shares)
    - **Withholding Tax (5%)** — auto-calculated
-   - **Status** — dropdown: **Declared** | **Ex-Date Passed** | **Paid**
    - **Remarks** — optional
 3. **Net Amount** (read-only) = Total Amount − Withholding Tax
-4. Click **"Record Dividend"** to save (or **"Update"** when editing)
+4. Click **"Record Dividend"** to save — always starts as **Pending**
+   IMPORTANT: There is NO Status field in the form. Status is controlled entirely by the role workflow.
 
-### Dividend Status Workflow
-- **Declared** (orange badge) → initial state
-- **Ex-Date** (blue badge) → ex-dividend date has passed
-- **Paid** (green badge) → dividend has been paid
+### Dividend Status Workflow (5 statuses)
+- **Pending** (gray badge) → initial state after recording. DE can edit, delete, or confirm. VR has no actions.
+- **Declared** (orange badge) → DE clicked **"Confirm"**. Now in VR's queue. DE can no longer edit or delete this record.
+- **Ex-Date Passed** (blue badge) → ex-dividend date has passed (updated by system). VR can still act.
+- **Paid** (green badge) → VR or SA/AD clicked **"Mark as Paid"** and confirmed actual payment date in the popup.
+- **Rejected** (red badge) → VR or SA/AD clicked **"Reject"** and entered a mandatory rejection reason. DE sees the reason and can re-confirm after fixing.
 
-Who can do what:
-- **DE**: Record, edit (non-paid only), delete (**Declared** status only), mark as paid
-- **SA/AD**: All actions including **"Revert to Declared"** (unpay a paid dividend) and delete any non-paid dividend
-- **VR / RO**: View and download PNG only — no add, edit, delete, or status actions
+Full flow:
+Pending → (DE Confirm) → Declared → (VR Mark as Paid) → Paid
+                                   → (VR Reject) → Rejected → (DE Re-Confirm) → Declared → ...
+
+### Role × Action Matrix
+| Status       | DE                        | VR                     | SA/AD                              | RO         |
+|--------------|---------------------------|------------------------|------------------------------------|------------|
+| Pending      | Confirm, Edit, Delete     | View only              | Edit, Delete                       | View only  |
+| Declared     | View only                 | Mark as Paid, Reject   | Edit, Delete, Mark as Paid, Reject | View only  |
+| Ex-Date      | View only                 | Mark as Paid, Reject   | Edit, Delete, Mark as Paid, Reject | View only  |
+| Rejected     | Confirm, Edit, Delete     | View only              | Edit, Delete                       | View only  |
+| Paid         | View only                 | View only              | Revert to Declared                 | View only  |
+
+KEY RULE: Once DE confirms (Pending → Declared), they hand off to VR and lose all edit/delete rights. This mirrors the Transactions workflow exactly.
+
+### Actions Detail
+- **Confirm / Re-Confirm** (DE on Pending or Rejected) — moves to Declared; puts in VR's queue
+- **Mark as Paid** (VR/SA/AD on Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** field pre-filled with the scheduled payment date. Verifier can adjust the date before confirming.
+- **Reject** (VR/SA/AD on Declared or Ex-Date) — opens **"Reject Dividend"** popup with a required **"Rejection Reason"** textarea. Reason is stored and visible to DE in the detail modal and on the card.
+- **Revert to Declared** (SA/AD on Paid only) — undoes paid status, clears payment info, moves back to Declared
+- **Edit** — opens the form pre-filled with existing data (available only per role matrix above)
+- **Delete** — permanently removes the dividend (irreversible, available only per role matrix above)
+
+### Bulk Actions
+Select multiple rows via checkboxes, then toolbar shows eligible bulk actions:
+- **Confirm** (DE — for Pending/Rejected rows selected)
+- **Mark Paid** (VR/SA/AD — for Declared/Ex-Date rows)
+- **Reject** (VR/SA/AD — for Declared/Ex-Date rows) — opens RejectModal, one reason applies to all
+- **Revert to Declared** (SA/AD — for Paid rows)
+- **Delete** (DE for Pending/Rejected; SA/AD for any non-Paid)
+Each button shows the count of eligible rows.
 
 ### WHT Calculation
-Withholding Tax = 5% of gross dividend amount (for DSE-listed companies). This is automatically calculated and shown in the form. Net Amount = Gross − WHT.
+Withholding Tax = 5% of gross dividend amount (standard for DSE-listed companies). Net Amount = Gross − WHT. Both auto-calculate as you type in the form.
 
 ### Dividend Stat Cards
-- Total Dividends (count + declared/paid breakdown)
-- YTD Net Income (calendar year total after tax)
-- Total Tax (withholding tax sum)
-- Upcoming (undeclared/upcoming count)
+- **Total Dividends** — count with declared · paid breakdown
+- **YTD Net Income** — calendar year net after WHT (paid dividends only)
+- **Total Tax** — total withholding tax across all records
+- **Upcoming** — count of Declared + Ex-Date dividends awaiting payment
+
+### Dividend Detail Modal
+Click any row to open the full detail:
+- Header: company name, status badge, DPS per share, payment date, CDS number
+- Summary strip: Gross Amount | Withholding Tax (5%) | Net Amount
+- Left panel: Declaration Date, Ex-Dividend Date, Payment Date, Dividend/Share, Dividend Yield %, DPS Growth % vs previous, Shares Held, Status, Remarks, Rejection Reason (if rejected — shown in red)
+- Right panel (desktop) / Audit Trail (mobile+desktop): Tax breakdown + Audit Trail showing Recorded → Paid (green) or Rejected (red with reason bubble). Unfinished steps show "Awaiting" (grayed out).
+- **Save** button: downloads the detail view as a PNG image with watermark
 
 ## Reports Page
 Generate PDF and Excel reports.
@@ -679,8 +729,8 @@ There are two ways a user account can be created in Investors Portal:
 ### Roles
 - **SA (Super Admin)**: Full access — system settings, user management, all operations
 - **AD (Admin)**: User management within their CDS accounts. No system configuration.
-- **DE (Data Entrant)**: Create/confirm transactions, edit dividends, set CDS prices
-- **VR (Verifier)**: Verify/reject transactions. Cannot create or edit.
+- **DE (Data Entrant)**: Record/confirm transactions and dividends; edit and delete only Pending and Rejected records; once confirmed, hands off to VR and loses edit/delete rights; set CDS prices
+- **VR (Verifier)**: Verify/reject confirmed transactions; Mark as Paid or Reject declared/ex-date dividends. Cannot create, edit, or delete.
 - **RO (Read Only)**: View-only. Cannot edit, create, or delete anything.
 
 ## System Settings (SA only)
