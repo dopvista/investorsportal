@@ -61,17 +61,21 @@ const fmtDateTime = (d) => {
 
 // ── Status config for dividends ───────────────────────────────────
 const getStatusConfig = (C, isDark) => ({
-  declared:       { label: "Declared",  color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: <Icon name="clock" size={14} /> },
+  pending:        { label: "Pending",   color: "#6B7280", bg: isDark ? "rgba(107,114,128,0.18)" : "#F3F4F6", border: isDark ? "rgba(107,114,128,0.4)" : "#D1D5DB", icon: <Icon name="clock" size={14} /> },
+  declared:       { label: "Declared",  color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: <Icon name="checkCircle" size={14} /> },
   ex_date_passed: { label: "Ex-Date",   color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: <Icon name="calendar" size={14} /> },
   paid:           { label: "Paid",      color: C.green,   bg: C.greenBg,                        border: isDark ? `${C.green}55` : "#BBF7D0", icon: <Icon name="checkCircle" size={14} /> },
+  rejected:       { label: "Rejected",  color: C.red,     bg: isDark ? `${C.red}22` : "#FFF5F5", border: isDark ? `${C.red}55` : "#FECACA", icon: <Icon name="xCircle" size={14} /> },
 });
 
 const defaultStatus = "All";
 const statusOptions = [
   ["All", "All Statuses"],
+  ["pending", "Pending"],
   ["declared", "Declared"],
   ["ex_date_passed", "Ex-Date Passed"],
   ["paid", "Paid"],
+  ["rejected", "Rejected"],
 ];
 
 const TABLE_HEADERS_WITH_ACTIONS = [
@@ -108,31 +112,133 @@ const DivStatusBadge = memo(function DivStatusBadge({ status }) {
 });
 
 // ── Simple Confirm Modal ──────────────────────────────────────────
-const SimpleConfirmModal = memo(function SimpleConfirmModal({ title, message, count, onConfirm, onClose, loading }) {
-  const { C } = useTheme();
+const SimpleConfirmModal = memo(function SimpleConfirmModal({
+  title, message, count, onConfirm, onClose, loading,
+  accentColor, accentBg, accentBdr, icon, confirmLabel = "Confirm", itemLabel = "dividend",
+}) {
+  const { C, isDark } = useTheme();
+  const color = accentColor || C.red;
+  const bg    = accentBg  || (isDark ? `${color}28` : `${color}18`);
+  const bdr   = accentBdr || (isDark ? `${color}55` : `${color}44`);
+  const ico   = icon || <Icon name="trash" size={18} />;
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
       <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16 }}>{title}</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count} dividend{count > 1 ? "s" : ""} selected</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count} {itemLabel}{count > 1 ? "s" : ""} selected</div>
           </div>
           <button onClick={onClose} disabled={loading} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
         <div style={{ padding: "20px" }}>
-          <div style={{ fontSize: 14, color: C.text, marginBottom: 16 }}>{message}</div>
+          <div style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+            <span style={{ color, marginTop: 1, flexShrink: 0 }}>{ico}</span>
+            <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,0.85)" : color, lineHeight: 1.5 }}>{message}</div>
+          </div>
+          <div style={{ fontSize: 13, color: isDark ? C.gray800 : C.gray600 }}>Are you sure you want to proceed?</div>
         </div>
         <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
-          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : "Confirm"}
+          <button onClick={onConfirm} disabled={loading} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: loading ? C.gray200 : color, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {loading ? <><Spinner size={13} color="#fff" /> Processing...</> : confirmLabel}
           </button>
         </div>
       </div>
     </div>
   );
 });
+
+// ── Reject Modal ─────────────────────────────────────────────────
+function RejectModal({ count, onConfirm, onClose }) {
+  const { C } = useTheme();
+  const [comment, setComment] = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState("");
+
+  const handleSubmit = useCallback(async () => {
+    if (!comment.trim()) return setErr("Rejection reason is required");
+    setSaving(true);
+    try { await onConfirm(comment.trim()); }
+    catch (e) { setErr(e.message); setSaving(false); }
+  }, [comment, onConfirm]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", gap: 6 }}><Icon name="xCircle" size={15} /> Reject Dividend{count > 1 ? "s" : ""}</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count > 1 ? `${count} dividends selected` : "1 dividend selected"}</div>
+          </div>
+          <button onClick={onClose} disabled={saving} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
+        </div>
+        <div style={{ padding: "20px" }}>
+          {err && <div style={{ background: C.redBg, border: `1px solid ${C.red}55`, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          <label style={{ fontSize: 13, fontWeight: 600, color: C.text, display: "block", marginBottom: 6 }}>Rejection Reason <span style={{ color: C.red }}>*</span></label>
+          <textarea value={comment} onChange={e => { setComment(e.target.value); setErr(""); }} placeholder="Explain why this dividend is being rejected..." rows={4}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", resize: "vertical", color: C.text, background: C.white, boxSizing: "border-box" }}
+            onFocus={e => { e.target.style.borderColor = C.red; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+          <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>This reason will be visible to the Data Entrant.</div>
+        </div>
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.red, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {saving ? <><Spinner size={13} color="#fff" /> Rejecting...</> : "Reject"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mark as Paid Modal ────────────────────────────────────────────
+function MarkAsPaidModal({ ids, defaultPaymentDate, onConfirm, onClose }) {
+  const { C, isDark } = useTheme();
+  const today = new Date().toISOString().slice(0, 10);
+  const [paymentDate, setPaymentDate] = useState(defaultPaymentDate || today);
+  const [saving, setSaving] = useState(false);
+  const count = ids.length;
+
+  const handleSubmit = useCallback(async () => {
+    setSaving(true);
+    try { await onConfirm(paymentDate || null); }
+    catch { setSaving(false); }
+  }, [paymentDate, onConfirm]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20, backdropFilter: "blur(2px)" }}>
+      <div style={{ background: C.white, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: `1.5px solid ${C.gray200}`, overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: "18px 20px 14px", borderRadius: "18px 18px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", gap: 6 }}><Icon name="checkCircle" size={15} /> Mark as Paid</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3, fontWeight: 600 }}>{count > 1 ? `${count} dividends selected` : "1 dividend selected"}</div>
+          </div>
+          <button onClick={onClose} disabled={saving} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
+        </div>
+        <div style={{ padding: "20px" }}>
+          <div style={{ background: isDark ? `${C.green}18` : "#F0FDF4", border: `1px solid ${isDark ? `${C.green}44` : "#BBF7D0"}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+            <Icon name="checkCircle" size={16} stroke={C.green} />
+            <span style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,0.85)" : C.green, fontWeight: 600 }}>
+              {count > 1 ? `These ${count} dividends` : "This dividend"} will be marked as paid.
+            </span>
+          </div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>Actual Payment Date</label>
+          <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 14, border: `1.5px solid ${C.gray200}`, outline: "none", fontFamily: "inherit", color: C.text, background: C.white, boxSizing: "border-box" }}
+            onFocus={e => { e.target.style.borderColor = C.green; }} onBlur={e => { e.target.style.borderColor = C.gray200; }} />
+          <div style={{ fontSize: 11, color: C.gray400, marginTop: 5 }}>Confirm or adjust if the actual payment date differs from the scheduled date.</div>
+        </div>
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontWeight: 600, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: saving ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            {saving ? <><Spinner size={13} color="#fff" /> Processing...</> : <><Icon name="checkCircle" size={14} stroke="#fff" /> Mark as Paid</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Desktop Pagination ────────────────────────────────────────────
 const PgBtn = memo(function PgBtn({ onClick, disabled, label, active }) {
@@ -222,16 +328,21 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
 });
 
 // ── Row permissions ───────────────────────────────────────────────
-function getDivPermissions({ dividend, isDE, isSAAD }) {
-  const isDeclared = dividend.status === "declared";
-  const isExDate = dividend.status === "ex_date_passed";
-  const isPaid = dividend.status === "paid";
+function getDivPermissions({ dividend, isDE, isVR, isSAAD }) {
+  const isPending    = dividend.status === "pending";
+  const isDeclared   = dividend.status === "declared";
+  const isExDate     = dividend.status === "ex_date_passed";
+  const isPaid       = dividend.status === "paid";
+  const isRejected   = dividend.status === "rejected";
+  const isReviewable = isDeclared || isExDate;
   return {
-    canEdit: (isSAAD || isDE) && !isPaid,
-    canDelete: (isSAAD || (isDE && isDeclared)) && !isPaid,
-    canMarkPaid: (isSAAD || isDE) && !isPaid,
-    canUnpay: isSAAD && isPaid,
-    isDeclared, isExDate, isPaid,
+    canConfirm:  isDE && (isPending || isRejected),
+    canEdit:     (isSAAD && !isPaid) || (isDE && (isPending || isRejected)),
+    canDelete:   isDE ? (isPending || isRejected) : (isSAAD && !isPaid),
+    canMarkPaid: (isSAAD || isVR) && isReviewable,
+    canReject:   (isSAAD || isVR) && isReviewable,
+    canUnpay:    isSAAD && isPaid,
+    isPending, isDeclared, isExDate, isPaid, isRejected,
   };
 }
 
@@ -323,6 +434,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     ["Shares Held",      shares > 0 ? fmt(shares) : "\u2014"],
     ["Status",           st.label],
     ["Remarks",          dividend.remarks || "\u2014"],
+    ...(dividend.status === "rejected" && dividend.rejection_reason ? [["Rejection Reason", dividend.rejection_reason, C.red]] : []),
   ];
 
   // Right panel: Tax & income breakdown
@@ -342,7 +454,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   );
 
   const renderTaxPanel = () => (
-    <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+    <div style={{ padding: "14px 20px", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
       {renderSectionTitle("Tax & Income")}
       {renderKVRows(taxRows)}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
@@ -384,8 +496,30 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
             )}
           </div>
         )}
-        {/* Awaiting steps (if not paid) */}
-        {dividend.status !== "paid" && (
+        {/* Rejected step (if rejected) */}
+        {dividend.status === "rejected" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isDark ? `${C.red}18` : "#FFF5F5", border: `1px solid ${isDark ? `${C.red}44` : "#FECACA"}` }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${C.red}20`, border: `1.5px solid ${C.red}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="xCircle" size={11} stroke={C.red} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.red }}>Rejected</div>
+                <div style={{ fontSize: 10, color: C.gray400 }}>{fmtDateTime(dividend.rejected_at) || "—"}</div>
+              </div>
+              {dividend.rejected_by_name && (
+                <span style={{ fontSize: 11, color: C.gray600, fontWeight: 600, flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dividend.rejected_by_name}</span>
+              )}
+            </div>
+            {dividend.rejection_reason && (
+              <div style={{ padding: "6px 10px", background: isDark ? `${C.red}14` : "#FFF5F5", borderRadius: 8, border: `1px solid ${isDark ? `${C.red}33` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
+                💬 {dividend.rejection_reason}
+              </div>
+            )}
+          </div>
+        )}
+        {/* Awaiting steps (if not paid and not rejected) */}
+        {dividend.status !== "paid" && dividend.status !== "rejected" && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: "transparent", border: `1px solid ${C.gray100}`, opacity: 0.45 }}>
             <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.gray100, border: `1.5px solid ${C.gray200}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Icon name="checkCircle" size={11} stroke={C.gray400} />
@@ -478,29 +612,33 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
 
 // ── Dividend Mobile Card ──────────────────────────────────────────
 const DividendMobileCard = memo(function DividendMobileCard({
-  dividend, onEdit, onOpenDeleteModal, onMarkPaid, onUnpay,
-  deletingId, bulkDeletingIds, markingPaidIds,
-  isDE, isSAAD, showActions, onOpenDetail,
+  dividend, onEdit, onOpenDeleteModal, onOpenMarkAsPaidModal, onUnpay, onOpenRejectModal, onConfirm,
+  deletingId, bulkDeletingIds, markingPaidIds, rejectingIds, confirmingIds,
+  isDE, isVR, isSAAD, showActions, onOpenDetail,
 }) {
   const { C, isDark } = useTheme();
   const net = Number(dividend.net_amount || 0) || (Number(dividend.total_amount || 0) - Number(dividend.withholding_tax || 0));
   const dps = Number(dividend.dividend_per_share || 0);
 
-  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isSAAD }), [dividend, isDE, isSAAD]);
+  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD }), [dividend, isDE, isVR, isSAAD]);
 
   const isRowDeleting    = deletingId === dividend.id || bulkDeletingIds.has(dividend.id);
   const isRowMarkingPaid = markingPaidIds.has(dividend.id);
-  const isRowBusy        = isRowDeleting || isRowMarkingPaid;
+  const isRowRejecting   = rejectingIds?.has(dividend.id);
+  const isRowConfirming  = confirmingIds?.has(dividend.id);
+  const isRowBusy        = isRowDeleting || isRowMarkingPaid || isRowRejecting || isRowConfirming;
 
   const rowActions = useMemo(() => [
-    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,     label: "Revert to Declared", disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
-    ...(perms.canMarkPaid ? [{ icon: <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid", disabled: isRowBusy, onClick: () => onMarkPaid(dividend.id) }] : []),
-    ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,        label: "Edit",           disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
-    ...(perms.canDelete   ? [{ icon: <Icon name="trash" size={14} />,       label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
-  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onUnpay, onMarkPaid, onEdit, onOpenDeleteModal]);
+    ...(perms.canConfirm  ? [{ icon: <Icon name="checkCircle" size={14} />, label: isRowConfirming ? "Confirming..." : "Confirm",        disabled: isRowBusy, onClick: () => onConfirm(dividend.id) }] : []),
+    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,     label: "Revert to Declared",                                  disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
+    ...(perms.canMarkPaid ? [{ icon: <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid", disabled: isRowBusy, onClick: () => onOpenMarkAsPaidModal([dividend.id], dividend.payment_date) }] : []),
+    ...(perms.canReject   ? [{ icon: <Icon name="xCircle" size={14} />,     label: isRowRejecting ? "Rejecting..." : "Reject",            danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([dividend.id]) }] : []),
+    ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,        label: "Edit",                                                disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
+    ...(perms.canDelete   ? [{ icon: <Icon name="trash" size={14} />,       label: isRowDeleting ? "Deleting..." : "Delete",              danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
+  ], [perms, isRowBusy, isRowMarkingPaid, isRowRejecting, isRowConfirming, isRowDeleting, dividend, onConfirm, onUnpay, onOpenMarkAsPaidModal, onOpenRejectModal, onEdit, onOpenDeleteModal]);
 
-  const cardBg  = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : C.white;
-  const cardBdr = perms.isPaid ? (isDark ? `${C.green}55` : "#BBF7D0") : C.gray200;
+  const cardBg  = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : perms.isRejected ? (isDark ? `${C.red}10` : "#FFF5F5") : C.white;
+  const cardBdr = perms.isPaid ? (isDark ? `${C.green}55` : "#BBF7D0") : perms.isRejected ? (isDark ? `${C.red}55` : "#FECACA") : C.gray200;
 
   return (
     <div onClick={() => !isRowBusy && onOpenDetail(dividend.id)}
@@ -519,7 +657,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 12, color: C.gray500, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="calendar" size={12} stroke={C.gray400} /> {fmtDate(dividend.payment_date)}</span>
-        {dividend.status !== "paid" && dividend.payment_date && (() => {
+        {dividend.status !== "paid" && dividend.status !== "rejected" && dividend.payment_date && (() => {
           const today = new Date(); today.setHours(0,0,0,0);
           const payDate = new Date(dividend.payment_date + "T00:00:00");
           const diffDays = Math.ceil((payDate - today) / 86400000);
@@ -537,6 +675,11 @@ const DividendMobileCard = memo(function DividendMobileCard({
           <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {fmtSmart(net)}</div>
         </div>
       </div>
+      {perms.isRejected && dividend.rejection_reason && (
+        <div style={{ marginTop: 8, padding: "6px 10px", background: isDark ? `${C.red}14` : "#FFF5F5", borderRadius: 8, border: `1px solid ${isDark ? `${C.red}33` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
+          💬 {dividend.rejection_reason}
+        </div>
+      )}
       {isRowBusy && (
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.gray400 }}>
           <Spinner size={11} color={C.gray400} /> Processing...
@@ -549,9 +692,9 @@ const DividendMobileCard = memo(function DividendMobileCard({
 // ── Dividend Row ──────────────────────────────────────────────────
 const DividendRow = memo(function DividendRow({
   dividend, globalIdx, selected, onToggleOne,
-  onEdit, onOpenDeleteModal, onMarkPaid, onUnpay,
-  deletingId, bulkDeletingIds, markingPaidIds,
-  isDE, isSAAD, showCheckbox, showActions, onOpenDetail,
+  onEdit, onOpenDeleteModal, onOpenMarkAsPaidModal, onUnpay, onOpenRejectModal, onConfirm,
+  deletingId, bulkDeletingIds, markingPaidIds, rejectingIds, confirmingIds,
+  isDE, isVR, isSAAD, showCheckbox, showActions, onOpenDetail,
 }) {
   const { C, isDark } = useTheme();
   const gross = Number(dividend.total_amount || 0);
@@ -561,24 +704,28 @@ const DividendRow = memo(function DividendRow({
   const shares = Number(dividend.shares_held || 0);
   const isChecked = selected.has(dividend.id);
 
-  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isSAAD }), [dividend, isDE, isSAAD]);
+  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD }), [dividend, isDE, isVR, isSAAD]);
 
   const isRowDeleting    = deletingId === dividend.id || bulkDeletingIds.has(dividend.id);
   const isRowMarkingPaid = markingPaidIds.has(dividend.id);
-  const isRowBusy        = isRowDeleting || isRowMarkingPaid;
+  const isRowRejecting   = rejectingIds?.has(dividend.id);
+  const isRowConfirming  = confirmingIds?.has(dividend.id);
+  const isRowBusy        = isRowDeleting || isRowMarkingPaid || isRowRejecting || isRowConfirming;
 
   const rowActions = useMemo(() => [
-    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,    label: "Revert to Declared", disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
-    ...(perms.canMarkPaid ? [{ icon: isRowMarkingPaid ? null : <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid", disabled: isRowBusy, onClick: () => onMarkPaid(dividend.id) }] : []),
-    ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,  label: "Edit",   disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
-    ...(perms.canDelete   ? [{ icon: isRowDeleting ? null : <Icon name="trash" size={14} />, label: isRowDeleting ? "Deleting..." : "Delete", danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
-  ], [perms, isRowBusy, isRowMarkingPaid, isRowDeleting, dividend, onUnpay, onMarkPaid, onEdit, onOpenDeleteModal]);
+    ...(perms.canConfirm  ? [{ icon: isRowConfirming  ? null : <Icon name="checkCircle" size={14} />, label: isRowConfirming  ? "Confirming..."  : "Confirm",        disabled: isRowBusy, onClick: () => onConfirm(dividend.id) }] : []),
+    ...(perms.canUnpay    ? [{ icon: <Icon name="refresh" size={14} />,    label: "Revert to Declared",                                                                disabled: isRowBusy, onClick: () => onUnpay(dividend.id) }] : []),
+    ...(perms.canMarkPaid ? [{ icon: isRowMarkingPaid ? null : <Icon name="checkCircle" size={14} />, label: isRowMarkingPaid ? "Marking Paid..." : "Mark as Paid",   disabled: isRowBusy, onClick: () => onOpenMarkAsPaidModal([dividend.id], dividend.payment_date) }] : []),
+    ...(perms.canReject   ? [{ icon: isRowRejecting   ? null : <Icon name="xCircle" size={14} />,    label: isRowRejecting   ? "Rejecting..."   : "Reject",           danger: true, disabled: isRowBusy, onClick: () => onOpenRejectModal([dividend.id]) }] : []),
+    ...(perms.canEdit     ? [{ icon: <Icon name="edit" size={14} />,  label: "Edit",                                                                                   disabled: isRowBusy, onClick: () => onEdit(dividend) }] : []),
+    ...(perms.canDelete   ? [{ icon: isRowDeleting ? null : <Icon name="trash" size={14} />, label: isRowDeleting ? "Deleting..." : "Delete",                          danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
+  ], [perms, isRowBusy, isRowMarkingPaid, isRowRejecting, isRowConfirming, isRowDeleting, dividend, onConfirm, onUnpay, onOpenMarkAsPaidModal, onOpenRejectModal, onEdit, onOpenDeleteModal]);
 
-  const rowBg      = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : "transparent";
-  const rowBgHover = perms.isPaid ? (isDark ? `${C.green}1c` : "#F0FDF4") : C.gray50;
+  const rowBg      = perms.isPaid     ? (isDark ? `${C.green}10` : "#F9FFFB") : perms.isRejected ? (isDark ? `${C.red}10` : "#FFF5F5") : "transparent";
+  const rowBgHover = perms.isPaid     ? (isDark ? `${C.green}1c` : "#F0FDF4") : perms.isRejected ? (isDark ? `${C.red}1c` : "#FEF2F2") : C.gray50;
 
   return (
-    <tr style={{ borderBottom: `1px solid ${C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
+    <tr style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, transition: "background 0.15s, opacity 0.2s", background: rowBg, opacity: isRowBusy ? 0.6 : 1, pointerEvents: isRowBusy ? "none" : "auto", cursor: "pointer" }}
       onClick={() => onOpenDetail(dividend.id)}
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = rowBgHover; }}
       onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
@@ -661,10 +808,14 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const [deletingId, setDeletingId]           = useState(null);
   const [bulkDeletingIds, setBulkDeletingIds] = useState(new Set());
   const [markingPaidIds, setMarkingPaidIds]   = useState(new Set());
+  const [rejectingIds, setRejectingIds]       = useState(new Set());
+  const [confirmingIds, setConfirmingIds]     = useState(new Set());
 
   const [deleteModal, setDeleteModal]           = useState(null);
   const [bulkDeleteModal, setBulkDeleteModal]   = useState(null);
-  const [bulkMarkPaidModal, setBulkMarkPaidModal] = useState(null);
+  const [markAsPaidModal, setMarkAsPaidModal]   = useState(null);
+  const [bulkUnpayModal, setBulkUnpayModal]     = useState(null);
+  const [rejectModal, setRejectModal]           = useState(null);
   const [formModal, setFormModal]               = useState({ open: false, dividend: null });
   const [detailModal, setDetailModal]           = useState(null);
 
@@ -770,6 +921,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   // ── Computed values ─────────────────────────────────────────────
   const isAnyDeleting    = !!deletingId || bulkDeletingIds.size > 0;
   const isAnyMarkingPaid = markingPaidIds.size > 0;
+  const isAnyRejecting   = rejectingIds.size > 0;
+  const isAnyConfirming  = confirmingIds.size > 0;
   const hasSelection     = selected.size > 0;
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
@@ -873,31 +1026,76 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   }, []);
 
   const selectedBuckets = useMemo(() => {
-    const deletable = [], markablePaid = [];
+    const deletableCorrect = [], markablePaid = [], confirmable = [];
     for (const id of selected) {
       const d = divById.get(id);
       if (!d) continue;
-      if (isSAAD || (isDE && d.status === "declared")) deletable.push(id);
-      else if (isSAAD && d.status !== "paid") deletable.push(id);
+      // canDelete: SA/AD on any non-paid; DE only on pending/rejected
+      if ((isSAAD && d.status !== "paid") || (isDE && (d.status === "pending" || d.status === "rejected"))) deletableCorrect.push(id);
       if (d.status === "declared" || d.status === "ex_date_passed") markablePaid.push(id);
+      if (isDE && (d.status === "pending" || d.status === "rejected")) confirmable.push(id);
     }
-    // Recalculate deletable properly
-    const deletableCorrect = [];
+    const revertable = [];
     for (const id of selected) {
       const d = divById.get(id);
       if (!d) continue;
-      if (isSAAD || (isDE && d.status === "declared")) deletableCorrect.push(id);
+      if (isSAAD && d.status === "paid") revertable.push(id);
     }
-    return { deletable: deletableCorrect, markablePaid };
-  }, [selected, divById, isSAAD, isDE]);
+    const rejectable = [];
+    for (const id of selected) {
+      const d = divById.get(id);
+      if (!d) continue;
+      if ((isVR || isSAAD) && (d.status === "declared" || d.status === "ex_date_passed")) rejectable.push(id);
+    }
+    return { deletable: deletableCorrect, markablePaid, revertable, rejectable, confirmable };
+  }, [selected, divById, isSAAD, isDE, isVR]);
 
+  const canBulkConfirm  = isDE && selectedBuckets.confirmable.length > 0;
   const canBulkDelete   = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
-  const canBulkMarkPaid = (isDE || isSAAD) && selectedBuckets.markablePaid.length > 0;
+  const canBulkMarkPaid = (isVR || isSAAD) && selectedBuckets.markablePaid.length > 0;
+  const canBulkUnpay    = isSAAD && selectedBuckets.revertable.length > 0;
+  const canBulkReject   = (isVR || isSAAD) && selectedBuckets.rejectable.length > 0;
 
-  const openFormModal   = useCallback((dividend = null) => { if (loadingCompanies) return; setFormModal({ open: true, dividend }); }, [loadingCompanies]);
-  const openDeleteModal = useCallback((dividend) => setDeleteModal({ id: dividend.id, company_name: dividend.company_name }), []);
+  const openFormModal    = useCallback((dividend = null) => { if (loadingCompanies) return; setFormModal({ open: true, dividend }); }, [loadingCompanies]);
+  const openDeleteModal  = useCallback((dividend) => setDeleteModal({ id: dividend.id, company_name: dividend.company_name }), []);
+  const openRejectModal      = useCallback((ids) => setRejectModal({ ids }), []);
+  const openMarkAsPaidModal  = useCallback((ids, defaultPaymentDate) => setMarkAsPaidModal({ ids, defaultPaymentDate: defaultPaymentDate || "" }), []);
 
   // ── Handlers ────────────────────────────────────────────────────
+  const handleConfirm = useCallback(async (id) => {
+    setConfirmingIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    try {
+      await sbUpdateDividendStatus(id, "declared");
+      if (!isMountedRef.current) return;
+      setDividends(p => p.map(d => d.id === id ? { ...d, status: "declared" } : d));
+      showToast("Dividend confirmed as Declared.", "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setConfirmingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, [showToast]);
+
+  const doBulkConfirm = useCallback(async () => {
+    const ids = selectedBuckets.confirmable;
+    if (!ids?.length) return;
+    setConfirmingIds(new Set(ids));
+    try {
+      await sbBulkUpdateDividendStatus(ids, "declared");
+      if (!isMountedRef.current) return;
+      const idSet = new Set(ids);
+      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "declared" } : d));
+      setSelected(new Set());
+      showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} confirmed as Declared.`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setConfirmingIds(new Set());
+    }
+  }, [selectedBuckets.confirmable, showToast]);
+
   const handleFormConfirm = useCallback(async (data) => {
     const isEdit = !!formModal.dividend;
     const payload = { ...data, cds_number: cdsNumber || null };
@@ -961,38 +1159,22 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     }
   }, [bulkDeleteModal, showToast]);
 
-  const handleMarkPaid = useCallback(async (id) => {
-    setMarkingPaidIds(prev => { const s = new Set(prev); s.add(id); return s; });
-    try {
-      await sbUpdateDividendStatus(id, "paid");
-      if (!isMountedRef.current) return;
-      const now = new Date().toISOString();
-      setDividends(p => p.map(d => d.id === id ? { ...d, status: "paid", paid_at: now } : d));
-      showToast("Dividend marked as paid.", "success");
-      // Background reload to get paid_by_name from RPC
-      loadDividends({ fromPull: false }).catch(() => {});
-    } catch (e) {
-      if (!isMountedRef.current) return;
-      showToast("Error: " + e.message, "error");
-    } finally {
-      if (isMountedRef.current) setMarkingPaidIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-    }
-  }, [showToast, loadDividends]);
-
-  const doBulkMarkPaid = useCallback(async () => {
-    const ids = bulkMarkPaidModal?.ids;
+  const doMarkAsPaid = useCallback(async (paymentDate) => {
+    const ids = markAsPaidModal?.ids;
     if (!ids?.length) return;
-    setBulkMarkPaidModal(null);
+    setMarkAsPaidModal(null);
     setMarkingPaidIds(new Set(ids));
     try {
-      await sbBulkUpdateDividendStatus(ids, "paid");
+      await sbBulkUpdateDividendStatus(ids, "paid", null, paymentDate || null);
       if (!isMountedRef.current) return;
       const idSet = new Set(ids);
       const now = new Date().toISOString();
-      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "paid", paid_at: now } : d));
+      setDividends(p => p.map(d => idSet.has(d.id)
+        ? { ...d, status: "paid", paid_at: now, ...(paymentDate ? { payment_date: paymentDate } : {}) }
+        : d
+      ));
       setSelected(new Set());
       showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} marked as paid.`, "success");
-      // Background reload to get paid_by_name from RPC
       loadDividends({ fromPull: false }).catch(() => {});
     } catch (e) {
       if (!isMountedRef.current) return;
@@ -1000,7 +1182,27 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current) setMarkingPaidIds(new Set());
     }
-  }, [bulkMarkPaidModal, showToast, loadDividends]);
+  }, [markAsPaidModal, showToast, loadDividends]);
+
+  const doBulkUnpay = useCallback(async () => {
+    const ids = bulkUnpayModal?.ids;
+    if (!ids?.length) return;
+    setBulkUnpayModal(null);
+    setMarkingPaidIds(new Set(ids));
+    try {
+      await sbBulkUpdateDividendStatus(ids, "declared");
+      if (!isMountedRef.current) return;
+      const idSet = new Set(ids);
+      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "declared", paid_by: null, paid_at: null, paid_by_name: null } : d));
+      setSelected(new Set());
+      showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} reverted to Declared.`, "success");
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setMarkingPaidIds(new Set());
+    }
+  }, [bulkUnpayModal, showToast]);
 
   const handleUnpay = useCallback(async (id) => {
     setMarkingPaidIds(prev => { const s = new Set(prev); s.add(id); return s; });
@@ -1016,6 +1218,28 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       if (isMountedRef.current) setMarkingPaidIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
   }, [showToast]);
+
+  const handleReject = useCallback(async (reason) => {
+    const ids = rejectModal?.ids;
+    if (!ids?.length) return;
+    setRejectModal(null);
+    setRejectingIds(new Set(ids));
+    try {
+      await sbBulkUpdateDividendStatus(ids, "rejected", reason);
+      if (!isMountedRef.current) return;
+      const idSet = new Set(ids);
+      const now = new Date().toISOString();
+      setDividends(p => p.map(d => idSet.has(d.id) ? { ...d, status: "rejected", rejected_at: now, rejection_reason: reason, paid_by: null, paid_at: null, paid_by_name: null } : d));
+      setSelected(new Set());
+      showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} rejected.`, "success");
+      loadDividends({ fromPull: false }).catch(() => {});
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      showToast("Error: " + e.message, "error");
+    } finally {
+      if (isMountedRef.current) setRejectingIds(new Set());
+    }
+  }, [rejectModal, showToast, loadDividends]);
 
   const handleEdit = useCallback((dividend) => {
     openFormModal(dividend);
@@ -1070,9 +1294,11 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     [detailModal, divById]
   );
 
-  const closeDelete       = useCallback(() => setDeleteModal(null),                          []);
-  const closeBulkDelete   = useCallback(() => setBulkDeleteModal(null),                      []);
-  const closeBulkMarkPaid = useCallback(() => setBulkMarkPaidModal(null),                    []);
+  const closeDelete          = useCallback(() => setDeleteModal(null),        []);
+  const closeBulkDelete      = useCallback(() => setBulkDeleteModal(null),    []);
+  const closeMarkAsPaidModal = useCallback(() => setMarkAsPaidModal(null),    []);
+  const closeBulkUnpay       = useCallback(() => setBulkUnpayModal(null),     []);
+  const closeRejectModal     = useCallback(() => setRejectModal(null),        []);
   const closeForm         = useCallback(() => setFormModal({ open: false, dividend: null }),  []);
   const closeDetail       = useCallback(() => setDetailModal(null),                          []);
 
@@ -1116,8 +1342,10 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
 
       {/* ── Modals ── */}
       {deleteModal && <Modal type="confirm" title="Delete Dividend" message={`Delete this dividend for "${deleteModal.company_name}"? This cannot be undone.`} onConfirm={handleDelete} onClose={closeDelete} />}
-      {bulkDeleteModal && <SimpleConfirmModal title="Delete Dividends" message={`Are you sure you want to delete ${bulkDeleteModal.ids.length} dividend(s)? This cannot be undone.`} count={bulkDeleteModal.ids.length} loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete} onClose={closeBulkDelete} />}
-      {bulkMarkPaidModal && <SimpleConfirmModal title="Mark as Paid" message={`Are you sure you want to mark ${bulkMarkPaidModal.ids.length} dividend(s) as paid?`} count={bulkMarkPaidModal.ids.length} loading={isAnyMarkingPaid} onConfirm={doBulkMarkPaid} onClose={closeBulkMarkPaid} />}
+      {bulkDeleteModal   && <SimpleConfirmModal title="Delete Dividends"     message="Deleting these dividends cannot be undone."                                                           count={bulkDeleteModal.ids.length}   loading={bulkDeletingIds.size > 0} onConfirm={doBulkDelete}   onClose={closeBulkDelete}   icon={<Icon name="trash" size={18} />}        confirmLabel="Delete"            />}
+      {markAsPaidModal   && <MarkAsPaidModal ids={markAsPaidModal.ids} defaultPaymentDate={markAsPaidModal.defaultPaymentDate} onConfirm={doMarkAsPaid} onClose={closeMarkAsPaidModal} />}
+      {bulkUnpayModal    && <SimpleConfirmModal title="Revert to Declared"   message="These dividends will be reverted to Declared. Paid status and payment details will be cleared."     count={bulkUnpayModal.ids.length}    loading={isAnyMarkingPaid}         onConfirm={doBulkUnpay}    onClose={closeBulkUnpay}    accentColor="#EA580C" icon={<Icon name="undo" size={18} stroke="#EA580C" />}        confirmLabel="Revert to Declared" />}
+      {rejectModal       && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={closeRejectModal} />}
       {formModal.open && <DividendFormModal key={formModal.dividend?.id || "new"} dividend={formModal.dividend} companies={formCompanies} onConfirm={handleFormConfirm} onClose={closeForm} />}
       {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} allDividends={myDividends} onClose={closeDetail} />}
 
@@ -1194,7 +1422,10 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
               {hasSelection ? (
                 <>
-                  {canBulkMarkPaid && <button onClick={() => setBulkMarkPaidModal({ ids: selectedBuckets.markablePaid })} disabled={isAnyMarkingPaid} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyMarkingPaid ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyMarkingPaid ? "not-allowed" : "pointer" }}>{isAnyMarkingPaid ? <><Spinner size={12} color="#888" /> Marking Paid...</> : <><Icon name="checkCircle" size={12} /> Mark Paid {selectedBuckets.markablePaid.length}</>}</button>}
+                  {canBulkConfirm  && <button onClick={doBulkConfirm} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#0B1F3A", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : <><Icon name="checkCircle" size={12} stroke="#fff" /> Confirm {selectedBuckets.confirmable.length}</>}</button>}
+                  {canBulkMarkPaid && <button onClick={() => openMarkAsPaidModal(selectedBuckets.markablePaid, "")} disabled={isAnyMarkingPaid} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyMarkingPaid ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyMarkingPaid ? "not-allowed" : "pointer" }}>{isAnyMarkingPaid ? <><Spinner size={12} color="#888" /> Marking Paid...</> : <><Icon name="checkCircle" size={12} /> Mark Paid {selectedBuckets.markablePaid.length}</>}</button>}
+                  {canBulkUnpay && <button onClick={() => setBulkUnpayModal({ ids: selectedBuckets.revertable })} disabled={isAnyMarkingPaid} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #EA580C55`, background: isAnyMarkingPaid ? C.gray100 : (isDark ? "rgba(234,88,12,0.15)" : "#FFF7ED"), color: "#EA580C", fontWeight: 700, cursor: isAnyMarkingPaid ? "not-allowed" : "pointer" }}>{isAnyMarkingPaid ? <><Spinner size={12} color="#EA580C" /> Reverting...</> : <><Icon name="undo" size={12} stroke="#EA580C" /> Revert to Declared {selectedBuckets.revertable.length}</>}</button>}
+                  {canBulkReject && <button onClick={() => openRejectModal(selectedBuckets.rejectable)} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : <><Icon name="xCircle" size={12} stroke={C.red} /> Reject {selectedBuckets.rejectable.length}</>}</button>}
                   {canBulkDelete && <button onClick={() => setBulkDeleteModal({ ids: selectedBuckets.deletable })} disabled={isAnyDeleting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyDeleting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyDeleting ? "not-allowed" : "pointer" }}>{isAnyDeleting ? <><Spinner size={12} color={C.red} /> Deleting...</> : <><Icon name="trash" size={12} /> Delete {selectedBuckets.deletable.length}</>}</button>}
                   <Btn variant="secondary" onClick={() => setSelected(new Set())}>Clear Selection</Btn>
                 </>
@@ -1242,9 +1473,9 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                 <div style={{ padding: "8px 12px" }}>
                   {paginated.map(dividend => (
                     <DividendMobileCard key={dividend.id} dividend={dividend}
-                      onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid} onUnpay={handleUnpay}
-                      deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds}
-                      isDE={isDE} isSAAD={isSAAD} showActions={showActions} onOpenDetail={setDetailModal}
+                      onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onOpenMarkAsPaidModal={openMarkAsPaidModal} onUnpay={handleUnpay} onOpenRejectModal={openRejectModal} onConfirm={handleConfirm}
+                      deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds} rejectingIds={rejectingIds} confirmingIds={confirmingIds}
+                      isDE={isDE} isVR={isVR} isSAAD={isSAAD} showActions={showActions} onOpenDetail={setDetailModal}
                     />
                   ))}
                 </div>
@@ -1291,9 +1522,9 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                         <DividendRow key={dividend.id} dividend={dividend}
                           globalIdx={(safePage - 1) * pageSize + i + 1}
                           selected={selected} onToggleOne={toggleOne}
-                          onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onMarkPaid={handleMarkPaid} onUnpay={handleUnpay}
-                          deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds}
-                          isDE={isDE} isSAAD={isSAAD}
+                          onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onOpenMarkAsPaidModal={openMarkAsPaidModal} onUnpay={handleUnpay} onOpenRejectModal={openRejectModal} onConfirm={handleConfirm}
+                          deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds} rejectingIds={rejectingIds} confirmingIds={confirmingIds}
+                          isDE={isDE} isVR={isVR} isSAAD={isSAAD}
                           showCheckbox={showCheckbox} showActions={showActions} onOpenDetail={setDetailModal}
                         />
                       ))}

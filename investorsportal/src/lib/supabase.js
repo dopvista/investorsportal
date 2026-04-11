@@ -1796,10 +1796,21 @@ export async function sbDeleteDividend(id) {
   );
 }
 
-export async function sbUpdateDividendStatus(id, status) {
+export async function sbUpdateDividendStatus(id, status, reason, paymentDate) {
+  const uid = getSession()?.user?.id || null;
+  const now = new Date().toISOString();
   const body = { status };
-  if (status === "paid") { body.paid_by = getSession()?.user?.id || null; body.paid_at = new Date().toISOString(); }
-  else { body.paid_by = null; body.paid_at = null; }
+  if (status === "paid") {
+    body.paid_by = uid; body.paid_at = now;
+    body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+    if (paymentDate) body.payment_date = paymentDate;
+  } else if (status === "rejected") {
+    body.rejected_by = uid; body.rejected_at = now; body.rejection_reason = reason || null;
+    body.paid_by = null; body.paid_at = null;
+  } else {
+    body.paid_by = null; body.paid_at = null;
+    body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+  }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=eq.${id}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },
@@ -1808,10 +1819,22 @@ export async function sbUpdateDividendStatus(id, status) {
   return res.json();
 }
 
-export async function sbBulkUpdateDividendStatus(ids, status) {
+export async function sbBulkUpdateDividendStatus(ids, status, reason, paymentDate) {
+  const uid = getSession()?.user?.id || null;
+  const now = new Date().toISOString();
   const idList = `(${ids.map(id => `"${id}"`).join(",")})`;
   const body = { status };
-  if (status === "paid") { body.paid_by = getSession()?.user?.id || null; body.paid_at = new Date().toISOString(); }
+  if (status === "paid") {
+    body.paid_by = uid; body.paid_at = now;
+    body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+    if (paymentDate) body.payment_date = paymentDate;
+  } else if (status === "rejected") {
+    body.rejected_by = uid; body.rejected_at = now; body.rejection_reason = reason || null;
+    body.paid_by = null; body.paid_at = null;
+  } else {
+    body.paid_by = null; body.paid_at = null;
+    body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+  }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=in.${idList}`,
     { method: "PATCH", headers: headers(token()), body: JSON.stringify(body) },

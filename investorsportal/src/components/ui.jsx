@@ -378,13 +378,15 @@ export function FTextarea({ label, required, ...props }) {
 
 // ── Button ────────────────────────────────────────────────────────
 export function Btn({ children, variant = "primary", loading, icon, ...props }) {
-  const { C } = useTheme();
+  const { C, isDark } = useTheme();
   const variants = {
     primary:   { background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`, color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(0,132,61,0.3)" },
     secondary: { background: C.white, color: C.gray800, border: `1.5px solid ${C.gray200}` },
     ghost:     { background: C.gray800, color: "#ffffff", border: `1.5px solid ${C.gray800}`, boxShadow: "none" },
     danger:    { background: C.redBg, color: C.red, border: `1.5px solid ${C.red}40` },
-    navy:      { background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(11,31,58,0.3)" },
+    navy:      isDark
+      ? { background: "linear-gradient(135deg, #1e4d8c, #2563eb)", color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(37,99,235,0.35)" }
+      : { background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`, color: "#ffffff", border: "none", boxShadow: "0 4px 12px rgba(11,31,58,0.3)" },
   };
   return (
     <button
@@ -1434,7 +1436,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       : {
           declarationDate: "", exDividendDate: "", paymentDate: "",
           dividendPerShare: "", sharesHeld: "", totalAmount: "", withholdingTax: "0",
-          status: "declared", remarks: "",
+          status: "pending", remarks: "",
         }
   );
   const [error, setError] = useState("");
@@ -1546,14 +1548,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
         <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
-        <FSelect label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-          <option value="declared">Declared</option>
-          <option value="ex_date_passed">Ex-Date Passed</option>
-          <option value="paid">Paid</option>
-        </FSelect>
-      </div>
+      <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
 
       <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
     </ModalShell></>
