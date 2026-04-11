@@ -708,7 +708,6 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     const sells          = Number(serverTxStats.sells || 0);
     const pending        = Number(serverTxStats.pending || 0) + Number(serverTxStats.confirmed || 0);
     const grossBuyCapital = Number(serverTxStats.total_buy_grand || 0);
-    const hasCostData    = grossBuyCapital > 0;
 
     // ── Company metrics (directly from server, NOT from portfolio) ──
     let totalMarketValue   = 0;
@@ -767,7 +766,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
     const unrealizedGL     = totalMarketValue - totalCurrentCost;
     const unrealizedRetPct = totalCurrentCost > 0 ? (unrealizedGL / totalCurrentCost) * 100 : 0;
     const hasFinancials    = activeCompanies.some((c) => c.currentPrice > 0 && c.netShares > 0);
-    const investedCapital  = totalCurrentCost > 0 ? totalCurrentCost : grossBuyCapital;
+    const hasCostData      = totalCurrentCost > 0;
+    const investedCapital  = totalCurrentCost;
     const totalNetShares   = activeCompanies.reduce((s, c) => s + c.netShares, 0);
     const avgFirstBuyDays  = firstBuySharesDenominator > 0
       ? Math.round(firstBuyDaysNumerator / firstBuySharesDenominator) : null;
