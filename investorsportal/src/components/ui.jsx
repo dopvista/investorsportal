@@ -586,7 +586,7 @@ export function UpdatePriceModal({ company, onConfirm, onClose }) {
   const localDatetime = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [newPrice, setNewPrice] = useState("");
   const [datetime, setDatetime] = useState(localDatetime);
-  const [reason, setReason]     = useState("Normal Price Change");
+  const [reason, setReason]     = useState("What If Analysis");
   const [error, setError]       = useState("");
 
   if (!company) return null;

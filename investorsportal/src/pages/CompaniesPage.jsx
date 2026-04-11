@@ -481,7 +481,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   }, []);
   const [newPrice, setNewPrice] = useState("");
   const [upDatetime, setUpDatetime] = useState(localDatetime);
-  const [upReason, setUpReason]     = useState("Normal Price Change");
+  const [upReason, setUpReason]     = useState("What If Analysis");
   const [upError, setUpError]       = useState("");
 
   const handleUpdateConfirm = () => {
