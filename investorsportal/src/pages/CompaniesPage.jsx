@@ -406,7 +406,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   const [prevTab, setPrevTab] = useState(initialTab); // to go back from update
 
   // ── Chart state ──────────────────────────────────────────
-  const [chartRange, setChartRange] = useState("90D");
+  const [chartRange, setChartRange] = useState("30D");
   const [allData, setAllData]       = useState(null);
   const [chartLoading, setChartLoading] = useState(true);
   const [hoverPoint, setHoverPoint] = useState(null);
@@ -500,9 +500,9 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
 
   // ── Shared helpers ───────────────────────────────────────
   const statBox = (label, value, color) => (
-    <div style={{ position: "relative", textAlign: "left", padding: "12px 8px 8px", borderRadius: 20, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1, minWidth: 0 }}>
-      <div style={{ position: "absolute", top: -7, left: 10, padding: "0 6px", background: isDark ? C.white : "#fff", fontSize: 10, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", lineHeight: "14px" }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: color || C.text, lineHeight: 1 }}>{value}</div>
+    <div style={{ position: "relative", textAlign: "center", padding: "12px 4px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, flex: 1, minWidth: 0 }}>
+      <div style={{ position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)", padding: "0 6px", background: isDark ? C.white : "#fff", fontSize: 8, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", lineHeight: "14px" }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: color || C.text, lineHeight: 1 }}>{value}</div>
     </div>
   );
 
@@ -586,7 +586,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                 displayPositive ? C.green : C.red
               )}
               {statBox(
-                "Closing",
+                hoverPoint ? new Date(hoverPoint.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Closing",
                 fmt(displayPrice),
                 displayPositive ? C.green : C.red
               )}
