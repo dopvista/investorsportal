@@ -1,6 +1,6 @@
 // src/components/ChatAssistant.jsx
 // In-app AI assistant — floating button (draggable) + chat panel
-// Powered by Gemini via Supabase Edge Function
+// Powered by Claude (Anthropic) via Supabase Edge Function
 
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { useTheme, useIsMobile } from "./ui";
@@ -154,10 +154,10 @@ function renderMarkdown(text, isDark) {
       return;
     }
 
-    // Bullet: - item or * item or numbered: 1. item
-    if (/^[-*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
+    // Bullet: - item or * item or – item or numbered: 1. item
+    if (/^[-–*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
       inList = true;
-      const itemText = trimmed.replace(/^[-*]\s+|^\d+\.\s+/, "");
+      const itemText = trimmed.replace(/^[-–*]\s+|^\d+\.\s+/, "");
       listItems.push(<li key={`li-${i}`} style={{ marginBottom: 2 }}>{formatInline(itemText, `li-${i}`)}</li>);
       return;
     }
