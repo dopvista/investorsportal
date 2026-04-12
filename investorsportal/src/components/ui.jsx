@@ -294,7 +294,7 @@ function FormField({ label, required, children, C }) {
 
 const makeInputStyle = (C) => (readOnly) => ({
   border: `1.5px solid ${C.gray200}`,
-  borderRadius: 8, padding: "10px 12px", fontSize: 14,
+  borderRadius: 8, padding: "0 12px", fontSize: 14, height: 40, boxSizing: "border-box",
   outline: "none", background: readOnly ? C.gray50 : C.white,
   color: C.text, width: "100%", boxSizing: "border-box",
   transition: "border-color 0.2s", fontFamily: "inherit",
@@ -308,7 +308,7 @@ export function FInput({ label, required, ...props }) {
     <FormField label={label} required={required} C={C}>
       <input
         {...props}
-        style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer", height: 40 } : {}), ...props.style }}
+        style={{ ...inputStyle(props.readOnly), ...(isDate ? { cursor: "pointer" } : {}), ...props.style }}
         onFocus={e => !props.readOnly && (e.target.style.borderColor = C.green)}
         onBlur={e => (e.target.style.borderColor = C.gray200)}
       />
@@ -1549,7 +1549,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Net Amount</label>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 12px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 8, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, boxSizing: "border-box" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 12px", height: 40, background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 8, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, boxSizing: "border-box" }}>
             <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
           </div>
         </div>
