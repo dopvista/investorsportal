@@ -81,7 +81,7 @@ const statusOptions = [
 const TABLE_HEADERS_WITH_ACTIONS = [
   { label: "#",           align: "right"  },
   { label: "Payment Date",align: "left"   },
-  { label: "Year",        align: "center" },
+  { label: "Div. Year",   align: "center" },
   { label: "Company",     align: "left"   },
   { label: "Per Share",   align: "right"  },
   { label: "Shares",      align: "right"  },
