@@ -664,7 +664,12 @@ const DividendMobileCard = memo(function DividendMobileCard({
 
       {/* Row 1: Company name + ActionMenu */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dividend.company_name || "Unknown"}</div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dividend.company_name || "Unknown"}</div>
+          {dividend.dividend_year && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.gray400, marginTop: 2 }}>Div. Year: {dividend.dividend_year}</div>
+          )}
+        </div>
         {showActions && rowActions.length > 0 && (
           <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}><ActionMenu actions={rowActions} /></div>
         )}
@@ -676,14 +681,9 @@ const DividendMobileCard = memo(function DividendMobileCard({
         <DivStatusBadge status={dividend.status} />
       </div>
 
-      {/* Row 3: Date + year pill + countdown */}
+      {/* Row 3: Date + countdown */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(dividend.payment_date)}</span>
-          {dividend.dividend_year && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, background: isDark ? "rgba(255,255,255,0.07)" : C.gray100, borderRadius: 6, padding: "1px 7px" }}>{dividend.dividend_year}</span>
-          )}
-        </div>
+        <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(dividend.payment_date)}</span>
         {countdownPill}
       </div>
 
