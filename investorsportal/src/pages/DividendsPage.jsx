@@ -675,7 +675,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
 
       {/* Row 2: DPS badge + Status badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>TZS {fmt(dps)}/sh</span>
+        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>TZS {fmt(dps)}/sh</span>
         <DivStatusBadge status={dividend.status} />
       </div>
 
