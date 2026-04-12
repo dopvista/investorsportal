@@ -1432,11 +1432,13 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
           sharesHeld: String(dividend.shares_held || ""), totalAmount: String(dividend.total_amount || ""),
           withholdingTax: String(dividend.withholding_tax || "0"), status: dividend.status || "declared",
           remarks: dividend.remarks || "",
+          dividendYear: String(dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date).getFullYear() : new Date().getFullYear())),
         }
       : {
           declarationDate: "", exDividendDate: "", paymentDate: "",
           dividendPerShare: "", sharesHeld: "", totalAmount: "", withholdingTax: "0",
           status: "pending", remarks: "",
+          dividendYear: String(new Date().getFullYear()),
         }
   );
   const [error, setError] = useState("");
@@ -1451,6 +1453,14 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       setForm(f => ({ ...f, totalAmount: total, withholdingTax: wht }));
     }
   }, [form.dividendPerShare, form.sharesHeld]);
+
+  // Auto-update dividend year when payment date changes
+  useEffect(() => {
+    if (form.paymentDate) {
+      const yr = String(new Date(form.paymentDate).getFullYear());
+      setForm(f => ({ ...f, dividendYear: yr }));
+    }
+  }, [form.paymentDate]);
 
   const netAmount = useMemo(() => {
     return String(Math.round((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)));
@@ -1468,6 +1478,7 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
       total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
       net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
+      dividend_year: Number(form.dividendYear) || new Date().getFullYear(),
     });
   };
 
@@ -1548,7 +1559,13 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
         <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
       </div>
 
-      <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+        <div>
+          <FInput label="Dividend Year" type="number" inputMode="numeric" value={form.dividendYear} onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))} placeholder={String(new Date().getFullYear())} min="2000" max="2099" />
+          <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Fiscal year the dividend is for</div>
+        </div>
+      </div>
 
       <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
     </ModalShell></>

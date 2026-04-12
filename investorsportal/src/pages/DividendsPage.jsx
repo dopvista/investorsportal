@@ -81,6 +81,7 @@ const statusOptions = [
 const TABLE_HEADERS_WITH_ACTIONS = [
   { label: "#",           align: "right"  },
   { label: "Payment Date",align: "left"   },
+  { label: "Year",        align: "center" },
   { label: "Company",     align: "left"   },
   { label: "Per Share",   align: "right"  },
   { label: "Shares",      align: "right"  },
@@ -336,7 +337,7 @@ function getDivPermissions({ dividend, isDE, isVR, isSAAD }) {
   const isRejected   = dividend.status === "rejected";
   const isReviewable = isDeclared || isExDate;
   return {
-    canConfirm:  isDE && (isPending || isRejected),
+    canConfirm:  (isDE || isSAAD) && (isPending || isRejected),
     canEdit:     (isSAAD && !isPaid) || (isDE && (isPending || isRejected)),
     canDelete:   isDE ? (isPending || isRejected) : (isSAAD && !isPaid),
     canMarkPaid: (isSAAD || isVR) && isReviewable,
@@ -428,6 +429,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     ["Declaration Date", fmtDate(dividend.declaration_date)],
     ["Books Closure / Ex-Date", fmtDate(dividend.ex_dividend_date)],
     ["Payment Date",     fmtDate(dividend.payment_date)],
+    ["Dividend Year",    dividend.dividend_year ? String(dividend.dividend_year) : "—"],
     ["Dividend/Share",   `TZS ${fmt(dps)}`],
     ...(yieldPct ? [["Dividend Yield", `${yieldPct}%`, C.green]] : []),
     ...(dpsGrowth ? [["DPS Growth", `${dpsGrowth.change >= 0 ? "+" : ""}${dpsGrowth.change.toFixed(1)}% vs TZS ${fmt(dpsGrowth.prevDps)}`, dpsGrowth.change >= 0 ? C.green : C.red]] : []),
@@ -637,44 +639,68 @@ const DividendMobileCard = memo(function DividendMobileCard({
     ...(perms.canDelete   ? [{ icon: <Icon name="trash" size={14} />,       label: isRowDeleting ? "Deleting..." : "Delete",              danger: true, disabled: isRowBusy, onClick: () => onOpenDeleteModal(dividend) }] : []),
   ], [perms, isRowBusy, isRowMarkingPaid, isRowRejecting, isRowConfirming, isRowDeleting, dividend, onConfirm, onUnpay, onOpenMarkAsPaidModal, onOpenRejectModal, onEdit, onOpenDeleteModal]);
 
-  const cardBg  = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : perms.isRejected ? (isDark ? `${C.red}10` : "#FFF5F5") : C.white;
-  const cardBdr = perms.isPaid ? (isDark ? `${C.green}55` : "#BBF7D0") : perms.isRejected ? (isDark ? `${C.red}55` : "#FECACA") : C.gray200;
+  const shares   = Number(dividend.shares_held || 0);
+  const gross    = Number(dividend.total_amount || 0);
+  const cardBg   = perms.isPaid ? (isDark ? `${C.green}10` : "#F9FFFB") : perms.isRejected ? (isDark ? `${C.red}18` : "#FFF5F5") : C.white;
+  const cardBdr  = perms.isPaid ? (isDark ? `${C.green}55` : "#BBF7D0") : perms.isRejected ? (isDark ? `${C.red}55` : "#FECACA") : C.gray200;
+
+  // Countdown pill — same as before
+  const countdownPill = (() => {
+    if (perms.isPaid || perms.isRejected || !dividend.payment_date) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const payDate = new Date(dividend.payment_date + "T00:00:00");
+    const diffDays = Math.ceil((payDate - today) / 86400000);
+    if (diffDays < 0 || diffDays > 365) return null;
+    return (
+      <span style={{ fontSize: 10, fontWeight: 700, color: diffDays <= 7 ? (isDark ? "#FBBF24" : "#B45309") : C.gray500, background: diffDays <= 7 ? (isDark ? "#92400E18" : "#FFFBEB") : C.gray100, padding: "2px 7px", borderRadius: 10, border: `1px solid ${diffDays <= 7 ? (isDark ? "#92400E55" : "#FDE68A") : C.gray200}` }}>
+        {diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : `in ${diffDays} days`}
+      </span>
+    );
+  })();
 
   return (
     <div onClick={() => !isRowBusy && onOpenDetail(dividend.id)}
       style={{ background: cardBg, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: isRowBusy ? "not-allowed" : "pointer", opacity: isRowBusy ? 0.6 : 1, transition: "box-shadow 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 5 }}>{dividend.company_name || "Unknown"}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>TZS {fmt(dps)}/sh</span>
-            <DivStatusBadge status={dividend.status} />
-          </div>
-        </div>
+
+      {/* Row 1: Company name + ActionMenu */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dividend.company_name || "Unknown"}</div>
         {showActions && rowActions.length > 0 && (
           <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}><ActionMenu actions={rowActions} /></div>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: C.gray500, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="calendar" size={12} stroke={C.gray400} /> {fmtDate(dividend.payment_date)}</span>
-        {dividend.status !== "paid" && dividend.status !== "rejected" && dividend.payment_date && (() => {
-          const today = new Date(); today.setHours(0,0,0,0);
-          const payDate = new Date(dividend.payment_date + "T00:00:00");
-          const diffDays = Math.ceil((payDate - today) / 86400000);
-          if (diffDays < 0 || diffDays > 365) return null;
-          return (
-            <span style={{ fontSize: 10, fontWeight: 700, color: diffDays <= 7 ? (isDark ? "#FBBF24" : "#B45309") : C.gray500, background: diffDays <= 7 ? (isDark ? "#92400E18" : "#FFFBEB") : C.gray100, padding: "2px 7px", borderRadius: 10, border: `1px solid ${diffDays <= 7 ? (isDark ? "#92400E55" : "#FDE68A") : C.gray200}` }}>
-              {diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : `in ${diffDays} days`}
-            </span>
-          );
-        })()}
+
+      {/* Row 2: DPS badge + Status badge */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>TZS {fmt(dps)}/sh</span>
+        <DivStatusBadge status={dividend.status} />
       </div>
+
+      {/* Row 3: Date + year pill + countdown */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(dividend.payment_date)}</span>
+          {dividend.dividend_year && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.gray400, background: isDark ? "rgba(255,255,255,0.07)" : C.gray100, borderRadius: 6, padding: "1px 7px" }}>{dividend.dividend_year}</span>
+          )}
+        </div>
+        {countdownPill}
+      </div>
+
+      {/* Row 4: Stat box — DPS × Shares → Net Amount */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
         <div>
+          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>DPS × Shares</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmt(dps)} × {shares > 0 ? shares.toLocaleString() : "—"}</div>
+        </div>
+        <span style={{ fontSize: 14, color: C.gray400, margin: "0 6px" }}>→</span>
+        <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>Net Amount</div>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {fmtSmart(net)}</div>
         </div>
       </div>
+
+      {/* Rejection reason */}
       {perms.isRejected && dividend.rejection_reason && (
         <div style={{ marginTop: 8, padding: "6px 10px", background: isDark ? `${C.red}14` : "#FFF5F5", borderRadius: 8, border: `1px solid ${isDark ? `${C.red}33` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
           💬 {dividend.rejection_reason}
@@ -737,6 +763,7 @@ const DividendRow = memo(function DividendRow({
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
       <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(dividend.payment_date)}</td>
+      <td style={{ padding: "7px 10px", textAlign: "center", whiteSpace: "nowrap", fontWeight: 700, color: C.gray500, fontSize: 12 }}>{dividend.dividend_year || "—"}</td>
       <td style={{ padding: "7px 10px" }}>
         <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{dividend.company_name || "Unknown"}</div>
       </td>
@@ -1033,7 +1060,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       // canDelete: SA/AD on any non-paid; DE only on pending/rejected
       if ((isSAAD && d.status !== "paid") || (isDE && (d.status === "pending" || d.status === "rejected"))) deletableCorrect.push(id);
       if (d.status === "declared" || d.status === "ex_date_passed") markablePaid.push(id);
-      if (isDE && (d.status === "pending" || d.status === "rejected")) confirmable.push(id);
+      if ((isDE || isSAAD) && (d.status === "pending" || d.status === "rejected")) confirmable.push(id);
     }
     const revertable = [];
     for (const id of selected) {
@@ -1050,7 +1077,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     return { deletable: deletableCorrect, markablePaid, revertable, rejectable, confirmable };
   }, [selected, divById, isSAAD, isDE, isVR]);
 
-  const canBulkConfirm  = isDE && selectedBuckets.confirmable.length > 0;
+  const canBulkConfirm  = (isDE || isSAAD) && selectedBuckets.confirmable.length > 0;
   const canBulkDelete   = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
   const canBulkMarkPaid = (isVR || isSAAD) && selectedBuckets.markablePaid.length > 0;
   const canBulkUnpay    = isSAAD && selectedBuckets.revertable.length > 0;
@@ -1286,7 +1313,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
 
   const tableHeaders = showActions ? TABLE_HEADERS_WITH_ACTIONS : TABLE_HEADERS_WITHOUT_ACTIONS;
 
-  const tfootLeftCols  = showCheckbox ? 7 : 6;
+  const tfootLeftCols  = showCheckbox ? 8 : 7;
   const tfootRightCols = 1 + (showActions ? 1 : 0);
 
   const detailDividend = useMemo(
@@ -1422,7 +1449,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
               {hasSelection ? (
                 <>
-                  {canBulkConfirm  && <button onClick={doBulkConfirm} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#0B1F3A", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : <><Icon name="checkCircle" size={12} stroke="#fff" /> Confirm {selectedBuckets.confirmable.length}</>}</button>}
+                  {canBulkConfirm  && <button onClick={doBulkConfirm} disabled={isAnyConfirming} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyConfirming ? C.gray200 : "#1D4ED8", color: "#ffffff", fontWeight: 700, cursor: isAnyConfirming ? "not-allowed" : "pointer" }}>{isAnyConfirming ? <><Spinner size={12} color="#888" /> Confirming...</> : <><Icon name="checkCircle" size={12} /> Confirm {selectedBuckets.confirmable.length}</>}</button>}
                   {canBulkMarkPaid && <button onClick={() => openMarkAsPaidModal(selectedBuckets.markablePaid, "")} disabled={isAnyMarkingPaid} style={{ ...TOOLBAR_BUTTON, border: "none", background: isAnyMarkingPaid ? C.gray200 : C.green, color: "#ffffff", fontWeight: 700, cursor: isAnyMarkingPaid ? "not-allowed" : "pointer" }}>{isAnyMarkingPaid ? <><Spinner size={12} color="#888" /> Marking Paid...</> : <><Icon name="checkCircle" size={12} /> Mark Paid {selectedBuckets.markablePaid.length}</>}</button>}
                   {canBulkUnpay && <button onClick={() => setBulkUnpayModal({ ids: selectedBuckets.revertable })} disabled={isAnyMarkingPaid} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid #EA580C55`, background: isAnyMarkingPaid ? C.gray100 : (isDark ? "rgba(234,88,12,0.15)" : "#FFF7ED"), color: "#EA580C", fontWeight: 700, cursor: isAnyMarkingPaid ? "not-allowed" : "pointer" }}>{isAnyMarkingPaid ? <><Spinner size={12} color="#EA580C" /> Reverting...</> : <><Icon name="undo" size={12} stroke="#EA580C" /> Revert to Declared {selectedBuckets.revertable.length}</>}</button>}
                   {canBulkReject && <button onClick={() => openRejectModal(selectedBuckets.rejectable)} disabled={isAnyRejecting} style={{ ...TOOLBAR_BUTTON, border: `1.5px solid ${C.red}55`, background: isAnyRejecting ? C.gray100 : C.redBg, color: C.red, fontWeight: 700, cursor: isAnyRejecting ? "not-allowed" : "pointer" }}>{isAnyRejecting ? <><Spinner size={12} color={C.red} /> Rejecting...</> : <><Icon name="xCircle" size={12} stroke={C.red} /> Reject {selectedBuckets.rejectable.length}</>}</button>}
