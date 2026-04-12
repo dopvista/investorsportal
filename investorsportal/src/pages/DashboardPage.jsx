@@ -1581,10 +1581,10 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <colgroup>
-                          <col style={{ width: "22%" }} /><col style={{ width: "10%" }} />
-                          <col style={{ width: "15%" }} /><col style={{ width: "15%" }} />
-                          <col style={{ width: "15%" }} /><col style={{ width: "10%" }} />
-                          <col style={{ width: "13%" }} />
+                          <col style={{ width: "20%" }} /><col style={{ width: "9%" }} />
+                          <col style={{ width: "14%" }} /><col style={{ width: "13%" }} />
+                          <col style={{ width: "14%" }} /><col style={{ width: "9%" }} />
+                          <col style={{ width: "12%" }} /><col style={{ width: "9%" }} />
                         </colgroup>
                         <thead>
                           <tr>
@@ -1595,6 +1595,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                             <Th right>Net Income</Th>
                             <Th right>Avg DPS</Th>
                             <Th right>Last Payment</Th>
+                            <Th right>Div. Year</Th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1607,6 +1608,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <Td right bold color={C.green}>{fmt(d.total_net)}</Td>
                               <Td right>{fmt(d.avg_dps)}</Td>
                               <Td right color={C.gray500} small>{d.last_payment_date ? new Date(d.last_payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</Td>
+                              <Td right color={C.gray500}>{d.last_dividend_year || "—"}</Td>
                             </tr>
                           ))}
                         </tbody>
@@ -1618,6 +1620,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                               <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.text, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_gross), 0))}</td>
                               <td style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: C.red, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_tax), 0))}</td>
                               <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 13, color: C.green, textAlign: "right" }}>{fmt(dividendByCompany.reduce((s, d) => s + Number(d.total_net), 0))}</td>
+                              <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
                               <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
                               <td style={{ padding: "9px 12px", color: C.gray400, textAlign: "right" }}>—</td>
                             </tr>
