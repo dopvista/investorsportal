@@ -1406,7 +1406,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                 onClick={onToggleCompanies} active={expanded === "companies"} loading={loading}
               />
               <StatCard icon={<Icon name="dollarSign" size={19} stroke="#D4A017" sw={2.2} />} label="Dividend Income"
-                value={loading ? "—" : `TZS ${Number(dividendSummary?.total_net || 0).toLocaleString()}`}
+                value={loading ? "—" : `TZS ${fmtShort(dividendSummary?.total_net || 0)}`}
                 subLabel={dividendSummary ? `${dividendSummary.dividend_count || 0} payment${dividendSummary.dividend_count !== 1 ? "s" : ""} · all time` : "all time"}
                 accent="#D4A017" accentBg="#D4A017"
                 onClick={onToggleDividends} active={expanded === "dividends"} loading={loading}
