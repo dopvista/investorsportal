@@ -106,7 +106,7 @@ const DivStatusBadge = memo(function DivStatusBadge({ status }) {
   const STATUS = useMemo(() => getStatusConfig(C, isDark), [C, isDark]);
   const s = STATUS[status] || STATUS.declared;
   return (
-    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
+    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
       {s.icon} {s.label}
     </span>
   );
@@ -675,7 +675,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
 
       {/* Row 2: DPS badge + Status badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>TZS {fmt(dps)}/sh</span>
+        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>TZS {fmt(dps)}/sh</span>
         <DivStatusBadge status={dividend.status} />
       </div>
 
