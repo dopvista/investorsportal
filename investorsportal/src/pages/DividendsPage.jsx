@@ -666,9 +666,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dividend.company_name || "Unknown"}</div>
-          {dividend.dividend_year && (
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.gray400, marginTop: 2 }}>Div. Year: {dividend.dividend_year}</div>
-          )}
+          {(() => { const yr = dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : null); return yr ? <div style={{ fontSize: 11, fontWeight: 600, color: C.gray400, marginTop: 2 }}>Div. Year: {yr}</div> : null; })()}
         </div>
         {showActions && rowActions.length > 0 && (
           <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}><ActionMenu actions={rowActions} /></div>
