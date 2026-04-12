@@ -85,9 +85,9 @@ const TABLE_HEADERS_WITH_ACTIONS = [
   { label: "Company",     align: "left"   },
   { label: "Per Share",   align: "right"  },
   { label: "Shares",      align: "right"  },
-  { label: "Gross Amt",   align: "right"  },
+  { label: "Gross Amount",align: "right"  },
   { label: "Tax",         align: "right"  },
-  { label: "Net Amt",     align: "right"  },
+  { label: "Net Amount",  align: "right"  },
   { label: "Status",      align: "left"   },
   { label: "Actions",     align: "center" },
 ];
