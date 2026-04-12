@@ -1592,7 +1592,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
                             <Th>Company</Th>
                             <Th right>Div. Year</Th>
                             <Th right>Shares</Th>
-                            <Th right>Avg DPS</Th>
+                            <Th right>Avg Div/Share</Th>
                             <Th right>Gross Amount</Th>
                             <Th right>Tax Withheld</Th>
                             <Th right>Net Income</Th>
