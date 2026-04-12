@@ -1496,8 +1496,9 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {/* Row 1: Company + Shares Held */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {needsCompanySelect ? (
           <div ref={companyRef} style={{ position: "relative", minWidth: 0 }}>
             <FormField label="Company" required C={C}>
@@ -1535,39 +1536,37 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       </div>
 
       {/* Row 2: Dividend/Share + Total Amount */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
         <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={commaVal(form.totalAmount)} onChange={e => { setForm(f => ({ ...f, totalAmount: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
       </div>
 
       {/* Row 3: Withholding Tax + Net Amount */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div>
           <FInput label="Withholding Tax (5%)" type="text" inputMode="decimal" value={commaVal(form.withholdingTax)} onChange={e => { setForm(f => ({ ...f, withholdingTax: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
           <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Auto-filled at 5% (DSE WHT rate)</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Net Amount</label>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 8, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, boxSizing: "border-box" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 12px", background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 8, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, boxSizing: "border-box" }}>
             <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
         <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
-        <div>
-          <FInput label="Dividend Year" type="number" inputMode="numeric" value={form.dividendYear} onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))} placeholder={String(new Date().getFullYear())} min="2000" max="2099" />
-          <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Fiscal year the dividend is for</div>
-        </div>
+        <FInput label="Dividend Year" type="number" inputMode="numeric" value={form.dividendYear} onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))} placeholder={String(new Date().getFullYear())} min="2000" max="2099" />
       </div>
 
       <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
+      </div>
     </ModalShell></>
   );
 }
