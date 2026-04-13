@@ -191,14 +191,12 @@ A: **Investors Portal™** takes every transaction through a clear path from rec
 Q: "What are the key features of Investors Portal™ and what does each one do?"
 A: **Investors Portal™** is built around six core features that work together to give you full control over your DSE investments.
 
-**Core Features:**
-
-- **FIFO Gain/Loss** — automatic cost basis tracking. Open any verified transaction to see **Unrealized G/L** (buys) or **Realized G/L** (sells) with per-share breakdown
-- **Fee Calculator** — every transaction auto-calculates: **Broker** (tiered + VAT), **CMSA** (0.14%), **DSE** (+VAT), **CSDR** (+VAT), **Fidelity** (0.02%). Click the **ⓘ** icon for the full breakdown
+- **FIFO Gain/Loss** — automatically tracks your cost basis using First-In, First-Out. Open any verified transaction to see **Unrealized G/L** (buys) or **Realized G/L** (sells) with a per-share breakdown
+- **Fee Calculator** — auto-calculates all five DSE fees on every trade: **Broker** (tiered + VAT), **CMSA** (0.14%), **DSE** (+VAT), **CSDR** (+VAT), and **Fidelity** (0.02%). Click the **ⓘ** icon for the full breakdown
 - **DSE Price Sync** — on the **Portfolio** page, tap the **DSE Prices** card → toggle **Auto-Sync** for live prices every 60 seconds, or click **"Fetch Prices Now"** for an instant update
-- **Dividend Tracker** — go to **Dividends** → **"Record Dividend"** → enter **DPS** and **Shares Held** → **WHT (5%)** and **Net Amount** calculate automatically. Dividends follow a role-gated workflow: DE records (Pending) → DE confirms (Declared) → VR marks paid or rejects
-- **Multi-CDS** — switch between CDS accounts using the **CDS Account Switcher** in the header. All data is scoped to the active CDS
-- **Reports** — go to **Reports** → pick a report card → set filters → click **"Excel"** or **"PDF"** to download. Available: **Portfolio Statement**, **Transaction History**, **Gain/Loss Report**, **Dividend Income**
+- **Dividend Tracker** — go to **Dividends** → click **"Record Dividend"** → enter **Dividend Per Share** and **Shares Held** → **WHT (5%)** and **Net Amount** calculate automatically
+- **Multi-CDS** — manage multiple CDS accounts under one login using the **CDS Account Switcher** in the header. All data scopes to the active account
+- **Reports** — go to **Reports** → pick a report type → set filters → click **"Excel"** or **"PDF"** to download: **Portfolio Statement**, **Transaction History**, **Gain/Loss Report**, or **Dividend Income**.
 
 Q: "What is the DSE and how does Investors Portal™ help me manage my DSE investments?"
 A: The **DSE (Dar es Salaam Stock Exchange)** is Tanzania's national stock exchange where shares of publicly listed companies are bought and sold. It is regulated by **CMSA (Capital Markets and Securities Authority)** and serves as the primary marketplace for capital raising, price discovery, and sustainable investment in Tanzania.
