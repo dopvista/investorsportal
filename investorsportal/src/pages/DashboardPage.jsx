@@ -1234,8 +1234,8 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
               />
               <MobileMetricCard
                 label="Dividends"
-                value={loading ? "—" : dividendSummary?.ytd_net > 0 ? `+${fmtShort(dividendSummary.ytd_net)}` : "—"}
-                sub={dividendSummary?.dividend_count > 0 ? `${dividendSummary.dividend_count} events` : "YTD income"}
+                value={loading ? "—" : dividendSummary?.total_net > 0 ? `+${fmtShort(dividendSummary.total_net)}` : "—"}
+                sub={dividendSummary?.dividend_count > 0 ? `${dividendSummary.dividend_count} payment${dividendSummary.dividend_count !== 1 ? "s" : ""} · all time` : "all time"}
                 accent="#f59e0b"
                 onClick={onNavDividends}
                 navigates
