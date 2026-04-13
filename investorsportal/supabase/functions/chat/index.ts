@@ -121,7 +121,7 @@ Intelligence:
 When a user asks one of these exact questions, use the scripted answer below as your base — keep it complete, use the same structure, and apply bold to all UI terms. Do not truncate. The About answer is intentionally longer — do NOT cut it to fit the word limit. Deliver it in full, exactly as written.
 
 Q: "What is Investors Portal™? Tell me about it — what problem does it solve, who is it for, and what can I do here?"
-A: **Investors Portal™** is a digital investment portfolio management platform purpose-built for retail investors trading on the **Dar es Salaam Stock Exchange (DSE)** in Tanzania. Despite 740,000+ CDS accounts in Tanzania, investors had no dedicated tool to consolidate holdings, track performance, or verify positions independently. Investors Portal™ replaces paper records, broker statements, and guesswork with a single digital platform.
+A: **Investors Portal™** is a digital investment portfolio management platform purpose-built for retail investors trading on the **Dar es Salaam Stock Exchange (DSE)** in Tanzania. Despite 740,000+ CDS accounts in Tanzania, investors had no dedicated tool to consolidate holdings, track performance, or verify positions independently. **Investors Portal™** replaces paper records, broker statements, and guesswork with a single digital platform.
 
 **What you can do inside the app:**
 
@@ -189,7 +189,7 @@ A: **Investors Portal™** takes every transaction through a clear path from rec
 **Important:** Only **Verified** transactions feed into your portfolio balances and dashboard numbers.
 
 Q: "What are the key features of Investors Portal™ and what does each one do?"
-A: Investors Portal™ is built around six core features that work together to give you full control over your DSE investments.
+A: **Investors Portal™** is built around six core features that work together to give you full control over your DSE investments.
 
 **Core Features:**
 
@@ -278,7 +278,7 @@ A: Every transaction in **Investors Portal™** goes through a status workflow f
 - **Verified** (green badge) — a Verifier or SA/AD clicked **"Verify"** to lock it. No more edits or deletes allowed
 - **Rejected** (red badge) — a Verifier clicked **"Reject"** and entered a **"Rejection Reason"**. The DE sees the reason and can fix the data, then click **"Re-Confirm"**
 
-**Important notes:**
+**Important:**
 
 - Only **Verified** transactions feed into your **Portfolio** balances and **Dashboard** numbers
 - SA/AD can **"UnVerify"** a locked transaction to move it back to **Pending**
@@ -333,7 +333,7 @@ A: In **Investors Portal™**, clicking any transaction row opens the **Transact
 **Audit Trail:** Tracks every step — **Recorded** → **Confirmed** → **Verified** or **Rejected**, each with a timestamp and who performed it. Steps not yet completed show **"Awaiting"**.
 
 Q: "What is FIFO? How does gain/loss work?"
-A: **FIFO** stands for **First-In, First-Out** — it means your oldest shares are always sold first. Investors Portal™ applies this automatically to every trade.
+A: **FIFO** stands for **First-In, First-Out** — it means your oldest shares are always sold first. **Investors Portal™** applies this automatically to every trade.
 
 **Realized G/L** is profit or loss you've already locked in by selling shares. It's calculated as **Net Proceeds** from the sale minus the **FIFO cost basis** of those sold shares (including all fees).
 
@@ -367,7 +367,7 @@ A: **Investors Portal™** lets DE and SA/AD roles record dividends — go to **
 
 Click **"Record Dividend"** to save. New dividends always start as **Pending** — status is set by the workflow, not the form.
 
-**Next step:** A Data Entrant must click **"Confirm"** on the pending record to move it to **Declared**, at which point the Verifier can act on it.
+**Important:** A **Data Entrant** must click **"Confirm"** on the pending record to move it to **Declared**, at which point the **Verifier** can act on it.
 
 Q: "What do the dividend statuses mean?"
 A: Dividends in **Investors Portal™** follow a five-step workflow controlled by role — status cannot be set manually.
@@ -400,7 +400,7 @@ A: **Investors Portal™** offers four report types — go to **Reports** and cl
 **Important:** **Fee Summary** and **Tax Report** are coming soon and appear grayed out.
 
 Q: "How do I add a new user?"
-A: There are two ways to add users to **Investors Portal™**.
+A: **Investors Portal™** offers two ways to add users.
 
 **Admin Invite (SA/AD only):**
 
@@ -455,9 +455,11 @@ ${includeAdminDeep ? `<conditional_answers>
 These answers are loaded only when the user's question matches the relevant keywords. Apply the same scripted answer approach — bold all UI terms, do not truncate.
 
 Q: "How do I change a user's role or manage their CDS accounts?"
-A: In **Investors Portal™**, each row on the **User Management** page has action buttons on the right.
+A: In **Investors Portal™**, each row on the **User Management** page has three action buttons on the right.
 
-Click the **"Role"** button to open the **"Change Role"** modal. Select the new role and click **"Save Role"**. Note that the protected Super Admin role cannot be changed. Click the **"CDS"** button (🏦) to open **"Manage CDS Accounts"**, which shows all **Assigned CDS** accounts with an option to remove each one, plus an **Assign CDS** search bar to add new accounts. The **"On/Off"** toggle switches the user between Active and Inactive — a confirmation modal asks **"Deactivate User"** or **"Reactivate User"** before proceeding.
+- **Role** button → opens the **"Change Role"** modal — select the new role and click **"Save Role"**. The **Super Admin** role is protected and cannot be changed.
+- **CDS** button (🏦) → opens **"Manage CDS Accounts"** — shows all **Assigned CDS** accounts with a remove option, plus an **Assign CDS** search bar to add new accounts.
+- **On/Off** toggle → switches the user between **Active** and **Inactive** — a confirmation modal asks **"Deactivate User"** or **"Reactivate User"** before proceeding.
 
 Q: "How do I switch between CDS accounts?"
 A: **Investors Portal™**'s **CDS Account Switcher** is in the top-right header and visible on every page. Tap it to see all CDS accounts assigned to you, then click **"Switch"** next to the one you want. Only **Active** accounts can be selected.
