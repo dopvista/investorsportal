@@ -452,20 +452,22 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
         background: C.white,
         border: `1.5px solid ${hasAccent ? `${accent}40` : C.gray200}`,
         borderRadius: 12,
-        padding: "13px 14px",
+        padding: "10px 10px",
         cursor: onClick ? "pointer" : "default",
         display: "flex", flexDirection: "column",
+        minWidth: 0, overflow: "hidden",
       }}
     >
       <div style={{
         fontSize: 9, color: C.gray400, fontWeight: 700,
         textTransform: "uppercase", letterSpacing: "0.05em",
-        marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 5, display: "flex", alignItems: "center", justifyContent: "space-between",
+        whiteSpace: "nowrap", overflow: "hidden",
       }}>
-        {label}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
         {chevron && onClick && (
           <span style={{
-            fontSize: 10, color: C.gray400,
+            fontSize: 10, color: C.gray400, flexShrink: 0, marginLeft: 2,
             transform: chevron === "open" ? "rotate(180deg)" : "none",
             display: "inline-block", transition: "transform 0.2s",
           }}>
@@ -473,10 +475,10 @@ const MobileMetricCard = memo(function MobileMetricCard({ label, value, sub, acc
           </span>
         )}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: hasAccent ? accent : C.text, lineHeight: 1, marginBottom: 3 }}>{value}</div>
+      <div style={{ fontSize: "clamp(14px, 4.5vw, 20px)", fontWeight: 800, color: hasAccent ? accent : C.text, lineHeight: 1, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-        {sub && <div style={{ fontSize: 10, color: C.gray400, lineHeight: 1.4 }}>{sub}</div>}
-        {navigates && <span style={{ fontSize: 11, color: hasAccent ? accent : C.gray400, fontWeight: 700, marginLeft: "auto" }}>→</span>}
+        {sub && <div style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: C.gray400, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{sub}</div>}
+        {navigates && <span style={{ fontSize: 11, color: hasAccent ? accent : C.gray400, fontWeight: 700, marginLeft: "auto", flexShrink: 0 }}>→</span>}
       </div>
     </div>
   );
@@ -497,14 +499,15 @@ const MobileStatPill = memo(function MobileStatPill({ icon, label, value, onClic
         background: active ? `${accent}12` : C.white,
         border: `1.5px solid ${active ? accent : C.gray200}`,
         borderRadius: 12,
-        padding: "11px 12px",
+        padding: "11px 8px",
         cursor: onClick ? "pointer" : "default",
         display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+        minWidth: 0, overflow: "hidden",
       }}
     >
       <div style={{ width: 36, height: 36, borderRadius: 10, background: pale.bg, border: `1.5px solid ${pale.bdr}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#374151" }}>{icon}</div>
-      <div style={{ fontSize: 17, fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 10, color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
+      <div style={{ fontSize: "clamp(14px, 4.5vw, 17px)", fontWeight: 800, color: active ? accent : C.text, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: active ? accent : C.gray400, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>{label}</div>
       {navigates && <span style={{ fontSize: 10, color: C.gray400 }}>→</span>}
     </div>
   );
