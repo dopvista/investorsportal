@@ -139,7 +139,7 @@ Tanzania's DSE market capitalization has surged 34% to TZS 30+ trillion, and 40%
 > Built for individual and corporate DSE investors. Currently covers equities — bonds, UTT AMIS funds, and REITs are on the roadmap, building toward a unified all-in-one investment management platform for every Tanzanian investor.
 
 Q: "How do I navigate the app? What pages are available?"
-A: The app is organized into pages accessible from the sidebar (desktop) or bottom bar (mobile).
+A: **Investors Portal™** is organized into pages accessible from the sidebar (desktop) or bottom bar (mobile).
 
 **Desktop — Sidebar:**
 
@@ -156,7 +156,7 @@ A: The app is organized into pages accessible from the sidebar (desktop) or bott
 > The **CDS Account Switcher** sits in the top-right header on every page — tap it to switch between your CDS accounts.
 
 Q: "What does the Dashboard show?"
-A: The **Dashboard** is your portfolio overview for the active CDS account. It adapts to your screen size with different layouts for desktop and mobile.
+A: **Investors Portal™**'s **Dashboard** is your portfolio overview for the active CDS account. It adapts to your screen size with different layouts for desktop and mobile.
 
 **Desktop — Top Row (5 snap cards):**
 
@@ -175,7 +175,7 @@ A: The **Dashboard** is your portfolio overview for the active CDS account. It a
 **Mobile:** Hero card (**Invested** | **Return** | **Holdings**) + 3 metric pills (**Unrealized GL** | **Realized GL** | **Dividends**) + 3 stat pills (**Holdings** | **Users** | **Pending**). Pull down to refresh.
 
 Q: "What is the core workflow in Investors Portal™ — from recording a transaction to seeing your gain/loss?"
-A: Every transaction follows a clear path from recording to portfolio impact. Here's the step-by-step flow:
+A: **Investors Portal™** takes every transaction through a clear path from recording to portfolio impact. Here's the step-by-step flow:
 
 1. Go to **Transactions** → click **"Record Transaction"**
 2. Fill in **Type** (Buy/Sell), **Date**, **Company**, **Quantity**, **Price per Share**, **Broker** → fees auto-calculate in the summary bar
@@ -235,7 +235,7 @@ A: **Investors Portal™** has five roles that control what you can see and do. 
 > Each role sees different stat cards — for example, VR sees **"Awaiting Review"** while DE sees **"My Transactions"** and RO sees **"Total Records"**.
 
 Q: "How do I update stock prices in my portfolio?"
-A: You can update prices on the **Portfolio** page either automatically or manually.
+A: **Investors Portal™** lets you update prices on the **Portfolio** page either automatically or manually.
 
 **Automatic Updates:**
 
@@ -254,7 +254,7 @@ A: You can update prices on the **Portfolio** page either automatically or manua
 > If you see **"Auto-Sync Disabled by Admin"**, the server master switch is off — contact your Super Admin.
 
 Q: "How do I see price history or a price chart for a company?"
-A: On the **Portfolio** page, click any company's action menu to access two views. On mobile, tap the company card to open a bottom sheet with tabs: **Chart** | **History** | **Update**.
+A: In **Investors Portal™**, go to the **Portfolio** page and click any company's action menu to access two views. On mobile, tap the company card to open a bottom sheet with tabs: **Chart** | **History** | **Update**.
 
 **Chart:**
 
@@ -285,7 +285,7 @@ A: Every transaction in **Investors Portal™** goes through a status workflow f
 - Select multiple rows via checkboxes for bulk **Confirm** | **Verify** | **Reject** | **UnVerify** | **Delete** actions
 
 Q: "How do I import transactions from Excel?"
-A: Go to **Transactions** and click the **"Import"** button (available to DE and SA/AD only). The process has two steps.
+A: **Investors Portal™** supports Excel import — go to **Transactions** and click the **"Import"** button (available to DE and SA/AD only). The process has two steps.
 
 **Step 1 — Download and fill the template:**
 
@@ -315,7 +315,7 @@ A: **Investors Portal™** auto-calculates all DSE fees on every transaction. Yo
 > For a **Buy** trade, **Total Paid** = Trade Value + All Fees. For a **Sell** trade, **Net Received** = Trade Value − All Fees.
 
 Q: "What do I see when I click on a transaction?"
-A: Clicking any transaction row opens the **Transaction Detail** modal. It's organized into clear sections from top to bottom.
+A: In **Investors Portal™**, clicking any transaction row opens the **Transaction Detail** modal, organized into clear sections from top to bottom.
 
 **Header:** Status badge, trade date, company name, and transaction ID.
 
@@ -353,7 +353,7 @@ A: **FIFO** stands for **First-In, First-Out** — it means your oldest shares a
 The key difference: unrealized is what you could gain or lose; realized is what you actually gained or lost.
 
 Q: "How do I record a dividend?"
-A: Go to **Dividends** and click **"Record Dividend"** (or **"+ Record"** on mobile). Only DE and SA/AD can record dividends.
+A: **Investors Portal™** lets DE and SA/AD roles record dividends — go to **Dividends** and click **"Record Dividend"** (or **"+ Record"** on mobile).
 
 **Form fields:**
 
@@ -388,7 +388,7 @@ A: Dividends in **Investors Portal™** follow a five-step workflow controlled b
 - **RO** — view-only at every stage
 
 Q: "What reports can I generate? What filters are available?"
-A: Go to **Reports** and click on any report card. Each one opens a modal titled **"Set parameters and generate report"** where you set your filters, then click **"Excel"** or **"PDF"** to download.
+A: **Investors Portal™** offers four report types — go to **Reports** and click any report card to open the **"Set parameters and generate report"** modal, set your filters, then click **"Excel"** or **"PDF"** to download.
 
 **Available reports:**
 
@@ -415,7 +415,7 @@ A: There are two ways to add users to **Investors Portal™**.
 - If CDS is left blank — user lands on an **"Account Pending"** screen until a SA/AD assigns them a CDS and role
 
 Q: "How do I change my password or set up fingerprint login?"
-A: Both options are managed from your **Profile** → **Security** section.
+A: **Investors Portal™** manages both security options from your **Profile** → **Security** section.
 
 **Change Password:**
 
@@ -431,7 +431,7 @@ A: Both options are managed from your **Profile** → **Security** section.
 - Click **"Add This Device"** to register a new passkey, or **✕** to remove an existing one
 
 Q: "How do I log in to the app?"
-A: The **Login** page offers three ways to sign in.
+A: **Investors Portal™**'s **Login** page offers three ways to sign in.
 
 **Email + Password:**
 
@@ -455,17 +455,17 @@ ${includeAdminDeep ? `<conditional_answers>
 These answers are loaded only when the user's question matches the relevant keywords. Apply the same scripted answer approach — bold all UI terms, do not truncate.
 
 Q: "How do I change a user's role or manage their CDS accounts?"
-A: On the **User Management** page, each user row has action buttons on the right.
+A: In **Investors Portal™**, each row on the **User Management** page has action buttons on the right.
 
 Click the **"Role"** button to open the **"Change Role"** modal. Select the new role and click **"Save Role"**. Note that the protected Super Admin role cannot be changed. Click the **"CDS"** button (🏦) to open **"Manage CDS Accounts"**, which shows all **Assigned CDS** accounts with an option to remove each one, plus an **Assign CDS** search bar to add new accounts. The **"On/Off"** toggle switches the user between Active and Inactive — a confirmation modal asks **"Deactivate User"** or **"Reactivate User"** before proceeding.
 
 Q: "How do I switch between CDS accounts?"
-A: The **CDS Account Switcher** is located in the top-right header and is visible on every page. Tap it to see all CDS accounts assigned to you, then click **"Switch"** next to the one you want. Only **Active** accounts can be selected.
+A: **Investors Portal™**'s **CDS Account Switcher** is in the top-right header and visible on every page. Tap it to see all CDS accounts assigned to you, then click **"Switch"** next to the one you want. Only **Active** accounts can be selected.
 
 Once you switch, everything updates immediately — your **Dashboard** metrics, **Portfolio** holdings, **Transactions**, **Dividends**, and **Reports** all show data for the selected CDS account. Your account type is displayed in **Profile** → **Account Type** as either **"Corporate"** (multiple users sharing the CDS) or **"Individual"** (single user).
 
 Q: "What can I configure in System Settings?"
-A: **System Settings** (Super Admin only) has five sections in the left sidebar:
+A: **Investors Portal™**'s **System Settings** (Super Admin only) has five sections in the left sidebar:
 
 - **Companies** — register DSE companies. Click **"Register New Company"** → fill **Company Name**, **Opening Price (TZS)**, **Sector** → click **"Register Company"**. Table shows all companies with Edit and Delete.
 - **CDS Accounts** — view and manage all CDS accounts. Toggle each account between Active and Inactive.
@@ -1246,8 +1246,24 @@ Deno.serve(async (req: Request) => {
     const systemPrompt = buildSystemPrompt(context || {}, includeDSEDeep, includeAdminDeep);
 
     // ── Route: Swahili → Gemini, English → Claude ───────────────
-    // Cap history to last 2 messages to control token cost
-    const recentMessages = messages.slice(-2);
+    // Cap history by token budget (~4 chars = 1 token estimate).
+    // Walk backwards including messages until the budget is exhausted.
+    // Always includes at least the latest message even if it alone exceeds the budget.
+    function capMessagesByTokens(
+      msgs: { role: string; content: string }[],
+      maxTokens = 600,
+    ): { role: string; content: string }[] {
+      const kept: { role: string; content: string }[] = [];
+      let total = 0;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const estimate = Math.ceil(msgs[i].content.length / 4);
+        if (kept.length > 0 && total + estimate > maxTokens) break;
+        kept.unshift(msgs[i]);
+        total += estimate;
+      }
+      return kept;
+    }
+    const recentMessages = capMessagesByTokens(messages, 600);
 
     // Language detection:
     // 1. Check current message (handles mixed-language prompts — any Swahili word → Gemini)
