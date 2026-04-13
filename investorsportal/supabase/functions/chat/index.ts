@@ -136,7 +136,7 @@ A: **Investors Portal™** is a digital investment portfolio management platform
 
 Tanzania's DSE market capitalization has surged 34% to TZS 30+ trillion, and 40% of new CDS account holders are under 30 years old. **Investors Portal™** aligns with Tanzania's Digital Economy Strategic Framework 2024–2034, which prioritizes financial inclusion and digital financial services.
 
-> Built for individual and corporate DSE investors. Currently covers equities — bonds, UTT AMIS funds, and REITs are on the roadmap, building toward a unified all-in-one investment management platform for every Tanzanian investor.
+**Important:** Built for individual and corporate DSE investors. Currently covers equities — bonds, UTT AMIS funds, and REITs are on the roadmap, building toward a unified all-in-one investment management platform for every Tanzanian investor.
 
 Q: "How do I navigate the app? What pages are available?"
 A: **Investors Portal™** is organized into pages accessible from the sidebar (desktop) or bottom bar (mobile).
@@ -153,7 +153,7 @@ A: **Investors Portal™** is organized into pages accessible from the sidebar (
 
 **Mobile — Bottom Bar:** **Home** | **Portfolio** | **Trades** | **Dividends** | **Users** (SA/AD)
 
-> The **CDS Account Switcher** sits in the top-right header on every page — tap it to switch between your CDS accounts.
+**Important:** The **CDS Account Switcher** sits in the top-right header on every page — tap it to switch between your CDS accounts.
 
 Q: "What does the Dashboard show?"
 A: **Investors Portal™**'s **Dashboard** is your portfolio overview for the active CDS account. It adapts to your screen size with different layouts for desktop and mobile.
@@ -186,7 +186,7 @@ A: **Investors Portal™** takes every transaction through a clear path from rec
 7. For sell trades, **Realized G/L** appears in the **Transaction Detail** modal and on the **Dashboard**
 8. Go to **Reports** → click **"Gain/Loss Report"** to export as **PDF** or **Excel**
 
-> Only **Verified** transactions feed into your portfolio balances and dashboard numbers.
+**Important:** Only **Verified** transactions feed into your portfolio balances and dashboard numbers.
 
 Q: "What are the key features of Investors Portal™ and what does each one do?"
 A: Investors Portal™ is built around six core features that work together to give you full control over your DSE investments.
@@ -219,7 +219,7 @@ A: The **DSE (Dar es Salaam Stock Exchange)** is Tanzania's national stock excha
 - **Reports** — Portfolio Statement, Transaction History, Gain/Loss, and Dividend Income — export as Excel or PDF
 - **Multi-CDS support** — switch between CDS accounts from the header; all data scopes to the active account
 
-> All data is tied to your **CDS account**, managed through a CMSA-licensed broker via **CSDR**.
+**Important:** All data is tied to your **CDS account**, managed through a CMSA-licensed broker via **CSDR**.
 
 Q: "What are the user roles? What can each role do?"
 A: **Investors Portal™** has five roles that control what you can see and do. Your current role is shown in the header menu and on your **Profile** page.
@@ -232,7 +232,7 @@ A: **Investors Portal™** has five roles that control what you can see and do. 
 - **Verifier (VR)** — **"Verify"** or **"Reject"** confirmed transactions; **"Mark as Paid"** or **"Reject"** declared/ex-date dividends. Cannot create, edit, or delete any record.
 - **Read Only (RO)** — view-only access across all pages with no action buttons or checkboxes
 
-> Each role sees different stat cards — for example, VR sees **"Awaiting Review"** while DE sees **"My Transactions"** and RO sees **"Total Records"**.
+**Important:** Each role sees different stat cards — for example, VR sees **"Awaiting Review"** while DE sees **"My Transactions"** and RO sees **"Total Records"**.
 
 Q: "How do I update stock prices in my portfolio?"
 A: **Investors Portal™** lets you update prices on the **Portfolio** page either automatically or manually.
@@ -251,7 +251,7 @@ A: **Investors Portal™** lets you update prices on the **Portfolio** page eith
 - Fill in **New Price (TZS)**, **Date & Time**, and **Reason** (defaults to "Normal Price Change")
 - Click **"Update Price"** to save
 
-> If you see **"Auto-Sync Disabled by Admin"**, the server master switch is off — contact your Super Admin.
+**Important:** If you see **"Auto-Sync Disabled by Admin"**, the server master switch is off — contact your Super Admin.
 
 Q: "How do I see price history or a price chart for a company?"
 A: In **Investors Portal™**, go to the **Portfolio** page and click any company's action menu to access two views. On mobile, tap the company card to open a bottom sheet with tabs: **Chart** | **History** | **Update**.
@@ -299,7 +299,7 @@ A: **Investors Portal™** supports Excel import — go to **Transactions** and 
 - The preview shows how many rows are valid and how many have errors — rows with errors are skipped, valid rows proceed
 - Click **"Import {N} Transaction(s)"** to import
 
-> All imported transactions start as **Pending**. Maximum **500 rows** per file.
+**Important:** All imported transactions start as **Pending**. Maximum **500 rows** per file.
 
 Q: "How are trading fees calculated?"
 A: **Investors Portal™** auto-calculates all DSE fees on every transaction. You can see the full breakdown by clicking the **ⓘ** icon in the transaction form summary bar, or by opening any transaction's detail modal.
@@ -312,7 +312,7 @@ A: **Investors Portal™** auto-calculates all DSE fees on every transaction. Yo
 - **CSDR (+VAT)** — 0.06% plus 18% VAT
 - **Fidelity (0.02%)** — flat rate, no VAT
 
-> For a **Buy** trade, **Total Paid** = Trade Value + All Fees. For a **Sell** trade, **Net Received** = Trade Value − All Fees.
+**Important:** For a **Buy** trade, **Total Paid** = Trade Value + All Fees. For a **Sell** trade, **Net Received** = Trade Value − All Fees.
 
 Q: "What do I see when I click on a transaction?"
 A: In **Investors Portal™**, clicking any transaction row opens the **Transaction Detail** modal, organized into clear sections from top to bottom.
@@ -397,7 +397,7 @@ A: **Investors Portal™** offers four report types — go to **Reports** and cl
 - **Gain/Loss Report** — FIFO-based realized gains. Filters: **CDS Account**, **View** (By Company / By Transaction), **Date From/To**, **Broker**
 - **Dividend Income** — payment records with WHT. Filters: **CDS Account**, **View** (By Company / By Transaction), **Date From/To**, **Status** (All / Declared / Ex-Date Passed / Paid)
 
-> **Fee Summary** and **Tax Report** are coming soon and appear grayed out.
+**Important:** **Fee Summary** and **Tax Report** are coming soon and appear grayed out.
 
 Q: "How do I add a new user?"
 A: There are two ways to add users to **Investors Portal™**.
@@ -447,7 +447,7 @@ A: **Investors Portal™**'s **Login** page offers three ways to sign in.
 - If you've previously registered a passkey, the app shows a fingerprint screen
 - Tap **"Tap to sign in"** to authenticate with your fingerprint or face
 
-> Forgot your password? Click **"Forgot password?"** on the password screen → enter your email → click **"Send Reset Email"** — a reset link will be sent to your inbox.
+**Important:** Forgot your password? Click **"Forgot password?"** on the password screen → enter your email → click **"Send Reset Email"** — a reset link will be sent to your inbox.
 
 </predefined_answers>
 
