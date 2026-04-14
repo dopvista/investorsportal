@@ -4,6 +4,8 @@ import {
   sbInsert, sbUpdate, sbDelete,
   sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
   sbCopyMarketPricesToCds, sbGetCompanyPriceHistory,
+  sbGetDividendEvents, sbInsertDividendEvent, sbUpdateDividendEvent,
+  sbDeleteDividendEvent, sbGenerateDividendEvent, sbRefreshDividendEvent,
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
 import {
@@ -390,8 +392,9 @@ const PriceChart = memo(function PriceChart({ data, color, isDark, C, onHover })
 });
 
 // ── Company Detail Popup ───────────────────────────────────────────────
-function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initialTab = "chart" }) {
+function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initialTab = "chart", role }) {
   const { C, isDark } = useTheme();
+  const isSA = role === "SA";
   const isMobile = useIsMobile();
   const c = company;
   const hasCdsPrice = c.cds_price != null;
@@ -496,6 +499,156 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   const upUp = upChangeAmt !== null ? upChangeAmt >= 0 : null;
   const upFieldStyle = { border: `1.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box", background: C.white };
 
+  // ── Dividend Events state (SA only) ──────────────────────────────
+  const [events, setEvents]             = useState(null);   // null = not loaded
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError]   = useState(null);
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);   // null = new event
+  const [eventBusy, setEventBusy]       = useState(null);   // eventId or "new"
+  const [eventFormErr, setEventFormErr] = useState("");
+
+  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const currentYear = new Date().getFullYear();
+
+  const blankEventForm = () => ({
+    dividendYear: String(currentYear),
+    dps: "",
+    taxRate: "5",
+    declarationDate: "",
+    exDate: "",
+    closureDate: "",
+    paymentDate: "",
+    notes: "",
+  });
+
+  const [eventForm, setEventForm] = useState(blankEventForm);
+
+  // Load events when dividends tab is opened
+  useEffect(() => {
+    if (tab !== "dividends" || !isSA) return;
+    if (events !== null) return;
+    let cancelled = false;
+    setEventsLoading(true);
+    setEventsError(null);
+    sbGetDividendEvents(company.id).then(data => {
+      if (!cancelled) { setEvents(data || []); setEventsLoading(false); }
+    }).catch(e => {
+      if (!cancelled) { setEventsError(e.message); setEventsLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [tab, isSA, company.id, events]);
+
+  const openNewEventForm = () => {
+    setEditingEvent(null);
+    setEventForm(blankEventForm());
+    setEventFormErr("");
+    setShowEventForm(true);
+  };
+
+  const openEditEventForm = (ev) => {
+    setEditingEvent(ev);
+    setEventForm({
+      dividendYear: String(ev.dividend_year),
+      dps: String(ev.dps),
+      taxRate: String(ev.tax_rate),
+      declarationDate: ev.declaration_date || "",
+      exDate: ev.ex_date || "",
+      closureDate: ev.closure_date || "",
+      paymentDate: ev.payment_date || "",
+      notes: ev.notes || "",
+    });
+    setEventFormErr("");
+    setShowEventForm(true);
+  };
+
+  const cancelEventForm = () => { setShowEventForm(false); setEditingEvent(null); setEventFormErr(""); };
+
+  const saveEvent = async () => {
+    if (!eventForm.dps || isNaN(Number(eventForm.dps)) || Number(eventForm.dps) <= 0) {
+      setEventFormErr("Dividend Per Share must be greater than 0."); return;
+    }
+    if (!eventForm.closureDate) { setEventFormErr("Closure Date is required."); return; }
+    if (!eventForm.dividendYear || isNaN(Number(eventForm.dividendYear))) {
+      setEventFormErr("Dividend Year is required."); return;
+    }
+    setEventBusy("form");
+    setEventFormErr("");
+    const payload = {
+      company_id: company.id,
+      company_name: company.name,
+      dividend_year: Number(eventForm.dividendYear),
+      dps: Number(eventForm.dps),
+      tax_rate: Number(eventForm.taxRate) || 5,
+      declaration_date: eventForm.declarationDate || null,
+      ex_date: eventForm.exDate || null,
+      closure_date: eventForm.closureDate,
+      payment_date: eventForm.paymentDate || null,
+      notes: eventForm.notes || null,
+    };
+    try {
+      if (editingEvent) {
+        await sbUpdateDividendEvent(editingEvent.id, payload);
+        setEvents(prev => prev.map(e => e.id === editingEvent.id ? { ...e, ...payload } : e));
+      } else {
+        const [created] = await sbInsertDividendEvent(payload);
+        setEvents(prev => [created, ...(prev || [])]);
+      }
+      setShowEventForm(false);
+      setEditingEvent(null);
+    } catch (e) {
+      setEventFormErr(e.message);
+    } finally {
+      setEventBusy(null);
+    }
+  };
+
+  const deleteEvent = async (ev) => {
+    if (!window.confirm(`Delete this ${ev.dividend_year} dividend event for ${company.name}?\nThis will NOT delete already-generated dividend records.`)) return;
+    setEventBusy(ev.id + "_del");
+    try {
+      await sbDeleteDividendEvent(ev.id);
+      setEvents(prev => prev.filter(e => e.id !== ev.id));
+    } catch (e) {
+      alert("Error: " + e.message);
+    } finally {
+      setEventBusy(null);
+    }
+  };
+
+  const generateEvent = async (ev) => {
+    if (ev.closure_date > todayIso) {
+      alert(`Closure date (${ev.closure_date}) has not passed yet. Cannot generate until then.`);
+      return;
+    }
+    if (!window.confirm(`Generate dividend records for all eligible investors?\nCompany: ${company.name} · Year: ${ev.dividend_year} · DPS: TZS ${ev.dps}`)) return;
+    setEventBusy(ev.id + "_gen");
+    try {
+      const result = await sbGenerateDividendEvent(ev.id);
+      setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, status: "generated" } : e));
+      alert(`Done! ${result.inserted || 0} records created, ${result.skipped || 0} already existed.`);
+    } catch (e) {
+      alert("Error: " + e.message);
+    } finally {
+      setEventBusy(null);
+    }
+  };
+
+  const refreshEvent = async (ev) => {
+    if (!window.confirm(`Refresh pending records for ${company.name} · ${ev.dividend_year}?\nOnly pending (unconfirmed) records will be recalculated.`)) return;
+    setEventBusy(ev.id + "_ref");
+    try {
+      const result = await sbRefreshDividendEvent(ev.id);
+      alert(`Done! ${result.updated || 0} records updated, ${result.inserted || 0} new records added.`);
+    } catch (e) {
+      alert("Error: " + e.message);
+    } finally {
+      setEventBusy(null);
+    }
+  };
+
+  const evFieldStyle = { border: `1.5px solid ${C.gray200}`, borderRadius: 8, height: 36, padding: "0 10px", fontSize: 13, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box", background: C.white };
+
   const switchTab = (t) => { if (t === "update") setPrevTab(tab); setTab(t); };
 
   // ── Shared helpers ───────────────────────────────────────
@@ -521,7 +674,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
         ) : null
       }
       onClose={onClose}
-      maxWidth={440}
+      maxWidth={tab === "dividends" ? 520 : 440}
       footer={
         tab === "update" ? (
           <>
@@ -531,12 +684,33 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
             </Btn>
             <Btn variant="navy" onClick={handleUpdateConfirm} icon={<Icon name="save" size={14} stroke="#ffffff" />}>Update Price</Btn>
           </>
+        ) : tab === "dividends" ? (
+          <>
+            {!showEventForm ? (
+              <>
+                <Btn variant="secondary" onClick={() => { setTab("chart"); }}>Back</Btn>
+                <Btn variant="navy" onClick={openNewEventForm} icon={<Icon name="plus" size={14} stroke="#ffffff" />}>Add Event</Btn>
+              </>
+            ) : (
+              <>
+                <Btn variant="secondary" onClick={cancelEventForm}>Cancel</Btn>
+                <Btn variant="primary" onClick={saveEvent} disabled={eventBusy === "form"}>
+                  {eventBusy === "form" ? "Saving…" : editingEvent ? "Save Changes" : "Add Event"}
+                </Btn>
+              </>
+            )}
+          </>
         ) : (
           <>
             <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
             <Btn variant="primary" onClick={() => switchTab(tab === "chart" ? "history" : "chart")} icon={<Icon name={tab === "chart" ? "clock" : "barChart"} size={14} stroke="#ffffff" />}>
               {tab === "chart" ? "History" : "Chart"}
             </Btn>
+            {isSA && (
+              <Btn variant="navy" onClick={() => { setTab("dividends"); setEvents(null); }} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>
+                Dividends
+              </Btn>
+            )}
             {isMobile && (
               <Btn variant="navy" onClick={() => switchTab("update")} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>
                 {hasCdsPrice ? "Update" : "Set Price"}
@@ -665,6 +839,155 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
             </>
           )}
         </>
+      )}
+
+      {/* ── DIVIDEND EVENTS TAB (SA only) ──────────────────── */}
+      {tab === "dividends" && isSA && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* ── Event form (add / edit) ────────── */}
+          {showEventForm && (
+            <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#f8fafc", border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 2 }}>
+                {editingEvent ? "Edit Dividend Event" : "New Dividend Event"}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Div. Year <span style={{ color: C.red }}>*</span></div>
+                  <input type="number" min="2000" max="2099" value={eventForm.dividendYear}
+                    onChange={e => setEventForm(f => ({ ...f, dividendYear: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>DPS (TZS/Share) <span style={{ color: C.red }}>*</span></div>
+                  <input type="number" min="0" step="0.01" value={eventForm.dps}
+                    onChange={e => setEventForm(f => ({ ...f, dps: e.target.value }))}
+                    placeholder="e.g. 65" style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Tax Rate (%)</div>
+                  <input type="number" min="0" max="100" step="0.1" value={eventForm.taxRate}
+                    onChange={e => setEventForm(f => ({ ...f, taxRate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Closure Date <span style={{ color: C.red }}>*</span></div>
+                  <input type="date" value={eventForm.closureDate}
+                    onChange={e => setEventForm(f => ({ ...f, closureDate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Declaration Date</div>
+                  <input type="date" value={eventForm.declarationDate}
+                    onChange={e => setEventForm(f => ({ ...f, declarationDate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Ex-Dividend Date</div>
+                  <input type="date" value={eventForm.exDate}
+                    onChange={e => setEventForm(f => ({ ...f, exDate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Payment Date</div>
+                <input type="date" value={eventForm.paymentDate}
+                  onChange={e => setEventForm(f => ({ ...f, paymentDate: e.target.value }))}
+                  style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Notes</div>
+                <input type="text" value={eventForm.notes}
+                  onChange={e => setEventForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Optional notes..." style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+              </div>
+              {eventFormErr && <div style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>{eventFormErr}</div>}
+            </div>
+          )}
+
+          {/* ── Events list ───────────────────────── */}
+          {!showEventForm && (
+            <>
+              {eventsLoading ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 100, color: C.gray400, fontSize: 12, gap: 8 }}>
+                  <div style={{ width: 16, height: 16, border: `2px solid ${C.gray200}`, borderTop: `2px solid ${C.navy}`, borderRadius: "50%", animation: "_cpSpin 0.7s linear infinite" }} />
+                  Loading events...
+                </div>
+              ) : eventsError ? (
+                <div style={{ textAlign: "center", padding: 16, color: C.red, fontSize: 13 }}>{eventsError}</div>
+              ) : !events || events.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "28px 16px", color: C.gray400 }}>
+                  <Icon name="dollarSign" size={28} stroke={C.gray300} />
+                  <div style={{ fontWeight: 600, marginTop: 8, fontSize: 13 }}>No dividend events yet</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>Click "Add Event" to announce a dividend</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {events.map(ev => {
+                    const closurePassed = ev.closure_date <= todayIso;
+                    const isBusy = eventBusy && eventBusy.startsWith(ev.id);
+                    const statusColors = {
+                      upcoming:  { color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
+                      generated: { color: "#1D4ED8", bg: "#EFF6FF", border: "#BFDBFE" },
+                      completed: { color: C.green,   bg: C.greenBg,  border: "#BBF7D0" },
+                    };
+                    const sc = statusColors[ev.status] || statusColors.upcoming;
+                    return (
+                      <div key={ev.id} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#f9fafb", border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{ev.dividend_year}</span>
+                            <span style={{ fontWeight: 700, fontSize: 12, color: "#1D4ED8" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
+                            <span style={{ padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}` }}>
+                              {ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button onClick={() => openEditEventForm(ev)} disabled={isBusy}
+                              style={{ padding: "3px 9px", borderRadius: 6, border: `1px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                              Edit
+                            </button>
+                            <button onClick={() => deleteEvent(ev)} disabled={isBusy}
+                              style={{ padding: "3px 9px", borderRadius: 6, border: `1px solid #FECACA`, background: "#FFF5F5", color: C.red, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                              {eventBusy === ev.id + "_del" ? "…" : "Delete"}
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "3px 8px", fontSize: 11, color: C.gray500, marginBottom: 6 }}>
+                          {ev.declaration_date && <span>Declared: {ev.declaration_date}</span>}
+                          {ev.ex_date && <span>Ex-Date: {ev.ex_date}</span>}
+                          <span style={{ fontWeight: 600, color: closurePassed ? C.green : "#D97706" }}>Closure: {ev.closure_date}</span>
+                          {ev.payment_date && <span>Payment: {ev.payment_date}</span>}
+                          <span>Tax: {ev.tax_rate}%</span>
+                        </div>
+                        {ev.notes && <div style={{ fontSize: 11, color: C.gray400, fontStyle: "italic", marginBottom: 6 }}>{ev.notes}</div>}
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {ev.status === "upcoming" && (
+                            <button onClick={() => generateEvent(ev)} disabled={isBusy || !closurePassed}
+                              title={!closurePassed ? `Closure date (${ev.closure_date}) not yet passed` : "Generate dividend records for all eligible investors"}
+                              style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: "none", background: closurePassed ? C.navy : C.gray200, color: closurePassed ? "#ffffff" : C.gray400, fontSize: 11, fontWeight: 700, cursor: closurePassed ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+                              {eventBusy === ev.id + "_gen" ? "Generating…" : closurePassed ? "Generate Records" : `Generate (after ${ev.closure_date})`}
+                            </button>
+                          )}
+                          {(ev.status === "generated" || ev.status === "completed") && (
+                            <button onClick={() => refreshEvent(ev)} disabled={isBusy}
+                              title="Recalculate pending records only (confirmed/paid/rejected are unchanged)"
+                              style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: `1px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                              {eventBusy === ev.id + "_ref" ? "Refreshing…" : "Refresh Pending"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {/* ── UPDATE PRICE TAB (mobile) ──────────────────────── */}
@@ -1208,6 +1531,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
           company={actionSheetCompany}
           cdsNumber={cdsNumber}
           initialTab={actionSheetTab}
+          role={role}
           onConfirmPrice={({ newPrice, datetime, reason }) => {
             // Set updateModal so confirmUpdatePrice can read the company
             setUpdateModal({ open: false, company: actionSheetCompany });

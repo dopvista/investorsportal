@@ -1852,6 +1852,70 @@ export async function sbBulkDeleteDividends(ids) {
   );
 }
 
+// ── Dividend Events (company-level announcements by SA) ───────────
+
+export async function sbGetDividendEvents(companyId) {
+  return _fetchGET(
+    `${BASE}/rest/v1/dividend_events?company_id=eq.${companyId}&order=dividend_year.desc,created_at.desc`,
+    "Failed to fetch dividend events"
+  );
+}
+
+export async function sbGetAllDividendEvents() {
+  return _fetchGET(
+    `${BASE}/rest/v1/dividend_events?order=closure_date.asc`,
+    "Failed to fetch dividend events"
+  );
+}
+
+export async function sbInsertDividendEvent(data) {
+  const uid = getSession()?.user?.id;
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividend_events`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ ...data, created_by: uid }) },
+    "Failed to create dividend event"
+  );
+  _invalidateCache(`${BASE}/rest/v1/dividend_events`);
+  return res.json();
+}
+
+export async function sbUpdateDividendEvent(id, data) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividend_events?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ ...data, updated_at: new Date().toISOString() }) },
+    "Failed to update dividend event"
+  );
+  _invalidateCache(`${BASE}/rest/v1/dividend_events`);
+  return res.json();
+}
+
+export async function sbDeleteDividendEvent(id) {
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividend_events?id=eq.${id}`,
+    { method: "DELETE", headers: headers(token()) },
+    "Failed to delete dividend event"
+  );
+  _invalidateCache(`${BASE}/rest/v1/dividend_events`);
+}
+
+export async function sbGenerateDividendEvent(eventId) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/generate_dividend_event_records`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_event_id: eventId }) },
+    "Failed to generate dividend records"
+  );
+  return res.json();
+}
+
+export async function sbRefreshDividendEvent(eventId) {
+  const res = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/rpc/refresh_dividend_event`,
+    { method: "POST", headers: headers(token()), body: JSON.stringify({ p_event_id: eventId }) },
+    "Failed to refresh dividend records"
+  );
+  return res.json();
+}
+
 // ── Portfolio Snapshots ────────────────────────────────────────────
 
 export async function sbHasTodaySnapshot(cdsNumber) {
