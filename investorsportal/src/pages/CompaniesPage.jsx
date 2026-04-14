@@ -706,11 +706,6 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
             <Btn variant="primary" onClick={() => switchTab(tab === "chart" ? "history" : "chart")} icon={<Icon name={tab === "chart" ? "clock" : "barChart"} size={14} stroke="#ffffff" />}>
               {tab === "chart" ? "History" : "Chart"}
             </Btn>
-            {isSA && (
-              <Btn variant="navy" onClick={() => { setTab("dividends"); setEvents(null); }} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>
-                Dividends
-              </Btn>
-            )}
             {isMobile && (
               <Btn variant="navy" onClick={() => switchTab("update")} icon={<Icon name="dollarSign" size={14} stroke="#ffffff" />}>
                 {hasCdsPrice ? "Update" : "Set Price"}
@@ -1086,10 +1081,11 @@ function PortfolioMobileCard({ company: c, onTap, isBusy }) {
 }
 
 // ── Mobile Manage Card (SA only) ───────────────────────────────────────
-function ManageMobileCard({ company: c, deleting, onEdit, onDelete }) {
+function ManageMobileCard({ company: c, deleting, onEdit, onDelete, onDividends }) {
   const { C } = useTheme();
   const actions = [
     { icon: <Icon name="edit" size={14} stroke={C.text} />, label: "Edit Company", onClick: () => onEdit(c) },
+    { icon: <Icon name="dollarSign" size={14} stroke="#1D4ED8" />, label: "Dividend Events", onClick: () => onDividends(c) },
     { icon: <Icon name="trash" size={14} stroke={C.red} />, label: deleting === c.id ? "Deleting..." : "Delete", danger: true, onClick: () => onDelete(c) },
   ];
   const hasPrice = c.price != null;
@@ -1687,6 +1683,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                             label: "History",
                             onClick: () => openCompanyPopup(c, "history"),
                           },
+                          ...(isSA ? [{
+                            icon: <Icon name="dollarSign" size={14} stroke="#1D4ED8" />,
+                            label: "Dividend Events",
+                            onClick: () => openCompanyPopup(c, "dividends"),
+                          }] : []),
                         ];
 
                         return (
@@ -1781,7 +1782,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   {masterList.map(c => (
                     <ManageMobileCard key={c.id} company={c} deleting={deleting}
                       onEdit={(company) => setFormModal({ open: true, company })}
-                      onDelete={(company) => setDeleteModal({ id: company.id, name: company.name })} />
+                      onDelete={(company) => setDeleteModal({ id: company.id, name: company.name })}
+                      onDividends={(company) => openCompanyPopup(company, "dividends")} />
                   ))}
                 </div>
               ) : (
@@ -1799,6 +1801,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                       {masterList.map((c, i) => {
                         const manageActions = [
                           { icon: <Icon name="edit" size={14} stroke={C.text} />, label: "Edit Company", onClick: () => setFormModal({ open: true, company: c }) },
+                          { icon: <Icon name="dollarSign" size={14} stroke="#1D4ED8" />, label: "Dividend Events", onClick: () => openCompanyPopup(c, "dividends") },
                           { icon: <Icon name="trash" size={14} stroke={C.red} />, label: deleting === c.id ? "Deleting..." : "Delete", danger: true, disabled: deleting === c.id, onClick: () => setDeleteModal({ id: c.id, name: c.name }) },
                         ];
                         return (

@@ -294,7 +294,7 @@ function FormField({ label, required, children, C }) {
 
 const makeInputStyle = (C) => (readOnly) => ({
   border: `1.5px solid ${C.gray200}`,
-  borderRadius: 8, padding: "0 12px", fontSize: 14, height: 40, boxSizing: "border-box",
+  borderRadius: 8, padding: "0 12px", fontSize: 14, height: 40,
   outline: "none", background: readOnly ? C.gray50 : C.white,
   color: C.text, width: "100%", boxSizing: "border-box",
   transition: "border-color 0.2s", fontFamily: "inherit",
