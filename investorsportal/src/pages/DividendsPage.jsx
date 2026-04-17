@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import {
   useTheme,
   fmt, fmtSmart, downloadPNGWithWatermark,
-  Btn, StatCard, SectionCard, Modal, ActionMenu,
+  Btn, StatCard, SectionCard, Modal, ActionMenu, ModalShell,
   DividendFormModal,
 } from "../components/ui";
 import { Icon } from "../lib/icons";
@@ -18,7 +18,10 @@ import {
   sbBulkUpdateDividendStatus,
   sbBulkDeleteDividends,
   sbGetAllDividendEvents,
+  sbUpdateDividendEvent,
   sbRefreshDividendEvent,
+  sbGetPortfolioAsAt,
+  sbGetTransactions,
 } from "../lib/supabase";
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -81,17 +84,17 @@ const statusOptions = [
 ];
 
 const TABLE_HEADERS_WITH_ACTIONS = [
-  { label: "#",           align: "right"  },
-  { label: "Payment Date",align: "left"   },
-  { label: "Div. Year",   align: "center" },
-  { label: "Company",     align: "left"   },
-  { label: "Per Share",   align: "right"  },
-  { label: "Shares",      align: "right"  },
-  { label: "Gross Amount",align: "right"  },
-  { label: "Tax",         align: "right"  },
-  { label: "Net Amount",  align: "right"  },
-  { label: "Status",      align: "left"   },
-  { label: "Actions",     align: "center" },
+  { label: "#",            align: "right",  width: "3%"  },
+  { label: "Company",      align: "left",   width: "12%" },
+  { label: "Div. Year",    align: "center", width: "7%"  },
+  { label: "Payment Date", align: "left",   width: "10%" },
+  { label: "Per Share",    align: "right",  width: "8%"  },
+  { label: "Shares",       align: "right",  width: "9%"  },
+  { label: "Gross Amount", align: "right",  width: "11%" },
+  { label: "Tax",          align: "right",  width: "8%"  },
+  { label: "Net Amount",   align: "right",  width: "11%" },
+  { label: "Status",       align: "left",   width: "14%" },
+  { label: "Actions",      align: "center", width: "7%"  },
 ];
 const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
 
@@ -331,21 +334,23 @@ const MobilePagination = memo(function MobilePagination({ page, totalPages, setP
 });
 
 // ── Row permissions ───────────────────────────────────────────────
-function getDivPermissions({ dividend, isDE, isVR, isSAAD }) {
+function getDivPermissions({ dividend, isDE, isVR, isSAAD, isAD, isSA, todayIso }) {
   const isPending    = dividend.status === "pending";
   const isDeclared   = dividend.status === "declared";
   const isExDate     = dividend.status === "ex_date_passed";
   const isPaid       = dividend.status === "paid";
   const isRejected   = dividend.status === "rejected";
   const isReviewable = isDeclared || isExDate;
+  // Cannot mark as paid before the scheduled payment date.
+  const isPaymentLocked = !!(dividend.payment_date && todayIso && dividend.payment_date > todayIso);
   return {
-    canConfirm:  (isDE || isSAAD) && (isPending || isRejected),
+    canConfirm:  (isSA || isDE || isAD) && (isPending || isRejected),
     canEdit:     (isSAAD && !isPaid) || (isDE && (isPending || isRejected)),
     canDelete:   isDE ? (isPending || isRejected) : (isSAAD && !isPaid),
     canMarkPaid: (isSAAD || isVR) && isReviewable,
     canReject:   (isSAAD || isVR) && isReviewable,
     canUnpay:    isSAAD && isPaid,
-    isPending, isDeclared, isExDate, isPaid, isRejected,
+    isPending, isDeclared, isExDate, isPaid, isRejected, isPaymentLocked,
   };
 }
 
@@ -618,13 +623,13 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
 const DividendMobileCard = memo(function DividendMobileCard({
   dividend, onEdit, onOpenDeleteModal, onOpenMarkAsPaidModal, onUnpay, onOpenRejectModal, onConfirm,
   deletingId, bulkDeletingIds, markingPaidIds, rejectingIds, confirmingIds,
-  isDE, isVR, isSAAD, showActions, onOpenDetail,
+  isDE, isVR, isAD, isSA, isSAAD, showActions, onOpenDetail, todayIso,
 }) {
   const { C, isDark } = useTheme();
   const net = Number(dividend.net_amount || 0) || (Number(dividend.total_amount || 0) - Number(dividend.withholding_tax || 0));
   const dps = Number(dividend.dividend_per_share || 0);
 
-  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD }), [dividend, isDE, isVR, isSAAD]);
+  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD, isAD, isSA, todayIso }), [dividend, isDE, isVR, isSAAD, isAD, isSA, todayIso]);
 
   const isRowDeleting    = deletingId === dividend.id || bulkDeletingIds.has(dividend.id);
   const isRowMarkingPaid = markingPaidIds.has(dividend.id);
@@ -679,6 +684,9 @@ const DividendMobileCard = memo(function DividendMobileCard({
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>TZS {fmt(dps)}/Share</span>
         <DivStatusBadge status={dividend.status} />
+        {!!dividend.event_id && (
+          <span title="Auto-generated from dividend event" style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>Event</span>
+        )}
         {!!(dividend.event_id && dividend.closure_date && new Date().toISOString().split("T")[0] < dividend.closure_date) && (
           <span title={`Locked until closure date: ${dividend.closure_date}`} style={{ fontSize: 13 }}>🔒</span>
         )}
@@ -723,7 +731,7 @@ const DividendRow = memo(function DividendRow({
   dividend, globalIdx, selected, onToggleOne,
   onEdit, onOpenDeleteModal, onOpenMarkAsPaidModal, onUnpay, onOpenRejectModal, onConfirm,
   deletingId, bulkDeletingIds, markingPaidIds, rejectingIds, confirmingIds,
-  isDE, isVR, isSAAD, showCheckbox, showActions, onOpenDetail, todayIso,
+  isDE, isVR, isAD, isSA, isSAAD, showCheckbox, showActions, onOpenDetail, todayIso,
 }) {
   const { C, isDark } = useTheme();
   const gross = Number(dividend.total_amount || 0);
@@ -733,7 +741,7 @@ const DividendRow = memo(function DividendRow({
   const shares = Number(dividend.shares_held || 0);
   const isChecked = selected.has(dividend.id);
 
-  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD }), [dividend, isDE, isVR, isSAAD]);
+  const perms = useMemo(() => getDivPermissions({ dividend, isDE, isVR, isSAAD, isAD, isSA, todayIso }), [dividend, isDE, isVR, isSAAD, isAD, isSA, todayIso]);
 
   const isRowDeleting    = deletingId === dividend.id || bulkDeletingIds.has(dividend.id);
   const isRowMarkingPaid = markingPaidIds.has(dividend.id);
@@ -767,11 +775,11 @@ const DividendRow = memo(function DividendRow({
         </td>
       )}
       <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
-      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(dividend.payment_date)}</td>
-      <td style={{ padding: "7px 10px", textAlign: "center", whiteSpace: "nowrap", fontWeight: 700, color: C.gray500, fontSize: 12 }}>{dividend.dividend_year || "—"}</td>
       <td style={{ padding: "7px 10px" }}>
         <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{dividend.company_name || "Unknown"}</div>
       </td>
+      <td style={{ padding: "7px 10px", textAlign: "center", whiteSpace: "nowrap", fontWeight: 700, color: C.gray500, fontSize: 12 }}>{dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : "—")}</td>
+      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(dividend.payment_date)}</td>
       <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{fmt(dps)}</span>
       </td>
@@ -788,10 +796,22 @@ const DividendRow = memo(function DividendRow({
       <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <DivStatusBadge status={dividend.status} />
+          {!!dividend.event_id && (
+            <span title="Auto-generated from dividend event"
+              style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+              Event
+            </span>
+          )}
           {isLocked && (
             <span title={`Locked until closure date: ${dividend.closure_date}`}
               style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 13, flexShrink: 0 }}>
               🔒
+            </span>
+          )}
+          {perms.isPaymentLocked && (perms.isDeclared || perms.isExDate) && (
+            <span title={`Mark as paid unlocks on ${dividend.payment_date}`}
+              style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 13, flexShrink: 0 }}>
+              ⏰
             </span>
           )}
         </div>
@@ -808,16 +828,99 @@ const DividendRow = memo(function DividendRow({
 // ══════════════════════════════════════════════════════════════════
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
+// ── Stock Timeline Modal ───────────────────────────────────────────────────────────────
+// Year-by-company matrix: shares held at each year-end across all companies
+// the user has ever transacted with.
+function StockTimelineModal({ cdsNumber, earliestTxnYear, onClose }) {
+  const { C, isDark } = useTheme();
+  const [state, setState] = useState({ loading: true, years: [], rows: [] });
+
+  useEffect(() => {
+    if (!cdsNumber) { setState({ loading: false, years: [], rows: [] }); return; }
+    const currentYear = new Date().getFullYear();
+    const startYear = earliestTxnYear || currentYear;
+    const years = [];
+    for (let y = startYear; y <= currentYear; y++) years.push(y);
+
+    let cancelled = false;
+    Promise.all(
+      years.map(y => sbGetPortfolioAsAt(cdsNumber, `${y}-12-31`).then(r => r.holdings || []).catch(() => []))
+    ).then(results => {
+      if (cancelled) return;
+      const companyMap = new Map();
+      results.forEach(yh => yh.forEach(h => {
+        if (Number(h.shares_held || 0) > 0 && !companyMap.has(h.companyId)) {
+          companyMap.set(h.companyId, h.companyName || "Unknown");
+        }
+      }));
+      const rows = [...companyMap.entries()].map(([id, name]) => ({
+        id, name,
+        cells: years.map((_, i) => {
+          const h = results[i].find(x => x.companyId === id);
+          return h ? Number(h.shares_held || 0) : 0;
+        }),
+      })).sort((a, b) => a.name.localeCompare(b.name));
+      setState({ loading: false, years, rows });
+    });
+    return () => { cancelled = true; };
+  }, [cdsNumber, earliestTxnYear]);
+
+  const maxWidth = Math.min(900, 220 + state.years.length * 90);
+
+  return (
+    <ModalShell
+      title="Stock Timeline"
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="barChart" size={14} /> Shares held at each year-end</span>}
+      onClose={onClose}
+      maxWidth={maxWidth}
+      footer={<Btn variant="secondary" onClick={onClose}>Close</Btn>}
+    >
+      {state.loading ? (
+        <div style={{ padding: 20, textAlign: "center", color: C.gray500, fontSize: 13 }}>Loading timeline\u2026</div>
+      ) : state.rows.length === 0 ? (
+        <div style={{ padding: 20, textAlign: "center", color: C.gray500, fontSize: 13 }}>No stock holdings on record.</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: C.gray50, borderBottom: `2px solid ${C.gray200}` }}>
+                <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>Company</th>
+                {state.years.map(y => (
+                  <th key={y} style={{ padding: "8px 10px", textAlign: "right", fontSize: 10, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{y}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {state.rows.map(r => (
+                <tr key={r.id} style={{ borderBottom: `1px solid ${C.gray100}` }}>
+                  <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, whiteSpace: "nowrap" }}>{r.name}</td>
+                  {r.cells.map((shares, i) => (
+                    <td key={i} style={{ padding: "8px 10px", textAlign: "right", color: shares > 0 ? C.text : C.gray300, fontWeight: shares > 0 ? 600 : 400, whiteSpace: "nowrap" }}>
+                      {shares > 0 ? shares.toLocaleString() : "\u2014"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
 export default function DividendsPage({ companies, showToast, role, cdsNumber }) {
   const { C, isDark } = useTheme();
 
   const TOOLBAR_INPUT  = { ...TOOLBAR_BASE, width: "100%", border: `1.5px solid ${C.gray200}`, padding: "0 10px 0 32px", outline: "none", color: C.text, background: C.white };
   const TOOLBAR_SELECT = { ...TOOLBAR_BASE, padding: "0 10px", background: C.white, color: C.text, cursor: "pointer", outline: "none", flexShrink: 0 };
 
+  const isSA   = role === "SA";
+  const isAD   = role === "AD";
   const isDE   = role === "DE";
   const isVR   = role === "VR";
   const isRO   = role === "RO";
-  const isSAAD = role === "SA" || role === "AD";
+  const isSAAD = isSA || isAD;
 
   const isMobile = useIsMobile();
 
@@ -858,9 +961,12 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const [rejectModal, setRejectModal]           = useState(null);
   const [formModal, setFormModal]               = useState({ open: false, dividend: null });
   const [detailModal, setDetailModal]           = useState(null);
+  const [showStockTimeline, setShowStockTimeline] = useState(false);
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false);
 
   // ── Dividend events (company-level announcements) ────────────────
   const [divEvents, setDivEvents]               = useState([]);
+  const [earliestTxnYear, setEarliestTxnYear]  = useState(null);
   const [refreshingEventId, setRefreshingEventId] = useState(null);
   const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -913,9 +1019,29 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   useEffect(() => {
     isMountedRef.current = true;
     Promise.all([loadDividends(), loadCompanies()]);
-    sbGetAllDividendEvents().then(data => {
+    sbGetAllDividendEvents().then(async (data) => {
+      if (!isMountedRef.current) return;
+      const today = new Date().toISOString().split("T")[0];
+      // Auto-complete events whose payment_date has lapsed
+      const toComplete = (data || []).filter(ev => ev.status === "generated" && ev.payment_date && ev.payment_date < today);
+      if (toComplete.length > 0) {
+        await Promise.all(toComplete.map(ev => sbUpdateDividendEvent(ev.id, { status: "completed" }))).catch(() => {});
+        data = (data || []).map(ev => toComplete.some(tc => tc.id === ev.id) ? { ...ev, status: "completed" } : ev);
+      }
       if (isMountedRef.current) setDivEvents(data || []);
     }).catch(() => {});
+    // Preload earliest transaction year so the Dividend Year dropdown can offer
+    // historical years (one year before the first purchase through today).
+    if (cdsNumber) {
+      sbGetTransactions(cdsNumber, { pageSize: 1, sortCol: "date", sortDir: "asc" })
+        .then(r => {
+          const firstDate = r?.rows?.[0]?.date;
+          if (firstDate && isMountedRef.current) {
+            setEarliestTxnYear(new Date(firstDate).getFullYear());
+          }
+        })
+        .catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { isMountedRef.current = false; };
   }, []); // intentionally run once on mount
@@ -975,10 +1101,14 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
-  const myDividends = useMemo(
-    () => (cdsNumber ? dividends.filter(d => d.cds_number === cdsNumber) : dividends),
-    [dividends, cdsNumber]
-  );
+  const myDividends = useMemo(() => {
+    // Filter to this CDS and enrich with company_name from the companies list.
+    // The server-side RPC does not always join company_name, so we fall back to
+    // the local companies map before anything renders "Unknown".
+    const nameById = new Map(effectiveCompanies.map(c => [c.id, c.name]));
+    const list = cdsNumber ? dividends.filter(d => d.cds_number === cdsNumber) : dividends;
+    return list.map(d => ({ ...d, company_name: d.company_name || nameById.get(d.company_id) || null }));
+  }, [dividends, cdsNumber, effectiveCompanies]);
 
   const divById     = useMemo(() => new Map(myDividends.map(d => [d.id, d])), [myDividends]);
   const companyById = useMemo(() => new Map(effectiveCompanies.map(c => [c.id, c])), [effectiveCompanies]);
@@ -1080,8 +1210,12 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       if (!d) continue;
       // canDelete: SA/AD on any non-paid; DE only on pending/rejected
       if ((isSAAD && d.status !== "paid") || (isDE && (d.status === "pending" || d.status === "rejected"))) deletableCorrect.push(id);
-      if (d.status === "declared" || d.status === "ex_date_passed") markablePaid.push(id);
-      if ((isDE || isSAAD) && (d.status === "pending" || d.status === "rejected")) confirmable.push(id);
+      // Mark-as-paid lock: can't mark before payment_date.
+      const paymentLocked = !!(d.payment_date && d.payment_date > todayIso);
+      if ((d.status === "declared" || d.status === "ex_date_passed") && !paymentLocked) markablePaid.push(id);
+      // Confirm: SA, AD or DE — respect closure-date lock
+      const isLocked = !!(d.event_id && d.closure_date && d.closure_date > todayIso);
+      if ((isSA || isDE || isAD) && (d.status === "pending" || d.status === "rejected") && !isLocked) confirmable.push(id);
     }
     const revertable = [];
     for (const id of selected) {
@@ -1096,9 +1230,9 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       if ((isVR || isSAAD) && (d.status === "declared" || d.status === "ex_date_passed")) rejectable.push(id);
     }
     return { deletable: deletableCorrect, markablePaid, revertable, rejectable, confirmable };
-  }, [selected, divById, isSAAD, isDE, isVR]);
+  }, [selected, divById, isSAAD, isDE, isVR, isAD, todayIso]);
 
-  const canBulkConfirm  = (isDE || isSAAD) && selectedBuckets.confirmable.length > 0;
+  const canBulkConfirm  = (isSA || isDE || isAD) && selectedBuckets.confirmable.length > 0;
   const canBulkDelete   = (isDE || isSAAD) && selectedBuckets.deletable.length > 0;
   const canBulkMarkPaid = (isVR || isSAAD) && selectedBuckets.markablePaid.length > 0;
   const canBulkUnpay    = isSAAD && selectedBuckets.revertable.length > 0;
@@ -1107,7 +1241,39 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const openFormModal    = useCallback((dividend = null) => { if (loadingCompanies) return; setFormModal({ open: true, dividend }); }, [loadingCompanies]);
   const openDeleteModal  = useCallback((dividend) => setDeleteModal({ id: dividend.id, company_name: dividend.company_name }), []);
   const openRejectModal      = useCallback((ids) => setRejectModal({ ids }), []);
-  const openMarkAsPaidModal  = useCallback((ids, defaultPaymentDate) => setMarkAsPaidModal({ ids, defaultPaymentDate: defaultPaymentDate || "" }), []);
+  const openMarkAsPaidModal  = useCallback((ids, defaultPaymentDate) => {
+    const lockedRows = ids.map(id => dividends.find(d => d.id === id))
+      .filter(d => d && d.payment_date && d.payment_date > todayIso);
+    if (lockedRows.length > 0) {
+      showToast(`Cannot mark as paid before Payment Date: ${lockedRows[0].payment_date}`, "error");
+      return;
+    }
+    setMarkAsPaidModal({ ids, defaultPaymentDate: defaultPaymentDate || "" });
+  }, [dividends, todayIso, showToast]);
+
+  // Smart-form holdings lookup — returns shares held as of a given date.
+  // Used by the DividendFormModal to compute eligible shares on the record date.
+  const fetchHoldingsAsOf = useCallback(async (asOfDate) => {
+    if (!cdsNumber || !asOfDate) return [];
+    const { holdings } = await sbGetPortfolioAsAt(cdsNumber, asOfDate);
+    return holdings || [];
+  }, [cdsNumber]);
+
+  // Manual-form helper: set of company_ids the user made verified Buy
+  // transactions on during the given calendar year. First gate for the
+  // Manual mode Company dropdown (companies I bought into that year).
+  // The Closure Date filter is the precise second gate.
+  const fetchBuysInYear = useCallback(async (year) => {
+    if (!cdsNumber || !year) return new Set();
+    try {
+      const r = await sbGetTransactions(cdsNumber, {
+        type: "Buy", status: "verified",
+        dateFrom: `${year}-01-01`, dateTo: `${year}-12-31`,
+        pageSize: 1000,
+      });
+      return new Set((r?.rows || []).map(t => t.company_id));
+    } catch { return new Set(); }
+  }, [cdsNumber]);
 
   // ── Handlers ────────────────────────────────────────────────────
   const handleConfirm = useCallback(async (id) => {
@@ -1119,19 +1285,61 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     }
     setConfirmingIds(prev => { const s = new Set(prev); s.add(id); return s; });
     try {
-      await sbUpdateDividendStatus(id, "declared");
-      if (!isMountedRef.current) return;
-      setDividends(p => p.map(d => d.id === id ? { ...d, status: "declared" } : d));
-      showToast("Dividend confirmed as Declared.", "success");
+      // Event-linked records: recalculate shares from record-date holdings before
+      // declaring, so any buys/sells between initial pending save and the record
+      // date get reflected. Manual (off-event) records just flip status.
+      const event = div?.event_id ? divEvents.find(ev => ev.id === div.event_id) : null;
+      if (event && event.closure_date) {
+        const holdings = await fetchHoldingsAsOf(event.closure_date);
+        const row = holdings.find(h => h.companyId === event.company_id);
+        const newShares = row ? Number(row.shares_held || 0) : 0;
+        const dps = Number(event.dps ?? div.dividend_per_share ?? 0);
+        const taxRate = Number(event.tax_rate ?? 5);
+        const newGross = Math.round(newShares * dps);
+        const newTax = Math.round(newGross * taxRate / 100);
+        const newNet = newGross - newTax;
+        const updates = {
+          shares_held: newShares,
+          dividend_per_share: dps,
+          total_amount: newGross,
+          withholding_tax: newTax,
+          net_amount: newNet,
+          status: "declared",
+          paid_by: null, paid_at: null,
+          rejected_by: null, rejected_at: null, rejection_reason: null,
+        };
+        await sbUpdateDividend(id, updates);
+        if (!isMountedRef.current) return;
+        setDividends(p => p.map(d => d.id === id ? { ...d, ...updates } : d));
+        const oldShares = Number(div.shares_held || 0);
+        if (newShares !== oldShares) {
+          showToast(`Confirmed. Shares auto-corrected ${oldShares.toLocaleString()} \u2192 ${newShares.toLocaleString()} (record date).`, "success");
+        } else {
+          showToast("Dividend confirmed as Declared.", "success");
+        }
+      } else {
+        await sbUpdateDividendStatus(id, "declared");
+        if (!isMountedRef.current) return;
+        setDividends(p => p.map(d => d.id === id ? { ...d, status: "declared" } : d));
+        showToast("Dividend confirmed as Declared.", "success");
+      }
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
     } finally {
       if (isMountedRef.current) setConfirmingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
-  }, [showToast, dividends, todayIso]);
+  }, [showToast, dividends, todayIso, divEvents, fetchHoldingsAsOf]);
 
   const doBulkConfirm = useCallback(async () => {
+    const lockedInSelection = [...selected]
+      .map(id => dividends.find(d => d.id === id))
+      .filter(d => d && d.closure_date && d.closure_date > todayIso);
+    if (lockedInSelection.length > 0) {
+      const sample = lockedInSelection[0];
+      showToast(`Cannot confirm before Closure Date: ${sample.closure_date}`, "error");
+      return;
+    }
     const ids = selectedBuckets.confirmable;
     if (!ids?.length) return;
     setConfirmingIds(new Set(ids));
@@ -1148,7 +1356,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current) setConfirmingIds(new Set());
     }
-  }, [selectedBuckets.confirmable, showToast]);
+  }, [selectedBuckets.confirmable, selected, dividends, todayIso, showToast]);
 
   const handleFormConfirm = useCallback(async (data) => {
     const isEdit = !!formModal.dividend;
@@ -1164,7 +1372,10 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
         if (!isMountedRef.current) return;
         const newRow = rows?.[0];
         if (!newRow) throw new Error("Insert succeeded but returned no data.");
-        setDividends(p => [newRow, ...p]);
+        // Enrich with company_name for immediate display (DB returns raw row; name is joined on fetch).
+        const cname = newRow.company_name || companyById.get(newRow.company_id)?.name || effectiveCompanies.find(c => c.id === newRow.company_id)?.name || null;
+        const enriched = { ...newRow, company_name: cname };
+        setDividends(p => [enriched, ...p]);
         showToast("Dividend recorded!", "success");
       }
       if (isMountedRef.current) setFormModal({ open: false, dividend: null });
@@ -1216,6 +1427,16 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const doMarkAsPaid = useCallback(async (paymentDate) => {
     const ids = markAsPaidModal?.ids;
     if (!ids?.length) return;
+    // Guard: cannot mark as paid before the scheduled payment_date.
+    const earlyIds = ids.filter(id => {
+      const d = dividends.find(x => x.id === id);
+      return d?.payment_date && d.payment_date > todayIso;
+    });
+    if (earlyIds.length > 0) {
+      const sample = dividends.find(x => x.id === earlyIds[0]);
+      showToast(`Cannot mark as paid before Payment Date: ${sample?.payment_date}`, "error");
+      return;
+    }
     setMarkAsPaidModal(null);
     setMarkingPaidIds(new Set(ids));
     try {
@@ -1236,7 +1457,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current) setMarkingPaidIds(new Set());
     }
-  }, [markAsPaidModal, showToast, loadDividends]);
+  }, [markAsPaidModal, showToast, loadDividends, dividends, todayIso]);
 
   const doBulkUnpay = useCallback(async () => {
     const ids = bulkUnpayModal?.ids;
@@ -1301,33 +1522,52 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
 
   // ── Stat cards ──────────────────────────────────────────────────
   const statCards = useMemo(() => {
-    const upcomingSub = stats.upcoming > 0 ? `${stats.upcoming} upcoming` : "None upcoming";
+    // Upcoming card is a live preview of the announced-events popup:
+    // the value is the count of SA-announced events, and the sub text
+    // teases the nearest-closing event so the user knows at a glance
+    // what they’ll see when they tap the card.
+    const nextEvent = (divEvents || [])
+      .filter(ev => ev.closure_date && ev.closure_date >= todayIso)
+      .sort((a, b) => (a.closure_date < b.closure_date ? -1 : 1))[0];
+    const upcomingValue = divEvents.length > 0 ? divEvents.length : stats.upcoming;
+    const upcomingSub = (() => {
+      if (nextEvent) {
+        const days = Math.ceil((new Date(nextEvent.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
+        const whenLabel = days === 0 ? "closes today" : days === 1 ? "closes in 1d" : `closes in ${days}d`;
+        return `${nextEvent.company_name} · ${whenLabel}`;
+      }
+      if (divEvents.length > 0) return `${divEvents.length} event${divEvents.length > 1 ? "s" : ""} · closure passed`;
+      if (stats.upcoming > 0) return `${stats.upcoming} upcoming dividend${stats.upcoming > 1 ? "s" : ""}`;
+      return "None upcoming";
+    })();
+    const eventsSub = upcomingSub;
+    const hasExpandable = stats.upcoming > 0 || divEvents.length > 0;
     if (isSAAD) return [
       { label: "Total Dividends", value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.paid} paid`,      icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
       { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
+      { label: "Upcoming",        value: upcomingValue,                           sub: eventsSub,                                                   icon: <Icon name="clock" size={17} />,      color: C.gold, onClick: hasExpandable ? () => setUpcomingExpanded(v => !v) : undefined },
     ];
     if (isDE) return [
       { label: "My Dividends",    value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.exDatePassed} ex-date`, icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
       { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
+      { label: "Upcoming",        value: upcomingValue,                           sub: eventsSub,                                                   icon: <Icon name="clock" size={17} />,      color: C.gold, onClick: hasExpandable ? () => setUpcomingExpanded(v => !v) : undefined },
     ];
     if (isVR || isRO) return [
       { label: "Total Records",   value: stats.total,                            sub: `${stats.paid} paid`,                                        icon: <Icon name="clipboard" size={17} />,  color: C.navy  },
       { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
+      { label: "Upcoming",        value: upcomingValue,                           sub: eventsSub,                                                   icon: <Icon name="clock" size={17} />,      color: C.gold, onClick: hasExpandable ? () => setUpcomingExpanded(v => !v) : undefined },
     ];
     // fallback (same as SA/AD)
     return [
       { label: "Total Dividends", value: stats.total,                            sub: `${stats.declared} declared \u00B7 ${stats.paid} paid`,      icon: <Icon name="dollarSign" size={17} />, color: C.navy  },
       { label: "YTD Net Income",  value: `TZS ${fmtSmart(stats.ytdNet)}`,        sub: `${new Date().getFullYear()} paid net`,                      icon: <Icon name="download" size={17} />,   color: C.green },
       { label: "Total Tax",       value: `TZS ${fmtSmart(stats.totalTax)}`,      sub: "Withholding tax",                                           icon: <Icon name="upload" size={17} />,     color: C.red   },
-      { label: "Upcoming",        value: stats.upcoming,                          sub: upcomingSub,                                                 icon: <Icon name="clock" size={17} />,      color: C.gold  },
+      { label: "Upcoming",        value: upcomingValue,                           sub: eventsSub,                                                   icon: <Icon name="clock" size={17} />,      color: C.gold, onClick: hasExpandable ? () => setUpcomingExpanded(v => !v) : undefined },
     ];
-  }, [C, stats, isSAAD, isDE, isVR, isRO]);
+  }, [C, stats, isSAAD, isDE, isVR, isRO, divEvents, todayIso]);
 
   const mobileStatCards = useMemo(() => {
     if (!isMobile) return statCards;
@@ -1400,7 +1640,27 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       {markAsPaidModal   && <MarkAsPaidModal ids={markAsPaidModal.ids} defaultPaymentDate={markAsPaidModal.defaultPaymentDate} onConfirm={doMarkAsPaid} onClose={closeMarkAsPaidModal} />}
       {bulkUnpayModal    && <SimpleConfirmModal title="Revert to Declared"   message="These dividends will be reverted to Declared. Paid status and payment details will be cleared."     count={bulkUnpayModal.ids.length}    loading={isAnyMarkingPaid}         onConfirm={doBulkUnpay}    onClose={closeBulkUnpay}    accentColor="#EA580C" icon={<Icon name="undo" size={18} stroke="#EA580C" />}        confirmLabel="Revert to Declared" />}
       {rejectModal       && <RejectModal count={rejectModal.ids.length} onConfirm={handleReject} onClose={closeRejectModal} />}
-      {formModal.open && <DividendFormModal key={formModal.dividend?.id || "new"} dividend={formModal.dividend} companies={formCompanies} onConfirm={handleFormConfirm} onClose={closeForm} />}
+      {showStockTimeline && (
+        <StockTimelineModal
+          cdsNumber={cdsNumber}
+          earliestTxnYear={earliestTxnYear}
+          onClose={() => setShowStockTimeline(false)}
+        />
+      )}
+      {formModal.open && (
+        <DividendFormModal
+          key={formModal.dividend?.id || "new"}
+          dividend={formModal.dividend}
+          companies={formCompanies}
+          cdsNumber={cdsNumber}
+          dividendEvents={divEvents}
+          existingDividends={myDividends}
+          onFetchHoldingsAsOf={fetchHoldingsAsOf}
+          earliestTxnYear={earliestTxnYear}
+          onConfirm={handleFormConfirm}
+          onClose={closeForm}
+        />
+      )}
       {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} allDividends={myDividends} onClose={closeDetail} />}
 
       {/* ── Transform wrapper ── */}
@@ -1411,47 +1671,48 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
           {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* ── Upcoming alert strip ── */}
-        {(stats.upcoming > 0 || divEvents.length > 0) && (
-          <div style={{
-            marginBottom: isMobile ? 10 : 8, borderRadius: 10, flexShrink: 0,
-            background: isDark ? "#92400E18" : "#FFFBEB",
-            border: `1px solid ${isDark ? "#92400E55" : "#FDE68A"}`,
-            overflow: "hidden",
-          }}>
-            {/* Header row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "8px 12px" : "8px 14px", borderBottom: divEvents.length > 0 ? `1px solid ${isDark ? "#92400E44" : "#FDE68A"}` : "none" }}>
-              <Icon name="clock" size={15} stroke={isDark ? "#FBBF24" : "#B45309"} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? "#FBBF24" : "#92400E", flex: 1 }}>
-                {stats.upcoming > 0
-                  ? `${stats.upcoming} upcoming dividend${stats.upcoming > 1 ? "s" : ""} — ${stats.declared > 0 ? `${stats.declared} declared` : ""}${stats.declared > 0 && stats.exDatePassed > 0 ? ", " : ""}${stats.exDatePassed > 0 ? `${stats.exDatePassed} ex-date passed` : ""}`
-                  : `${divEvents.length} announced dividend event${divEvents.length > 1 ? "s" : ""}`}
-              </span>
-            </div>
-            {/* Dividend events list */}
-            {divEvents.length > 0 && (
-              <div style={{ padding: isMobile ? "8px 12px" : "8px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* ── Upcoming / announced events (expandable, toggled from Upcoming StatCard) ── */}
+        {upcomingExpanded && (stats.upcoming > 0 || divEvents.length > 0) && (
+          <ModalShell
+            title="Announced Dividend Events"
+            subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="clock" size={13} /> {
+              stats.upcoming > 0
+                ? `${stats.upcoming} upcoming dividend${stats.upcoming > 1 ? "s" : ""}`
+                : `${divEvents.length} announced event${divEvents.length > 1 ? "s" : ""}`
+            }</span>}
+            onClose={() => setUpcomingExpanded(false)}
+            maxWidth={520}
+            footer={<Btn variant="secondary" onClick={() => setUpcomingExpanded(false)}>Close</Btn>}
+          >
+            {divEvents.length === 0 ? (
+              <div style={{ padding: "16px 4px", textAlign: "center", color: C.gray500, fontSize: 13 }}>No announced events.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {divEvents.map(ev => {
                   const closurePassed = ev.closure_date <= todayIso;
                   const daysToClose = Math.ceil((new Date(ev.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
                   return (
-                    <div key={ev.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                        <span style={{ fontWeight: 700, fontSize: 12, color: isDark ? "#FCD34D" : "#92400E" }}>{ev.company_name}</span>
-                        <span style={{ fontSize: 11, color: isDark ? "#FCD34D" : "#B45309" }}>FY{ev.dividend_year}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "#4ADE80" : "#15803D" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
+                    <div key={ev.id} style={{
+                      background: isDark ? "#92400E18" : "#FFFBEB",
+                      border: `1px solid ${isDark ? "#92400E55" : "#FDE68A"}`,
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                        <span style={{ fontWeight: 800, fontSize: 14, color: isDark ? "#FCD34D" : "#92400E" }}>{ev.company_name}</span>
+                        <span style={{ fontSize: 11, color: isDark ? "#FCD34D" : "#B45309", fontWeight: 600 }}>FY{ev.dividend_year}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? "#4ADE80" : "#15803D" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
                         <span style={{
-                          fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10,
+                          fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
                           background: ev.status === "generated" ? (isDark ? "#1D4ED828" : "#EFF6FF") : (isDark ? "#92400E44" : "#FEF3C7"),
                           color: ev.status === "generated" ? "#1D4ED8" : "#92400E",
                           border: `1px solid ${ev.status === "generated" ? "#BFDBFE" : "#FDE68A"}`,
-                        }}>
-                          {ev.status === "generated" ? "Generated" : "Upcoming"}
-                        </span>
+                        }}>{ev.status === "generated" ? "Generated" : "Upcoming"}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: closurePassed ? (isDark ? "#4ADE80" : "#15803D") : (isDark ? "#FBBF24" : "#B45309") }}>
-                          {closurePassed ? `Closure passed` : daysToClose === 0 ? "Closure today" : `Closure in ${daysToClose}d`}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: closurePassed ? (isDark ? "#4ADE80" : "#15803D") : (isDark ? "#FBBF24" : "#B45309") }}>
+                          {closurePassed ? "Closure passed" : daysToClose === 0 ? "Closure today" : `Closure in ${daysToClose}d`}
                         </span>
                         {(role === "SA" || role === "AD") && ev.status === "generated" && (
                           <button
@@ -1465,7 +1726,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                               finally { setRefreshingEventId(null); }
                             }}
                             disabled={refreshingEventId === ev.id}
-                            style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${isDark ? "#92400E88" : "#FDE68A"}`, background: "transparent", color: isDark ? "#FBBF24" : "#B45309", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            style={{ padding: "3px 10px", borderRadius: 6, border: `1px solid ${isDark ? "#92400E88" : "#FDE68A"}`, background: "transparent", color: isDark ? "#FBBF24" : "#B45309", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                             {refreshingEventId === ev.id ? "…" : "Refresh"}
                           </button>
                         )}
@@ -1475,9 +1736,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                 })}
               </div>
             )}
-          </div>
+          </ModalShell>
         )}
-
         {/* ── Mobile toolbar ── */}
         {isMobile && (
           <div style={{ marginBottom: 10, flexShrink: 0 }}>
@@ -1538,6 +1798,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
               ) : (
                 <>
                   <Btn variant="secondary" icon={<Icon name="refresh" size={14} />} onClick={loadDividends}>Refresh</Btn>
+                  <Btn variant="secondary" icon={<Icon name="barChart" size={14} />} onClick={() => setShowStockTimeline(true)}>Stock Timeline</Btn>
                   {(search || statusFilter !== defaultStatus) && <Btn variant="secondary" onClick={resetFilters}>Reset</Btn>}
                   {(isDE || isSAAD) && <Btn variant="navy" icon={<Icon name="plus" size={14} stroke="#ffffff" />} onClick={() => openFormModal(null)} disabled={loadingCompanies} style={{ boxShadow: "0 4px 16px rgba(11,31,58,0.45)" }}>Record Dividend</Btn>}
                 </>
@@ -1581,7 +1842,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                     <DividendMobileCard key={dividend.id} dividend={dividend}
                       onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onOpenMarkAsPaidModal={openMarkAsPaidModal} onUnpay={handleUnpay} onOpenRejectModal={openRejectModal} onConfirm={handleConfirm}
                       deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds} rejectingIds={rejectingIds} confirmingIds={confirmingIds}
-                      isDE={isDE} isVR={isVR} isSAAD={isSAAD} showActions={showActions} onOpenDetail={setDetailModal}
+                      isDE={isDE} isVR={isVR} isAD={isAD} isSA={isSA} isSAAD={isSAAD} showActions={showActions} onOpenDetail={setDetailModal} todayIso={todayIso}
                     />
                   ))}
                 </div>
@@ -1591,21 +1852,10 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
               <>
                 <div className="div-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
-                    {showActions ? (
-                      <colgroup>
-                        <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 96 }} />
-                        <col style={{ width: 140 }} /><col style={{ width: 88 }} /><col style={{ width: 72 }} />
-                        <col style={{ width: 100 }} /><col style={{ width: 80 }} /><col style={{ width: 110 }} />
-                        <col style={{ width: 96 }} /><col style={{ width: 80 }} />
-                      </colgroup>
-                    ) : (
-                      <colgroup>
-                        <col style={{ width: 30 }} /><col style={{ width: 32 }} /><col style={{ width: 96 }} />
-                        <col style={{ width: 140 }} /><col style={{ width: 88 }} /><col style={{ width: 72 }} />
-                        <col style={{ width: 100 }} /><col style={{ width: 80 }} /><col style={{ width: 110 }} />
-                        <col style={{ width: 96 }} />
-                      </colgroup>
-                    )}
+                    <colgroup>
+                      {showCheckbox && <col style={{ width: 36 }} />}
+                      {tableHeaders.map(h => <col key={h.label} style={{ width: h.width }} />)}
+                    </colgroup>
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
@@ -1630,7 +1880,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                           selected={selected} onToggleOne={toggleOne}
                           onEdit={handleEdit} onOpenDeleteModal={openDeleteModal} onOpenMarkAsPaidModal={openMarkAsPaidModal} onUnpay={handleUnpay} onOpenRejectModal={openRejectModal} onConfirm={handleConfirm}
                           deletingId={deletingId} bulkDeletingIds={bulkDeletingIds} markingPaidIds={markingPaidIds} rejectingIds={rejectingIds} confirmingIds={confirmingIds}
-                          isDE={isDE} isVR={isVR} isSAAD={isSAAD}
+                          isDE={isDE} isVR={isVR} isAD={isAD} isSA={isSA} isSAAD={isSAAD}
                           showCheckbox={showCheckbox} showActions={showActions} onOpenDetail={setDetailModal}
                           todayIso={todayIso}
                         />

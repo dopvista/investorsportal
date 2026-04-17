@@ -4,7 +4,7 @@ import {
   sbInsert, sbUpdate, sbDelete,
   sbGetPortfolio, sbUpsertCdsPrice, sbGetCdsPriceHistory, sbGetAllCompanies,
   sbCopyMarketPricesToCds, sbGetCompanyPriceHistory,
-  sbGetDividendEvents, sbInsertDividendEvent, sbUpdateDividendEvent,
+  sbGetDividendEvents, sbGetAllDividendEvents, sbInsertDividendEvent, sbUpdateDividendEvent,
   sbDeleteDividendEvent, sbGenerateDividendEvent, sbRefreshDividendEvent,
 } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
@@ -507,6 +507,8 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   const [editingEvent, setEditingEvent] = useState(null);   // null = new event
   const [eventBusy, setEventBusy]       = useState(null);   // eventId or "new"
   const [eventFormErr, setEventFormErr] = useState("");
+  const [confirmDlg, setConfirmDlg]     = useState(null);   // { title, message, onOk, danger? }
+  const [infoDlg, setInfoDlg]           = useState(null);   // { title, message }
 
   const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
   const currentYear = new Date().getFullYear();
@@ -531,7 +533,15 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
     let cancelled = false;
     setEventsLoading(true);
     setEventsError(null);
-    sbGetDividendEvents(company.id).then(data => {
+    sbGetDividendEvents(company.id).then(async (data) => {
+      if (cancelled) return;
+      const today = new Date().toISOString().split("T")[0];
+      // Auto-transition: mark "generated" events as "completed" once payment_date has lapsed
+      const toComplete = (data || []).filter(ev => ev.status === "generated" && ev.payment_date && ev.payment_date < today);
+      if (toComplete.length > 0) {
+        await Promise.all(toComplete.map(ev => sbUpdateDividendEvent(ev.id, { status: "completed" })));
+        data = data.map(ev => toComplete.some(tc => tc.id === ev.id) ? { ...ev, status: "completed" } : ev);
+      }
       if (!cancelled) { setEvents(data || []); setEventsLoading(false); }
     }).catch(e => {
       if (!cancelled) { setEventsError(e.message); setEventsLoading(false); }
@@ -603,48 +613,67 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
     }
   };
 
-  const deleteEvent = async (ev) => {
-    if (!window.confirm(`Delete this ${ev.dividend_year} dividend event for ${company.name}?\nThis will NOT delete already-generated dividend records.`)) return;
-    setEventBusy(ev.id + "_del");
-    try {
-      await sbDeleteDividendEvent(ev.id);
-      setEvents(prev => prev.filter(e => e.id !== ev.id));
-    } catch (e) {
-      alert("Error: " + e.message);
-    } finally {
-      setEventBusy(null);
-    }
+  const deleteEvent = (ev) => {
+    setConfirmDlg({
+      title: "Delete Event",
+      message: `Delete this ${ev.dividend_year} dividend event for ${company.name}?\nThis will NOT delete already-generated dividend records.`,
+      danger: true,
+      onOk: async () => {
+        setConfirmDlg(null);
+        setEventBusy(ev.id + "_del");
+        try {
+          await sbDeleteDividendEvent(ev.id);
+          setEvents(prev => prev.filter(e => e.id !== ev.id));
+        } catch (e) {
+          setInfoDlg({ title: "Error", message: e.message });
+        } finally {
+          setEventBusy(null);
+        }
+      }
+    });
   };
 
-  const generateEvent = async (ev) => {
+  const generateEvent = (ev) => {
     if (ev.closure_date > todayIso) {
-      alert(`Closure date (${ev.closure_date}) has not passed yet. Cannot generate until then.`);
+      setInfoDlg({ title: "Cannot Generate", message: `Closure date (${ev.closure_date}) has not passed yet. Cannot generate until then.` });
       return;
     }
-    if (!window.confirm(`Generate dividend records for all eligible investors?\nCompany: ${company.name} · Year: ${ev.dividend_year} · DPS: TZS ${ev.dps}`)) return;
-    setEventBusy(ev.id + "_gen");
-    try {
-      const result = await sbGenerateDividendEvent(ev.id);
-      setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, status: "generated" } : e));
-      alert(`Done! ${result.inserted || 0} records created, ${result.skipped || 0} already existed.`);
-    } catch (e) {
-      alert("Error: " + e.message);
-    } finally {
-      setEventBusy(null);
-    }
+    setConfirmDlg({
+      title: "Generate Records",
+      message: `Generate dividend records for all eligible investors?\nCompany: ${company.name} · Year: ${ev.dividend_year} · DPS: TZS ${ev.dps}`,
+      onOk: async () => {
+        setConfirmDlg(null);
+        setEventBusy(ev.id + "_gen");
+        try {
+          const result = await sbGenerateDividendEvent(ev.id);
+          setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, status: "generated" } : e));
+          setInfoDlg({ title: "Success", message: `${result.inserted || 0} records created, ${result.skipped || 0} already existed.` });
+        } catch (e) {
+          setInfoDlg({ title: "Error", message: e.message });
+        } finally {
+          setEventBusy(null);
+        }
+      }
+    });
   };
 
-  const refreshEvent = async (ev) => {
-    if (!window.confirm(`Refresh pending records for ${company.name} · ${ev.dividend_year}?\nOnly pending (unconfirmed) records will be recalculated.`)) return;
-    setEventBusy(ev.id + "_ref");
-    try {
-      const result = await sbRefreshDividendEvent(ev.id);
-      alert(`Done! ${result.updated || 0} records updated, ${result.inserted || 0} new records added.`);
-    } catch (e) {
-      alert("Error: " + e.message);
-    } finally {
-      setEventBusy(null);
-    }
+  const refreshEvent = (ev) => {
+    setConfirmDlg({
+      title: "Refresh Pending",
+      message: `Refresh pending records for ${company.name} · ${ev.dividend_year}?\nOnly pending (unconfirmed) records will be recalculated.`,
+      onOk: async () => {
+        setConfirmDlg(null);
+        setEventBusy(ev.id + "_ref");
+        try {
+          const result = await sbRefreshDividendEvent(ev.id);
+          setInfoDlg({ title: "Success", message: `${result.updated || 0} records updated, ${result.inserted || 0} new records added.` });
+        } catch (e) {
+          setInfoDlg({ title: "Error", message: e.message });
+        } finally {
+          setEventBusy(null);
+        }
+      }
+    });
   };
 
   const evFieldStyle = { border: `1.5px solid ${C.gray200}`, borderRadius: 8, height: 36, padding: "0 10px", fontSize: 13, outline: "none", fontFamily: "inherit", color: C.text, width: "100%", boxSizing: "border-box", background: C.white };
@@ -660,6 +689,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
   );
 
   return (
+    <>
     <ModalShell
       title={c.name}
       subtitle={c.remarks ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="building" size={13} /> {c.remarks}</span> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="barChart" size={13} /> Company Details</span>}
@@ -688,7 +718,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
           <>
             {!showEventForm ? (
               <>
-                <Btn variant="secondary" onClick={() => { setTab("chart"); }}>Back</Btn>
+                <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
                 <Btn variant="navy" onClick={openNewEventForm} icon={<Icon name="plus" size={14} stroke="#ffffff" />}>Add Event</Btn>
               </>
             ) : (
@@ -861,20 +891,6 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Tax Rate (%)</div>
-                  <input type="number" min="0" max="100" step="0.1" value={eventForm.taxRate}
-                    onChange={e => setEventForm(f => ({ ...f, taxRate: e.target.value }))}
-                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Closure Date <span style={{ color: C.red }}>*</span></div>
-                  <input type="date" value={eventForm.closureDate}
-                    onChange={e => setEventForm(f => ({ ...f, closureDate: e.target.value }))}
-                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Declaration Date</div>
                   <input type="date" value={eventForm.declarationDate}
                     onChange={e => setEventForm(f => ({ ...f, declarationDate: e.target.value }))}
@@ -887,17 +903,33 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                     style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Payment Date</div>
-                <input type="date" value={eventForm.paymentDate}
-                  onChange={e => setEventForm(f => ({ ...f, paymentDate: e.target.value }))}
-                  style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Closure Date <span style={{ color: C.red }}>*</span></div>
+                  <input type="date" value={eventForm.closureDate}
+                    onChange={e => setEventForm(f => ({ ...f, closureDate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Payment Date</div>
+                  <input type="date" value={eventForm.paymentDate}
+                    onChange={e => setEventForm(f => ({ ...f, paymentDate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Notes</div>
-                <input type="text" value={eventForm.notes}
-                  onChange={e => setEventForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Optional notes..." style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+              <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Tax Rate (%)</div>
+                  <input type="number" min="0" max="100" step="0.1" value={eventForm.taxRate}
+                    onChange={e => setEventForm(f => ({ ...f, taxRate: e.target.value }))}
+                    style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Notes</div>
+                  <input type="text" value={eventForm.notes}
+                    onChange={e => setEventForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="Optional notes..." style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
               </div>
               {eventFormErr && <div style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>{eventFormErr}</div>}
             </div>
@@ -957,8 +989,8 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                           <span style={{ fontWeight: 600, color: closurePassed ? C.green : "#D97706" }}>Closure: {ev.closure_date}</span>
                           {ev.payment_date && <span>Payment: {ev.payment_date}</span>}
                           <span>Tax: {ev.tax_rate}%</span>
+                          {ev.notes && <span style={{ color: C.gray400, fontStyle: "italic" }}>{ev.notes}</span>}
                         </div>
-                        {ev.notes && <div style={{ fontSize: 11, color: C.gray400, fontStyle: "italic", marginBottom: 6 }}>{ev.notes}</div>}
                         <div style={{ display: "flex", gap: 6 }}>
                           {ev.status === "upcoming" && (
                             <button onClick={() => generateEvent(ev)} disabled={isBusy || !closurePassed}
@@ -1026,6 +1058,41 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
         </div>
       )}
     </ModalShell>
+
+      {confirmDlg && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setConfirmDlg(null)}>
+          <div style={{ background: C.white, borderRadius: 14, padding: "24px 28px", maxWidth: 400, width: "90%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", fontFamily: "inherit" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 10 }}>{confirmDlg.title}</div>
+            <div style={{ fontSize: 13, color: C.gray500, lineHeight: 1.5, whiteSpace: "pre-line", marginBottom: 20 }}>{confirmDlg.message}</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setConfirmDlg(null)}
+                style={{ padding: "8px 18px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={confirmDlg.onOk}
+                style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: confirmDlg.danger ? "#EF4444" : C.navy, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                {confirmDlg.danger ? "Delete" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {infoDlg && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setInfoDlg(null)}>
+          <div style={{ background: C.white, borderRadius: 14, padding: "24px 28px", maxWidth: 400, width: "90%", boxShadow: "0 12px 40px rgba(0,0,0,0.25)", fontFamily: "inherit" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: infoDlg.title === "Error" ? "#EF4444" : infoDlg.title === "Success" ? C.green : C.text, marginBottom: 10 }}>{infoDlg.title}</div>
+            <div style={{ fontSize: 13, color: C.gray500, lineHeight: 1.5, whiteSpace: "pre-line", marginBottom: 20 }}>{infoDlg.message}</div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setInfoDlg(null)}
+                style={{ padding: "8px 22px", borderRadius: 8, border: "none", background: C.navy, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1124,6 +1191,7 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
 
   const [masterList, setMasterList]       = useState([]);
   const [masterLoading, setMasterLoading] = useState(false);
+  const [lastDivYear, setLastDivYear]     = useState({});   // companyId → latest dividend_year
 
   const [search, setSearch]                 = useState("");
   const [deleting, setDeleting]             = useState(null);
@@ -1251,9 +1319,15 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
     const reqId = ++masterReqRef.current;
     if (!fromPull && isMountedRef.current) setMasterLoading(true);
     try {
-      const data = await sbGetAllCompanies();
+      const [data, allEvents] = await Promise.all([sbGetAllCompanies(), sbGetAllDividendEvents()]);
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       setMasterList(data);
+      // Build map: companyId → latest dividend_year
+      const map = {};
+      (allEvents || []).forEach(ev => {
+        if (!map[ev.company_id] || ev.dividend_year > map[ev.company_id]) map[ev.company_id] = ev.dividend_year;
+      });
+      setLastDivYear(map);
     } catch (e) {
       if (!isMountedRef.current || reqId !== masterReqRef.current) return;
       showToast("Error loading companies: " + e.message, "error");
@@ -1792,8 +1866,8 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
-                        {["#", "Company Name", "Sector", "Market Price", "Registered", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "8px 14px", textAlign: h === "Actions" || h === "Market Price" ? "right" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
+                        {["#", "Company Name", "Sector", "Market Price", "Last Div.", "Registered", "Actions"].map(h => (
+                          <th key={h} style={{ padding: "8px 14px", textAlign: h === "Actions" || h === "Market Price" ? "right" : h === "Last Div." ? "center" : "left", color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1816,6 +1890,11 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                               {c.price != null
                                 ? <span style={{ background: C.greenBg, color: C.green, padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{fmt(c.price)}</span>
                                 : <span style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A", padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>No price</span>}
+                            </td>
+                            <td style={{ padding: "8px 14px", textAlign: "center", whiteSpace: "nowrap" }}>
+                              {lastDivYear[c.id]
+                                ? <span style={{ background: "#EEF2FF", color: "#4338CA", padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{lastDivYear[c.id]}</span>
+                                : <span style={{ color: C.gray400, fontSize: 11 }}>—</span>}
                             </td>
                             <td style={{ padding: "8px 14px", color: C.gray500, fontSize: 12, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
                             <td style={{ padding: "8px 14px", textAlign: "right" }}><ActionMenu actions={manageActions} /></td>

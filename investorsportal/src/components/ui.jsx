@@ -32,6 +32,11 @@ export const fmt = (n) => {
 
 export const fmtInt = (n) => Number(n || 0).toLocaleString("en-US");
 
+// Dividend events were onboarded to this system starting this year. Anything
+// before is legacy/historical data that the DE records manually — there is no
+// SA-authored event to match against.
+export const SA_EVENT_START_YEAR = 2025;
+
 // ── Comma-formatted input helpers ──
 // Display a raw numeric string with thousand separators (e.g. "100000.00" → "100,000.00")
 export const commaVal = (v) => {
@@ -1399,7 +1404,345 @@ export function ImportTransactionsModal({ companies, brokers = [], onImport, onC
 }
 
 // ── Dividend Form Modal ───────────────────────────────────────────
-export function DividendFormModal({ company, companies, dividend, onConfirm, onClose }) {
+// Dispatcher. In create mode, defaults to the smart (event-driven) flow and
+// falls back to manual entry if smart prerequisites aren't met. Edit mode
+// always uses the manual form.
+export function DividendFormModal({
+  company, companies, dividend,
+  cdsNumber, dividendEvents = [], existingDividends = [], onFetchHoldingsAsOf, onFetchBuysInYear, earliestTxnYear,
+  onConfirm, onClose,
+}) {
+  const isEdit = !!dividend;
+  // Smart flow needs: a CDS, a holdings fetcher, events to pick from, and no
+  // pre-selected company (pre-selecting a company implies the caller already
+  // knows what they want, so don't force the year/event picker on them).
+  const canUseSmart = !isEdit && !company && !!cdsNumber && !!onFetchHoldingsAsOf && (dividendEvents?.length > 0);
+  const [mode, setMode] = useState(canUseSmart ? "smart" : "manual");
+  // When Smart auto-routes a historical year to Manual, carry the picked
+  // year over so the DE doesn't have to re-select it.
+  const [manualInitialYear, setManualInitialYear] = useState(null);
+  const switchToManual = (prefYear) => {
+    setManualInitialYear(prefYear || null);
+    setMode("manual");
+  };
+
+  if (mode === "smart") {
+    return (
+      <SmartDividendForm
+        cdsNumber={cdsNumber}
+        dividendEvents={dividendEvents}
+        existingDividends={existingDividends}
+        onFetchHoldingsAsOf={onFetchHoldingsAsOf}
+        earliestTxnYear={earliestTxnYear}
+        onConfirm={onConfirm}
+        onClose={onClose}
+        onSwitchToManual={switchToManual}
+      />
+    );
+  }
+  return (
+    <ManualDividendForm
+      company={company} companies={companies} dividend={dividend}
+      initialYear={manualInitialYear}
+      onFetchHoldingsAsOf={onFetchHoldingsAsOf}
+      onFetchBuysInYear={onFetchBuysInYear}
+      onConfirm={onConfirm} onClose={onClose}
+      canSwitchToSmart={canUseSmart}
+      onSwitchToSmart={() => { setManualInitialYear(null); setMode("smart"); }}
+    />
+  );
+}
+
+// ── Smart Dividend Form (event-driven, DSE-correct) ────────────────
+// Flow, top to bottom:
+//   1. Pick year   →   pool = dividend_events for that year
+//   2. Pick company → reveal the SA-authored event (dates, DPS, tax rate)
+//   3-5. Declaration / Ex / Closure / Payment dates render read-only from the event
+//   6. Eligible shares computed from the CDS holdings AS OF closure_date
+//      (DSE record-date rule — confirmed with SA during design)
+//   7. DPS is the event.dps (read-only)
+//   8-10. Gross = shares × DPS · WHT = gross × event.tax_rate · Net = gross − WHT
+// Save writes status="declared" and links back via event_id + closure_date.
+function SmartDividendForm({
+  cdsNumber, dividendEvents, existingDividends, onFetchHoldingsAsOf, earliestTxnYear,
+  onConfirm, onClose, onSwitchToManual,
+}) {
+  const { C, isDark } = useTheme();
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const inpS = makeInputStyle(C);
+
+  // Available years = union of (years with events) and (first-purchase-year-1 .. current year).
+  // The historical range lets the DE record off-event dividends for years before the
+  // SA had a chance to announce — late AGMs, legacy corrections, etc.
+  const availableYears = useMemo(() => {
+    const s = new Set((dividendEvents || []).map(e => Number(e.dividend_year)).filter(Boolean));
+    const currentYear = new Date().getFullYear();
+    if (earliestTxnYear) {
+      for (let y = earliestTxnYear - 1; y <= currentYear; y++) s.add(y);
+    } else {
+      s.add(currentYear);
+    }
+    return [...s].sort((a, b) => b - a);
+  }, [dividendEvents, earliestTxnYear]);
+
+  // Dedup index — (company_id, dividend_year) pairs already recorded for this CDS.
+  const existingKeys = useMemo(() => new Set(
+    (existingDividends || []).map(d => `${d.company_id}|${d.dividend_year}`)
+  ), [existingDividends]);
+
+  const [year, setYear] = useState(() => String(availableYears[0] || new Date().getFullYear()));
+  const [eventId, setEventId] = useState("");
+
+  // Years before the SA event-onboarding cutoff are always manual, regardless
+  // of whether the investor had transactions then. Bump SA_EVENT_START_YEAR up
+  // (above) when the system has been in production for a full cycle.
+  useEffect(() => {
+    if (Number(year) < SA_EVENT_START_YEAR) {
+      onSwitchToManual(Number(year));
+    }
+  }, [year, onSwitchToManual]);
+  const [remarks, setRemarks] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Events for the selected year that haven't already been recorded on this CDS.
+  const eligibleEvents = useMemo(() => {
+    const y = Number(year);
+    return (dividendEvents || [])
+      .filter(e => Number(e.dividend_year) === y && !existingKeys.has(`${e.company_id}|${e.dividend_year}`))
+      .sort((a, b) => (a.company_name || "").localeCompare(b.company_name || ""));
+  }, [dividendEvents, year, existingKeys]);
+
+  // Clear the company pick when the year changes — event ids are year-scoped here.
+  useEffect(() => { setEventId(""); }, [year]);
+
+  const event = useMemo(
+    () => (dividendEvents || []).find(e => e.id === eventId) || null,
+    [dividendEvents, eventId]
+  );
+
+  // Fetch holdings as-of closure_date with a small per-date cache so flipping
+  // between companies that share a closure_date doesn't re-hit the server.
+  const [holdingsCache, setHoldingsCache] = useState({});
+  const [loadingHoldings, setLoadingHoldings] = useState(false);
+  const [holdingsErr, setHoldingsErr] = useState("");
+
+  // Before closure, eligibility is a live preview of today's holdings; on or
+  // after closure, we lock to the record-date snapshot. Both queries hit the
+  // same code path — only the as-of date differs.
+  const closurePassed = !!(event?.closure_date && event.closure_date <= todayIso);
+  const asOfForEligibility = event ? (closurePassed ? event.closure_date : todayIso) : null;
+
+  useEffect(() => {
+    if (!asOfForEligibility) return;
+    if (holdingsCache[asOfForEligibility]) return;
+    let cancelled = false;
+    setLoadingHoldings(true);
+    setHoldingsErr("");
+    onFetchHoldingsAsOf(asOfForEligibility)
+      .then(h => { if (!cancelled) setHoldingsCache(prev => ({ ...prev, [asOfForEligibility]: h || [] })); })
+      .catch(e => { if (!cancelled) setHoldingsErr(e?.message || "Failed to compute holdings"); })
+      .finally(() => { if (!cancelled) setLoadingHoldings(false); });
+    return () => { cancelled = true; };
+  }, [asOfForEligibility, onFetchHoldingsAsOf, holdingsCache]);
+
+  const eligibleShares = useMemo(() => {
+    if (!event || !asOfForEligibility) return null;
+    const h = holdingsCache[asOfForEligibility];
+    if (!h) return null; // still loading / unfetched
+    const row = h.find(x => x.companyId === event.company_id);
+    return row ? Number(row.shares_held || 0) : 0;
+  }, [event, asOfForEligibility, holdingsCache]);
+
+  // Financials — computed, never typed by the DE.
+  const dps = Number(event?.dps || 0);
+  const taxRate = Number(event?.tax_rate ?? 5);
+  const gross = (eligibleShares != null && dps > 0) ? Math.round(eligibleShares * dps) : 0;
+  const tax = Math.round(gross * taxRate / 100);
+  const net = gross - tax;
+
+  // Pre-closure: save as pending with today's preview (DE can come back and Confirm
+  // to auto-correct shares against the record-date snapshot).
+  // On/after closure: save directly as declared with the locked record-date count.
+  const canSave = !!(event && (eligibleShares || 0) > 0 && !loadingHoldings && !saving);
+
+  const handleSubmit = async () => {
+    if (!canSave) return;
+    setError("");
+    setSaving(true);
+    try {
+      await onConfirm({
+        company_id: event.company_id,
+        event_id: event.id,
+        declaration_date: event.declaration_date || null,
+        ex_dividend_date: event.ex_date || null,
+        closure_date: event.closure_date,
+        payment_date: event.payment_date || null,
+        dividend_year: Number(event.dividend_year),
+        dividend_per_share: dps,
+        shares_held: eligibleShares,
+        total_amount: gross,
+        withholding_tax: tax,
+        net_amount: net,
+        status: closurePassed ? "declared" : "pending",
+        remarks: remarks || null,
+      });
+    } catch (e) {
+      setError(e?.message || "Failed to save");
+      setSaving(false);
+    }
+  };
+
+  const fmtD = (iso) => iso
+    ? new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "\u2014";
+
+  const kv = (label, value, valueColor) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.gray100}` }}>
+      <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: valueColor || C.text, textAlign: "right" }}>{value}</span>
+    </div>
+  );
+
+  const banner = (tone, icon, text) => {
+    const tones = {
+      info:    { bg: isDark ? "rgba(29,78,216,0.18)" : "#EFF6FF", border: isDark ? "rgba(29,78,216,0.45)" : "#BFDBFE", color: isDark ? "#93C5FD" : "#1D4ED8" },
+      warn:    { bg: isDark ? "rgba(194,65,12,0.20)" : "#FFF7ED", border: isDark ? "rgba(194,65,12,0.50)" : "#FED7AA", color: isDark ? "#FDBA74" : "#C2410C" },
+      error:   { bg: C.redBg, border: `${C.red}55`, color: C.red },
+    };
+    const t = tones[tone];
+    return (
+      <div style={{ background: t.bg, border: `1px solid ${t.border}`, color: t.color, borderRadius: 8, padding: "7px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 8, fontWeight: 600, lineHeight: 1.35 }}>
+        <Icon name={icon} size={13} /> <span>{text}</span>
+      </div>
+    );
+  };
+
+  return (
+    <ModalShell
+      title={event?.company_name || "Record Dividend"}
+      subtitle={
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Icon name="dollarSign" size={14} /> Smart entry &middot; driven by SA event
+        </span>
+      }
+      onClose={onClose}
+      maxWidth={520}
+      footer={<>
+        {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={!canSave} icon={<Icon name="checkCircle" size={15} />}>
+          {saving ? "Recording\u2026" : "Record Dividend"}
+        </Btn>
+      </>}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Step 1-2: Year + Company */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FormField label="Dividend Year" required C={C}>
+            <select value={year} onChange={e => setYear(e.target.value)} style={{ ...inpS(false), cursor: "pointer" }}>
+              {availableYears.length === 0 && <option value="">No events</option>}
+              {availableYears.map(y => <option key={y} value={String(y)}>{y}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Company" required C={C}>
+            <select value={eventId} onChange={e => setEventId(e.target.value)}
+              style={{ ...inpS(false), cursor: eligibleEvents.length ? "pointer" : "not-allowed" }}
+              disabled={eligibleEvents.length === 0}>
+              <option value="">
+                {eligibleEvents.length ? "Select company\u2026" : "None available"}
+              </option>
+              {eligibleEvents.map(e => (
+                <option key={e.id} value={e.id}>{e.company_name || "Unnamed company"}</option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+
+        {availableYears.length === 0 && banner("info", "info",
+          "No dividend events exist yet. Ask the Super Admin to announce one from Companies \u2192 Dividends.")}
+        {availableYears.length > 0 && eligibleEvents.length === 0 && banner("info", "info",
+          `Every ${year} event on your CDS is already recorded. Pick another year, or use manual entry for an off-event dividend.`)}
+
+        {event && (
+          <>
+            {/* Step 3-5 + 7: Event details from SA (read-only) */}
+            <div style={{ background: C.gray50, borderRadius: 8, padding: "6px 12px 8px", border: `1px solid ${C.gray200}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                Dividend Event Details
+              </div>
+              {kv("Declaration Date", fmtD(event.declaration_date))}
+              {kv("Ex-Dividend Date", fmtD(event.ex_date))}
+              {kv(
+                "Closure (Record) Date",
+                <span>
+                  {fmtD(event.closure_date)}
+                  {closurePassed
+                    ? <span style={{ marginLeft: 6, color: C.green, fontSize: 10, fontWeight: 700 }}>{"\u2713"} passed</span>
+                    : <span style={{ marginLeft: 6, color: "#C2410C", fontSize: 10, fontWeight: 700 }}>pending</span>}
+                </span>
+              )}
+              {kv("Payment Date", fmtD(event.payment_date))}
+              {kv("Dividend Per Share", `TZS ${fmt(dps)}`)}
+              {kv("Withholding Tax Rate", `${taxRate}%`)}
+            </div>
+
+
+            {/* Step 6: Eligible shares */}
+            <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Your Eligible Shares
+                </div>
+                <div style={{ fontSize: 10, color: C.gray500 }}>
+                  as of {fmtD(asOfForEligibility)}{closurePassed ? " (record date)" : " (preview)"}
+                </div>
+              </div>
+              <div style={{ flexShrink: 0, textAlign: "right" }}>
+                {loadingHoldings ? (
+                  <span style={{ fontSize: 13, color: C.gray500, fontStyle: "italic" }}>{"Calculating\u2026"}</span>
+                ) : holdingsErr ? (
+                  <span style={{ fontSize: 12, color: C.red }}>{holdingsErr}</span>
+                ) : eligibleShares == null ? (
+                  <span style={{ fontSize: 13, color: C.gray500 }}>{"\u2014"}</span>
+                ) : eligibleShares === 0 ? (
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.red }}>0 &middot; not eligible</span>
+                ) : (
+                  <span style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
+                    {fmt(eligibleShares)} <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>shares</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {eligibleShares === 0 && banner("error", "xCircle",
+              "You did not hold any shares of this company on the record date, so no dividend applies.")}
+
+            {/* Step 8-10: Calculation preview */}
+            {eligibleShares > 0 && (
+              <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "#FFFBEB", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#FDE68A"}`, borderRadius: 8, padding: "6px 12px 8px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  Calculation Preview
+                </div>
+                {kv("Gross Amount", <span>{fmt(eligibleShares)} &times; {fmt(dps)} = <strong>TZS {fmt(gross)}</strong></span>)}
+                {kv(`Withholding Tax (${taxRate}%)`, `\u2212 TZS ${fmt(tax)}`, C.red)}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 5, marginTop: 2, borderTop: `2px solid ${C.gray200}` }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>Net Payable</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
+                </div>
+              </div>
+            )}
+
+            <FInput label="Remarks (optional)" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder={"Optional notes\u2026"} />
+          </>
+        )}
+      </div>
+    </ModalShell>
+  );
+}
+
+// ── Manual Dividend Form (legacy free-form; used for edit + escape hatch) ──
+function ManualDividendForm({ company, companies, dividend, initialYear, onFetchHoldingsAsOf, onFetchBuysInYear, onConfirm, onClose, canSwitchToSmart, onSwitchToSmart }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const isEdit = !!dividend;
@@ -1418,41 +1761,49 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
   }, [companyOpen]);
 
   const resolvedCompany = company || (companies || []).find(c => c.id === selectedCompanyId);
-  const filteredCompanies = useMemo(() => {
-    if (!companies) return [];
-    const q = companySearch.trim().toLowerCase();
-    return q ? companies.filter(c => c.name.toLowerCase().includes(q)) : companies;
-  }, [companies, companySearch]);
+  // Holdings state for manual-mode smart assist (populated below, after form is declared).
+  const [manualHoldings, setManualHoldings] = useState({});
+  const [loadingManualHoldings, setLoadingManualHoldings] = useState(false);
+  // First gate: companies the user bought into during the selected year.
+  // Keyed by year so flipping years re-uses the cache.
+  const [yearBuysCache, setYearBuysCache] = useState({});
+
+  // filteredCompanies is declared below after the form state, so it can read form.closureDate.
 
   const [form, setForm] = useState(() =>
     dividend
       ? {
           declarationDate: dividend.declaration_date || "", exDividendDate: dividend.ex_dividend_date || "",
+          closureDate: dividend.closure_date || "",
           paymentDate: dividend.payment_date || "", dividendPerShare: String(dividend.dividend_per_share || ""),
           sharesHeld: String(dividend.shares_held || ""), totalAmount: String(dividend.total_amount || ""),
-          withholdingTax: String(dividend.withholding_tax || "0"), status: dividend.status || "declared",
+          withholdingTax: String(dividend.withholding_tax || "0"),
+          taxRate: String(dividend.total_amount > 0 ? Math.round((Number(dividend.withholding_tax || 0) / Number(dividend.total_amount)) * 1000) / 10 : 5),
+          status: dividend.status || "declared",
           remarks: dividend.remarks || "",
           dividendYear: String(dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date).getFullYear() : new Date().getFullYear())),
         }
       : {
-          declarationDate: "", exDividendDate: "", paymentDate: "",
+          declarationDate: "", exDividendDate: "", closureDate: "", paymentDate: "",
           dividendPerShare: "", sharesHeld: "", totalAmount: "", withholdingTax: "0",
+          taxRate: "5",
           status: "pending", remarks: "",
-          dividendYear: String(new Date().getFullYear()),
+          dividendYear: String(initialYear || new Date().getFullYear()),
         }
   );
   const [error, setError] = useState("");
 
-  // Auto-calculate total and WHT (5%) when per-share × shares
+  // Auto-calculate total and WHT when per-share, shares, or taxRate change.
   useEffect(() => {
     const dps = Number(form.dividendPerShare) || 0;
     const shares = Number(form.sharesHeld) || 0;
+    const rate = Number(form.taxRate) || 5;
     if (dps > 0 && shares > 0) {
-      const total = String(Math.round(dps * shares));
-      const wht = String(Math.round(Number(total) * 0.05));
-      setForm(f => ({ ...f, totalAmount: total, withholdingTax: wht }));
+      const total = Math.round(dps * shares);
+      const wht = Math.round(total * rate / 100);
+      setForm(f => ({ ...f, totalAmount: String(total), withholdingTax: String(wht) }));
     }
-  }, [form.dividendPerShare, form.sharesHeld]);
+  }, [form.dividendPerShare, form.sharesHeld, form.taxRate]);
 
   // Auto-update dividend year when payment date changes
   useEffect(() => {
@@ -1461,6 +1812,68 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
       setForm(f => ({ ...f, dividendYear: yr }));
     }
   }, [form.paymentDate]);
+
+  // Fetch holdings when the closure date changes; cache per date.
+  useEffect(() => {
+    const cd = form.closureDate;
+    if (!cd || !onFetchHoldingsAsOf) return;
+    if (manualHoldings[cd]) return;
+    let cancelled = false;
+    setLoadingManualHoldings(true);
+    onFetchHoldingsAsOf(cd)
+      .then(h => { if (!cancelled) setManualHoldings(prev => ({ ...prev, [cd]: h || [] })); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingManualHoldings(false); });
+    return () => { cancelled = true; };
+  }, [form.closureDate, onFetchHoldingsAsOf, manualHoldings]);
+
+  // Auto-fill Shares Held from the holdings snapshot once company + closure date are set.
+  useEffect(() => {
+    const cd = form.closureDate;
+    if (!cd || !selectedCompanyId) return;
+    const h = manualHoldings[cd];
+    if (!h) return;
+    const row = h.find(x => x.companyId === selectedCompanyId);
+    const shares = row ? Number(row.shares_held || 0) : 0;
+    setForm(f => ({ ...f, sharesHeld: String(shares) }));
+  }, [form.closureDate, selectedCompanyId, manualHoldings]);
+
+  // First gate: fetch the set of companies the user bought into during the year.
+  useEffect(() => {
+    const y = Number(form.dividendYear);
+    if (!y || y < 2000 || !onFetchBuysInYear) return;
+    if (yearBuysCache[y]) return;
+    let cancelled = false;
+    onFetchBuysInYear(y)
+      .then(set => { if (!cancelled) setYearBuysCache(prev => ({ ...prev, [y]: set || new Set() })); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [form.dividendYear, onFetchBuysInYear, yearBuysCache]);
+
+  // Dropdown narrows by holdings when a closure date is set.
+  const filteredCompanies = useMemo(() => {
+    if (!companies) return [];
+    const q = companySearch.trim().toLowerCase();
+    let list = companies;
+    // Gate 1 (year): filter to companies the user made Buy transactions on
+    // during the selected dividend year. Keeps the dropdown relevant before
+    // a closure date is entered.
+    const y = Number(form.dividendYear);
+    if (y && yearBuysCache[y]) {
+      const ids = yearBuysCache[y];
+      list = list.filter(c => ids.has(c.id));
+    }
+    // Gate 2 (closure date): when set, narrow further to companies where
+    // shares are actually held on the record date (precise eligibility).
+    const cd = form.closureDate;
+    if (cd && manualHoldings[cd]) {
+      const eligibleIds = new Set(
+        manualHoldings[cd].filter(x => Number(x.shares_held || 0) > 0).map(x => x.companyId)
+      );
+      list = list.filter(c => eligibleIds.has(c.id));
+    }
+    return q ? list.filter(c => c.name.toLowerCase().includes(q)) : list;
+  }, [companies, companySearch, form.dividendYear, form.closureDate, yearBuysCache, manualHoldings]);
 
   const netAmount = useMemo(() => {
     return String(Math.round((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)));
@@ -1474,7 +1887,8 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
     if (!form.totalAmount || Number(form.totalAmount) <= 0) return setError("Total amount is required");
     onConfirm({
       company_id: cid, declaration_date: form.declarationDate || null,
-      ex_dividend_date: form.exDividendDate || null, payment_date: form.paymentDate || null,
+      ex_dividend_date: form.exDividendDate || null, closure_date: form.closureDate || null,
+      payment_date: form.paymentDate || null,
       dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
       total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
       net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
@@ -1488,84 +1902,116 @@ export function DividendFormModal({ company, companies, dividend, onConfirm, onC
     <><style>{`.ui-dd-scroll::-webkit-scrollbar-thumb{background:${isDark ? C.gray200 : "#cbd5e1"}}`}</style>
     <ModalShell
       title={resolvedCompany?.name || (isEdit ? "Edit Dividend" : "Record Dividend")}
-      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Record dividend income"}</span>}
-      onClose={onClose} maxWidth={480}
+      subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Manual entry · no SA event"}</span>}
+      onClose={onClose} maxWidth={520}
       footer={<>
         {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {/* Row 1: Company + Shares Held */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {needsCompanySelect ? (
-          <div ref={companyRef} style={{ position: "relative", minWidth: 0 }}>
-            <FormField label="Company" required C={C}>
-              <button type="button" onClick={() => setCompanyOpen(v => !v)}
-                style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (companies?.length ? "Select company..." : "No companies available")}</span>
-                <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
-              </button>
-            </FormField>
-            {companyOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
-                  <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
-                </div>
-                <div className="ui-dd-scroll" style={{ overflowY: "auto", maxHeight: 150, scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
-                  {filteredCompanies.map(c => (
-                    <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}
-                      onMouseEnter={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"; }}
-                      onMouseLeave={e => { if (c.id !== selectedCompanyId) e.currentTarget.style.background = "transparent"; }}>
-                      {c.name}
-                    </div>
-                  ))}
-                  {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>No companies found</div>}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <FormField label="Company" C={C}>
-            <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "—"}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Step 1: Year + Company */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FormField label="Dividend Year" required C={C}>
+            <input type="number" inputMode="numeric" value={form.dividendYear}
+              onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))}
+              min="2000" max="2099" placeholder={String(new Date().getFullYear())}
+              style={{ ...inpS(false) }} />
           </FormField>
-        )}
-        <FInput label="Shares Held" type="text" inputMode="numeric" value={commaVal(form.sharesHeld)} onChange={e => { setForm(f => ({ ...f, sharesHeld: stripCommas(e.target.value) })); setError(""); }} placeholder="e.g. 500" />
-      </div>
-
-      {/* Row 2: Dividend/Share + Total Amount */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
-        <FInput label="Total Amount (TZS)" required type="text" inputMode="decimal" value={commaVal(form.totalAmount)} onChange={e => { setForm(f => ({ ...f, totalAmount: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
-      </div>
-
-      {/* Row 3: Withholding Tax + Net Amount */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div>
-          <FInput label="Withholding Tax (5%)" type="text" inputMode="decimal" value={commaVal(form.withholdingTax)} onChange={e => { setForm(f => ({ ...f, withholdingTax: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
-          <div style={{ fontSize: 10, color: C.gray400, marginTop: 2, paddingLeft: 2 }}>Auto-filled at 5% (DSE WHT rate)</div>
+          {needsCompanySelect ? (
+            <div ref={companyRef} style={{ position: "relative", minWidth: 0 }}>
+              <FormField label="Company" required C={C}>
+                <button type="button" onClick={() => setCompanyOpen(v => !v)}
+                  style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (filteredCompanies.length ? "Select company..." : "None eligible")}</span>
+                  <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
+                </button>
+              </FormField>
+              {companyOpen && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
+                    <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
+                  </div>
+                  <div className="ui-dd-scroll" style={{ overflowY: "auto", maxHeight: 150, scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
+                    {filteredCompanies.map(c => (
+                      <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}>
+                        {c.name}
+                      </div>
+                    ))}
+                    {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>{form.closureDate ? "No eligible companies on this record date" : "No companies"}</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <FormField label="Company" C={C}>
+              <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "\u2014"}</div>
+            </FormField>
+          )}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Net Amount</label>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 12px", height: 40, background: isDark ? "rgba(255,255,255,0.04)" : "#f0fdf4", borderRadius: 8, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#bbf7d0"}`, boxSizing: "border-box" }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
+
+        {/* Step 2: Dividend Details (editable inputs in a grid) */}
+        <div style={{ background: C.gray50, borderRadius: 8, padding: "8px 12px 10px", border: `1px solid ${C.gray200}` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+            Dividend Details
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
+            <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
+            <FInput label="Closure (Record) Date" required type="date" value={form.closureDate} onChange={e => setForm(f => ({ ...f, closureDate: e.target.value }))} />
+            <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
+            <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
+            <FInput label="WHT Rate (%)" type="text" inputMode="decimal" value={commaVal(form.taxRate)} onChange={e => { setForm(f => ({ ...f, taxRate: stripCommas(e.target.value) })); setError(""); }} placeholder="5" />
           </div>
         </div>
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
-        <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
-      </div>
+        {/* Step 3: Eligible Shares (auto-computed from closure date) */}
+        <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Your Eligible Shares
+            </div>
+            <div style={{ fontSize: 10, color: C.gray500 }}>
+              {form.closureDate ? `as of ${new Date(form.closureDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} (record date)` : "enter closure date to compute"}
+            </div>
+          </div>
+          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+            {loadingManualHoldings ? (
+              <span style={{ fontSize: 12, color: C.gray500, fontStyle: "italic" }}>{"Calculating\u2026"}</span>
+            ) : (
+              <input type="text" inputMode="numeric" value={commaVal(form.sharesHeld)}
+                onChange={e => { setForm(f => ({ ...f, sharesHeld: stripCommas(e.target.value) })); setError(""); }}
+                placeholder="0"
+                style={{ ...inpS(false), width: 120, height: 32, fontSize: 16, fontWeight: 800, textAlign: "right", padding: "0 10px" }} />
+            )}
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>shares</span>
+          </div>
+        </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
-        <FInput label="Dividend Year" type="number" inputMode="numeric" value={form.dividendYear} onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))} placeholder={String(new Date().getFullYear())} min="2000" max="2099" />
-      </div>
+        {/* Step 4: Calculation Preview (auto-computed) */}
+        {Number(form.dividendPerShare) > 0 && Number(form.sharesHeld) > 0 && (
+          <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "#FFFBEB", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#FDE68A"}`, borderRadius: 8, padding: "6px 12px 8px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+              Calculation Preview
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.gray100}` }}>
+              <span style={{ fontSize: 12, color: C.gray500 }}>Gross Amount</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(Number(form.sharesHeld))} &times; {fmt(Number(form.dividendPerShare))} = <strong>TZS {fmt(Number(form.totalAmount))}</strong></span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.gray100}` }}>
+              <span style={{ fontSize: 12, color: C.gray500 }}>Withholding Tax ({form.taxRate || 5}%)</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.red }}>{"\u2212"} TZS {fmt(Number(form.withholdingTax))}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 5, marginTop: 2, borderTop: `2px solid ${C.gray200}` }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>Net Payable</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
+            </div>
+          </div>
+        )}
 
-      <FInput label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder="Optional notes..." />
+        <FInput label="Remarks (optional)" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} placeholder={"Optional notes\u2026"} />
       </div>
     </ModalShell></>
   );
