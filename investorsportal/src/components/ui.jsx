@@ -256,7 +256,7 @@ export function StatCard({ label, value, sub, color, icon, onClick }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 10, color: C.gray500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
-        {sub && <div style={{ fontSize: 10, color: C.gray600, marginTop: 2 }}>{sub}</div>}
+        {sub && <div style={{ fontSize: 10, color: C.gray600, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</div>}
       </div>
     </div>
   );
@@ -1485,9 +1485,9 @@ function SmartDividendForm({
     return [...s].sort((a, b) => b - a);
   }, [dividendEvents, earliestTxnYear]);
 
-  // Dedup index — (company_id, dividend_year) pairs already recorded for this CDS.
+  // Dedup index — (company_id, dividend_year, dividend_type) triples already recorded for this CDS.
   const existingKeys = useMemo(() => new Set(
-    (existingDividends || []).map(d => `${d.company_id}|${d.dividend_year}`)
+    (existingDividends || []).map(d => `${d.company_id}|${d.dividend_year}|${d.dividend_type || "annual"}`)
   ), [existingDividends]);
 
   const [year, setYear] = useState(() => String(availableYears[0] || new Date().getFullYear()));
@@ -1509,7 +1509,7 @@ function SmartDividendForm({
   const eligibleEvents = useMemo(() => {
     const y = Number(year);
     return (dividendEvents || [])
-      .filter(e => Number(e.dividend_year) === y && !existingKeys.has(`${e.company_id}|${e.dividend_year}`))
+      .filter(e => Number(e.dividend_year) === y && !existingKeys.has(`${e.company_id}|${e.dividend_year}|${e.dividend_type || "annual"}`))
       .sort((a, b) => (a.company_name || "").localeCompare(b.company_name || ""));
   }, [dividendEvents, year, existingKeys]);
 
@@ -1652,9 +1652,11 @@ function SmartDividendForm({
               <option value="">
                 {eligibleEvents.length ? "Select company\u2026" : "None available"}
               </option>
-              {eligibleEvents.map(e => (
-                <option key={e.id} value={e.id}>{e.company_name || "Unnamed company"}</option>
-              ))}
+              {eligibleEvents.map(e => {
+                const t = e.dividend_type || "annual";
+                const typeLabel = t === "annual" ? "" : ` (${t.charAt(0).toUpperCase() + t.slice(1)})`;
+                return <option key={e.id} value={e.id}>{(e.company_name || "Unnamed company") + typeLabel}</option>;
+              })}
             </select>
           </FormField>
         </div>
@@ -1671,10 +1673,11 @@ function SmartDividendForm({
               <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
                 Dividend Event Details
               </div>
+              {kv("Type", (() => { const t = event.dividend_type || "annual"; return t.charAt(0).toUpperCase() + t.slice(1); })())}
               {kv("Declaration Date", fmtD(event.declaration_date))}
               {kv("Ex-Dividend Date", fmtD(event.ex_date))}
               {kv(
-                "Closure (Record) Date",
+                "Closure Date",
                 <span>
                   {fmtD(event.closure_date)}
                   {closurePassed
@@ -1782,6 +1785,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
           status: dividend.status || "declared",
           remarks: dividend.remarks || "",
           dividendYear: String(dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date).getFullYear() : new Date().getFullYear())),
+          dividendType: dividend.dividend_type || "annual",
         }
       : {
           declarationDate: "", exDividendDate: "", closureDate: "", paymentDate: "",
@@ -1789,6 +1793,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
           taxRate: "5",
           status: "pending", remarks: "",
           dividendYear: String(initialYear || new Date().getFullYear()),
+          dividendType: "annual",
         }
   );
   const [error, setError] = useState("");
@@ -1893,10 +1898,11 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
       total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
       net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
       dividend_year: Number(form.dividendYear) || new Date().getFullYear(),
+      dividend_type: form.dividendType || "annual",
     });
   };
 
-  const inpS = makeInputStyle(C);
+  const inpS = (readOnly) => ({ ...makeInputStyle(C)(readOnly), height: 36, fontSize: 13 });
 
   return (
     <><style>{`.ui-dd-scroll::-webkit-scrollbar-thumb{background:${isDark ? C.gray200 : "#cbd5e1"}}`}</style>
@@ -1910,65 +1916,76 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Step 1: Year + Company */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Year + Type */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <FormField label="Dividend Year" required C={C}>
             <input type="number" inputMode="numeric" value={form.dividendYear}
               onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))}
               min="2000" max="2099" placeholder={String(new Date().getFullYear())}
               style={{ ...inpS(false) }} />
           </FormField>
-          {needsCompanySelect ? (
-            <div ref={companyRef} style={{ position: "relative", minWidth: 0 }}>
-              <FormField label="Company" required C={C}>
-                <button type="button" onClick={() => setCompanyOpen(v => !v)}
-                  style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (filteredCompanies.length ? "Select company..." : "None eligible")}</span>
-                  <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
-                </button>
-              </FormField>
-              {companyOpen && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
-                    <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
-                  </div>
-                  <div className="ui-dd-scroll" style={{ overflowY: "auto", maxHeight: 150, scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
-                    {filteredCompanies.map(c => (
-                      <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
-                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}>
-                        {c.name}
-                      </div>
-                    ))}
-                    {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>{form.closureDate ? "No eligible companies on this record date" : "No companies"}</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <FormField label="Company" C={C}>
-              <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "\u2014"}</div>
-            </FormField>
-          )}
+          <FormField label="Type" required C={C}>
+            <select value={form.dividendType} onChange={e => setForm(f => ({ ...f, dividendType: e.target.value }))}
+              style={{ ...inpS(false), cursor: "pointer" }}>
+              <option value="annual">Annual</option>
+              <option value="interim">Interim</option>
+              <option value="final">Final</option>
+              <option value="special">Special</option>
+            </select>
+          </FormField>
         </div>
 
-        {/* Step 2: Dividend Details (editable inputs in a grid) */}
-        <div style={{ background: C.gray50, borderRadius: 8, padding: "8px 12px 10px", border: `1px solid ${C.gray200}` }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+        {/* Company full-width */}
+        {needsCompanySelect ? (
+          <div ref={companyRef} style={{ position: "relative" }}>
+            <FormField label="Company" required C={C}>
+              <button type="button" onClick={() => setCompanyOpen(v => !v)}
+                style={{ ...inpS(false), textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", overflow: "hidden", boxSizing: "border-box" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: resolvedCompany?.name ? C.text : C.gray400 }}>{resolvedCompany?.name || (filteredCompanies.length ? "Select company..." : "None eligible")}</span>
+                <Icon name="chevronDown" size={14} stroke={C.gray400} sw={2} />
+              </button>
+            </FormField>
+            {companyOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: 8, borderBottom: `1px solid ${C.gray100}` }}>
+                  <input autoFocus value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search..." style={{ ...inpS(false), padding: "8px 10px", fontSize: 13 }} />
+                </div>
+                <div className="ui-dd-scroll" style={{ overflowY: "auto", maxHeight: 150, scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
+                  {filteredCompanies.map(c => (
+                    <div key={c.id} onClick={() => { setSelectedCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); setError(""); }}
+                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, background: c.id === selectedCompanyId ? (isDark ? "rgba(255,255,255,0.08)" : "#f0fdf4") : "transparent" }}>
+                      {c.name}
+                    </div>
+                  ))}
+                  {filteredCompanies.length === 0 && <div style={{ padding: 12, color: C.gray400, fontSize: 12, textAlign: "center" }}>{form.closureDate ? "No eligible companies on this record date" : "No companies"}</div>}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <FormField label="Company" C={C}>
+            <div style={{ ...inpS(true), display: "flex", alignItems: "center", color: C.gray500 }}>{company?.name || "\u2014"}</div>
+          </FormField>
+        )}
+
+        {/* Dividend Details */}
+        <div style={{ background: C.gray50, borderRadius: 8, padding: "6px 12px 8px", border: `1px solid ${C.gray200}`, overflow: "hidden" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
             Dividend Details
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} />
-            <FInput label="Ex-Dividend Date" type="date" value={form.exDividendDate} onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))} />
-            <FInput label="Closure (Record) Date" required type="date" value={form.closureDate} onChange={e => setForm(f => ({ ...f, closureDate: e.target.value }))} />
-            <FInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))} />
-            <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" />
-            <FInput label="WHT Rate (%)" type="text" inputMode="decimal" value={commaVal(form.taxRate)} onChange={e => { setForm(f => ({ ...f, taxRate: stripCommas(e.target.value) })); setError(""); }} placeholder="5" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, minWidth: 0 }}>
+            <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} style={{ height: 36, fontSize: 13, minWidth: 0 }} />
+            <FInput label="Ex-Dividend Date"  type="date" value={form.exDividendDate}  onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
+            <FInput label="Closure Date" required type="date" value={form.closureDate} onChange={e => setForm(f => ({ ...f, closureDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
+            <FInput label="Payment Date"  type="date" value={form.paymentDate}     onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))}      style={{ height: 36, fontSize: 13, minWidth: 0 }} />
+            <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" style={{ height: 36, fontSize: 13 }} />
+            <FInput label="WHT Rate (%)" type="text" inputMode="decimal" value={commaVal(form.taxRate)} onChange={e => { setForm(f => ({ ...f, taxRate: stripCommas(e.target.value) })); setError(""); }} placeholder="5" style={{ height: 36, fontSize: 13 }} />
           </div>
         </div>
 
-        {/* Step 3: Eligible Shares (auto-computed from closure date) */}
-        <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        {/* Eligible Shares */}
+        <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Your Eligible Shares
@@ -1990,7 +2007,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
           </div>
         </div>
 
-        {/* Step 4: Calculation Preview (auto-computed) */}
+        {/* Calculation Preview */}
         {Number(form.dividendPerShare) > 0 && Number(form.sharesHeld) > 0 && (
           <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "#FFFBEB", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#FDE68A"}`, borderRadius: 8, padding: "6px 12px 8px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>

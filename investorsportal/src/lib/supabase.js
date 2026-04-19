@@ -1114,6 +1114,15 @@ export async function sbGetPortfolio(cdsNumber) {
  * Fetch portfolio holdings as at a specific date.
  * Calculates FIFO cost basis and uses CDS price (fallback: DSE system price).
  */
+export async function sbGetVerifiedTransactions(cdsNumber) {
+  if (!cdsNumber) return [];
+  return _fetchGET(
+    `${BASE}/rest/v1/transactions?cds_number=eq.${encodeURIComponent(cdsNumber)}&status=eq.verified&select=type,qty,date,company_id,created_at&order=date.asc,created_at.asc`,
+    "Failed to fetch transactions",
+    60_000
+  );
+}
+
 export async function sbGetPortfolioAsAt(cdsNumber, asAtDate) {
   if (!cdsNumber) return { holdings: [], cdsName: "" };
 

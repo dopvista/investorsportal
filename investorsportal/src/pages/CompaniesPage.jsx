@@ -515,6 +515,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
 
   const blankEventForm = () => ({
     dividendYear: String(currentYear),
+    dividendType: "annual",
     dps: "",
     taxRate: "5",
     declarationDate: "",
@@ -560,6 +561,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
     setEditingEvent(ev);
     setEventForm({
       dividendYear: String(ev.dividend_year),
+      dividendType: ev.dividend_type || "annual",
       dps: String(ev.dps),
       taxRate: String(ev.tax_rate),
       declarationDate: ev.declaration_date || "",
@@ -588,6 +590,7 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
       company_id: company.id,
       company_name: company.name,
       dividend_year: Number(eventForm.dividendYear),
+      dividend_type: eventForm.dividendType || "annual",
       dps: Number(eventForm.dps),
       tax_rate: Number(eventForm.taxRate) || 5,
       declaration_date: eventForm.declarationDate || null,
@@ -875,12 +878,23 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
               <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 2 }}>
                 {editingEvent ? "Edit Dividend Event" : "New Dividend Event"}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Div. Year <span style={{ color: C.red }}>*</span></div>
                   <input type="number" min="2000" max="2099" value={eventForm.dividendYear}
                     onChange={e => setEventForm(f => ({ ...f, dividendYear: e.target.value }))}
                     style={evFieldStyle} onFocus={e => e.target.style.borderColor = C.green} onBlur={e => e.target.style.borderColor = C.gray200} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>Type <span style={{ color: C.red }}>*</span></div>
+                  <select value={eventForm.dividendType}
+                    onChange={e => setEventForm(f => ({ ...f, dividendType: e.target.value }))}
+                    style={{ ...evFieldStyle, cursor: "pointer" }}>
+                    <option value="annual">Annual</option>
+                    <option value="interim">Interim</option>
+                    <option value="final">Final</option>
+                    <option value="special">Special</option>
+                  </select>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 3 }}>DPS (TZS/Share) <span style={{ color: C.red }}>*</span></div>
@@ -967,6 +981,9 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{ev.dividend_year}</span>
+                            <span style={{ padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, color: "#6D28D9", background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
+                              {(ev.dividend_type || "annual").charAt(0).toUpperCase() + (ev.dividend_type || "annual").slice(1)}
+                            </span>
                             <span style={{ fontWeight: 700, fontSize: 12, color: "#1D4ED8" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
                             <span style={{ padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}` }}>
                               {ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}

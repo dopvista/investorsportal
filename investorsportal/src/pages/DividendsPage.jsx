@@ -22,6 +22,7 @@ import {
   sbRefreshDividendEvent,
   sbGetPortfolioAsAt,
   sbGetTransactions,
+  sbGetVerifiedTransactions,
 } from "../lib/supabase";
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -84,17 +85,18 @@ const statusOptions = [
 ];
 
 const TABLE_HEADERS_WITH_ACTIONS = [
-  { label: "#",            align: "right",  width: "3%"  },
-  { label: "Company",      align: "left",   width: "12%" },
-  { label: "Div. Year",    align: "center", width: "7%"  },
-  { label: "Payment Date", align: "left",   width: "10%" },
-  { label: "Per Share",    align: "right",  width: "8%"  },
-  { label: "Shares",       align: "right",  width: "9%"  },
-  { label: "Gross Amount", align: "right",  width: "11%" },
-  { label: "Tax",          align: "right",  width: "8%"  },
-  { label: "Net Amount",   align: "right",  width: "11%" },
-  { label: "Status",       align: "left",   width: "14%" },
-  { label: "Actions",      align: "center", width: "7%"  },
+  { label: "#",        align: "right",  width: "3%"  },
+  { label: "Company",  align: "left",   width: "10%" },
+  { label: "Year",     align: "center", width: "5%"  },
+  { label: "Type",     align: "center", width: "7%"  },
+  { label: "Pay Date", align: "left",   width: "9%"  },
+  { label: "DPS",      align: "right",  width: "7%"  },
+  { label: "Shares",   align: "right",  width: "7%"  },
+  { label: "Gross",    align: "right",  width: "9%"  },
+  { label: "Tax",      align: "right",  width: "6%"  },
+  { label: "Net",      align: "right",  width: "9%"  },
+  { label: "Status",   align: "left",   width: "21%" },
+  { label: "Actions",  align: "center", width: "7%"  },
 ];
 const TABLE_HEADERS_WITHOUT_ACTIONS = TABLE_HEADERS_WITH_ACTIONS.slice(0, -1);
 
@@ -665,60 +667,62 @@ const DividendMobileCard = memo(function DividendMobileCard({
     );
   })();
 
+  const t = dividend.dividend_type || "annual";
+  const tColors = { interim: "#D97706", final: "#1D4ED8", special: "#7C3AED", annual: C.gray400 };
+  const tBgs    = { interim: "#FFFBEB",  final: "#EFF6FF",  special: "#F5F3FF",  annual: C.gray100 };
+  const tBdrs   = { interim: "#FDE68A",  final: "#BFDBFE",  special: "#DDD6FE",  annual: C.gray200 };
+  const yr = dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : null);
+  const isLocked = !!(dividend.event_id && dividend.closure_date && new Date().toISOString().split("T")[0] < dividend.closure_date);
+
   return (
     <div onClick={() => !isRowBusy && onOpenDetail(dividend.id)}
-      style={{ background: cardBg, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: isRowBusy ? "not-allowed" : "pointer", opacity: isRowBusy ? 0.6 : 1, transition: "box-shadow 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      style={{ background: cardBg, border: `1px solid ${cardBdr}`, borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: isRowBusy ? "not-allowed" : "pointer", opacity: isRowBusy ? 0.6 : 1, transition: "box-shadow 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
 
-      {/* Row 1: Company name + ActionMenu */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dividend.company_name || "Unknown"}</div>
-          {(() => { const yr = dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : null); return yr ? <div style={{ fontSize: 11, fontWeight: 600, color: C.gray400, marginTop: 2 }}>Div. Year: {yr}</div> : null; })()}
+      {/* Row 1: Company · Year · Type | ActionMenu */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minWidth: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{dividend.company_name || "Unknown"}</span>
+          {yr && <span style={{ fontSize: 11, fontWeight: 600, color: C.gray400 }}>{yr}</span>}
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 20, color: tColors[t], background: tBgs[t], border: `1px solid ${tBdrs[t]}` }}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </span>
         </div>
         {showActions && rowActions.length > 0 && (
           <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}><ActionMenu actions={rowActions} /></div>
         )}
       </div>
 
-      {/* Row 2: DPS badge + Status badge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ background: C.greenBg, color: C.green, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}`, padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>TZS {fmt(dps)}/Share</span>
+      {/* Row 2: Status · Event · Lock · Date · Countdown */}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 7 }}>
         <DivStatusBadge status={dividend.status} />
         {!!dividend.event_id && (
-          <span title="Auto-generated from dividend event" style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>Event</span>
+          <span title="Auto-generated from dividend event" style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700 }}>Event</span>
         )}
-        {!!(dividend.event_id && dividend.closure_date && new Date().toISOString().split("T")[0] < dividend.closure_date) && (
-          <span title={`Locked until closure date: ${dividend.closure_date}`} style={{ fontSize: 13 }}>🔒</span>
-        )}
-      </div>
-
-      {/* Row 3: Date + countdown */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: C.gray500 }}>📅 {fmtDate(dividend.payment_date)}</span>
+        {isLocked && <span title={`Locked until closure date: ${dividend.closure_date}`} style={{ fontSize: 12 }}>🔒</span>}
+        <span style={{ fontSize: 11, color: C.gray400, marginLeft: 2 }}>{fmtDate(dividend.payment_date)}</span>
         {countdownPill}
       </div>
 
-      {/* Row 4: Stat box — DPS × Shares → Net Amount */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 9, padding: "8px 12px" }}>
+      {/* Row 3: DPS × Shares → Net */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.gray50, borderRadius: 8, padding: "6px 10px" }}>
         <div>
-          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>DPS × Shares</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmt(dps)} × {shares > 0 ? shares.toLocaleString() : "—"}</div>
+          <div style={{ fontSize: 9, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 1 }}>DPS × Shares</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(dps)} × {shares > 0 ? shares.toLocaleString() : "—"}</div>
         </div>
-        <span style={{ fontSize: 14, color: C.gray400, margin: "0 6px" }}>→</span>
+        <span style={{ fontSize: 12, color: C.gray300 }}>→</span>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>Net Amount</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {fmtSmart(net)}</div>
+          <div style={{ fontSize: 9, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 1 }}>Net Amount</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmtSmart(net)}</div>
         </div>
       </div>
 
-      {/* Rejection reason */}
       {perms.isRejected && dividend.rejection_reason && (
-        <div style={{ marginTop: 8, padding: "6px 10px", background: isDark ? `${C.red}14` : "#FFF5F5", borderRadius: 8, border: `1px solid ${isDark ? `${C.red}33` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 6, padding: "5px 8px", background: isDark ? `${C.red}14` : "#FFF5F5", borderRadius: 7, border: `1px solid ${isDark ? `${C.red}33` : "#FECACA"}`, fontSize: 11, color: C.text, lineHeight: 1.5 }}>
           💬 {dividend.rejection_reason}
         </div>
       )}
       {isRowBusy && (
-        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.gray400 }}>
+        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.gray400 }}>
           <Spinner size={11} color={C.gray400} /> Processing...
         </div>
       )}
@@ -769,55 +773,63 @@ const DividendRow = memo(function DividendRow({
       onMouseEnter={e => { if (!isRowBusy) e.currentTarget.style.background = rowBgHover; }}
       onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}>
       {showCheckbox && (
-        <td style={{ padding: "7px 10px" }} onClick={e => e.stopPropagation()}>
+        <td style={{ padding: "5px 8px" }} onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={isChecked} onChange={() => onToggleOne(dividend.id)} disabled={isRowBusy}
-            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 15, height: 15, accentColor: isDark ? C.green : C.green }} />
+            style={{ cursor: isRowBusy ? "not-allowed" : "pointer", width: 14, height: 14, accentColor: isDark ? C.green : C.green }} />
         </td>
       )}
-      <td style={{ padding: "7px 10px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
-      <td style={{ padding: "7px 10px" }}>
-        <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.35 }}>{dividend.company_name || "Unknown"}</div>
+      <td style={{ padding: "5px 8px", color: C.gray400, fontWeight: 600, textAlign: "right" }}>{globalIdx}</td>
+      <td style={{ padding: "5px 8px" }}>
+        <div style={{ fontWeight: 700, color: C.text, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.3 }}>{dividend.company_name || "Unknown"}</div>
       </td>
-      <td style={{ padding: "7px 10px", textAlign: "center", whiteSpace: "nowrap", fontWeight: 700, color: C.gray500, fontSize: 12 }}>{dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : "—")}</td>
-      <td style={{ padding: "7px 10px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(dividend.payment_date)}</td>
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{fmt(dps)}</span>
+      <td style={{ padding: "5px 8px", textAlign: "center", whiteSpace: "nowrap", fontWeight: 700, color: C.gray500 }}>{dividend.dividend_year || (dividend.payment_date ? new Date(dividend.payment_date + "T00:00:00").getFullYear() : "—")}</td>
+      <td style={{ padding: "5px 8px", textAlign: "center" }}>
+        {(() => {
+          const t = dividend.dividend_type || "annual";
+          const colors = { interim: ["#D97706","#FFFBEB","#FDE68A"], final: ["#1D4ED8","#EFF6FF","#BFDBFE"], special: ["#7C3AED","#F5F3FF","#DDD6FE"], annual: [C.gray500, C.gray100, C.gray200] };
+          const [color, bg, border] = colors[t] || colors.annual;
+          return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 20, whiteSpace: "nowrap", color, background: bg, border: `1px solid ${border}` }}>{t.charAt(0).toUpperCase() + t.slice(1)}</span>;
+        })()}
       </td>
-      <td style={{ padding: "7px 10px", fontWeight: 600, textAlign: "right", color: C.text }}>{shares > 0 ? fmt(shares) : "\u2014"}</td>
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, color: C.text }}>{fmt(gross)}</td>
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "5px 8px", color: C.gray600, whiteSpace: "nowrap" }}>{fmtDate(dividend.payment_date)}</td>
+      <td style={{ padding: "5px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: C.greenBg, color: C.green, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>{fmt(dps)}</span>
+      </td>
+      <td style={{ padding: "5px 8px", fontWeight: 600, textAlign: "right", color: C.text }}>{shares > 0 ? fmt(shares) : "\u2014"}</td>
+      <td style={{ padding: "5px 8px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, color: C.text }}>{fmt(gross)}</td>
+      <td style={{ padding: "5px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
         <span style={{ color: tax > 0 ? C.red : C.gray400, fontWeight: 700 }}>{tax > 0 ? fmt(tax) : "\u2014"}</span>
       </td>
-      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-        <span style={{ background: C.greenBg, color: C.green, padding: "3px 10px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}` }}>
+      <td style={{ padding: "5px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span style={{ background: C.greenBg, color: C.green, padding: "2px 8px", borderRadius: 20, fontWeight: 800, border: `1px solid ${isDark ? `${C.green}55` : "#BBF7D0"}` }}>
           {fmt(net)}
         </span>
       </td>
-      <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <td style={{ padding: "5px 8px", whiteSpace: "nowrap" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "nowrap" }}>
           <DivStatusBadge status={dividend.status} />
           {!!dividend.event_id && (
             <span title="Auto-generated from dividend event"
-              style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "0 10px", height: 24, borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+              style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "0 8px", height: 22, borderRadius: 20, fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
               Event
             </span>
           )}
           {isLocked && (
             <span title={`Locked until closure date: ${dividend.closure_date}`}
-              style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 13, flexShrink: 0 }}>
+              style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 12, flexShrink: 0 }}>
               🔒
             </span>
           )}
           {perms.isPaymentLocked && (perms.isDeclared || perms.isExDate) && (
             <span title={`Mark as paid unlocks on ${dividend.payment_date}`}
-              style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 13, flexShrink: 0 }}>
+              style={{ display: "inline-flex", alignItems: "center", color: "#D97706", fontSize: 12, flexShrink: 0 }}>
               ⏰
             </span>
           )}
         </div>
       </td>
       {showActions && (
-        <td style={{ padding: "7px 12px", textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+        <td style={{ padding: "5px 8px", textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
           {rowActions.length > 0 && <ActionMenu actions={rowActions} />}
         </td>
       )}
@@ -828,44 +840,63 @@ const DividendRow = memo(function DividendRow({
 // ══════════════════════════════════════════════════════════════════
 // ── MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
-// ── Stock Timeline Modal ───────────────────────────────────────────────────────────────
-// Year-by-company matrix: shares held at each year-end across all companies
-// the user has ever transacted with.
-function StockTimelineModal({ cdsNumber, earliestTxnYear, onClose }) {
+// ── Stock Timeline Modal ──────────────────────────────────────────
+// Year-by-company matrix: shares held at each year-end.
+// Fetches all verified transactions ONCE, then computes every year-end
+// snapshot in JS — no repeated DB hits.
+function StockTimelineModal({ cdsNumber, earliestTxnYear, companies, onClose }) {
   const { C, isDark } = useTheme();
-  const [state, setState] = useState({ loading: true, years: [], rows: [] });
+  const [state, setState] = useState({ status: "loading", years: [], rows: [], error: null });
 
   useEffect(() => {
-    if (!cdsNumber) { setState({ loading: false, years: [], rows: [] }); return; }
+    if (!cdsNumber) { setState({ status: "empty", years: [], rows: [], error: null }); return; }
+
     const currentYear = new Date().getFullYear();
-    const startYear = earliestTxnYear || currentYear;
-    const years = [];
+    const startYear   = earliestTxnYear || currentYear;
+    const years       = [];
     for (let y = startYear; y <= currentYear; y++) years.push(y);
 
-    let cancelled = false;
-    Promise.all(
-      years.map(y => sbGetPortfolioAsAt(cdsNumber, `${y}-12-31`).then(r => r.holdings || []).catch(() => []))
-    ).then(results => {
-      if (cancelled) return;
-      const companyMap = new Map();
-      results.forEach(yh => yh.forEach(h => {
-        if (Number(h.shares_held || 0) > 0 && !companyMap.has(h.companyId)) {
-          companyMap.set(h.companyId, h.companyName || "Unknown");
-        }
-      }));
-      const rows = [...companyMap.entries()].map(([id, name]) => ({
-        id, name,
-        cells: years.map((_, i) => {
-          const h = results[i].find(x => x.companyId === id);
-          return h ? Number(h.shares_held || 0) : 0;
-        }),
-      })).sort((a, b) => a.name.localeCompare(b.name));
-      setState({ loading: false, years, rows });
-    });
-    return () => { cancelled = true; };
-  }, [cdsNumber, earliestTxnYear]);
+    setState({ status: "loading", years, rows: [], error: null });
 
-  const maxWidth = Math.min(900, 220 + state.years.length * 90);
+    let cancelled = false;
+    sbGetVerifiedTransactions(cdsNumber)
+      .then(txns => {
+        if (cancelled) return;
+        if (!txns.length) { setState({ status: "empty", years, rows: [], error: null }); return; }
+
+        // Build company name lookup from already-loaded companies list (zero extra API calls)
+        const nameMap = Object.fromEntries((companies || []).map(c => [c.id, c.name]));
+
+        // Compute net share position per company at each year-end in one JS pass
+        const companyIds = [...new Set(txns.map(t => t.company_id))];
+        const rows = companyIds.map(cid => {
+          const compTxns = txns.filter(t => t.company_id === cid);
+          const cells = years.map(year => {
+            const cutoff = `${year}-12-31`;
+            let shares = 0;
+            for (const t of compTxns) {
+              if (t.date > cutoff) break;
+              shares += t.type === "Buy" ? Number(t.qty || 0) : -Number(t.qty || 0);
+            }
+            return Math.max(0, shares);
+          });
+          return { id: cid, name: nameMap[cid] || cid.slice(0, 8), cells };
+        })
+        .filter(r => r.cells.some(c => c > 0))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+        setState({ status: rows.length ? "ok" : "empty", years, rows, error: null });
+      })
+      .catch(err => {
+        if (!cancelled) setState({ status: "error", years, rows: [], error: err?.message || "Failed to load timeline" });
+      });
+
+    return () => { cancelled = true; };
+  }, [cdsNumber, earliestTxnYear, companies]);
+
+  const yearCount = new Date().getFullYear() - (earliestTxnYear || new Date().getFullYear()) + 1;
+  const maxWidth  = Math.min(920, Math.max(480, 200 + yearCount * 90));
+  const thStyle  = { padding: "7px 10px", fontSize: 10, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" };
 
   return (
     <ModalShell
@@ -875,27 +906,29 @@ function StockTimelineModal({ cdsNumber, earliestTxnYear, onClose }) {
       maxWidth={maxWidth}
       footer={<Btn variant="secondary" onClick={onClose}>Close</Btn>}
     >
-      {state.loading ? (
-        <div style={{ padding: 20, textAlign: "center", color: C.gray500, fontSize: 13 }}>Loading timeline\u2026</div>
-      ) : state.rows.length === 0 ? (
+      {state.status === "loading" ? (
+        <div style={{ padding: 40, textAlign: "center", color: C.gray500, fontSize: 13, minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center" }}>Loading timeline\u2026</div>
+      ) : state.status === "error" ? (
+        <div style={{ padding: 20, textAlign: "center", color: C.red, fontSize: 13, fontWeight: 600 }}>
+          {state.error || "Failed to load timeline. Please try again."}
+        </div>
+      ) : state.status === "empty" ? (
         <div style={{ padding: 20, textAlign: "center", color: C.gray500, fontSize: 13 }}>No stock holdings on record.</div>
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "auto" }}>
             <thead>
-              <tr style={{ background: C.gray50, borderBottom: `2px solid ${C.gray200}` }}>
-                <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>Company</th>
-                {state.years.map(y => (
-                  <th key={y} style={{ padding: "8px 10px", textAlign: "right", fontSize: 10, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{y}</th>
-                ))}
+              <tr style={{ background: isDark ? C.gray50 : "#F0F4F8", borderBottom: `2px solid ${C.gray200}` }}>
+                <th style={{ ...thStyle, textAlign: "left", position: "sticky", left: 0, background: isDark ? C.gray50 : "#F0F4F8", zIndex: 1 }}>Company</th>
+                {state.years.map(y => <th key={y} style={{ ...thStyle, textAlign: "right" }}>{y}</th>)}
               </tr>
             </thead>
             <tbody>
-              {state.rows.map(r => (
-                <tr key={r.id} style={{ borderBottom: `1px solid ${C.gray100}` }}>
-                  <td style={{ padding: "8px 10px", fontWeight: 700, color: C.text, whiteSpace: "nowrap" }}>{r.name}</td>
+              {state.rows.map((r, ri) => (
+                <tr key={r.id} style={{ borderBottom: `1px solid ${C.gray100}`, background: ri % 2 === 0 ? "transparent" : (isDark ? "rgba(255,255,255,0.02)" : "#FAFBFC") }}>
+                  <td style={{ padding: "7px 10px", fontWeight: 700, color: C.text, whiteSpace: "nowrap", position: "sticky", left: 0, background: ri % 2 === 0 ? (isDark ? C.white : C.white) : (isDark ? "#1a1f2e" : "#FAFBFC"), zIndex: 1 }}>{r.name}</td>
                   {r.cells.map((shares, i) => (
-                    <td key={i} style={{ padding: "8px 10px", textAlign: "right", color: shares > 0 ? C.text : C.gray300, fontWeight: shares > 0 ? 600 : 400, whiteSpace: "nowrap" }}>
+                    <td key={i} style={{ padding: "7px 10px", textAlign: "right", color: shares > 0 ? C.text : C.gray300, fontWeight: shares > 0 ? 600 : 400, whiteSpace: "nowrap" }}>
                       {shares > 0 ? shares.toLocaleString() : "\u2014"}
                     </td>
                   ))}
@@ -1533,7 +1566,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     const upcomingSub = (() => {
       if (nextEvent) {
         const days = Math.ceil((new Date(nextEvent.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
-        const whenLabel = days === 0 ? "closes today" : days === 1 ? "closes in 1d" : `closes in ${days}d`;
+        const whenLabel = days === 0 ? "today" : days === 1 ? "1d left" : `${days}d left`;
         return `${nextEvent.company_name} · ${whenLabel}`;
       }
       if (divEvents.length > 0) return `${divEvents.length} event${divEvents.length > 1 ? "s" : ""} · closure passed`;
@@ -1644,6 +1677,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
         <StockTimelineModal
           cdsNumber={cdsNumber}
           earliestTxnYear={earliestTxnYear}
+          companies={effectiveCompanies}
           onClose={() => setShowStockTimeline(false)}
         />
       )}
@@ -1663,6 +1697,158 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       )}
       {detailDividend && <DividendDetailModal dividend={detailDividend} companies={effectiveCompanies} allDividends={myDividends} onClose={closeDetail} />}
 
+      {/* ── Announced dividend events modal (must live outside the transform wrapper so position:fixed works on mobile) ── */}
+      {upcomingExpanded && (stats.upcoming > 0 || divEvents.length > 0) && (
+        <ModalShell
+          title="Announced Dividend Events"
+          subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="clock" size={13} /> {
+            stats.upcoming > 0
+              ? `${stats.upcoming} upcoming dividend${stats.upcoming > 1 ? "s" : ""}`
+              : `${divEvents.length} announced event${divEvents.length > 1 ? "s" : ""}`
+          }</span>}
+          onClose={() => setUpcomingExpanded(false)}
+          maxWidth={640}
+          footer={<Btn variant="secondary" onClick={() => setUpcomingExpanded(false)}>Close</Btn>}
+        >
+          {divEvents.length === 0 ? (
+            <div style={{ padding: "16px 4px", textAlign: "center", color: C.gray500, fontSize: 13 }}>No announced events.</div>
+          ) : isMobile ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {divEvents.map((ev, i) => {
+                const closurePassed = ev.closure_date <= todayIso;
+                const daysToClose = Math.ceil((new Date(ev.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
+                return (
+                  <div key={ev.id} style={{ background: C.gray50, border: `1px solid ${C.gray200}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontWeight: 800, fontSize: 13, color: C.text }}>{ev.company_name}</span>
+                        <span style={{ fontSize: 13, color: C.gray400, fontWeight: 600 }}>{ev.dividend_year}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 20, color: "#6D28D9", background: isDark ? "rgba(109,40,217,0.15)" : "#F5F3FF", border: `1px solid ${isDark ? "rgba(109,40,217,0.3)" : "#DDD6FE"}` }}>
+                          {((ev.dividend_type || "annual").charAt(0).toUpperCase() + (ev.dividend_type || "annual").slice(1))}
+                        </span>
+                      </div>
+                      <span style={{
+                        fontSize: 13, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                        background: ev.status === "generated" ? (isDark ? "rgba(29,78,216,0.2)" : "#EFF6FF") : (isDark ? "rgba(146,64,14,0.3)" : "#FEF3C7"),
+                        color: ev.status === "generated" ? (isDark ? "#93C5FD" : "#1D4ED8") : (isDark ? "#FCD34D" : "#92400E"),
+                        border: `1px solid ${ev.status === "generated" ? (isDark ? "rgba(59,130,246,0.3)" : "#BFDBFE") : (isDark ? "rgba(146,64,14,0.5)" : "#FDE68A")}`,
+                      }}>{ev.status === "generated" ? "Generated" : "Upcoming"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "#4ADE80" : "#15803D" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: closurePassed ? (isDark ? "#4ADE80" : "#15803D") : (isDark ? "#FBBF24" : "#B45309") }}>
+                          {closurePassed ? "Closure passed" : daysToClose === 0 ? "Closure today" : `Closure in ${daysToClose}d`}
+                        </span>
+                      </div>
+                      {(role === "SA" || role === "AD") && ev.status === "generated" && (
+                        <button
+                          onClick={async () => {
+                            setRefreshingEventId(ev.id);
+                            try {
+                              const result = await sbRefreshDividendEvent(ev.id);
+                              showToast(`Refreshed: ${result.updated || 0} updated, ${result.inserted || 0} added`, "success");
+                              await loadDividends();
+                            } catch (e) { showToast("Error: " + e.message, "error"); }
+                            finally { setRefreshingEventId(null); }
+                          }}
+                          disabled={refreshingEventId === ev.id}
+                          style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: C.white, color: C.gray600, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                          {refreshingEventId === ev.id ? "…" : "Refresh"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: (role === "SA" || role === "AD") ? "22%" : "25%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: (role === "SA" || role === "AD") ? "16%" : "18%" }} />
+                  <col style={{ width: (role === "SA" || role === "AD") ? "16%" : "18%" }} />
+                  <col style={{ width: (role === "SA" || role === "AD") ? "14%" : "16%" }} />
+                  {(role === "SA" || role === "AD") && <col style={{ width: "11%" }} />}
+                </colgroup>
+                <thead>
+                  <tr style={{ background: C.gray50 }}>
+                    {["Company", "Year", "Type", "DPS (TZS)", "Status", "Closure", ...(role === "SA" || role === "AD" ? ["Action"] : [])].map(h => (
+                      <th key={h} style={{
+                        padding: "8px 10px",
+                        textAlign: h === "DPS (TZS)" ? "right" : "left",
+                        color: C.gray400, fontWeight: 700, fontSize: 11,
+                        textTransform: "uppercase", letterSpacing: "0.05em",
+                        borderBottom: `1px solid ${C.gray200}`, borderTop: `1px solid ${C.gray200}`,
+                        whiteSpace: "nowrap", background: C.gray50,
+                        overflow: "hidden",
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {divEvents.map((ev, i) => {
+                    const closurePassed = ev.closure_date <= todayIso;
+                    const daysToClose = Math.ceil((new Date(ev.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
+                    const divType = ev.dividend_type || "annual";
+                    return (
+                      <tr key={ev.id} style={{ borderBottom: `1px solid ${C.gray100}` }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.gray50}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <td style={{ padding: "9px 10px", fontWeight: 700, fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.company_name}</td>
+                        <td style={{ padding: "9px 10px", color: C.gray500, fontWeight: 600, fontSize: 13 }}>{ev.dividend_year}</td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 20, whiteSpace: "nowrap",
+                            color: "#6D28D9", background: isDark ? "rgba(109,40,217,0.15)" : "#F5F3FF",
+                            border: `1px solid ${isDark ? "rgba(109,40,217,0.3)" : "#DDD6FE"}`,
+                          }}>{divType.charAt(0).toUpperCase() + divType.slice(1)}</span>
+                        </td>
+                        <td style={{ padding: "9px 10px", textAlign: "right", fontWeight: 700, fontSize: 13, color: isDark ? "#4ADE80" : "#15803D", whiteSpace: "nowrap" }}>
+                          {Number(ev.dps).toLocaleString()}
+                        </td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 20, whiteSpace: "nowrap",
+                            background: ev.status === "generated" ? (isDark ? "rgba(29,78,216,0.2)" : "#EFF6FF") : (isDark ? "rgba(146,64,14,0.3)" : "#FEF3C7"),
+                            color: ev.status === "generated" ? (isDark ? "#93C5FD" : "#1D4ED8") : (isDark ? "#FCD34D" : "#92400E"),
+                            border: `1px solid ${ev.status === "generated" ? (isDark ? "rgba(59,130,246,0.3)" : "#BFDBFE") : (isDark ? "rgba(146,64,14,0.5)" : "#FDE68A")}`,
+                          }}>{ev.status === "generated" ? "Generated" : "Upcoming"}</span>
+                        </td>
+                        <td style={{ padding: "9px 10px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", color: closurePassed ? (isDark ? "#4ADE80" : "#15803D") : (isDark ? "#FBBF24" : "#B45309") }}>
+                          {closurePassed ? "Passed" : daysToClose === 0 ? "Today" : `In ${daysToClose}d`}
+                        </td>
+                        {(role === "SA" || role === "AD") && (
+                          <td style={{ padding: "6px 10px" }}>
+                            {ev.status === "generated" && (
+                              <button
+                                onClick={async () => {
+                                  setRefreshingEventId(ev.id);
+                                  try {
+                                    const result = await sbRefreshDividendEvent(ev.id);
+                                    showToast(`Refreshed: ${result.updated || 0} updated, ${result.inserted || 0} added`, "success");
+                                    await loadDividends();
+                                  } catch (e) { showToast("Error: " + e.message, "error"); }
+                                  finally { setRefreshingEventId(null); }
+                                }}
+                                disabled={refreshingEventId === ev.id}
+                                style={{ padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, background: "transparent", color: C.gray600, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                                {refreshingEventId === ev.id ? "…" : "Refresh"}
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+          )}
+        </ModalShell>
+      )}
+
       {/* ── Transform wrapper ── */}
       <div style={{ transform: isMobile ? `translateY(${pullDistance}px)` : "none", transition: refreshing ? "none" : (pullDistance === 0 ? "transform 0.18s ease" : "none"), willChange: isMobile ? "transform" : "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: isMobile ? "visible" : "hidden" }}>
 
@@ -1671,73 +1857,6 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
           {mobileStatCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* ── Upcoming / announced events (expandable, toggled from Upcoming StatCard) ── */}
-        {upcomingExpanded && (stats.upcoming > 0 || divEvents.length > 0) && (
-          <ModalShell
-            title="Announced Dividend Events"
-            subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="clock" size={13} /> {
-              stats.upcoming > 0
-                ? `${stats.upcoming} upcoming dividend${stats.upcoming > 1 ? "s" : ""}`
-                : `${divEvents.length} announced event${divEvents.length > 1 ? "s" : ""}`
-            }</span>}
-            onClose={() => setUpcomingExpanded(false)}
-            maxWidth={520}
-            footer={<Btn variant="secondary" onClick={() => setUpcomingExpanded(false)}>Close</Btn>}
-          >
-            {divEvents.length === 0 ? (
-              <div style={{ padding: "16px 4px", textAlign: "center", color: C.gray500, fontSize: 13 }}>No announced events.</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {divEvents.map(ev => {
-                  const closurePassed = ev.closure_date <= todayIso;
-                  const daysToClose = Math.ceil((new Date(ev.closure_date + "T00:00:00") - new Date(todayIso + "T00:00:00")) / 86400000);
-                  return (
-                    <div key={ev.id} style={{
-                      background: isDark ? "#92400E18" : "#FFFBEB",
-                      border: `1px solid ${isDark ? "#92400E55" : "#FDE68A"}`,
-                      borderRadius: 10,
-                      padding: "10px 12px",
-                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, fontSize: 14, color: isDark ? "#FCD34D" : "#92400E" }}>{ev.company_name}</span>
-                        <span style={{ fontSize: 11, color: isDark ? "#FCD34D" : "#B45309", fontWeight: 600 }}>FY{ev.dividend_year}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? "#4ADE80" : "#15803D" }}>TZS {Number(ev.dps).toLocaleString()}/Share</span>
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
-                          background: ev.status === "generated" ? (isDark ? "#1D4ED828" : "#EFF6FF") : (isDark ? "#92400E44" : "#FEF3C7"),
-                          color: ev.status === "generated" ? "#1D4ED8" : "#92400E",
-                          border: `1px solid ${ev.status === "generated" ? "#BFDBFE" : "#FDE68A"}`,
-                        }}>{ev.status === "generated" ? "Generated" : "Upcoming"}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: closurePassed ? (isDark ? "#4ADE80" : "#15803D") : (isDark ? "#FBBF24" : "#B45309") }}>
-                          {closurePassed ? "Closure passed" : daysToClose === 0 ? "Closure today" : `Closure in ${daysToClose}d`}
-                        </span>
-                        {(role === "SA" || role === "AD") && ev.status === "generated" && (
-                          <button
-                            onClick={async () => {
-                              setRefreshingEventId(ev.id);
-                              try {
-                                const result = await sbRefreshDividendEvent(ev.id);
-                                showToast(`Refreshed: ${result.updated || 0} updated, ${result.inserted || 0} added`, "success");
-                                await loadDividends();
-                              } catch (e) { showToast("Error: " + e.message, "error"); }
-                              finally { setRefreshingEventId(null); }
-                            }}
-                            disabled={refreshingEventId === ev.id}
-                            style={{ padding: "3px 10px", borderRadius: 6, border: `1px solid ${isDark ? "#92400E88" : "#FDE68A"}`, background: "transparent", color: isDark ? "#FBBF24" : "#B45309", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                            {refreshingEventId === ev.id ? "…" : "Refresh"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </ModalShell>
-        )}
         {/* ── Mobile toolbar ── */}
         {isMobile && (
           <div style={{ marginBottom: 10, flexShrink: 0 }}>
@@ -1851,7 +1970,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
             ) : (
               <>
                 <div className="div-scroll" style={{ overflowX: "auto", overflowY: "auto", flex: 1, minHeight: 0 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
                     <colgroup>
                       {showCheckbox && <col style={{ width: 36 }} />}
                       {tableHeaders.map(h => <col key={h.label} style={{ width: h.width }} />)}
@@ -1859,7 +1978,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                     <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
                       <tr>
                         {showCheckbox && (
-                          <th style={{ padding: "7px 10px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : "#F0F4F8" }}>
+                          <th style={{ padding: "6px 8px", borderBottom: `2px solid ${C.gray200}`, width: 36, background: isDark ? C.gray50 : "#F0F4F8" }}>
                             <input type="checkbox" checked={allSelected}
                               ref={el => el && (el.indeterminate = someSelected && !allSelected)}
                               onChange={toggleAll}
@@ -1867,7 +1986,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                           </th>
                         )}
                         {tableHeaders.map(h => (
-                          <th key={h.label} style={{ padding: "7px 10px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>
+                          <th key={h.label} style={{ padding: "6px 8px", textAlign: h.align, color: C.gray400, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: `2px solid ${C.gray200}`, whiteSpace: "nowrap", background: isDark ? C.gray50 : "#F0F4F8" }}>
                             {h.label}
                           </th>
                         ))}
@@ -1888,15 +2007,18 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
                     </tbody>
                     {filtered.length > 1 && (
                       <tfoot>
-                        <tr style={{ background: C.gray50, borderTop: `2px solid ${C.gray200}`, verticalAlign: "top" }}>
-                          <td colSpan={tfootLeftCols} style={{ padding: "8px 10px", fontWeight: 700, color: C.gray600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            TOTALS ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
+                        <tr style={{ background: C.gray50, borderTop: `2px solid ${C.gray200}`, verticalAlign: "middle" }}>
+                          <td colSpan={tfootLeftCols} style={{ padding: "7px 8px", fontWeight: 700, color: C.gray600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Totals ({filtered.length} rows{filtered.length > pageSize ? `, page shows ${paginated.length}` : ""})
                           </td>
-                          <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{fmt(totals.tax)}</div>
+                          <td style={{ padding: "7px 8px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{fmt(totals.gross)}</div>
                           </td>
-                          <td style={{ padding: "8px 10px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{fmt(totals.net)}</div>
+                          <td style={{ padding: "7px 8px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.red }}>{fmt(totals.tax)}</div>
+                          </td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", overflow: "hidden", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{fmt(totals.net)}</div>
                           </td>
                           <td colSpan={tfootRightCols} />
                         </tr>
