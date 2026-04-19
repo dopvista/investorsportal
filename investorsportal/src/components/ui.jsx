@@ -1584,6 +1584,7 @@ function SmartDividendForm({
         total_amount: gross,
         withholding_tax: tax,
         net_amount: net,
+        dividend_type: event.dividend_type || "annual",
         status: closurePassed ? "declared" : "pending",
         remarks: remarks || null,
       });

@@ -608,93 +608,135 @@ Trade Value = Quantity × Price/Share
 - **Sell**: Grand Total = Trade Value − Total Fees
 
 ## Dividends Page
-Tracks dividend income with automatic WHT calculation. Only companies with transactions on the active CDS appear in the company dropdown.
+The **Dividends** page is where users track dividend income for the active CDS account. It shows all dividend records with automatic WHT calculation, status tracking, and role-based actions.
+
+### Desktop Table Columns
+# | Company | Year | Type | Pay Date | DPS | Shares | Gross | Tax | Net | Status | Actions
+Totals row at the bottom sums Gross, Tax, and Net across all filtered rows.
+
+### Mobile Layout
+Each dividend appears as a card:
+- Row 1: Company name, Year, Type badge | Action menu
+- Row 2: Status badge, event badge (if linked to an event), lock icon (if before closure date), Pay Date, countdown pill
+- Row 3: DPS × Shares stat box | Net Amount stat box
+
+### Stat Cards
+- Desktop (4 cards): **Total Dividends** (SA/AD) or **My Dividends** (DE) · **YTD Net Income** · **Total Tax** · **Upcoming**
+- Mobile (2 cards): **YTD Net Income** · **Upcoming**
+- **Upcoming** shows the next event closing soonest e.g. "CRDB · 18d left" — tap it to open the **Announced Events** popup listing all upcoming dividend events
+
+### Search & Filters
+- Search bar: searches by company, year, type, status, pay date, remarks
+- Status filter and Year filter dropdowns
+- Reset button clears all active filters
 
 ### How to Record a Dividend
-1. Click **"Record Dividend"** button (or **"+ Record"** on mobile) — visible to DE and SA/AD only
-2. Fill the form:
-   - **Company** — required (searchable dropdown)
-   - **Declaration Date** — optional: when the company announced the dividend
-   - **Ex-Dividend Date** — optional: last date to own shares to qualify
-   - **Payment Date** — optional: scheduled payment date
-   - **Dividend Per Share** — required (TZS)
-   - **Shares Held** — optional (if entered, Total Amount auto-calculates as DPS × Shares)
-   - **Total Amount** — required (auto-calculated: DPS × Shares)
-   - **Withholding Tax (5%)** — auto-calculated
-   - **Remarks** — optional
-3. **Net Amount** (read-only) = Total Amount − Withholding Tax
-4. Click **"Record Dividend"** to save — always starts as **Pending**
-   IMPORTANT: There is NO Status field in the form. Status is controlled entirely by the role workflow.
+Click **"Record Dividend"** (or **"+ Record"** on mobile) — visible to DE and SA/AD only. The form opens in one of two modes depending on whether SA/AD has pre-announced dividend events:
 
-### Dividend Status Workflow (5 statuses)
-- **Pending** (gray badge) → initial state after recording. DE can edit, delete, or confirm. VR has no actions.
-- **Declared** (orange badge) → DE clicked **"Confirm"**. Now in VR's queue. DE can no longer edit or delete this record.
-- **Ex-Date Passed** (blue badge) → ex-dividend date has passed (updated by system). VR can still act.
-- **Paid** (green badge) → VR or SA/AD clicked **"Mark as Paid"** and confirmed actual payment date in the popup.
-- **Rejected** (red badge) → VR or SA/AD clicked **"Reject"** and entered a mandatory rejection reason. DE sees the reason and can re-confirm after fixing.
+**Mode 1 — Smart Entry (event-driven)**
+Used automatically when the active CDS has announced events available. Fields are pre-filled from the event — the user only selects year, company, and optionally adds remarks.
+
+Fields:
+- **Year** — select the dividend year; the company list filters to only years that have events
+- **Company** — searchable dropdown; only shows companies with an announced event for that year not yet recorded on this CDS. Non-annual types show a type suffix e.g. "TBL (Interim)"
+- All event details shown read-only: Declaration Date, Ex-Dividend Date, Closure Date, Payment Date, DPS, WHT Rate, Dividend Type
+- **Eligible Shares** — auto-computed from your portfolio holdings AS OF the closure/record date (DSE rule: you must hold shares before the closure date to qualify). Editable if needed.
+- **Remarks** — optional
+
+Status saved:
+- **Declared** — if the closure date has already passed (no confirmation step needed; goes directly into VR's queue)
+- **Pending** — if the closure date is still in the future (DE must confirm before VR can act)
+
+**Mode 2 — Manual Entry**
+Used when no events exist, or the user clicks **"Switch to Manual Entry"**. All fields are user-filled.
+
+Form layout:
+- Row 1: **Dividend Year** | **Type** (Annual / Interim / Final / Special, default: Annual)
+- Row 2: **Company** — full-width searchable dropdown; only shows companies where the user had Buy transactions in the selected year and has shares held on the closure date
+- Dividend Details box: Declaration Date | Ex-Dividend Date | Closure Date | Payment Date | Dividend/Share (TZS) | WHT Rate (%)
+- **Eligible Shares** — auto-filled from holdings on the closure date; editable
+- Calculation Preview — shows Gross, Tax, Net live as you type (visible only when DPS > 0 and shares > 0)
+- **Remarks** — optional
+
+Status on save: always **Pending** (DE must confirm, then VR acts).
+
+**Deduplication**: The system prevents recording the same Company + Year + Type combination twice on the same CDS. This means a company CAN have both an Interim and a Final dividend in the same year — they are distinct records.
+
+**Edit mode**: Always uses Manual Entry form (pre-filled with existing data), regardless of whether the record was originally smart-entered.
+
+IMPORTANT: There is NO Status field in the form. Status is set automatically and progresses through the role workflow only.
+
+### Dividend Status Workflow
+Five statuses, progressing through role actions:
+
+- **Pending** (gray) — just recorded. DE can edit, delete, or confirm. VR has no actions yet.
+- **Declared** (orange) — DE clicked **"Confirm"** (or smart-entry saved after closure date). Now in VR's queue. DE loses edit/delete rights.
+- **Ex-Date** (blue) — the ex-dividend date has passed. Handled by system. VR can still Mark as Paid or Reject.
+- **Paid** (green) — VR or SA/AD clicked **"Mark as Paid"** and confirmed the payment date.
+- **Rejected** (red) — VR or SA/AD clicked **"Reject"** with a mandatory reason. DE can edit and Re-Confirm.
 
 Full flow:
-Pending → (DE Confirm) → Declared → (VR Mark as Paid) → Paid
-                                   → (VR Reject) → Rejected → (DE Re-Confirm) → Declared → ...
+Pending → (DE Confirm) → Declared → (system, if ex-date passed) → Ex-Date → (VR Mark as Paid) → Paid
+                                                                             → (VR Reject) → Rejected → (DE Re-Confirm) → Declared → ...
 
 ### Role × Action Matrix
-| Status       | DE                        | VR                     | SA/AD                              | RO         |
-|--------------|---------------------------|------------------------|------------------------------------|------------|
-| Pending      | Confirm, Edit, Delete     | View only              | Edit, Delete                       | View only  |
-| Declared     | View only                 | Mark as Paid, Reject   | Edit, Delete, Mark as Paid, Reject | View only  |
-| Ex-Date      | View only                 | Mark as Paid, Reject   | Edit, Delete, Mark as Paid, Reject | View only  |
-| Rejected     | Confirm, Edit, Delete     | View only              | Edit, Delete                       | View only  |
-| Paid         | View only                 | View only              | Revert to Declared                 | View only  |
+| Status    | DE                    | VR                   | SA/AD                              | RO        |
+|-----------|-----------------------|----------------------|------------------------------------|-----------|
+| Pending   | Confirm, Edit, Delete | View only            | Edit, Delete                       | View only |
+| Declared  | View only             | Mark as Paid, Reject | Edit, Delete, Mark as Paid, Reject | View only |
+| Ex-Date   | View only             | Mark as Paid, Reject | Edit, Delete, Mark as Paid, Reject | View only |
+| Rejected  | Confirm, Edit, Delete | View only            | Edit, Delete                       | View only |
+| Paid      | View only             | View only            | Revert to Declared                 | View only |
 
-KEY RULE: Once DE confirms (Pending → Declared), they hand off to VR and lose all edit/delete rights. This mirrors the Transactions workflow exactly.
+KEY RULE: Once DE confirms (Pending → Declared), they hand off to VR and permanently lose edit/delete rights on that record. This mirrors the Transactions workflow exactly.
 
 ### Actions Detail
-- **Confirm / Re-Confirm** (DE on Pending or Rejected) — moves to Declared; puts in VR's queue
-- **Mark as Paid** (VR/SA/AD on Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** field pre-filled with the scheduled payment date. Verifier can adjust the date before confirming.
-- **Reject** (VR/SA/AD on Declared or Ex-Date) — opens **"Reject Dividend"** popup with a required **"Rejection Reason"** textarea. Reason is stored and visible to DE in the detail modal and on the card.
-- **Revert to Declared** (SA/AD on Paid only) — undoes paid status, clears payment info, moves back to Declared
-- **Edit** — opens the form pre-filled with existing data (available only per role matrix above)
-- **Delete** — permanently removes the dividend (irreversible, available only per role matrix above)
+- **Confirm / Re-Confirm** (DE — Pending or Rejected) — moves to Declared; puts in VR's queue
+- **Mark as Paid** (VR/SA/AD — Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** pre-filled with the scheduled payment date; verifier can adjust before confirming. IMPORTANT: the app blocks this action if today is before the scheduled payment date — the action button is disabled until the payment date arrives.
+- **Reject** (VR/SA/AD — Declared or Ex-Date) — opens **"Reject Dividend"** popup requiring a **"Rejection Reason"**. The reason is stored and shown to DE in the detail modal and on the mobile card.
+- **Revert to Declared** (SA/AD — Paid only) — undoes the paid status, clears payment info, moves back to Declared
+- **Edit** — opens the Manual Entry form pre-filled (available only per role matrix above)
+- **Delete** — permanently removes the dividend record (irreversible; available only per role matrix)
 
 ### Bulk Actions
-Select multiple rows via checkboxes, then toolbar shows eligible bulk actions:
-- **Confirm** (DE — for Pending/Rejected rows selected)
-- **Mark Paid** (VR/SA/AD — for Declared/Ex-Date rows)
-- **Reject** (VR/SA/AD — for Declared/Ex-Date rows) — opens RejectModal, one reason applies to all
-- **Revert to Declared** (SA/AD — for Paid rows)
-- **Delete** (DE for Pending/Rejected; SA/AD for any non-Paid)
-Each button shows the count of eligible rows.
+Select multiple rows via checkboxes (desktop only); the bulk toolbar appears showing eligible actions:
+- **Confirm** (DE — for selected Pending/Rejected rows)
+- **Mark Paid** (VR/SA/AD — for selected Declared/Ex-Date rows)
+- **Reject** (VR/SA/AD — for selected Declared/Ex-Date rows) — one rejection reason applies to all selected
+- **Revert to Declared** (SA/AD — for selected Paid rows)
+- **Delete** (DE — Pending/Rejected; SA/AD — any non-Paid)
+Each button shows the count of eligible rows in the current selection.
 
 ### Dividend Type
-Every dividend record has a **Type** field:
-- **Annual** (default) — standard once-a-year dividend
-- **Interim** — mid-year dividend paid before year-end (e.g. TBL pays interim + final each year)
-- **Final** — end-of-year dividend completing the annual payout
-- **Special** — one-off dividend outside the normal schedule
+Every dividend record has a **Type**:
+- **Annual** (default, gray badge) — standard once-a-year dividend
+- **Interim** (amber badge) — mid-year dividend paid before the year ends (e.g. TBL pays both Interim and Final each year)
+- **Final** (blue badge) — end-of-year dividend completing the annual payout
+- **Special** (purple badge) — a one-off dividend outside the normal schedule
 
-The type is selected when recording (manual form) or inherited from the dividend event (smart form). It appears as a coloured pill badge on every row and card: amber = Interim, blue = Final, purple = Special, grey = Annual. A company can have both an Interim and a Final dividend in the same year — these are tracked as separate records.
+In Smart Entry, the type is inherited from the dividend event. In Manual Entry, the user selects it. The type badge appears on every table row and mobile card.
 
 ### WHT Calculation
-Withholding Tax = 5% of gross dividend amount (standard for DSE-listed companies). Net Amount = Gross − WHT. Both auto-calculate as you type in the form. The WHT rate can be changed in the form if needed.
+Withholding Tax = Gross Amount × WHT Rate (default 5%, standard for DSE-listed companies). Net Amount = Gross − WHT. Both values auto-calculate in real time as you type. The WHT rate field is editable in the form if a company uses a different rate.
 
 ### Dividend Events (SA/AD only)
-SA and AD users can manage company-level **Dividend Events** from the **Companies** page — open a company's action menu and select **"Dividend Events"**. Each event stores the announcement details (year, type, DPS, dates) and can generate dividend records for all eligible CDS holders automatically. Events appear in the **Announced Dividend Events** popup on the Dividends page (tap the **Upcoming** stat card).
+SA and AD users manage company-level **Dividend Events** from the **Companies** page — open a company's action menu → **"Dividend Events"**. Each event stores the company-level announcement: year, type, DPS, tax rate, and all dates (declaration, ex-date, closure, payment). From the event, SA/AD can:
+- **Generate** — creates dividend records for all eligible CDS holders automatically using the event's DPS and dates
+- **Refresh** — re-applies updated event data to already-generated records
+- **Edit / Delete** the event itself
 
-### Dividend Stat Cards
-- Desktop: 4 cards — **Total Dividends** (or "My Dividends" for DE) · **YTD Net Income** · **Total Tax** · **Upcoming**
-- Mobile: 2 cards — **YTD Net Income** · **Upcoming** (space-saving)
-- **Upcoming** card shows next closing event e.g. "CRDB · 18d left" — tap it to open the **Announced Events** popup
+Events appear in the **Announced Events** popup on the Dividends page (accessible via the **Upcoming** stat card).
 
 ### Stock Timeline
-Click **"Stock Timeline"** on the Dividends page toolbar to see a year-by-year matrix of shares held at each year-end across all companies. Useful for verifying dividend eligibility history.
+Click **"Stock Timeline"** on the Dividends page toolbar to see a year-by-year matrix showing shares held at each year-end (31 Dec) for every company in your portfolio. Useful for verifying dividend eligibility history across years. The modal loads in a single API call and computes all year-end snapshots locally.
 
 ### Dividend Detail Modal
-Click any row to open the full detail:
-- Header: company name, status badge, DPS per share, payment date, CDS number
-- Summary strip: Gross Amount | Withholding Tax (5%) | Net Amount
-- Left panel: Declaration Date, Ex-Dividend Date, Closure Date, Payment Date, Dividend Type, Dividend/Share, Dividend Yield %, DPS Growth % vs previous, Shares Held, Status, Remarks, Rejection Reason (if rejected — shown in red)
-- Right panel (desktop) / Audit Trail (mobile+desktop): Tax breakdown + Audit Trail showing Recorded → Paid (green) or Rejected (red with reason bubble). Unfinished steps show "Awaiting" (grayed out).
-- **Save** button: downloads the detail view as a PNG image with watermark
+Click any dividend row to open the full detail view:
+- **Header**: company name, status badge, DPS, payment date, CDS number
+- **Summary strip**: Gross Amount | Withholding Tax | Net Amount
+- **Left panel**: Declaration Date, Ex-Dividend Date, Closure Date, Payment Date, Dividend Type, DPS, Dividend Yield %, DPS Growth % vs previous year, Shares Held, Status, Remarks, Rejection Reason (red, if rejected)
+- **Audit Trail**: Recorded → Confirmed → Paid (green) or Rejected (red with reason bubble). Steps not yet completed show "Awaiting" in gray.
+- **Save** button: downloads the detail view as a PNG image with a watermark
 
 ## Reports Page
 Generate PDF and Excel reports.
