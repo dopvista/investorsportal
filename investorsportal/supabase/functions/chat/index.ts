@@ -353,19 +353,23 @@ The key difference: unrealized is what you could gain or lose; realized is what 
 Q: "How do I record a dividend?"
 A: **Investors Portal™** lets DE and SA/AD roles record dividends — go to **Dividends** and click **"Record Dividend"** (or **"+ Record"** on mobile).
 
-**Form fields:**
+There are two recording modes:
 
-- **Company** — required (searchable dropdown)
-- **Declaration Date**, **Ex-Dividend Date**, **Payment Date** — all optional
-- **Dividend Per Share** — required (TZS)
-- **Shares Held** — optional; if entered, **Total Amount** auto-calculates as DPS × Shares
-- **Withholding Tax (5%)** — auto-calculated
-- **Net Amount** — read-only: Gross minus WHT
+**Smart Entry (event-driven)** — when SA/AD has announced a dividend event for a company, the form pre-fills dates and DPS automatically. Select the year and company, review your eligible shares (auto-computed from your holdings on the closure/record date), and save.
+
+**Manual Entry** — when no event exists, you fill in the form yourself:
+- **Dividend Year** — required
+- **Type** — Annual, Interim, Final, or Special (default: Annual)
+- **Company** — required (searchable dropdown, full width)
+- **Declaration Date**, **Ex-Dividend Date**, **Closure Date**, **Payment Date** — optional
+- **Dividend/Share (TZS)** — required; gross amount auto-calculates as DPS × Shares
+- **WHT Rate (%)** — default 5%; auto-calculates withholding tax and net amount
+- **Eligible Shares** — auto-filled from your holdings on the closure date, editable
 - **Remarks** — optional
 
-Click **"Record Dividend"** to save. New dividends always start as **Pending** — status is set by the workflow, not the form.
+Click **"Record Dividend"** to save. Manual entries start as **Pending**; event-driven entries start as **Declared**.
 
-**Important:** A **Data Entrant** must click **"Confirm"** on the pending record to move it to **Declared**, at which point the **Verifier** can act on it.
+**Important:** A **Data Entrant** must click **"Confirm"** on a Pending record to move it to **Declared**, at which point the **Verifier** can act on it.
 
 Q: "What do the dividend statuses mean?"
 A: Dividends in **Investors Portal™** follow a five-step workflow controlled by role — status cannot be set manually.
@@ -661,20 +665,34 @@ Select multiple rows via checkboxes, then toolbar shows eligible bulk actions:
 - **Delete** (DE for Pending/Rejected; SA/AD for any non-Paid)
 Each button shows the count of eligible rows.
 
+### Dividend Type
+Every dividend record has a **Type** field:
+- **Annual** (default) — standard once-a-year dividend
+- **Interim** — mid-year dividend paid before year-end (e.g. TBL pays interim + final each year)
+- **Final** — end-of-year dividend completing the annual payout
+- **Special** — one-off dividend outside the normal schedule
+
+The type is selected when recording (manual form) or inherited from the dividend event (smart form). It appears as a coloured pill badge on every row and card: amber = Interim, blue = Final, purple = Special, grey = Annual. A company can have both an Interim and a Final dividend in the same year — these are tracked as separate records.
+
 ### WHT Calculation
-Withholding Tax = 5% of gross dividend amount (standard for DSE-listed companies). Net Amount = Gross − WHT. Both auto-calculate as you type in the form.
+Withholding Tax = 5% of gross dividend amount (standard for DSE-listed companies). Net Amount = Gross − WHT. Both auto-calculate as you type in the form. The WHT rate can be changed in the form if needed.
+
+### Dividend Events (SA/AD only)
+SA and AD users can manage company-level **Dividend Events** from the **Companies** page — open a company's action menu and select **"Dividend Events"**. Each event stores the announcement details (year, type, DPS, dates) and can generate dividend records for all eligible CDS holders automatically. Events appear in the **Announced Dividend Events** popup on the Dividends page (tap the **Upcoming** stat card).
 
 ### Dividend Stat Cards
-- **Total Dividends** — count with declared · paid breakdown
-- **YTD Net Income** — calendar year net after WHT (paid dividends only)
-- **Total Tax** — total withholding tax across all records
-- **Upcoming** — count of Declared + Ex-Date dividends awaiting payment
+- Desktop: 4 cards — **Total Dividends** (or "My Dividends" for DE) · **YTD Net Income** · **Total Tax** · **Upcoming**
+- Mobile: 2 cards — **YTD Net Income** · **Upcoming** (space-saving)
+- **Upcoming** card shows next closing event e.g. "CRDB · 18d left" — tap it to open the **Announced Events** popup
+
+### Stock Timeline
+Click **"Stock Timeline"** on the Dividends page toolbar to see a year-by-year matrix of shares held at each year-end across all companies. Useful for verifying dividend eligibility history.
 
 ### Dividend Detail Modal
 Click any row to open the full detail:
 - Header: company name, status badge, DPS per share, payment date, CDS number
 - Summary strip: Gross Amount | Withholding Tax (5%) | Net Amount
-- Left panel: Declaration Date, Ex-Dividend Date, Payment Date, Dividend/Share, Dividend Yield %, DPS Growth % vs previous, Shares Held, Status, Remarks, Rejection Reason (if rejected — shown in red)
+- Left panel: Declaration Date, Ex-Dividend Date, Closure Date, Payment Date, Dividend Type, Dividend/Share, Dividend Yield %, DPS Growth % vs previous, Shares Held, Status, Remarks, Rejection Reason (if rejected — shown in red)
 - Right panel (desktop) / Audit Trail (mobile+desktop): Tax breakdown + Audit Trail showing Recorded → Paid (green) or Rejected (red with reason bubble). Unfinished steps show "Awaiting" (grayed out).
 - **Save** button: downloads the detail view as a PNG image with watermark
 
