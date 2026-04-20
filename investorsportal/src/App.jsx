@@ -535,6 +535,29 @@ export default function App() {
       const qp   = new URLSearchParams(search);
       const code = qp.get("code");
       const type = qp.get("type");
+
+      // ── Google OAuth PKCE callback ─────────────────────────────────
+      // Supabase v2 (^2.39) defaults to PKCE for OAuth. Google redirects
+      // back with ?code=... and no type param (unlike password reset which
+      // sets type=recovery). The implicit-flow handler above misses this.
+      if (code && !type) {
+        window.history.replaceState(null, "", window.location.pathname);
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+          if (!error && data?.session) {
+            const s = {
+              access_token:  data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              expires_in:    data.session.expires_in,
+              user:          data.session.user,
+            };
+            sbSaveSession(s);
+            if (!cancelled) setSession(s);
+            return;
+          }
+        } catch {}
+      }
+
       if (code && type === "recovery") {
         window.history.replaceState(null, "", window.location.pathname);
         const BASE = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
