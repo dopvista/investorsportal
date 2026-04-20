@@ -1811,13 +1811,6 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
     }
   }, [form.dividendPerShare, form.sharesHeld, form.taxRate]);
 
-  // Auto-update dividend year when payment date changes
-  useEffect(() => {
-    if (form.paymentDate) {
-      const yr = String(new Date(form.paymentDate).getFullYear());
-      setForm(f => ({ ...f, dividendYear: yr }));
-    }
-  }, [form.paymentDate]);
 
   // Fetch holdings when the closure date changes; cache per date.
   useEffect(() => {
