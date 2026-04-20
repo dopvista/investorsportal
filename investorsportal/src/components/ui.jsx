@@ -466,7 +466,7 @@ export function ActionMenu({ actions }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ── MODAL SHELL ───────────────────────────────────────────────────
-export function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false }) {
+export function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false, contentPadding }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
 
@@ -501,7 +501,7 @@ export function ModalShell({ title, subtitle, headerRight, onClose, footer, chil
             )}
           </div>
         </div>
-        <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
+        <div style={{ padding: contentPadding ?? (isMobile ? "16px 18px" : "20px 28px"), display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
           {children}
         </div>
         {footer && (
@@ -1903,7 +1903,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
     <ModalShell
       title={resolvedCompany?.name || (isEdit ? "Edit Dividend" : "Record Dividend")}
       subtitle={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={15} /> {isEdit ? "Edit dividend record" : "Manual entry · no SA event"}</span>}
-      onClose={onClose} maxWidth={520}
+      onClose={onClose} maxWidth={520} contentPadding="12px 24px"
       footer={<>
         {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
