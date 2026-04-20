@@ -1973,7 +1973,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
             <FInput label="Ex-Dividend Date"  type="date" value={form.exDividendDate}  onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
             <FInput label="Closure Date" required type="date" value={form.closureDate} onChange={e => setForm(f => ({ ...f, closureDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
             <FInput label="Payment Date"  type="date" value={form.paymentDate}     onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))}      style={{ height: 36, fontSize: 13, minWidth: 0 }} />
-            <FInput label="Dividend/Share (TZS)" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" style={{ height: 36, fontSize: 13 }} />
+            <FInput label="Dividend/Share" required type="text" inputMode="decimal" value={commaVal(form.dividendPerShare)} onChange={e => { setForm(f => ({ ...f, dividendPerShare: stripCommas(e.target.value) })); setError(""); }} placeholder="0" style={{ height: 36, fontSize: 13 }} />
             <FInput label="WHT Rate (%)" type="text" inputMode="decimal" value={commaVal(form.taxRate)} onChange={e => { setForm(f => ({ ...f, taxRate: stripCommas(e.target.value) })); setError(""); }} placeholder="5" style={{ height: 36, fontSize: 13 }} />
           </div>
         </div>
