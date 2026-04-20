@@ -1910,9 +1910,9 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
         <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {/* Year + Type */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <FormField label="Dividend Year" required C={C}>
             <input type="number" inputMode="numeric" value={form.dividendYear}
               onChange={e => setForm(f => ({ ...f, dividendYear: e.target.value }))}
@@ -1964,11 +1964,11 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
         )}
 
         {/* Dividend Details */}
-        <div style={{ background: C.gray50, borderRadius: 8, padding: "6px 12px 8px", border: `1px solid ${C.gray200}`, overflow: "hidden" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+        <div style={{ background: C.gray50, borderRadius: 8, padding: "4px 10px 6px", border: `1px solid ${C.gray200}`, overflow: "hidden" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
             Dividend Details
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, minWidth: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, minWidth: 0 }}>
             <FInput label="Declaration Date" type="date" value={form.declarationDate} onChange={e => setForm(f => ({ ...f, declarationDate: e.target.value }))} style={{ height: 36, fontSize: 13, minWidth: 0 }} />
             <FInput label="Ex-Dividend Date"  type="date" value={form.exDividendDate}  onChange={e => setForm(f => ({ ...f, exDividendDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
             <FInput label="Closure Date" required type="date" value={form.closureDate} onChange={e => setForm(f => ({ ...f, closureDate: e.target.value }))}  style={{ height: 36, fontSize: 13, minWidth: 0 }} />
@@ -1979,7 +1979,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
         </div>
 
         {/* Eligible Shares */}
-        <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ background: isDark ? "rgba(29,78,216,0.10)" : "#F0F9FF", border: `1px solid ${isDark ? "rgba(29,78,216,0.35)" : "#BAE6FD"}`, borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Your Eligible Shares
@@ -2003,19 +2003,19 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
 
         {/* Calculation Preview */}
         {Number(form.dividendPerShare) > 0 && Number(form.sharesHeld) > 0 && (
-          <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "#FFFBEB", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#FDE68A"}`, borderRadius: 8, padding: "6px 12px 8px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+          <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "#FFFBEB", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#FDE68A"}`, borderRadius: 8, padding: "4px 10px 6px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>
               Calculation Preview
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.gray100}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0", borderBottom: `1px solid ${C.gray100}` }}>
               <span style={{ fontSize: 12, color: C.gray500 }}>Gross Amount</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmt(Number(form.sharesHeld))} &times; {fmt(Number(form.dividendPerShare))} = <strong>TZS {fmt(Number(form.totalAmount))}</strong></span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.gray100}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0", borderBottom: `1px solid ${C.gray100}` }}>
               <span style={{ fontSize: 12, color: C.gray500 }}>Withholding Tax ({form.taxRate || 5}%)</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: C.red }}>{"\u2212"} TZS {fmt(Number(form.withholdingTax))}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 5, marginTop: 2, borderTop: `2px solid ${C.gray200}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4, marginTop: 1, borderTop: `2px solid ${C.gray200}` }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>Net Payable</span>
               <span style={{ fontSize: 14, fontWeight: 800, color: C.green }}>TZS {Number(netAmount).toLocaleString()}</span>
             </div>
