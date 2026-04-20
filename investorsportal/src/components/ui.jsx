@@ -1985,7 +1985,7 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
               Your Eligible Shares
             </div>
             <div style={{ fontSize: 10, color: C.gray500 }}>
-              {form.closureDate ? `as of ${new Date(form.closureDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} (record date)` : "enter closure date to compute"}
+              {form.closureDate ? `as of ${new Date(form.closureDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "enter closure date to compute"}
             </div>
           </div>
           <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
