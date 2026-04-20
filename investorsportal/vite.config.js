@@ -83,41 +83,32 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           cleanupOutdatedCaches: true,
-          globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}"],
+          // Precache only the lightweight shell (HTML, CSS, icons).
+          // JS chunks (vendor, xlsx, main) are NOT precached — they are
+          // large and cause the install phase to hang on mobile. They get
+          // fetched and cached at runtime by StaleWhileRevalidate below.
+          globPatterns: ["**/*.{css,html,ico,png,svg}"],
           navigateFallback: "/index.html",
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.destination === "document",
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "pages-cache",
-                networkTimeoutSeconds: 5,
-              },
-            },
-            {
+              // JS/CSS/worker files — serve from cache instantly, refresh in background
               urlPattern: ({ request }) =>
                 ["style", "script", "worker"].includes(request.destination),
               handler: "StaleWhileRevalidate",
-              options: {
-                cacheName: "assets-cache",
-              },
+              options: { cacheName: "assets-cache" },
             },
             {
               urlPattern: ({ request }) => request.destination === "image",
               handler: "CacheFirst",
               options: {
                 cacheName: "images-cache",
-                expiration: {
-                  maxEntries: 30,
-                  maxAgeSeconds: 30 * 24 * 60 * 60,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
+                expiration: { maxEntries: 30, maxAgeSeconds: 30 * 24 * 60 * 60 },
+                cacheableResponse: { statuses: [0, 200] },
               },
             },
             {
+              // Never cache Supabase API calls — always go to network
               urlPattern: supabasePattern,
               handler: "NetworkOnly",
             },
