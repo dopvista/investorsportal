@@ -23,6 +23,7 @@ import {
   sbGetPortfolioAsAt,
   sbGetTransactions,
   sbGetVerifiedTransactions,
+  sbGetCdsAccount,
 } from "../lib/supabase";
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -69,7 +70,7 @@ const fmtDateTime = (d) => {
 const getStatusConfig = (C, isDark) => ({
   pending:        { label: "Pending",   color: "#6B7280", bg: isDark ? "rgba(107,114,128,0.18)" : "#F3F4F6", border: isDark ? "rgba(107,114,128,0.4)" : "#D1D5DB", icon: <Icon name="clock" size={14} /> },
   declared:       { label: "Declared",  color: "#C2410C", bg: isDark ? "#C2410C22" : "#FFF7ED", border: isDark ? "#C2410C55" : "#FED7AA", icon: <Icon name="checkCircle" size={14} /> },
-  ex_date_passed: { label: "Ex-Date",   color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: <Icon name="calendar" size={14} /> },
+  ex_date_passed: { label: "Ex-Date",   color: "#1D4ED8", bg: isDark ? "#1D4ED828" : "#EFF6FF", border: isDark ? "#1D4ED855" : "#BFDBFE", icon: "📅" },
   paid:           { label: "Paid",      color: C.green,   bg: C.greenBg,                        border: isDark ? `${C.green}55` : "#BBF7D0", icon: <Icon name="checkCircle" size={14} /> },
   rejected:       { label: "Rejected",  color: C.red,     bg: isDark ? `${C.red}22` : "#FFF5F5", border: isDark ? `${C.red}55` : "#FECACA", icon: <Icon name="xCircle" size={14} /> },
 });
@@ -364,6 +365,17 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const captureRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
   const [auditExpanded, setAuditExpanded] = useState(false);
+  const [cdsAccountName, setCdsAccountName] = useState(null);
+
+  useEffect(() => {
+    if (!dividend?.cds_number) { setCdsAccountName(""); return; }
+    let cancelled = false;
+    setCdsAccountName(null);
+    sbGetCdsAccount(dividend.cds_number)
+      .then(acc => { if (!cancelled) setCdsAccountName(acc?.cds_name || ""); })
+      .catch(() => { if (!cancelled) setCdsAccountName(""); });
+    return () => { cancelled = true; };
+  }, [dividend?.cds_number]);
 
   const handleDownloadPNG = useCallback(async () => {
     if (!captureRef.current || downloading) return;
@@ -393,28 +405,31 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   // Dividend yield = DPS / Market Price × 100
   const marketPrice = Number(company?.price || 0);
   const yieldPct = (dps > 0 && marketPrice > 0) ? ((dps / marketPrice) * 100).toFixed(2) : null;
+  const marketValue = shares > 0 && marketPrice > 0 ? shares * marketPrice : null;
 
-  // DPS growth vs previous dividend from same company
-  const dpsGrowth = useMemo(() => {
+  // Previous dividend data (for comparison box)
+  const prevDividend = useMemo(() => {
     if (!dividend.company_id || dps <= 0) return null;
-    const sameCo = allDividends
+    const thisDate = dividend.payment_date || dividend.declaration_date || "";
+    const prev = allDividends
       .filter(d => d.company_id === dividend.company_id && d.id !== dividend.id)
       .sort((a, b) => {
         const da = a.payment_date || a.declaration_date || "";
         const db = b.payment_date || b.declaration_date || "";
         return db > da ? 1 : db < da ? -1 : 0;
-      });
-    // Find previous dividend (before this one)
-    const thisDate = dividend.payment_date || dividend.declaration_date || "";
-    const prev = sameCo.find(d => {
-      const dd = d.payment_date || d.declaration_date || "";
-      return dd < thisDate;
-    });
+      })
+      .find(d => (d.payment_date || d.declaration_date || "") < thisDate);
     if (!prev) return null;
     const prevDps = Number(prev.dividend_per_share || 0);
     if (prevDps <= 0) return null;
+    const prevNet = Number(prev.net_amount || 0) || (Number(prev.total_amount || 0) - Number(prev.withholding_tax || 0));
+    const prevShares = Number(prev.shares_held || 0);
     const change = ((dps - prevDps) / prevDps) * 100;
-    return { prevDps, change };
+    return {
+      prevDps, prevNet, prevShares, change,
+      year: prev.dividend_year,
+      type: (prev.dividend_type || "annual"),
+    };
   }, [allDividends, dividend, dps]);
 
   // Type badge colors (matches table pill colors)
@@ -431,10 +446,13 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
   );
 
-  const renderKVRows = (rows) => rows.map(([label, value, valueColor], i, arr) => (
+  const renderKVRows = (rows) => rows.map(([label, value, valueColor, badge], i, arr) => (
     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < arr.length - 1 ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` : "none" }}>
       <span style={{ fontSize: 12, color: C.gray500 }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: valueColor || C.text, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
+      {badge
+        ? <span style={{ fontSize: 11, fontWeight: 700, color: valueColor || C.green, background: isDark ? `${valueColor || C.green}22` : `${valueColor || C.green}18`, border: `1px solid ${isDark ? `${valueColor || C.green}44` : `${valueColor || C.green}33`}`, borderRadius: 10, padding: "1px 8px" }}>{value}</span>
+        : <span style={{ fontSize: 12, fontWeight: 600, color: valueColor || C.text, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
+      }
     </div>
   ));
 
@@ -444,16 +462,16 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     { label: "Net Amount",           currency: "TZS", amount: fmt(net),   sub: "after tax",                                valueColor: C.green },
   ];
 
-  // Left panel rows
+  // Left panel rows — mobile omits fields already shown in stat bar / header / prev-div box
   const leftRows = [
-    ["Declaration Date",      fmtDate(dividend.declaration_date)],
-    ["Ex-Dividend / Closure", fmtDate(dividend.ex_dividend_date)],
-    ["Payment Date",          fmtDate(dividend.payment_date)],
-    ["Dividend/Share",        `TZS ${fmt(dps)}`],
-    ...(yieldPct  ? [["Dividend Yield", `${yieldPct}%`, C.green]] : []),
-    ...(dpsGrowth ? [["DPS Growth", `${dpsGrowth.change >= 0 ? "+" : ""}${dpsGrowth.change.toFixed(1)}% vs TZS ${fmt(dpsGrowth.prevDps)}`, dpsGrowth.change >= 0 ? C.green : C.red]] : []),
-    ["Shares Held",           shares > 0 ? fmt(shares) : "—"],
-    ...(dividend.remarks ? [["Remarks", dividend.remarks]] : []),
+    ...(dividend.declaration_date  ? [["Declaration Date",  fmtDate(dividend.declaration_date)]]  : []),
+    ...(dividend.ex_dividend_date  ? [["Ex-Dividend Date",  fmtDate(dividend.ex_dividend_date)]]  : []),
+    ...(dividend.closure_date      ? [["Closure Date",      fmtDate(dividend.closure_date)]]      : []),
+    // Payment Date / Paid Date
+    ...(dividend.status === "paid" && dividend.paid_at
+      ? [["Paid Date", fmtDate(dividend.paid_at), C.green]]
+      : dividend.payment_date ? [["Payment Date", fmtDate(dividend.payment_date)]] : []),
+    ["Remarks", dividend.remarks || "—"],
     ...(dividend.status === "rejected" && dividend.rejection_reason ? [["Rejection Reason", dividend.rejection_reason, C.red]] : []),
   ];
 
@@ -529,19 +547,60 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     <div style={{ padding: "14px 20px" }}>
       {renderSectionTitle("Dividend Details")}
       {renderKVRows(leftRows)}
+      {renderPrevDividendDesktop()}
     </div>
   );
 
   const renderTaxPanel = () => (
-    <div style={{ padding: "14px 20px", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
-      {renderSectionTitle("Tax & Income")}
-      {renderKVRows(taxRows)}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: `2px solid ${C.gray200}`, marginTop: 2 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Net Income</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>TZS {fmt(net)}</span>
+    <div style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+      <div style={{ padding: "14px 20px 10px" }}>
+        {renderSectionTitle("Tax & Income")}
+        {renderKVRows(taxRows)}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", background: isDark ? `${C.green}18` : "#F0FDF4", borderTop: `1px solid ${isDark ? `${C.green}44` : "#BBF7D0"}` }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em" }}>Net Income</span>
+        <span style={{ fontSize: 15, fontWeight: 900, color: C.green }}>TZS {fmt(net)}</span>
       </div>
     </div>
   );
+
+  const renderPrevDividendDesktop = () => {
+    if (!prevDividend) return null;
+    const isUp  = prevDividend.change >= 0;
+    const glCol = isUp ? C.green : C.red;
+    const glBg  = isUp ? (isDark ? `${C.green}18` : "#F0FDF4") : (isDark ? `${C.red}18` : "#FFF5F5");
+    const glBdr = isUp ? (isDark ? `${C.green}44` : "#BBF7D0") : (isDark ? `${C.red}44` : "#FECACA");
+    const prevTypeLabel = prevDividend.type.charAt(0).toUpperCase() + prevDividend.type.slice(1);
+    return (
+      <div style={{ paddingTop: 14 }}>
+        {renderSectionTitle(`Previous · ${prevTypeLabel}${prevDividend.year ? ` ${prevDividend.year}` : ""}`)}
+        <div style={{ borderRadius: 8, border: `1px solid ${glBdr}`, overflow: "hidden" }}>
+          <div style={{ display: "flex" }}>
+            <div style={{ flex: 1, padding: "8px 0", textAlign: "center", borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>Shares</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{prevDividend.prevShares > 0 ? fmt(prevDividend.prevShares) : "—"}</div>
+            </div>
+            <div style={{ flex: 1, padding: "8px 0", textAlign: "center", borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: isDark ? "#93C5FD" : "#1D4ED8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>DPS</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? "#93C5FD" : "#1D4ED8" }}>{fmt(prevDividend.prevDps)}</div>
+            </div>
+            <div style={{ flex: 1, padding: "8px 0", textAlign: "center" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>Net</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{prevDividend.prevNet > 0 ? fmt(prevDividend.prevNet) : "—"}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", padding: "6px 0", background: glBg, borderTop: `1px solid ${glBdr}` }}>
+            <div style={{ flex: 2, paddingLeft: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: glCol }}>DPS Growth</span>
+            </div>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: glCol }}>{isUp ? "▲" : "▼"} {isUp ? "+" : ""}{prevDividend.change.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderRightPanel = () => (
     <>
@@ -571,72 +630,113 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
               <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", flexShrink: 0 }}>{st.icon} {st.label}</span>
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", display: "flex", gap: 8, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
-              <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="dollarSign" size={12} stroke="rgba(255,255,255,0.6)" sw={2} /> {fmt(dps)}/share</span>
-              <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="calendar" size={12} stroke="rgba(255,255,255,0.6)" sw={2} /> {fmtDate(dividend.payment_date)}</span>
-              {dividend.cds_number && <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>🪪 {dividend.cds_number}</span>}
+              {dividend.payment_date && <span style={{ whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>📅 {fmtDate(dividend.payment_date)}</span>}
+              {dividend.cds_number && (
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                  🪪 {dividend.cds_number}
+                  {cdsAccountName === null
+                    ? <span style={{ color: "rgba(255,255,255,0.4)" }}> — …</span>
+                    : cdsAccountName
+                      ? <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}> — {cdsAccountName}</span>
+                      : null}
+                </span>
+              )}
             </div>
           </div>
           <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 16, transition: "background 0.15s" }} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
         </div>
 
-        {/* ═══ MOBILE STAT CARDS ═══ */}
-        {isMobile && (
-          <div style={{ display: "flex", alignItems: "stretch", background: C.gray50, flexShrink: 0, borderBottom: `1px solid ${C.gray200}` }}>
-            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${C.gray200}` }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: isDark ? "#93C5FD" : "#1D4ED8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>DPS</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: isDark ? "#93C5FD" : "#1D4ED8" }}>{fmt(dps)}</div>
+        {/* ═══ UNIFIED STAT BAR — Shares | DPS | Mkt Value | Div Yld ═══ */}
+        {(() => {
+          const statCols = [
+            { label: "Shares",    value: shares > 0   ? fmt(shares)       : null, color: C.text,                         labelColor: C.gray500 },
+            { label: "DPS",       value: dps > 0      ? fmt(dps)          : null, color: isDark ? "#93C5FD" : "#1D4ED8", labelColor: isDark ? "#93C5FD" : "#1D4ED8" },
+            { label: "Mkt Price", value: marketPrice > 0 ? fmt(marketPrice) : null, color: C.text,                        labelColor: C.gray500 },
+            { label: "Div Yld",   value: yieldPct     ? `${yieldPct}%`    : null, color: isDark ? "#A3E635" : "#4D7C0F", labelColor: isDark ? "#A3E635" : "#4D7C0F" },
+          ].filter(c => c.value);
+          return (
+            <div style={{ display: "flex", alignItems: "stretch", background: C.gray50, flexShrink: 0, borderBottom: `1px solid ${C.gray200}` }}>
+              {statCols.map((col, i) => (
+                <div key={col.label} style={{ flex: 1, padding: isMobile ? "9px 4px" : "10px 4px", textAlign: "center", borderRight: i < statCols.length - 1 ? `1px solid ${C.gray200}` : "none" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: col.labelColor, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{col.label}</div>
+                  <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: col.color, lineHeight: 1.2 }}>{col.value}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${C.gray200}` }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Shares</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{shares > 0 ? fmt(shares) : "—"}</div>
-            </div>
-            <div style={{ flex: 1, padding: "10px 0", textAlign: "center" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Net</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.green }}>{fmt(net)}</div>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ SUMMARY STRIP ═══ */}
-        {isMobile ? (
-          /* Mobile: Trade value row + expandable tax + hero net */
-          <div style={{ borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", borderBottom: `1px solid ${C.gray200}` }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Gross Amount</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>TZS {fmt(gross)}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", borderBottom: `1px solid ${C.gray200}` }}>
-              <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Withholding Tax ({taxPct}%)</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.red }}>TZS {fmt(tax)}</div>
-            </div>
-            {/* Hero net amount row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: isDark ? `${C.green}18` : "#F0FDF4", borderBottom: `1px solid ${isDark ? `${C.green}44` : "#BBF7D0"}` }}>
-              <div style={{ fontSize: 11, color: C.green, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Net Income</div>
-              <div style={{ fontSize: 17, fontWeight: 900, color: C.green, lineHeight: 1 }}>TZS {fmt(net)}</div>
-            </div>
-          </div>
-        ) : (
-          /* Desktop: 3-column grid */
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `1px solid ${C.gray200}`, background: C.gray50, flexShrink: 0 }}>
-            {summaryItems.map((item, i) => (
-              <div key={i} style={{ padding: "12px 20px", borderLeft: i > 0 ? `1px solid ${C.gray200}` : "none", background: i === 2 ? (isDark ? `${C.green}18` : "#F0FDF4") : "transparent" }}>
-                <div style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{item.label}</div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: item.valueColor, lineHeight: 1 }}><span style={{ fontSize: 12, fontWeight: 600, opacity: 0.7 }}>{item.currency}</span> {item.amount}</div>
-                <div style={{ fontSize: 11, color: C.gray400, marginTop: 4 }}>{item.sub}</div>
-              </div>
-            ))}
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═══ SCROLLABLE BODY ═══ */}
         <div className="div-scroll" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {isMobile ? (
             <>
-              {/* Details card */}
+              {/* Income breakdown card (mobile only — desktop has Tax & Income panel) */}
               <div style={{ padding: "10px 18px 0" }}>
-                <div style={{ padding: "10px 12px", background: isDark ? "rgba(255,255,255,0.04)" : C.gray50, borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Dividend Details</div>
-                  {renderKVRows(leftRows)}
+                <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: isDark ? "rgba(255,255,255,0.04)" : C.gray50, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+                    <span style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Gross Amount</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>TZS {fmt(gross)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: isDark ? "rgba(255,255,255,0.04)" : C.gray50, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+                    <span style={{ fontSize: 10, color: C.gray400, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>WHT ({taxPct}%)</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.red }}>TZS {fmt(tax)}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: isDark ? `${C.green}18` : "#F0FDF4" }}>
+                    <span style={{ fontSize: 11, color: C.green, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Net Income</span>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: C.green }}>TZS {fmt(net)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Details card + previous dividend inside same box */}
+              <div style={{ padding: "10px 18px 0" }}>
+                <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : C.gray50, borderRadius: 10, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}`, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Dividend Details</div>
+                    {renderKVRows(leftRows)}
+                  </div>
+                  {prevDividend && (() => {
+                    const isUp = prevDividend.change >= 0;
+                    const glCol = isUp ? C.green : C.red;
+                    const glBg  = isUp ? (isDark ? `${C.green}18` : "#F0FDF4") : (isDark ? `${C.red}18` : "#FFF5F5");
+                    const glBdr = isUp ? (isDark ? `${C.green}44` : "#BBF7D0") : (isDark ? `${C.red}44` : "#FECACA");
+                    const prevTypeLabel = prevDividend.type.charAt(0).toUpperCase() + prevDividend.type.slice(1);
+                    return (
+                      <div style={{ padding: "0 10px 10px" }}>
+                        <div style={{ border: `1px solid ${glBdr}`, borderRadius: 8, overflow: "hidden" }}>
+                          <div style={{ background: glBg, padding: "7px 10px", borderBottom: `1px solid ${glBdr}` }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: glCol, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                              Previous Dividend{prevDividend.year ? ` · ${prevTypeLabel} ${prevDividend.year}` : ""}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", background: isDark ? "rgba(255,255,255,0.03)" : "#fff" }}>
+                            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Shares</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{prevDividend.prevShares > 0 ? fmt(prevDividend.prevShares) : "—"}</div>
+                            </div>
+                            <div style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : C.gray100}` }}>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: isDark ? "#93C5FD" : "#1D4ED8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>DPS</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: isDark ? "#93C5FD" : "#1D4ED8" }}>{fmt(prevDividend.prevDps)}</div>
+                            </div>
+                            <div style={{ flex: 1, padding: "10px 0", textAlign: "center" }}>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Net</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{prevDividend.prevNet > 0 ? fmt(prevDividend.prevNet) : "—"}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", padding: "7px 0", background: glBg, borderTop: `1px solid ${glBdr}` }}>
+                            <div style={{ flex: 2, paddingLeft: 10 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: glCol }}>DPS Growth</span>
+                            </div>
+                            <div style={{ flex: 1, textAlign: "center" }}>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: glCol }}>
+                                {isUp ? "▲" : "▼"} {isUp ? "+" : ""}{prevDividend.change.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
