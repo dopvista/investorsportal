@@ -634,11 +634,11 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
               {dividend.cds_number && (
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
                   🪪 {dividend.cds_number}
-                  {cdsAccountName === null
+                  {!isMobile && (cdsAccountName === null
                     ? <span style={{ color: "rgba(255,255,255,0.4)" }}> — …</span>
                     : cdsAccountName
                       ? <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}> — {cdsAccountName}</span>
-                      : null}
+                      : null)}
                 </span>
               )}
             </div>

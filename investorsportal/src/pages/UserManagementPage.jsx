@@ -1299,7 +1299,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
         {isMobile && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
-              <StatCard label="Total Users" value={stats.total}       color={C.navy}  icon={<Icon name="users" size={15} />}/>
+              <StatCard label="Users" value={stats.total}       color={C.navy}  icon={<Icon name="users" size={15} />}/>
               <StatCard label="Active"      value={stats.activeCount} color={C.green} icon={<Icon name="checkCircle" size={15} />}/>
               <StatCard label="No Role"     value={stats.noRoleCount} color={C.gold}  icon={<Icon name="alertTriangle" size={15} />}/>
             </div>
@@ -1339,7 +1339,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
         {!isMobile && (
           <>
             <div style={{ display:"flex", gap:8, marginBottom:10, flexShrink:0, flexWrap:"wrap" }}>
-              <StatCard label="Total Users"   value={stats.total}                                          color={C.navy}   icon={<Icon name="users" size={15} />}/>
+              <StatCard label="Users"   value={stats.total}                                          color={C.navy}   icon={<Icon name="users" size={15} />}/>
               <StatCard label="Active"        value={stats.activeCount}                                    color={C.green}  icon={<Icon name="checkCircle" size={15} />}/>
               <StatCard label="No Role"       value={stats.noRoleCount}                                    color={C.gold}   icon={<Icon name="alertTriangle" size={15} />}/>
               <StatCard label="Super Admins"  value={users.filter(u=>u.role_code==="SA").length||0}        color="#0A2540"  icon={<Icon name="key" size={15} sw={2.2} />}/>

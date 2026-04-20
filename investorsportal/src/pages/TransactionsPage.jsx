@@ -711,11 +711,11 @@ const TransactionDetailModal = memo(function TransactionDetailModal({ transactio
               {transaction.cds_number && (
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
                   🪪 {transaction.cds_number}
-                  {cdsAccountName === null
+                  {!isMobile && (cdsAccountName === null
                     ? <span style={{ color: "rgba(255,255,255,0.4)" }}> — …</span>
                     : cdsAccountName
                       ? <span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 600 }}> — {cdsAccountName}</span>
-                      : null}
+                      : null)}
                 </span>
               )}
             </div>
