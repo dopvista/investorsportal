@@ -1988,16 +1988,15 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
               {form.closureDate ? `as of ${new Date(form.closureDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "enter closure date to compute"}
             </div>
           </div>
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ flexShrink: 0 }}>
             {loadingManualHoldings ? (
               <span style={{ fontSize: 12, color: C.gray500, fontStyle: "italic" }}>{"Calculating\u2026"}</span>
             ) : (
               <input type="text" inputMode="numeric" value={commaVal(form.sharesHeld)}
                 onChange={e => { setForm(f => ({ ...f, sharesHeld: stripCommas(e.target.value) })); setError(""); }}
                 placeholder="0"
-                style={{ ...inpS(false), width: 120, height: 32, fontSize: 16, fontWeight: 800, textAlign: "right", padding: "0 10px" }} />
+                style={{ ...inpS(false), width: 120, height: 36, fontSize: 13, fontWeight: 800, textAlign: "right", padding: "0 10px" }} />
             )}
-            <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>shares</span>
           </div>
         </div>
 
