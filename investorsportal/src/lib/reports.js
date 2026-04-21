@@ -1898,18 +1898,18 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
 
     totalRowIdx = tableBody.length - 1;
 
-    // 11 cols, cw=269: #10 + Date24 + Company44 + Type14 + PerShare24 + Shares20 + Gross32 + Tax28 + Net32 + Status20 + Yield21 = 269
+    // 11 cols, cw=269: #10 + Date24 + Company36 + Type22 + PerShare24 + Shares20 + Gross32 + Tax28 + Net32 + Status20 + Yield21 = 269
     columnStyles = {
       0:  { halign: "center", cellWidth: 10 },
       1:  { halign: "center", cellWidth: 24 },
-      2:  { cellWidth: 44 },
-      3:  { halign: "center", cellWidth: 14 },
+      2:  { cellWidth: 36 },
+      3:  { halign: "left",   cellWidth: 22 },
       4:  { halign: "right",  cellWidth: 24 },
       5:  { halign: "right",  cellWidth: 20 },
       6:  { halign: "right",  cellWidth: 32 },
       7:  { halign: "right",  cellWidth: 28 },
       8:  { halign: "right",  cellWidth: 32 },
-      9:  { halign: "center", cellWidth: 20 },
+      9:  { halign: "left",   cellWidth: 20 },
       10: { halign: "right",  cellWidth: 21 },
     };
   } else {
@@ -2041,8 +2041,8 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
     ws.columns = [
       { width: 6 },   // A: #
       { width: 14 },  // B: Date
-      { width: 22 },  // C: Company
-      { width: 12 },  // D: Type
+      { width: 18 },  // C: Company
+      { width: 16 },  // D: Type
       { width: 12 },  // E: Per Share
       { width: 10 },  // F: Shares
       { width: 14 },  // G: Gross Amt
@@ -2191,7 +2191,7 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
     if (value > 0) cell.font = { ...cell.font, color: { argb: `FF${green}` } };
   };
   const applyStatus = (cell, status, opts = {}) => {
-    applyCell(cell, { ...opts, halign: "center" });
+    applyCell(cell, { ...opts, halign: "left" });
     if (status === "Paid") cell.font = { ...cell.font, color: { argb: `FF${green}` } };
     else if (status === "Declared" || status === "Ex-Date") cell.font = { ...cell.font, color: { argb: "FF1E64B4" } };
     else if (status === "Pending") cell.font = { ...cell.font, color: { argb: "FFB48200" } };
@@ -2223,7 +2223,7 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
       c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });
       c(2).value = fmtDateCell(d.payment_date || d.declaration_date); applyCell(c(2), { isAlt, halign: "center" });
       c(3).value = d.company_name || "—"; applyCell(c(3), { isAlt });
-      c(4).value = typeLabel; applyCell(c(4), { isAlt, halign: "center" });
+      c(4).value = typeLabel; applyCell(c(4), { isAlt, halign: "left" });
       c(5).value = f(d.dividend_per_share); applyNum(c(5), { isAlt });
       c(6).value = f(d.shares_held); applyNum(c(6), { isAlt });
       c(7).value = f(gross); applyNum(c(7), { isAlt });
