@@ -692,9 +692,9 @@ KEY RULE: Once DE confirms (Pending → Declared), they hand off to VR and perma
 
 ### Actions Detail
 - **Confirm / Re-Confirm** (DE — Pending or Rejected) — moves to Declared; puts in VR's queue
-- **Mark as Paid** (VR/SA/AD — Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** pre-filled with the scheduled payment date; verifier can adjust before confirming. IMPORTANT: the app blocks this action if today is before the scheduled payment date — the action button is disabled until the payment date arrives.
+- **Mark as Paid** (VR/SA/AD — Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** pre-filled with the scheduled payment date; verifier can adjust before confirming. IMPORTANT: the app blocks this action if today is before the scheduled payment date — the action button is disabled until the payment date arrives. When confirmed, the app automatically looks up and stores the historical share price at the ex-dividend date (or year-end of the dividend year if no ex-date) — this ensures the **Dividend Yield** shown in the detail modal is calculated against the correct historical price, not today's price.
 - **Reject** (VR/SA/AD — Declared or Ex-Date) — opens **"Reject Dividend"** popup requiring a **"Rejection Reason"**. The reason is stored and shown to DE in the detail modal and on the mobile card.
-- **Revert to Declared** (SA/AD — Paid only) — undoes the paid status, clears payment info, moves back to Declared
+- **Revert to Declared** (SA/AD — Paid only) — undoes the paid status, clears payment info and stored historical price, moves back to Declared
 - **Edit** — opens the Manual Entry form pre-filled (available only per role matrix above)
 - **Delete** — permanently removes the dividend record (irreversible; available only per role matrix)
 
@@ -731,12 +731,34 @@ Events appear in the **Announced Events** popup on the Dividends page (accessibl
 Click **"Stock Timeline"** on the Dividends page toolbar to see a year-by-year matrix showing shares held at each year-end (31 Dec) for every company in your portfolio. Useful for verifying dividend eligibility history across years. The modal loads in a single API call and computes all year-end snapshots locally.
 
 ### Dividend Detail Modal
-Click any dividend row to open the full detail view:
-- **Header**: company name, status badge, DPS, payment date, CDS number
-- **Summary strip**: Gross Amount | Withholding Tax | Net Amount
-- **Left panel**: Declaration Date, Ex-Dividend Date, Closure Date, Payment Date, Dividend Type, DPS, Dividend Yield %, DPS Growth % vs previous year, Shares Held, Status, Remarks, Rejection Reason (red, if rejected)
-- **Audit Trail**: Recorded → Confirmed → Paid (green) or Rejected (red with reason bubble). Steps not yet completed show "Awaiting" in gray.
-- **Save** button: downloads the detail view as a PNG image with a watermark
+Click any dividend row to open the full detail view. The modal is designed to be shareable as a PNG image.
+
+**Header**
+- Company name + Type badge (Annual/Interim/Final/Special) + Status badge
+- Subtitle line: 📅 Payment Date · 🪪 CDS number (+ account holder name on desktop)
+
+**Stat Bar** (Shares | DPS | Mkt Price | Div Yld) — always visible below the header
+Shows the four key figures. Div Yld uses the historically accurate price (see Dividend Yield section below). If the yield is estimated from approximate data, it shows with a **~** prefix (e.g. ~3.2%).
+
+**Mobile scrollable body (3 cards)**
+1. **Income Breakdown** — Gross Amount → WHT (red) → Net Income (green, large)
+2. **Dividend Details** — all four dates (Declaration, Ex-Dividend, Closure, Payment/Paid), Remarks (always shown, "—" if empty), Rejection Reason (red, if rejected). If a prior dividend exists for the same company, a **Previous Dividend** comparison box appears inside this card showing the prior Shares | DPS | Net and a DPS Growth indicator (▲/▼ %)
+3. **Audit Trail** — collapsible; shows each workflow step with timestamp and actor
+
+**Desktop layout (2 panels)**
+- Left: Dividend Details (dates + Remarks + Previous Dividend comparison)
+- Right: Tax & Income breakdown with a highlighted Net Income row at the bottom
+
+**Save as Image** — downloads the modal as a PNG with watermark
+
+### Dividend Yield
+**Investors Portal™** calculates Dividend Yield = DPS ÷ Price × 100 using the most accurate historical price for each dividend — not always today's price:
+
+- **Upcoming / Declared / Pending dividends** → uses today's current market price (forward-looking: "what return if I hold now?")
+- **Paid dividends** → uses the share price on the **ex-dividend date** (the market's fair price when the dividend became definitive — the standard used in DSE annual reports and equity research). If no ex-dividend date is recorded, falls back to the closing price on **31 December of the dividend year** (annual report convention)
+- **If neither date has a price on record** → the app searches DSE historical price data (up to 365 days back), then as a last resort uses the nearest verified transaction price as an approximation — shown with a **~** prefix to indicate it is estimated
+
+This means the yield shown for a paid CRDB 2024 dividend reflects what that dividend was worth relative to the share price when the ex-dividend date fell — not what it looks like at today's higher or lower price. Upcoming dividends always show the current-price yield so investors can evaluate whether to hold or buy more.
 
 ## Reports Page
 Generate PDF and Excel reports.
