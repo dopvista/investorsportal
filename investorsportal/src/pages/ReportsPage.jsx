@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTheme, useIsMobile, ModalShell, Btn } from "../components/ui";
 import { Icon } from "../lib/icons";
-import { sbGetPortfolioAsAt, sbGetTransactions, sbGetFifoSellDetails, sbGetDividends, sbGetDividendByCompany, sbGetAllCompanies } from "../lib/supabase";
+import { sbGetPortfolioAsAt, sbGetTransactions, sbGetFifoSellDetails, sbGetDividends, sbGetDividendByCompany } from "../lib/supabase";
 import { generatePortfolioStatementPDFv2, generatePortfolioStatementExcelv2, generateTransactionHistoryPDF, generateTransactionHistoryExcel, generateGainLossPDF, generateGainLossExcel, generateDividendIncomePDF, generateDividendIncomeExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
@@ -1118,12 +1118,7 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
       // Sort by payment date ascending
       rows.sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
 
-      // Build company price map for yield fallback (paid dividends missing market_price_at_payment)
-      const companyList = await sbGetAllCompanies().catch(() => []);
-      const companyPriceMap = {};
-      if (Array.isArray(companyList)) companyList.forEach(c => { if (c.id && Number(c.price) > 0) companyPriceMap[c.id] = Number(c.price); });
-
-      const params = { cdsNumber: cds, cdsName: cdsNameResolved, divView, dividends: rows, dateFrom, dateTo, status, companyPriceMap, logoUrl: logo };
+      const params = { cdsNumber: cds, cdsName: cdsNameResolved, divView, dividends: rows, dateFrom, dateTo, status, logoUrl: logo };
       if (format === "excel") {
         await generateDividendIncomeExcel(params);
       } else {

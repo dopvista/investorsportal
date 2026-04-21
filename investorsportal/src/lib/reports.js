@@ -1839,7 +1839,7 @@ export async function generateGainLossExcel({ cdsNumber, cdsName, glView = "comp
 }
 
 // ── 11. Dividend Income PDF (Reports Module) ────────────────────
-export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, companyPriceMap = {}, logoUrl }) {
+export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
   const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
   const f = v2f;
   const isByTxn = divView === "transaction";
@@ -1874,11 +1874,11 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
       let mktPrice, isApprox;
       if (d.status === "paid") {
         const storedPrice = Number(d.market_price_at_payment || 0);
-        const fallbackPrice = storedPrice > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+        const fallbackPrice = storedPrice > 0 ? 0 : Number(d.current_price || 0);
         mktPrice = storedPrice > 0 ? storedPrice : fallbackPrice;
         isApprox = storedPrice > 0 ? !!d.market_price_is_approx : fallbackPrice > 0;
       } else {
-        mktPrice = Number(companyPriceMap[d.company_id] || 0);
+        mktPrice = Number(d.current_price || 0);
         isApprox = mktPrice > 0;
       }
       const yieldLabel = mktPrice > 0 && dps > 0 ? `${isApprox ? "~" : ""}${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
@@ -2021,7 +2021,7 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
 }
 
 // ── 12. Dividend Income Excel (Reports Module) ──────────────────
-export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, companyPriceMap = {}, logoUrl }) {
+export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Dividend Income");
   const f = (n) => Math.round(Number(n || 0));
@@ -2224,11 +2224,11 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
       let mktPriceX, isApproxX;
       if (d.status === "paid") {
         const storedPriceX = Number(d.market_price_at_payment || 0);
-        const fallbackPriceX = storedPriceX > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+        const fallbackPriceX = storedPriceX > 0 ? 0 : Number(d.current_price || 0);
         mktPriceX = storedPriceX > 0 ? storedPriceX : fallbackPriceX;
         isApproxX = storedPriceX > 0 ? !!d.market_price_is_approx : fallbackPriceX > 0;
       } else {
-        mktPriceX = Number(companyPriceMap[d.company_id] || 0);
+        mktPriceX = Number(d.current_price || 0);
         isApproxX = mktPriceX > 0;
       }
       const yieldLabel = mktPriceX > 0 && dps > 0 ? `${isApproxX ? "~" : ""}${((dps / mktPriceX) * 100).toFixed(1)}%` : "—";
