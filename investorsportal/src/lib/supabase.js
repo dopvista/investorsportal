@@ -1368,6 +1368,25 @@ export async function sbGetCdsPriceHistory(companyId, cdsNumber) {
   );
 }
 
+// Closest stored price on or before dateStr (YYYY-MM-DD) from our own snapshot table
+export async function sbGetPriceAtDate(companyId, dateStr) {
+  return _fetchGET(
+    `${BASE}/rest/v1/company_price_history?company_id=eq.${companyId}&date=lte.${dateStr}&order=date.desc&limit=1&select=price,date`,
+    "Failed to fetch price at date"
+  );
+}
+
+// Verified transactions for a company within ±90 days of dateStr — used as last-resort price approximation
+export async function sbGetTransactionPriceNearDate(companyId, dateStr) {
+  const d = new Date(dateStr);
+  const from = new Date(d); from.setDate(d.getDate() - 90);
+  const to   = new Date(d); to.setDate(d.getDate() + 90);
+  return _fetchGET(
+    `${BASE}/rest/v1/transactions?company_id=eq.${companyId}&date=gte.${from.toISOString().split("T")[0]}&date=lte.${to.toISOString().split("T")[0]}&status=eq.verified&select=date,price,qty&order=date.desc`,
+    "Failed to fetch transaction price near date"
+  );
+}
+
 // In-memory cache: key → { data, ts }
 const _chartCache = new Map();
 const CHART_CACHE_TTL = 5 * 60_000; // 5 minutes
@@ -1805,7 +1824,7 @@ export async function sbDeleteDividend(id) {
   );
 }
 
-export async function sbUpdateDividendStatus(id, status, reason, paymentDate) {
+export async function sbUpdateDividendStatus(id, status, reason, paymentDate, marketPriceAtPayment) {
   const uid = getSession()?.user?.id || null;
   const now = new Date().toISOString();
   const body = { status };
@@ -1813,12 +1832,14 @@ export async function sbUpdateDividendStatus(id, status, reason, paymentDate) {
     body.paid_by = uid; body.paid_at = now;
     body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
     if (paymentDate) body.payment_date = paymentDate;
+    if (marketPriceAtPayment > 0) body.market_price_at_payment = marketPriceAtPayment;
   } else if (status === "rejected") {
     body.rejected_by = uid; body.rejected_at = now; body.rejection_reason = reason || null;
     body.paid_by = null; body.paid_at = null;
   } else {
     body.paid_by = null; body.paid_at = null;
     body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+    body.market_price_at_payment = null;
   }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=eq.${id}`,
@@ -1843,6 +1864,7 @@ export async function sbBulkUpdateDividendStatus(ids, status, reason, paymentDat
   } else {
     body.paid_by = null; body.paid_at = null;
     body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
+    body.market_price_at_payment = null;
   }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=in.${idList}`,

@@ -24,6 +24,9 @@ import {
   sbGetTransactions,
   sbGetVerifiedTransactions,
   sbGetCdsAccount,
+  sbGetPriceAtDate,
+  sbGetTransactionPriceNearDate,
+  sbGetCompanyPriceHistory,
 } from "../lib/supabase";
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -366,6 +369,8 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const [downloading, setDownloading] = useState(false);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [cdsAccountName, setCdsAccountName] = useState(null);
+  const [resolvedPrice, setResolvedPrice] = useState(null);
+  const [priceIsApprox, setPriceIsApprox] = useState(false);
 
   useEffect(() => {
     if (!dividend?.cds_number) { setCdsAccountName(""); return; }
@@ -376,6 +381,51 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
       .catch(() => { if (!cancelled) setCdsAccountName(""); });
     return () => { cancelled = true; };
   }, [dividend?.cds_number]);
+
+  // Resolve historical market price for paid dividends without a stored price
+  useEffect(() => {
+    if (dividend?.status !== "paid" || Number(dividend?.market_price_at_payment) > 0) {
+      setResolvedPrice(null);
+      setPriceIsApprox(false);
+      return;
+    }
+    const paidDate = dividend?.paid_at?.split("T")[0] || dividend?.payment_date;
+    if (!paidDate || !dividend?.company_id) return;
+    let cancelled = false;
+    (async () => {
+      // 1. Our own daily snapshot table — zero API cost, most reliable
+      try {
+        const rows = await sbGetPriceAtDate(dividend.company_id, paidDate);
+        if (!cancelled && rows?.length > 0 && Number(rows[0].price) > 0) {
+          setResolvedPrice(Number(rows[0].price)); setPriceIsApprox(false); return;
+        }
+      } catch {}
+      // 2. DSE price history API — up to 365 days back
+      try {
+        const ticker = companies.find(c => c.id === dividend.company_id)?.name;
+        if (ticker) {
+          const history = await sbGetCompanyPriceHistory(ticker, 365);
+          if (!cancelled && Array.isArray(history) && history.length > 0) {
+            const match = history.filter(h => h.date && h.date <= paidDate).sort((a, b) => b.date.localeCompare(a.date))[0];
+            if (match && Number(match.price) > 0) {
+              setResolvedPrice(Number(match.price)); setPriceIsApprox(false); return;
+            }
+          }
+        }
+      } catch {}
+      // 3. Nearest verified transaction price — approximate fallback
+      try {
+        const txns = await sbGetTransactionPriceNearDate(dividend.company_id, paidDate);
+        if (!cancelled && Array.isArray(txns) && txns.length > 0) {
+          const paidTime = new Date(paidDate).getTime();
+          const closest = txns.filter(t => Number(t.price) > 0).sort((a, b) => Math.abs(new Date(a.date) - paidTime) - Math.abs(new Date(b.date) - paidTime))[0];
+          if (closest) { setResolvedPrice(Number(closest.price)); setPriceIsApprox(true); return; }
+        }
+      } catch {}
+      if (!cancelled) setResolvedPrice(0);
+    })();
+    return () => { cancelled = true; };
+  }, [dividend?.id, dividend?.status, dividend?.market_price_at_payment, dividend?.company_id, dividend?.paid_at, dividend?.payment_date, companies]);
 
   const handleDownloadPNG = useCallback(async () => {
     if (!captureRef.current || downloading) return;
@@ -402,8 +452,10 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
   const company = companiesMap.get(dividend.company_id);
   const companyName = dividend.company_name || company?.name || "Unknown Company";
 
-  // Dividend yield = DPS / Market Price × 100
-  const marketPrice = Number(company?.price || 0);
+  // Market price: for paid dividends use stored price → fallback chain; for others use current price
+  const marketPrice = dividend.status === "paid"
+    ? Number(dividend.market_price_at_payment || resolvedPrice || 0)
+    : Number(company?.price || 0);
   const yieldPct = (dps > 0 && marketPrice > 0) ? ((dps / marketPrice) * 100).toFixed(2) : null;
   const marketValue = shares > 0 && marketPrice > 0 ? shares * marketPrice : null;
 
@@ -652,7 +704,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
             { label: "Shares",    value: shares > 0   ? fmt(shares)       : null, color: C.text,                         labelColor: C.gray500 },
             { label: "DPS",       value: dps > 0      ? fmt(dps)          : null, color: isDark ? "#93C5FD" : "#1D4ED8", labelColor: isDark ? "#93C5FD" : "#1D4ED8" },
             { label: "Mkt Price", value: marketPrice > 0 ? fmt(marketPrice) : null, color: C.text,                        labelColor: C.gray500 },
-            { label: "Div Yld",   value: yieldPct     ? `${yieldPct}%`    : null, color: isDark ? "#A3E635" : "#4D7C0F", labelColor: isDark ? "#A3E635" : "#4D7C0F" },
+            { label: "Div Yld",   value: yieldPct     ? `${priceIsApprox ? "~" : ""}${yieldPct}%` : null, color: isDark ? "#A3E635" : "#4D7C0F", labelColor: isDark ? "#A3E635" : "#4D7C0F" },
           ].filter(c => c.value);
           return (
             <div style={{ display: "flex", alignItems: "stretch", background: C.gray50, flexShrink: 0, borderBottom: `1px solid ${C.gray200}` }}>
@@ -1636,14 +1688,21 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     setMarkAsPaidModal(null);
     setMarkingPaidIds(new Set(ids));
     try {
-      await sbBulkUpdateDividendStatus(ids, "paid", null, paymentDate || null);
+      await Promise.all(ids.map(id => {
+        const div = dividends.find(x => x.id === id);
+        const price = div ? (Number(companyById.get(div.company_id)?.price) || null) : null;
+        return sbUpdateDividendStatus(id, "paid", null, paymentDate || null, price);
+      }));
       if (!isMountedRef.current) return;
       const idSet = new Set(ids);
       const now = new Date().toISOString();
-      setDividends(p => p.map(d => idSet.has(d.id)
-        ? { ...d, status: "paid", paid_at: now, ...(paymentDate ? { payment_date: paymentDate } : {}) }
-        : d
-      ));
+      setDividends(p => p.map(d => {
+        if (!idSet.has(d.id)) return d;
+        const price = Number(companyById.get(d.company_id)?.price) || null;
+        return { ...d, status: "paid", paid_at: now,
+          ...(paymentDate ? { payment_date: paymentDate } : {}),
+          ...(price > 0 ? { market_price_at_payment: price } : {}) };
+      }));
       setSelected(new Set());
       showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} marked as paid.`, "success");
       loadDividends({ fromPull: false }).catch(() => {});
@@ -1653,7 +1712,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } finally {
       if (isMountedRef.current) setMarkingPaidIds(new Set());
     }
-  }, [markAsPaidModal, showToast, loadDividends, dividends, todayIso]);
+  }, [markAsPaidModal, showToast, loadDividends, dividends, todayIso, companyById]);
 
   const doBulkUnpay = useCallback(async () => {
     const ids = bulkUnpayModal?.ids;
