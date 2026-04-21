@@ -29,6 +29,27 @@ import {
   sbGetCompanyPriceHistory,
 } from "../lib/supabase";
 
+// Resolves the market price for a given company on a specific historical date.
+// Used at pay-time to store an accurate price rather than today's price.
+// Does NOT use transaction approximation — we only store reliable prices here;
+// approximate display fallback (~) is handled separately in DividendDetailModal.
+async function resolveHistoricalPrice(companyId, ticker, dateStr) {
+  try {
+    const rows = await sbGetPriceAtDate(companyId, dateStr);
+    if (rows?.length > 0 && Number(rows[0].price) > 0) return Number(rows[0].price);
+  } catch {}
+  try {
+    if (ticker) {
+      const history = await sbGetCompanyPriceHistory(ticker, 365);
+      if (Array.isArray(history) && history.length > 0) {
+        const match = history.filter(h => h.date && h.date <= dateStr).sort((a, b) => b.date.localeCompare(a.date))[0];
+        if (match && Number(match.price) > 0) return Number(match.price);
+      }
+    }
+  } catch {}
+  return null;
+}
+
 // ── Module-level CSS injection (once, not per-render) ─────────────
 if (typeof document !== "undefined" && !document.getElementById("_div_keyframes")) {
   const s = document.createElement("style");
@@ -1688,9 +1709,19 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     setMarkAsPaidModal(null);
     setMarkingPaidIds(new Set(ids));
     try {
-      await Promise.all(ids.map(id => {
+      // Resolve the correct historical price per dividend before saving.
+      // effectiveDate = user-confirmed payment date → dividend's payment_date → today.
+      // If effectiveDate is today use current price; otherwise look up historical price
+      // so that backdated entries store the price at their actual payment date.
+      const priceMap = new Map();
+      await Promise.all(ids.map(async id => {
         const div = dividends.find(x => x.id === id);
-        const price = div ? (Number(companyById.get(div.company_id)?.price) || null) : null;
+        const company = div ? companyById.get(div.company_id) : null;
+        const effectiveDate = paymentDate || div?.payment_date || todayIso;
+        const price = effectiveDate === todayIso
+          ? (Number(company?.price) || null)
+          : await resolveHistoricalPrice(div?.company_id, company?.name, effectiveDate);
+        priceMap.set(id, price);
         return sbUpdateDividendStatus(id, "paid", null, paymentDate || null, price);
       }));
       if (!isMountedRef.current) return;
@@ -1698,7 +1729,7 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       const now = new Date().toISOString();
       setDividends(p => p.map(d => {
         if (!idSet.has(d.id)) return d;
-        const price = Number(companyById.get(d.company_id)?.price) || null;
+        const price = priceMap.get(d.id);
         return { ...d, status: "paid", paid_at: now,
           ...(paymentDate ? { payment_date: paymentDate } : {}),
           ...(price > 0 ? { market_price_at_payment: price } : {}) };
