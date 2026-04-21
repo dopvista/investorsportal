@@ -1824,7 +1824,7 @@ export async function sbDeleteDividend(id) {
   );
 }
 
-export async function sbUpdateDividendStatus(id, status, reason, paymentDate, marketPriceAtPayment) {
+export async function sbUpdateDividendStatus(id, status, reason, paymentDate, marketPriceAtPayment, marketPriceIsApprox = false) {
   const uid = getSession()?.user?.id || null;
   const now = new Date().toISOString();
   const body = { status };
@@ -1832,14 +1832,17 @@ export async function sbUpdateDividendStatus(id, status, reason, paymentDate, ma
     body.paid_by = uid; body.paid_at = now;
     body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
     if (paymentDate) body.payment_date = paymentDate;
-    if (marketPriceAtPayment > 0) body.market_price_at_payment = marketPriceAtPayment;
+    if (marketPriceAtPayment > 0) {
+      body.market_price_at_payment = marketPriceAtPayment;
+      body.market_price_is_approx = marketPriceIsApprox;
+    }
   } else if (status === "rejected") {
     body.rejected_by = uid; body.rejected_at = now; body.rejection_reason = reason || null;
     body.paid_by = null; body.paid_at = null;
   } else {
     body.paid_by = null; body.paid_at = null;
     body.rejected_by = null; body.rejected_at = null; body.rejection_reason = null;
-    body.market_price_at_payment = null;
+    body.market_price_at_payment = null; body.market_price_is_approx = false;
   }
   const res = await fetchWithAuthRetry(
     `${BASE}/rest/v1/dividends?id=eq.${id}`,
@@ -1847,6 +1850,14 @@ export async function sbUpdateDividendStatus(id, status, reason, paymentDate, ma
     "Failed to update dividend status"
   );
   return res.json();
+}
+
+export async function sbPatchDividendPrice(id, price, isApprox) {
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/dividends?id=eq.${id}`,
+    { method: "PATCH", headers: headers(token()), body: JSON.stringify({ market_price_at_payment: price, market_price_is_approx: isApprox }) },
+    "Failed to patch dividend price"
+  );
 }
 
 export async function sbBulkUpdateDividendStatus(ids, status, reason, paymentDate) {

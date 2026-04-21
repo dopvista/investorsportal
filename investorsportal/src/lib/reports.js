@@ -1873,7 +1873,7 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
       const storedPrice = Number(d.market_price_at_payment || 0);
       const fallbackPrice = storedPrice > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
       const mktPrice = storedPrice > 0 ? storedPrice : fallbackPrice;
-      const isApprox = storedPrice === 0 && fallbackPrice > 0;
+      const isApprox = storedPrice > 0 ? !!d.market_price_is_approx : fallbackPrice > 0;
       const dps = Number(d.dividend_per_share || 0);
       const yieldLabel = d.status === "paid" && mktPrice > 0 && dps > 0 ? `${isApprox ? "~" : ""}${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
       return [
@@ -2217,7 +2217,7 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
       const storedPriceX = Number(d.market_price_at_payment || 0);
       const fallbackPriceX = storedPriceX > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
       const mktPriceX = storedPriceX > 0 ? storedPriceX : fallbackPriceX;
-      const isApproxX = storedPriceX === 0 && fallbackPriceX > 0;
+      const isApproxX = storedPriceX > 0 ? !!d.market_price_is_approx : fallbackPriceX > 0;
       const dps = Number(d.dividend_per_share || 0);
       const yieldLabel = d.status === "paid" && mktPriceX > 0 && dps > 0 ? `${isApproxX ? "~" : ""}${((dps / mktPriceX) * 100).toFixed(1)}%` : "—";
       c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });

@@ -27,27 +27,43 @@ import {
   sbGetPriceAtDate,
   sbGetTransactionPriceNearDate,
   sbGetCompanyPriceHistory,
+  sbPatchDividendPrice,
 } from "../lib/supabase";
 
-// Resolves the market price for a given company on a specific historical date.
-// Used at pay-time to store an accurate price rather than today's price.
-// Does NOT use transaction approximation — we only store reliable prices here;
-// approximate display fallback (~) is handled separately in DividendDetailModal.
+// Resolves the market price for a company on a historical date.
+// Returns { price, isApprox } where isApprox=true when the price came from
+// a transaction record rather than an official market price snapshot.
+// Callers should further fall back to current company price if this returns null.
 async function resolveHistoricalPrice(companyId, ticker, dateStr) {
+  // 1. Official daily price snapshots in DB (most reliable)
   try {
     const rows = await sbGetPriceAtDate(companyId, dateStr);
-    if (rows?.length > 0 && Number(rows[0].price) > 0) return Number(rows[0].price);
+    if (rows?.length > 0 && Number(rows[0].price) > 0)
+      return { price: Number(rows[0].price), isApprox: false };
   } catch {}
+  // 2. DSE historical API — 365-day window (reliable, may not cover old dates)
   try {
     if (ticker) {
       const history = await sbGetCompanyPriceHistory(ticker, 365);
       if (Array.isArray(history) && history.length > 0) {
         const match = history.filter(h => h.date && h.date <= dateStr).sort((a, b) => b.date.localeCompare(a.date))[0];
-        if (match && Number(match.price) > 0) return Number(match.price);
+        if (match && Number(match.price) > 0)
+          return { price: Number(match.price), isApprox: false };
       }
     }
   } catch {}
-  return null;
+  // 3. Verified transactions ±90 days — approximate but better than null
+  try {
+    const txns = await sbGetTransactionPriceNearDate(companyId, dateStr);
+    if (Array.isArray(txns) && txns.length > 0) {
+      const closest = txns.sort((a, b) =>
+        Math.abs(new Date(a.date) - new Date(dateStr)) - Math.abs(new Date(b.date) - new Date(dateStr))
+      )[0];
+      if (closest && Number(closest.price) > 0)
+        return { price: Number(closest.price), isApprox: true };
+    }
+  } catch {}
+  return { price: null, isApprox: false };
 }
 
 // ── Module-level CSS injection (once, not per-render) ─────────────
@@ -418,12 +434,18 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
       dividend?.payment_date;
     if (!priceDate || !dividend?.company_id) return;
     let cancelled = false;
+    const hydrate = (price, isApprox) => {
+      if (cancelled) return;
+      setResolvedPrice(price); setPriceIsApprox(isApprox);
+      // Lazy hydration: persist to DB so future loads don't need to re-resolve
+      sbPatchDividendPrice(dividend.id, price, isApprox).catch(() => {});
+    };
     (async () => {
       // 1. Our own daily snapshot table — zero API cost, most reliable
       try {
         const rows = await sbGetPriceAtDate(dividend.company_id, priceDate);
         if (!cancelled && rows?.length > 0 && Number(rows[0].price) > 0) {
-          setResolvedPrice(Number(rows[0].price)); setPriceIsApprox(false); return;
+          hydrate(Number(rows[0].price), false); return;
         }
       } catch {}
       // 2. DSE price history API — up to 365 days back
@@ -434,7 +456,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
           if (!cancelled && Array.isArray(history) && history.length > 0) {
             const match = history.filter(h => h.date && h.date <= priceDate).sort((a, b) => b.date.localeCompare(a.date))[0];
             if (match && Number(match.price) > 0) {
-              setResolvedPrice(Number(match.price)); setPriceIsApprox(false); return;
+              hydrate(Number(match.price), false); return;
             }
           }
         }
@@ -445,9 +467,12 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
         if (!cancelled && Array.isArray(txns) && txns.length > 0) {
           const refTime = new Date(priceDate).getTime();
           const closest = txns.filter(t => Number(t.price) > 0).sort((a, b) => Math.abs(new Date(a.date) - refTime) - Math.abs(new Date(b.date) - refTime))[0];
-          if (closest) { setResolvedPrice(Number(closest.price)); setPriceIsApprox(true); return; }
+          if (closest) { hydrate(Number(closest.price), true); return; }
         }
       } catch {}
+      // 4. Current company price — last resort, always approximate
+      const currentPrice = Number(companies.find(c => c.id === dividend.company_id)?.price) || 0;
+      if (!cancelled && currentPrice > 0) { hydrate(currentPrice, true); return; }
       if (!cancelled) setResolvedPrice(0);
     })();
     return () => { cancelled = true; };
@@ -1723,27 +1748,34 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       await Promise.all(ids.map(async id => {
         const div = dividends.find(x => x.id === id);
         const company = div ? companyById.get(div.company_id) : null;
+        const currentCompanyPrice = Number(company?.price) || 0;
         const priceDate =
           div?.ex_dividend_date ||
           (div?.dividend_year ? `${div.dividend_year}-12-31` : null) ||
           paymentDate ||
           div?.payment_date ||
           todayIso;
-        const price = priceDate === todayIso
-          ? (Number(company?.price) || null)
-          : await resolveHistoricalPrice(div?.company_id, company?.name, priceDate);
-        priceMap.set(id, price);
-        return sbUpdateDividendStatus(id, "paid", null, paymentDate || null, price);
+        let price, isApprox;
+        if (priceDate === todayIso) {
+          price = currentCompanyPrice || null;
+          isApprox = false;
+        } else {
+          ({ price, isApprox } = await resolveHistoricalPrice(div?.company_id, company?.name, priceDate));
+          // Last resort: current company price (approximate — not the ex-div date price)
+          if (!price && currentCompanyPrice > 0) { price = currentCompanyPrice; isApprox = true; }
+        }
+        priceMap.set(id, { price, isApprox });
+        return sbUpdateDividendStatus(id, "paid", null, paymentDate || null, price, isApprox);
       }));
       if (!isMountedRef.current) return;
       const idSet = new Set(ids);
       const now = new Date().toISOString();
       setDividends(p => p.map(d => {
         if (!idSet.has(d.id)) return d;
-        const price = priceMap.get(d.id);
+        const { price, isApprox } = priceMap.get(d.id) || {};
         return { ...d, status: "paid", paid_at: now,
           ...(paymentDate ? { payment_date: paymentDate } : {}),
-          ...(price > 0 ? { market_price_at_payment: price } : {}) };
+          ...(price > 0 ? { market_price_at_payment: price, market_price_is_approx: isApprox } : {}) };
       }));
       setSelected(new Set());
       showToast(`${ids.length} dividend${ids.length > 1 ? "s" : ""} marked as paid.`, "success");
