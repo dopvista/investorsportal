@@ -796,6 +796,8 @@ function DividendFilterModal({ cdsNumber, cdsName, cdsList, onGenerate, onClose,
   const [dateTo, setDateTo]           = useState("");
   const [divView, setDivView]         = useState("company");
   const [divStatus, setDivStatus]     = useState("All");
+  const [divCompany, setDivCompany]   = useState("All");
+  const [divCompanies, setDivCompanies] = useState([]);
   const [selectedCds, setSelectedCds] = useState(cdsNumber || "");
   const [generating, setGenerating]   = useState(false);
   const [error, setError]             = useState("");
@@ -804,6 +806,18 @@ function DividendFilterModal({ cdsNumber, cdsName, cdsList, onGenerate, onClose,
   const cdsRef = useRef(null);
 
   const isByTxn = divView === "transaction";
+
+  // Load distinct companies with dividends for the selected CDS
+  useEffect(() => {
+    if (!selectedCds) { setDivCompanies([]); setDivCompany("All"); return; }
+    sbGetDividends(selectedCds).then(rows => {
+      if (!Array.isArray(rows)) return;
+      const seen = new Map();
+      rows.forEach(r => { if (r.company_id && r.company_name && !seen.has(r.company_id)) seen.set(r.company_id, r.company_name); });
+      setDivCompanies([...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
+      setDivCompany("All");
+    }).catch(() => {});
+  }, [selectedCds]);
 
   // No default dateFrom — shows all dividends from the beginning
   // dateTo defaults to today (set in useState above)
@@ -833,7 +847,7 @@ function DividendFilterModal({ cdsNumber, cdsName, cdsList, onGenerate, onClose,
     setError("");
     setGenerating(true);
     try {
-      await onGenerate({ cdsNumber: selectedCds, divView, dateFrom, dateTo, status: isByTxn ? divStatus : "All", format });
+      await onGenerate({ cdsNumber: selectedCds, divView, dateFrom, dateTo, status: isByTxn ? divStatus : "All", company: divCompany, format });
     } catch (e) {
       setError(e.message || "Failed to generate report.");
     } finally {
@@ -910,16 +924,29 @@ function DividendFilterModal({ cdsNumber, cdsName, cdsList, onGenerate, onClose,
           )}
         </div>
 
-        {/* View selector */}
-        <div>
-          <div style={labelStyle}>View</div>
-          <select value={divView} onChange={e => setDivView(e.target.value)}
-            style={{ ...inputStyle, cursor: "pointer" }}
-          >
-            {DIV_VIEW_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+        {/* View + Company on same row */}
+        <div style={{ display: "flex", gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>View</div>
+            <select value={divView} onChange={e => setDivView(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer" }}
+            >
+              {DIV_VIEW_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>Company</div>
+            <select value={divCompany} onChange={e => setDivCompany(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer" }}
+            >
+              <option value="All">All Companies</option>
+              {divCompanies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Period: Date From + Date To */}
@@ -1068,7 +1095,7 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
     showToast(`Gain/Loss Report ${format === "excel" ? "downloaded" : "generated"}`, "success");
   }, [showToast]);
 
-  const handleGenerateDividend = useCallback(async ({ cdsNumber: cds, divView = "company", dateFrom, dateTo, status, format = "pdf" }) => {
+  const handleGenerateDividend = useCallback(async ({ cdsNumber: cds, divView = "company", dateFrom, dateTo, status, company = "All", format = "pdf" }) => {
     const cdsNameResolved = cdsList?.find(c => c.cds_number === cds)?.cds_name || "";
 
     if (divView === "transaction") {
@@ -1083,6 +1110,8 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
       // Filter by date range
       if (dateFrom) rows = rows.filter(d => dateOf(d) >= dateFrom);
       if (dateTo) rows = rows.filter(d => { const dt = dateOf(d); return !dt || dt <= dateTo; });
+      // Filter by company
+      if (company && company !== "All") rows = rows.filter(d => d.company_id === company);
       // Filter by status
       if (status && status !== "All") rows = rows.filter(d => d.status === status);
       if (!rows.length) throw new Error("No dividends found for the selected filters.");
