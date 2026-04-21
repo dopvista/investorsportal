@@ -1870,12 +1870,18 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
       totTax += tax;
       totNet += net;
       const typeLabel = d.dividend_type ? d.dividend_type.charAt(0).toUpperCase() + d.dividend_type.slice(1) : "—";
-      const storedPrice = Number(d.market_price_at_payment || 0);
-      const fallbackPrice = storedPrice > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
-      const mktPrice = storedPrice > 0 ? storedPrice : fallbackPrice;
-      const isApprox = storedPrice > 0 ? !!d.market_price_is_approx : fallbackPrice > 0;
       const dps = Number(d.dividend_per_share || 0);
-      const yieldLabel = d.status === "paid" && mktPrice > 0 && dps > 0 ? `${isApprox ? "~" : ""}${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
+      let mktPrice, isApprox;
+      if (d.status === "paid") {
+        const storedPrice = Number(d.market_price_at_payment || 0);
+        const fallbackPrice = storedPrice > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+        mktPrice = storedPrice > 0 ? storedPrice : fallbackPrice;
+        isApprox = storedPrice > 0 ? !!d.market_price_is_approx : fallbackPrice > 0;
+      } else {
+        mktPrice = Number(companyPriceMap[d.company_id] || 0);
+        isApprox = mktPrice > 0;
+      }
+      const yieldLabel = mktPrice > 0 && dps > 0 ? `${isApprox ? "~" : ""}${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
       return [
         i + 1,
         fmtDateCell(d.payment_date || d.declaration_date),
@@ -2214,12 +2220,18 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
       const c = (n) => row.getCell(n);
       const statusLabel = d.status === "ex_date_passed" ? "Ex-Date" : d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "—";
       const typeLabel = d.dividend_type ? d.dividend_type.charAt(0).toUpperCase() + d.dividend_type.slice(1) : "—";
-      const storedPriceX = Number(d.market_price_at_payment || 0);
-      const fallbackPriceX = storedPriceX > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
-      const mktPriceX = storedPriceX > 0 ? storedPriceX : fallbackPriceX;
-      const isApproxX = storedPriceX > 0 ? !!d.market_price_is_approx : fallbackPriceX > 0;
       const dps = Number(d.dividend_per_share || 0);
-      const yieldLabel = d.status === "paid" && mktPriceX > 0 && dps > 0 ? `${isApproxX ? "~" : ""}${((dps / mktPriceX) * 100).toFixed(1)}%` : "—";
+      let mktPriceX, isApproxX;
+      if (d.status === "paid") {
+        const storedPriceX = Number(d.market_price_at_payment || 0);
+        const fallbackPriceX = storedPriceX > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+        mktPriceX = storedPriceX > 0 ? storedPriceX : fallbackPriceX;
+        isApproxX = storedPriceX > 0 ? !!d.market_price_is_approx : fallbackPriceX > 0;
+      } else {
+        mktPriceX = Number(companyPriceMap[d.company_id] || 0);
+        isApproxX = mktPriceX > 0;
+      }
+      const yieldLabel = mktPriceX > 0 && dps > 0 ? `${isApproxX ? "~" : ""}${((dps / mktPriceX) * 100).toFixed(1)}%` : "—";
       c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });
       c(2).value = fmtDateCell(d.payment_date || d.declaration_date); applyCell(c(2), { isAlt, halign: "center" });
       c(3).value = d.company_name || "—"; applyCell(c(3), { isAlt });
