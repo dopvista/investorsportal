@@ -547,7 +547,7 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
     ...(dividend.closure_date      ? [["Closure Date",      fmtDate(dividend.closure_date)]]      : []),
     // Payment Date / Paid Date
     ...(dividend.status === "paid" && dividend.paid_at
-      ? [["Paid Date", fmtDate(dividend.paid_at), C.green]]
+      ? [["Paid Date", fmtDate(dividend.payment_date || dividend.paid_at), C.green]]
       : dividend.payment_date ? [["Payment Date", fmtDate(dividend.payment_date)]] : []),
     ["Remarks", dividend.remarks || "—"],
     ...(dividend.status === "rejected" && dividend.rejection_reason ? [["Rejection Reason", dividend.rejection_reason, C.red]] : []),
