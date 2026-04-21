@@ -1839,7 +1839,7 @@ export async function generateGainLossExcel({ cdsNumber, cdsName, glView = "comp
 }
 
 // ── 11. Dividend Income PDF (Reports Module) ────────────────────
-export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
+export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, companyPriceMap = {}, logoUrl }) {
   const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
   const f = v2f;
   const isByTxn = divView === "transaction";
@@ -1870,9 +1870,12 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
       totTax += tax;
       totNet += net;
       const typeLabel = d.dividend_type ? d.dividend_type.charAt(0).toUpperCase() + d.dividend_type.slice(1) : "—";
-      const mktPrice = Number(d.market_price_at_payment || 0);
+      const storedPrice = Number(d.market_price_at_payment || 0);
+      const fallbackPrice = storedPrice > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+      const mktPrice = storedPrice > 0 ? storedPrice : fallbackPrice;
+      const isApprox = storedPrice === 0 && fallbackPrice > 0;
       const dps = Number(d.dividend_per_share || 0);
-      const yieldLabel = d.status === "paid" && mktPrice > 0 && dps > 0 ? `${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
+      const yieldLabel = d.status === "paid" && mktPrice > 0 && dps > 0 ? `${isApprox ? "~" : ""}${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
       return [
         i + 1,
         fmtDateCell(d.payment_date || d.declaration_date),
@@ -2012,7 +2015,7 @@ export async function generateDividendIncomePDF({ cdsNumber, cdsName, divView = 
 }
 
 // ── 12. Dividend Income Excel (Reports Module) ──────────────────
-export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, logoUrl }) {
+export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView = "company", dividends, byCompany, dateFrom, dateTo, status, companyPriceMap = {}, logoUrl }) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Dividend Income");
   const f = (n) => Math.round(Number(n || 0));
@@ -2211,9 +2214,12 @@ export async function generateDividendIncomeExcel({ cdsNumber, cdsName, divView 
       const c = (n) => row.getCell(n);
       const statusLabel = d.status === "ex_date_passed" ? "Ex-Date" : d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "—";
       const typeLabel = d.dividend_type ? d.dividend_type.charAt(0).toUpperCase() + d.dividend_type.slice(1) : "—";
-      const mktPrice = Number(d.market_price_at_payment || 0);
+      const storedPriceX = Number(d.market_price_at_payment || 0);
+      const fallbackPriceX = storedPriceX > 0 ? 0 : Number(companyPriceMap[d.company_id] || 0);
+      const mktPriceX = storedPriceX > 0 ? storedPriceX : fallbackPriceX;
+      const isApproxX = storedPriceX === 0 && fallbackPriceX > 0;
       const dps = Number(d.dividend_per_share || 0);
-      const yieldLabel = d.status === "paid" && mktPrice > 0 && dps > 0 ? `${((dps / mktPrice) * 100).toFixed(1)}%` : "—";
+      const yieldLabel = d.status === "paid" && mktPriceX > 0 && dps > 0 ? `${isApproxX ? "~" : ""}${((dps / mktPriceX) * 100).toFixed(1)}%` : "—";
       c(1).value = i + 1; applyCell(c(1), { isAlt, halign: "center" });
       c(2).value = fmtDateCell(d.payment_date || d.declaration_date); applyCell(c(2), { isAlt, halign: "center" });
       c(3).value = d.company_name || "—"; applyCell(c(3), { isAlt });

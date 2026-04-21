@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTheme, useIsMobile, ModalShell, Btn } from "../components/ui";
 import { Icon } from "../lib/icons";
-import { sbGetPortfolioAsAt, sbGetTransactions, sbGetFifoSellDetails, sbGetDividends, sbGetDividendByCompany } from "../lib/supabase";
+import { sbGetPortfolioAsAt, sbGetTransactions, sbGetFifoSellDetails, sbGetDividends, sbGetDividendByCompany, sbGetAllCompanies } from "../lib/supabase";
 import { generatePortfolioStatementPDFv2, generatePortfolioStatementExcelv2, generateTransactionHistoryPDF, generateTransactionHistoryExcel, generateGainLossPDF, generateGainLossExcel, generateDividendIncomePDF, generateDividendIncomeExcel } from "../lib/reports";
 import logo from "../assets/logo.jpg";
 
@@ -963,6 +963,16 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const [activeReport, setActiveReport] = useState(null);
+  const [companyPriceMap, setCompanyPriceMap] = useState({});
+
+  useEffect(() => {
+    sbGetAllCompanies().then(list => {
+      if (!Array.isArray(list)) return;
+      const map = {};
+      list.forEach(c => { if (c.id && Number(c.price) > 0) map[c.id] = Number(c.price); });
+      setCompanyPriceMap(map);
+    }).catch(() => {});
+  }, []);
 
   const handleGeneratePortfolio = useCallback(async ({ cdsNumber: cds, asAtDate, positionType, format = "pdf" }) => {
     // Fetch data
@@ -1089,7 +1099,7 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
       // Sort by payment date ascending
       rows.sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
 
-      const params = { cdsNumber: cds, cdsName: cdsNameResolved, divView, dividends: rows, dateFrom, dateTo, status, logoUrl: logo };
+      const params = { cdsNumber: cds, cdsName: cdsNameResolved, divView, dividends: rows, dateFrom, dateTo, status, companyPriceMap, logoUrl: logo };
       if (format === "excel") {
         await generateDividendIncomeExcel(params);
       } else {
