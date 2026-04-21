@@ -730,12 +730,12 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
             { label: "Shares",    value: shares > 0   ? fmt(shares)       : null, color: C.text,                         labelColor: C.gray500 },
             { label: "DPS",       value: dps > 0      ? fmt(dps)          : null, color: isDark ? "#93C5FD" : "#1D4ED8", labelColor: isDark ? "#93C5FD" : "#1D4ED8" },
             { label: "Mkt Price", value: marketPrice > 0 ? fmt(marketPrice) : null, color: C.text,                        labelColor: C.gray500 },
-            { label: "Div Yld",   value: yieldPct     ? `${priceIsApprox ? "~" : ""}${yieldPct}%` : null, color: isDark ? "#A3E635" : "#4D7C0F", labelColor: isDark ? "#A3E635" : "#4D7C0F" },
+            { label: "Div Yld",   value: yieldPct     ? `${priceIsApprox ? "~" : ""}${yieldPct}%` : null, color: isDark ? "#A3E635" : "#4D7C0F", labelColor: isDark ? "#A3E635" : "#4D7C0F", title: priceIsApprox ? "Estimated — calculated from nearest available transaction price" : null },
           ].filter(c => c.value);
           return (
             <div style={{ display: "flex", alignItems: "stretch", background: C.gray50, flexShrink: 0, borderBottom: `1px solid ${C.gray200}` }}>
               {statCols.map((col, i) => (
-                <div key={col.label} style={{ flex: 1, padding: isMobile ? "9px 4px" : "10px 4px", textAlign: "center", borderRight: i < statCols.length - 1 ? `1px solid ${C.gray200}` : "none" }}>
+                <div key={col.label} title={col.title || undefined} style={{ flex: 1, padding: isMobile ? "9px 4px" : "10px 4px", textAlign: "center", borderRight: i < statCols.length - 1 ? `1px solid ${C.gray200}` : "none", cursor: col.title ? "help" : "default" }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: col.labelColor, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{col.label}</div>
                   <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: col.color, lineHeight: 1.2 }}>{col.value}</div>
                 </div>
@@ -940,7 +940,7 @@ const DividendMobileCard = memo(function DividendMobileCard({
           <span title="Auto-generated from dividend event" style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE", padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700 }}>Event</span>
         )}
         {isLocked && <span title={`Locked until closure date: ${dividend.closure_date}`} style={{ fontSize: 12 }}>🔒</span>}
-        <span style={{ fontSize: 11, color: C.gray400, marginLeft: 2 }}>{fmtDate(dividend.payment_date)}</span>
+        <span style={{ fontSize: 11, color: perms.isPaid ? C.green : C.gray400, fontWeight: perms.isPaid ? 700 : 400, marginLeft: 2 }}>{fmtDate(dividend.payment_date)}</span>
         {countdownPill}
       </div>
 
