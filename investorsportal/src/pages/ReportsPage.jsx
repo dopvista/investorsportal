@@ -963,16 +963,6 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
   const [activeReport, setActiveReport] = useState(null);
-  const [companyPriceMap, setCompanyPriceMap] = useState({});
-
-  useEffect(() => {
-    sbGetAllCompanies().then(list => {
-      if (!Array.isArray(list)) return;
-      const map = {};
-      list.forEach(c => { if (c.id && Number(c.price) > 0) map[c.id] = Number(c.price); });
-      setCompanyPriceMap(map);
-    }).catch(() => {});
-  }, []);
 
   const handleGeneratePortfolio = useCallback(async ({ cdsNumber: cds, asAtDate, positionType, format = "pdf" }) => {
     // Fetch data
@@ -1098,6 +1088,11 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
       if (!rows.length) throw new Error("No dividends found for the selected filters.");
       // Sort by payment date ascending
       rows.sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
+
+      // Build company price map for yield fallback (paid dividends missing market_price_at_payment)
+      const companyList = await sbGetAllCompanies().catch(() => []);
+      const companyPriceMap = {};
+      if (Array.isArray(companyList)) companyList.forEach(c => { if (c.id && Number(c.price) > 0) companyPriceMap[c.id] = Number(c.price); });
 
       const params = { cdsNumber: cds, cdsName: cdsNameResolved, divView, dividends: rows, dateFrom, dateTo, status, companyPriceMap, logoUrl: logo };
       if (format === "excel") {
