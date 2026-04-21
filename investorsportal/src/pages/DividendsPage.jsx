@@ -410,13 +410,18 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
       setPriceIsApprox(false);
       return;
     }
-    const paidDate = dividend?.paid_at?.split("T")[0] || dividend?.payment_date;
-    if (!paidDate || !dividend?.company_id) return;
+    // Price date priority: ex-dividend date → year-end of dividend year → paid_at → payment_date
+    const priceDate =
+      dividend?.ex_dividend_date ||
+      (dividend?.dividend_year ? `${dividend.dividend_year}-12-31` : null) ||
+      dividend?.paid_at?.split("T")[0] ||
+      dividend?.payment_date;
+    if (!priceDate || !dividend?.company_id) return;
     let cancelled = false;
     (async () => {
       // 1. Our own daily snapshot table — zero API cost, most reliable
       try {
-        const rows = await sbGetPriceAtDate(dividend.company_id, paidDate);
+        const rows = await sbGetPriceAtDate(dividend.company_id, priceDate);
         if (!cancelled && rows?.length > 0 && Number(rows[0].price) > 0) {
           setResolvedPrice(Number(rows[0].price)); setPriceIsApprox(false); return;
         }
@@ -427,26 +432,26 @@ const DividendDetailModal = memo(function DividendDetailModal({ dividend, compan
         if (ticker) {
           const history = await sbGetCompanyPriceHistory(ticker, 365);
           if (!cancelled && Array.isArray(history) && history.length > 0) {
-            const match = history.filter(h => h.date && h.date <= paidDate).sort((a, b) => b.date.localeCompare(a.date))[0];
+            const match = history.filter(h => h.date && h.date <= priceDate).sort((a, b) => b.date.localeCompare(a.date))[0];
             if (match && Number(match.price) > 0) {
               setResolvedPrice(Number(match.price)); setPriceIsApprox(false); return;
             }
           }
         }
       } catch {}
-      // 3. Nearest verified transaction price — approximate fallback
+      // 3. Nearest verified transaction price — approximate fallback (~)
       try {
-        const txns = await sbGetTransactionPriceNearDate(dividend.company_id, paidDate);
+        const txns = await sbGetTransactionPriceNearDate(dividend.company_id, priceDate);
         if (!cancelled && Array.isArray(txns) && txns.length > 0) {
-          const paidTime = new Date(paidDate).getTime();
-          const closest = txns.filter(t => Number(t.price) > 0).sort((a, b) => Math.abs(new Date(a.date) - paidTime) - Math.abs(new Date(b.date) - paidTime))[0];
+          const refTime = new Date(priceDate).getTime();
+          const closest = txns.filter(t => Number(t.price) > 0).sort((a, b) => Math.abs(new Date(a.date) - refTime) - Math.abs(new Date(b.date) - refTime))[0];
           if (closest) { setResolvedPrice(Number(closest.price)); setPriceIsApprox(true); return; }
         }
       } catch {}
       if (!cancelled) setResolvedPrice(0);
     })();
     return () => { cancelled = true; };
-  }, [dividend?.id, dividend?.status, dividend?.market_price_at_payment, dividend?.company_id, dividend?.paid_at, dividend?.payment_date, companies]);
+  }, [dividend?.id, dividend?.status, dividend?.market_price_at_payment, dividend?.company_id, dividend?.ex_dividend_date, dividend?.dividend_year, dividend?.paid_at, dividend?.payment_date, companies]);
 
   const handleDownloadPNG = useCallback(async () => {
     if (!captureRef.current || downloading) return;
@@ -1709,18 +1714,24 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     setMarkAsPaidModal(null);
     setMarkingPaidIds(new Set(ids));
     try {
-      // Resolve the correct historical price per dividend before saving.
-      // effectiveDate = user-confirmed payment date → dividend's payment_date → today.
-      // If effectiveDate is today use current price; otherwise look up historical price
-      // so that backdated entries store the price at their actual payment date.
+      // Resolve price using the most standard convention:
+      //   1. Ex-dividend date (most fair historical reference)
+      //   2. 31 Dec of dividend year (annual report convention)
+      //   3. User-confirmed payment date / dividend's payment_date
+      //   4. Today (current price — only if all else is today)
       const priceMap = new Map();
       await Promise.all(ids.map(async id => {
         const div = dividends.find(x => x.id === id);
         const company = div ? companyById.get(div.company_id) : null;
-        const effectiveDate = paymentDate || div?.payment_date || todayIso;
-        const price = effectiveDate === todayIso
+        const priceDate =
+          div?.ex_dividend_date ||
+          (div?.dividend_year ? `${div.dividend_year}-12-31` : null) ||
+          paymentDate ||
+          div?.payment_date ||
+          todayIso;
+        const price = priceDate === todayIso
           ? (Number(company?.price) || null)
-          : await resolveHistoricalPrice(div?.company_id, company?.name, effectiveDate);
+          : await resolveHistoricalPrice(div?.company_id, company?.name, priceDate);
         priceMap.set(id, price);
         return sbUpdateDividendStatus(id, "paid", null, paymentDate || null, price);
       }));
