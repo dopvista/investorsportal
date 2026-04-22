@@ -723,9 +723,6 @@ const ToggleStatusModal = memo(function ToggleStatusModal({ user, onClose, onCon
             <div style={{ fontSize:13, color:C.gray500, lineHeight:1.7, marginBottom:10 }}>
               <strong>{user.full_name}</strong> is the system owner and Super Admin. This account cannot be deactivated.
             </div>
-            <div style={{ padding:"8px 14px", borderRadius:8, background:"#FFFBEB", border:"1px solid #FDE68A", fontSize:12, color:"#92400E", fontWeight:600 }}>
-              This protection is enforced at the database level.
-            </div>
           </>
         ) : (
           <>
@@ -902,12 +899,59 @@ const RoleBadge = memo(function RoleBadge({ code }) {
 
 const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34 }) {
   const { C } = useTheme();
+  const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e) => { if (e.key === "Escape") setZoomed(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [zoomed]);
+
   return (
-    <div style={{ position:"relative", flexShrink:0, width:size, height:size }}>
-      {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="block"; }}/> : null}
-      <img src={logo} alt="logo" style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:avatarUrl ? "none" : "block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}/>
-      <div style={{ position:"absolute", bottom:-1, right:-1, width:9, height:9, borderRadius:"50%", border:`2px solid ${C.white}`, background:isActive ? C.green : C.gray200 }}/>
-    </div>
+    <>
+      <div
+        style={{ position:"relative", flexShrink:0, width:size, height:size, cursor: avatarUrl ? "zoom-in" : "default" }}
+        onClick={avatarUrl ? () => setZoomed(true) : undefined}
+      >
+        {avatarUrl ? <img src={avatarUrl} alt={name||"User"} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:"block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }} onError={e => { e.target.style.display="none"; if(e.target.nextSibling) e.target.nextSibling.style.display="block"; }}/> : null}
+        <img src={logo} alt="logo" style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", display:avatarUrl ? "none" : "block", border:`1.5px solid ${C.gray200}`, boxShadow:"0 2px 6px rgba(0,0,0,0.08)" }}/>
+        <div style={{ position:"absolute", bottom:-1, right:-1, width:9, height:9, borderRadius:"50%", border:`2px solid ${C.white}`, background:isActive ? C.green : C.gray200 }}/>
+      </div>
+
+      {zoomed && createPortal(
+        <div
+          onClick={() => setZoomed(false)}
+          style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.72)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:24, backdropFilter:"blur(4px)", animation:"umAvatarFadeIn 0.18s ease" }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+            <button
+              onClick={() => setZoomed(false)}
+              style={{ position:"absolute", top:-12, right:-12, width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.25)", color:"#fff", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, backdropFilter:"blur(6px)" }}
+            >×</button>
+            <img
+              src={avatarUrl}
+              alt={name||"User"}
+              style={{ width:"min(72vw, 260px)", height:"min(72vw, 260px)", borderRadius:"50%", objectFit:"cover", border:"3px solid rgba(255,255,255,0.25)", boxShadow:"0 8px 40px rgba(0,0,0,0.5)", animation:"umAvatarScaleIn 0.2s cubic-bezier(0.34,1.56,0.64,1)" }}
+            />
+            <div style={{ textAlign:"center" }}>
+              <div style={{ color:"#fff", fontWeight:700, fontSize:16, textShadow:"0 1px 4px rgba(0,0,0,0.4)" }}>{name}</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, marginTop:5 }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background: isActive ? "#34d399" : "#9ca3af" }}/>
+                <span style={{ color: isActive ? "#a7f3d0" : "#d1d5db", fontSize:12, fontWeight:500 }}>{isActive ? "Active" : "Inactive"}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ color:"rgba(255,255,255,0.35)", fontSize:11, marginTop:4 }}>Tap anywhere to close</div>
+        </div>,
+        document.body
+      )}
+
+      <style>{`
+        @keyframes umAvatarFadeIn { from { opacity:0 } to { opacity:1 } }
+        @keyframes umAvatarScaleIn { from { transform:scale(0.6); opacity:0 } to { transform:scale(1); opacity:1 } }
+      `}</style>
+    </>
   );
 });
 

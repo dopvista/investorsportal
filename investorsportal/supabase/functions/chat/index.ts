@@ -692,7 +692,7 @@ KEY RULE: Once DE confirms (Pending → Declared), they hand off to VR and perma
 
 ### Actions Detail
 - **Confirm / Re-Confirm** (DE — Pending or Rejected) — moves to Declared; puts in VR's queue
-- **Mark as Paid** (VR/SA/AD — Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** pre-filled with the scheduled payment date; verifier can adjust before confirming. IMPORTANT: the app blocks this action if today is before the scheduled payment date — the action button is disabled until the payment date arrives. When confirmed, the app automatically looks up and stores the historical share price at the ex-dividend date (or year-end of the dividend year if no ex-date) — this ensures the **Dividend Yield** shown in the detail modal is calculated against the correct historical price, not today's price.
+- **Mark as Paid** (VR/SA/AD — Declared or Ex-Date) — opens **"Mark as Paid"** popup with **"Actual Payment Date"** pre-filled with the scheduled payment date; verifier can adjust before confirming. IMPORTANT: the app blocks this action if today is before the scheduled payment date — the action button is disabled until the payment date arrives. When confirmed, the app automatically resolves and stores the historical share price as 'market_price_at_payment' using a 4-step fallback chain: (1) our own daily price snapshots DB for the ex-dividend date, (2) DSE historical API (up to 365 days back), (3) nearest verified transaction price ±90 days (stored as approximate, shown with **~**), (4) current company market price as absolute last resort (also approximate). If the resolved price came from step 3 or 4, 'market_price_is_approx = true' is stored alongside it. This ensures the **Dividend Yield** shown in the detail modal is always calculated against the most accurate available price — never null.
 - **Reject** (VR/SA/AD — Declared or Ex-Date) — opens **"Reject Dividend"** popup requiring a **"Rejection Reason"**. The reason is stored and shown to DE in the detail modal and on the mobile card.
 - **Revert to Declared** (SA/AD — Paid only) — undoes the paid status, clears payment info and stored historical price, moves back to Declared
 - **Edit** — opens the Manual Entry form pre-filled (available only per role matrix above)
@@ -752,13 +752,25 @@ Shows the four key figures. Div Yld uses the historically accurate price (see Di
 **Save as Image** — downloads the modal as a PNG with watermark
 
 ### Dividend Yield
-**Investors Portal™** calculates Dividend Yield = DPS ÷ Price × 100 using the most accurate historical price for each dividend — not always today's price:
+**Investors Portal™** calculates Dividend Yield = DPS ÷ Price × 100 using the most accurate available price for each dividend:
 
-- **Upcoming / Declared / Pending dividends** → uses today's current market price (forward-looking: "what return if I hold now?")
-- **Paid dividends** → uses the share price on the **ex-dividend date** (the market's fair price when the dividend became definitive — the standard used in DSE annual reports and equity research). If no ex-dividend date is recorded, falls back to the closing price on **31 December of the dividend year** (annual report convention)
-- **If neither date has a price on record** → the app searches DSE historical price data (up to 365 days back), then as a last resort uses the nearest verified transaction price as an approximation — shown with a **~** prefix to indicate it is estimated
+**In the Detail Modal (Div Yld stat bar):**
+- **Pending / Declared / Ex-Date dividends** → uses the company's current market price (forward-looking yield — "what return at today's price?")
+- **Paid dividends** → uses 'market_price_at_payment' stored in the database (the historical price captured at pay-time). If that field is null (older records), the modal runs a live 4-step fallback: (1) daily price snapshot on the ex-dividend date, (2) DSE historical API up to 365 days, (3) nearest verified transaction ±90 days, (4) current company price. Whichever source resolves the price is then **saved back to the database (lazy hydration)** so future views are instant and consistent.
+- If the price came from an approximate source (transaction or current price fallback), yield shows with a **~** prefix (e.g. ~3.2%) and a tooltip explains it is estimated. Exact historical prices show without ~.
 
-This means the yield shown for a paid CRDB 2024 dividend reflects what that dividend was worth relative to the share price when the ex-dividend date fell — not what it looks like at today's higher or lower price. Upcoming dividends always show the current-price yield so investors can evaluate whether to hold or buy more.
+**In the Dividend Income Report (By Transaction view):**
+- **Paid rows** → Yield column uses 'market_price_at_payment' (exact, no ~) or current price fallback if still null (~ prefix). The 'market_price_is_approx' DB flag controls which.
+- **Pending / Declared / Ex-Date rows** → Yield column uses the company's current market price, always shown with **~** prefix to signal it is estimated and will change when paid.
+- Yield is shown for ALL rows (paid and non-paid), not just paid.
+
+**Price resolution priority at pay-time** (stored in 'market_price_at_payment'):
+1. Ex-dividend date price from our daily snapshot table (most accurate)
+2. Ex-dividend date price from DSE historical API (365-day window)
+3. Nearest verified transaction price ±90 days — approximate, stored with 'market_price_is_approx = true'
+4. Current company market price — approximate, stored with 'market_price_is_approx = true'
+
+This means a paid CRDB 2024 dividend at ex-div price 840 shows 7.7% yield in the report, while the pending 2025 dividend shows ~3.3% based on today's market price of 2,760 — giving the investor both a historical result and a forward-looking estimate in the same report.
 
 ## Reports Page
 Generate PDF and Excel reports.
@@ -777,8 +789,14 @@ Generate PDF and Excel reports.
    - Formats: PDF (.pdf) | Excel (.xlsx)
 
 4. **Dividend Income** — Payment records with WHT
-   - Filters: CDS Account | Date From | Date To | View (By Company / By Transaction) | Status
+   - Filters: **CDS Account** | **View** (By Company / By Transaction) | **Company** (All or specific — on same row as View) | **Date From** / **Date To** | **Status** (All / Declared / Ex-Date Passed / Paid — By Transaction only)
    - Formats: PDF (.pdf) | Excel (.xlsx)
+   - **By Transaction** columns: # | Date | Company | Type | Per Share | Shares | Gross Amt | Tax | Net Amt | Status | Yield
+     - Tax shown in red; Net Amount in green; Status left-aligned; Yield right-aligned in green
+     - Yield shown for ALL rows: paid rows use stored historical price (no ~), non-paid rows use current company price (always ~)
+     - TOTAL row at bottom aggregates Gross Amt, Tax, and Net Amt
+   - **By Company** columns: # | Company | Dividends (count) | Gross Amount | Tax | Net Amount | Avg DPS | Last Payment
+   - The Company filter pre-loads only companies that have dividend records for the selected CDS — if "All Companies" is selected, all records are included; if a specific company is selected, only that company's dividends appear in the report (does not change the report layout)
 
 5. **Fee Summary** — Coming Soon (grayed out)
 
