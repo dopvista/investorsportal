@@ -664,7 +664,7 @@ const ChangeRoleModal = memo(function ChangeRoleModal({ user, roles, callerRole,
   return (
     <Modal title="Change Role" subtitle={`Assigning to ${user.full_name||"user"}`} onClose={onClose} footer={<><CancelBtn onClose={onClose}/><ConfirmBtn onClick={handleSave} label="Save Role" loading={saving}/></>}>
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:C.gray50, border:`1px solid ${C.gray200}`, marginBottom:14, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={34}/>
+        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} role={user.role_code} size={34}/>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{user.full_name||"User"}</div>
           <div style={{ fontSize:11, color:C.gray500 }}>{user.cds_number||"No CDS"}</div>
@@ -897,7 +897,9 @@ const RoleBadge = memo(function RoleBadge({ code }) {
   );
 });
 
-const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34 }) {
+const ROLE_LABEL = { SA:"Super Admin", AD:"Admin", DE:"Data Entrant", VR:"Verifier", RO:"Read Only" };
+
+const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, role, size=34 }) {
   const { C } = useTheme();
   const [zoomed, setZoomed] = useState(false);
 
@@ -922,12 +924,12 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
       {zoomed && createPortal(
         <div
           onClick={() => setZoomed(false)}
-          style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.72)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:24, backdropFilter:"blur(4px)", animation:"umAvatarFadeIn 0.18s ease" }}
+          style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.72)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, backdropFilter:"blur(4px)", animation:"umAvatarFadeIn 0.18s ease", fontFamily:"'Inter',system-ui,sans-serif" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
             <button
               onClick={() => setZoomed(false)}
-              style={{ position:"absolute", top:-12, right:-12, width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.25)", color:"#fff", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, backdropFilter:"blur(6px)" }}
+              style={{ position:"absolute", top:-12, right:-12, width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.25)", color:"#fff", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, backdropFilter:"blur(6px)", fontFamily:"inherit" }}
             >×</button>
             <img
               src={avatarUrl}
@@ -936,13 +938,13 @@ const UserAvatar = memo(function UserAvatar({ name, avatarUrl, isActive, size=34
             />
             <div style={{ textAlign:"center" }}>
               <div style={{ color:"#fff", fontWeight:700, fontSize:16, textShadow:"0 1px 4px rgba(0,0,0,0.4)" }}>{name}</div>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, marginTop:5 }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background: isActive ? "#34d399" : "#9ca3af" }}/>
+              {role && <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, fontWeight:500, marginTop:3 }}>{ROLE_LABEL[role] || role}</div>}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, marginTop:6 }}>
+                <div style={{ width:7, height:7, borderRadius:"50%", background: isActive ? "#34d399" : "#9ca3af" }}/>
                 <span style={{ color: isActive ? "#a7f3d0" : "#d1d5db", fontSize:12, fontWeight:500 }}>{isActive ? "Active" : "Inactive"}</span>
               </div>
             </div>
           </div>
-          <div style={{ color:"rgba(255,255,255,0.35)", fontSize:11, marginTop:4 }}>Tap anywhere to close</div>
         </div>,
         document.body
       )}
@@ -988,7 +990,7 @@ const MobileUserCard = memo(function MobileUserCard({ user, onChangeRole, onMana
   return (
     <div style={{ background:C.white, border:`1px solid ${user.is_active ? C.gray200 : inactiveBorder}`, borderRadius:14, padding:"12px 14px", marginBottom:8, opacity:user.is_active ? 1 : 0.82, boxShadow:"0 1px 5px rgba(0,0,0,0.05)" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={38}/>
+        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} role={user.role_code} size={38}/>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontWeight:700, fontSize:14, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginBottom:4 }}>
             {user.full_name || "New User"}
@@ -1434,7 +1436,7 @@ export default function UserManagementPage({ role, showToast, profile }) {
                     >
                       <div style={{ fontSize:11, color:C.gray400, fontWeight:600 }}>{idx+1}</div>
                       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} size={32}/>
+                        <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} isActive={user.is_active} role={user.role_code} size={32}/>
                         <div style={{ minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                             <span style={{ fontSize:12, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.full_name||"New User"}</span>
