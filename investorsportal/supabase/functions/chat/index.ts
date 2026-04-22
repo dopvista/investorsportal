@@ -395,7 +395,7 @@ A: **Investors Portal™** offers four report types — go to **Reports** and cl
 **Available reports:**
 
 - **Portfolio Statement** — snapshot of holdings with cost basis, market value, and unrealized G/L. Filters: **CDS Account**, **As At Date**, **Position Type** (Current Holdings / Sold / All Positions)
-- **Transaction History** — trade log with fees and statuses. Filters: **CDS Account**, **Date From/To**, **Broker**, **Type** (All / Purchases / Sales), **Status** (All / Verified / Confirmed / Pending / Rejected)
+- **Transaction History** — trade log with fees and statuses. Filters: **CDS Account**, **Date From/To**, **Company** | **Broker** (same row, both smart-cascading — selecting one narrows the other), **Type** (All / Purchases / Sales), **Status** (All / Verified / Confirmed / Pending / Rejected)
 - **Gain/Loss Report** — FIFO-based realized gains. Filters: **CDS Account**, **View** (By Company / By Transaction), **Date From/To**, **Broker**
 - **Dividend Income** — payment records with WHT. Filters: **CDS Account**, **View** (By Company / By Transaction), **Date From/To**, **Status** (All / Declared / Ex-Date Passed / Paid)
 
@@ -781,7 +781,7 @@ Generate PDF and Excel reports.
    - Formats: PDF (.pdf) | Excel (.xlsx)
 
 2. **Transaction History** — Trade log with fees and status
-   - Filters: CDS Account | Date From | Date To | Type (All/Buy/Sell) | Status | Broker
+   - Filters: CDS Account | Date From | Date To | Company | Broker (same row as Company, both cascading — each narrows the other) | Type (All/Buy/Sell) | Status
    - Formats: PDF (.pdf) | Excel (.xlsx)
 
 3. **Gain/Loss Report** — FIFO-based realized gains per company
