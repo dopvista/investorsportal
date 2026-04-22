@@ -576,7 +576,7 @@ export async function generatePortfolioStatementPDFv2({ cdsNumber, cdsName, asAt
 }
 
 // ── 7. Transaction History PDF (Reports Module) ─────────────────
-export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFrom, dateTo, txnType, status, brokerName, transactions, logoUrl }) {
+export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFrom, dateTo, txnType, status, brokerName, companyName, transactions, logoUrl }) {
   const { doc, pw, ph, ml, mr, cw } = v2InitDoc();
   const f = v2f;
   const logoData = logoUrl ? await loadStyledLogoBase64(logoUrl, 128) : null;
@@ -589,6 +589,7 @@ export async function generateTransactionHistoryPDF({ cdsNumber, cdsName, dateFr
   const showBrokerCol = !brokerName;
 
   const rightParts = [typeLabel];
+  if (companyName) rightParts.push(companyName);
   if (brokerName) rightParts.push(brokerName);
   if (periodLabel) rightParts.push(periodLabel);
   rightParts.push(`Status: ${statusLabel}`);
@@ -1272,7 +1273,7 @@ export async function generatePortfolioStatementExcelv2({ cdsNumber, cdsName, as
 }
 
 // ── 5. Transaction History Excel v2 (Reports Module) ──────────────
-export async function generateTransactionHistoryExcel({ cdsNumber, cdsName, dateFrom, dateTo, txnType, status, brokerName, transactions, logoUrl }) {
+export async function generateTransactionHistoryExcel({ cdsNumber, cdsName, dateFrom, dateTo, txnType, status, brokerName, companyName, transactions, logoUrl }) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Transaction History");
   const f = (n) => Math.round(Number(n || 0));
@@ -1399,6 +1400,7 @@ export async function generateTransactionHistoryExcel({ cdsNumber, cdsName, date
   ws.mergeCells(4, 1, 4, splitCol - 1);
 
   const rightParts = [typeLabel];
+  if (companyName) rightParts.push(companyName);
   if (brokerName) rightParts.push(brokerName);
   if (periodLabel) rightParts.push(periodLabel);
   rightParts.push(`Status: ${statusLabel}`);

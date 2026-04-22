@@ -218,6 +218,7 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
   const [txnType, setTxnType]   = useState("");
   const [status, setStatus]     = useState("");
   const [brokerId, setBrokerId] = useState("");
+  const [companyId, setCompanyId] = useState("");
   const [selectedCds, setSelectedCds] = useState(cdsNumber || "");
   const [allRows, setAllRows]   = useState([]);   // raw transactions for CDS+period
   const [rowsLoading, setRowsLoading] = useState(false);
@@ -243,64 +244,76 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
         setDefaultsLoaded(true);
       }
       // Reset selections that are no longer valid
-      setBrokerId(prev => {
-        if (!prev) return prev;
-        return rows.some(t => t.broker_id === prev) ? prev : "";
-      });
-      setTxnType(prev => {
-        if (!prev) return prev;
-        return rows.some(t => t.type === prev) ? prev : "";
-      });
-      setStatus(prev => {
-        if (!prev) return prev;
-        return rows.some(t => t.status === prev) ? prev : "";
-      });
+      setBrokerId(prev => (!prev || rows.some(t => t.broker_id === prev)) ? prev : "");
+      setCompanyId(prev => (!prev || rows.some(t => t.company_id === prev)) ? prev : "");
+      setTxnType(prev => (!prev || rows.some(t => t.type === prev)) ? prev : "");
+      setStatus(prev => (!prev || rows.some(t => t.status === prev)) ? prev : "");
     }).catch(() => { if (!cancelled) setAllRows([]); })
       .finally(() => { if (!cancelled) setRowsLoading(false); });
     return () => { cancelled = true; };
   }, [selectedCds, dateFrom, dateTo]);
 
-  // Derive available brokers, types, statuses with cascading filters
+  // Derive available companies, brokers, types, statuses with cascading filters
+  const availableCompanies = useMemo(() => {
+    let rows = allRows;
+    if (brokerId) rows = rows.filter(t => t.broker_id === brokerId);
+    if (txnType)  rows = rows.filter(t => t.type === txnType);
+    if (status)   rows = rows.filter(t => t.status === status);
+    const map = new Map();
+    rows.forEach(t => {
+      if (t.company_id && t.company_name && !map.has(t.company_id))
+        map.set(t.company_id, { id: t.company_id, company_name: t.company_name });
+    });
+    return [...map.values()].sort((a, b) => a.company_name.localeCompare(b.company_name));
+  }, [allRows, brokerId, txnType, status]);
+
   const availableBrokers = useMemo(() => {
     let rows = allRows;
-    if (txnType) rows = rows.filter(t => t.type === txnType);
-    if (status)  rows = rows.filter(t => t.status === status);
+    if (companyId) rows = rows.filter(t => t.company_id === companyId);
+    if (txnType)   rows = rows.filter(t => t.type === txnType);
+    if (status)    rows = rows.filter(t => t.status === status);
     const map = new Map();
     rows.forEach(t => {
       if (t.broker_id && t.broker_name && !map.has(t.broker_id))
         map.set(t.broker_id, { id: t.broker_id, broker_name: t.broker_name });
     });
     return [...map.values()].sort((a, b) => a.broker_name.localeCompare(b.broker_name));
-  }, [allRows, txnType, status]);
+  }, [allRows, companyId, txnType, status]);
 
   const availableTypes = useMemo(() => {
     let rows = allRows;
-    if (brokerId) rows = rows.filter(t => t.broker_id === brokerId);
-    if (status)   rows = rows.filter(t => t.status === status);
+    if (companyId) rows = rows.filter(t => t.company_id === companyId);
+    if (brokerId)  rows = rows.filter(t => t.broker_id === brokerId);
+    if (status)    rows = rows.filter(t => t.status === status);
     const set = new Set(rows.map(t => t.type).filter(Boolean));
     return TXN_TYPE_OPTIONS.filter(o => !o.value || set.has(o.value));
-  }, [allRows, brokerId, status]);
+  }, [allRows, companyId, brokerId, status]);
 
   const availableStatuses = useMemo(() => {
     let rows = allRows;
-    if (brokerId) rows = rows.filter(t => t.broker_id === brokerId);
-    if (txnType)  rows = rows.filter(t => t.type === txnType);
+    if (companyId) rows = rows.filter(t => t.company_id === companyId);
+    if (brokerId)  rows = rows.filter(t => t.broker_id === brokerId);
+    if (txnType)   rows = rows.filter(t => t.type === txnType);
     const set = new Set(rows.map(t => t.status).filter(Boolean));
     return TXN_STATUS_OPTIONS.filter(o => !o.value || set.has(o.value));
-  }, [allRows, brokerId, txnType]);
+  }, [allRows, companyId, brokerId, txnType]);
 
   const [generating, setGenerating]   = useState(false);
   const [error, setError]             = useState("");
   const [cdsSearch, setCdsSearch]     = useState("");
   const [cdsOpen, setCdsOpen]         = useState(false);
-  const [brokerSearch, setBrokerSearch] = useState("");
-  const [brokerOpen, setBrokerOpen]     = useState(false);
-  const cdsRef = useRef(null);
-  const brokerRef = useRef(null);
+  const [brokerSearch, setBrokerSearch]   = useState("");
+  const [brokerOpen, setBrokerOpen]       = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyOpen, setCompanyOpen]     = useState(false);
+  const cdsRef     = useRef(null);
+  const brokerRef  = useRef(null);
+  const companyRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
-      if (cdsRef.current && !cdsRef.current.contains(e.target)) setCdsOpen(false);
-      if (brokerRef.current && !brokerRef.current.contains(e.target)) setBrokerOpen(false);
+      if (cdsRef.current     && !cdsRef.current.contains(e.target))     setCdsOpen(false);
+      if (brokerRef.current  && !brokerRef.current.contains(e.target))  setBrokerOpen(false);
+      if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -311,6 +324,12 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
     const q = cdsSearch.toLowerCase();
     return cdsList.filter(c => `${c.cds_number} ${c.cds_name || ""}`.toLowerCase().includes(q));
   }, [cdsList, cdsSearch]);
+
+  const filteredCompanies = useMemo(() => {
+    if (!companySearch) return availableCompanies;
+    const q = companySearch.toLowerCase();
+    return availableCompanies.filter(c => c.company_name.toLowerCase().includes(q));
+  }, [availableCompanies, companySearch]);
 
   const filteredBrokers = useMemo(() => {
     if (!brokerSearch) return availableBrokers;
@@ -323,6 +342,11 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
     return c?.cds_name || "";
   }, [cdsList, selectedCds]);
 
+  const selectedCompanyName = useMemo(() => {
+    const c = availableCompanies.find(c => c.id === companyId);
+    return c?.company_name || "";
+  }, [availableCompanies, companyId]);
+
   const selectedBrokerName = useMemo(() => {
     const b = availableBrokers.find(b => b.id === brokerId);
     return b?.broker_name || "";
@@ -333,7 +357,7 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
     setError("");
     setGenerating(true);
     try {
-      await onGenerate({ cdsNumber: selectedCds, dateFrom, dateTo, txnType, status, brokerId, brokerName: selectedBrokerName, format });
+      await onGenerate({ cdsNumber: selectedCds, dateFrom, dateTo, txnType, status, brokerId, brokerName: selectedBrokerName, companyId, companyName: selectedCompanyName, format });
     } catch (e) {
       setError(e.message || "Failed to generate report.");
     } finally {
@@ -428,57 +452,112 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
           </div>
         </div>
 
-        {/* Broker (full width, searchable) */}
-        <div>
-          <div style={labelStyle}>Broker</div>
-          <div ref={brokerRef} style={{ position: "relative" }}>
-            <button type="button" onClick={() => { setBrokerOpen(o => !o); setBrokerSearch(""); }}
-              style={{ width: "100%", padding: "10px 36px 10px 12px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${brokerOpen ? C.green : C.gray200}`, background: C.white, color: C.text, fontSize: 13, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}
-            >
-              <span>{brokerId ? selectedBrokerName : "All Brokers"}</span>
-              <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 12, pointerEvents: "none" }}>{brokerOpen ? "▲" : "▼"}</span>
-            </button>
-            {brokerOpen && (
-              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
-                <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /></span>
-                    <input autoFocus type="text" value={brokerSearch} onChange={e => setBrokerSearch(e.target.value)} placeholder="Search broker..."
-                      style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text, background: C.white }}
-                      onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)}
-                    />
+        {/* Company + Broker — same row */}
+        <div style={{ display: "flex", gap: 14 }}>
+          {/* Company */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={labelStyle}>Company</div>
+            <div ref={companyRef} style={{ position: "relative" }}>
+              <button type="button" onClick={() => { setCompanyOpen(o => !o); setCompanySearch(""); }}
+                style={{ width: "100%", padding: "10px 28px 10px 10px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${companyOpen ? C.green : C.gray200}`, background: C.white, color: companyId ? C.text : C.gray400, fontSize: 13, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}
+              >
+                <span>{companyId ? selectedCompanyName : "All"}</span>
+                <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 11, pointerEvents: "none" }}>{companyOpen ? "▲" : "▼"}</span>
+              </button>
+              {companyOpen && (
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+                  <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /></span>
+                      <input autoFocus type="text" value={companySearch} onChange={e => setCompanySearch(e.target.value)} placeholder="Search company..."
+                        style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text, background: C.white }}
+                        onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)}
+                      />
+                    </div>
+                  </div>
+                  <div className="ui-dd-scroll" style={{ maxHeight: 200, overflowY: "auto" }}>
+                    <button type="button"
+                      onClick={() => { setCompanyId(""); setCompanyOpen(false); setCompanySearch(""); }}
+                      style={{ width: "100%", padding: "9px 14px", border: "none", background: !companyId ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                      onMouseEnter={e => { if (companyId) e.currentTarget.style.background = C.gray50; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = !companyId ? C.green + "15" : "transparent"; }}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: !companyId ? 700 : 500, color: !companyId ? C.green : C.text }}>All</span>
+                      {!companyId && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
+                    </button>
+                    {rowsLoading ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>Loading...</div>
+                      : filteredCompanies.length === 0 && companySearch ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No companies found</div>
+                      : filteredCompanies.map(c => {
+                        const isSel = c.id === companyId;
+                        return (
+                          <button key={c.id} type="button"
+                            onClick={() => { setCompanyId(c.id); setCompanyOpen(false); setCompanySearch(""); }}
+                            style={{ width: "100%", padding: "9px 14px", border: "none", background: isSel ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                            onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.gray50; }}
+                            onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isSel ? C.green + "15" : "transparent"; }}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: isSel ? 700 : 500, color: isSel ? C.green : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.company_name}</span>
+                            {isSel && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
-                <div className="ui-dd-scroll" style={{ maxHeight: 200, overflowY: "auto", scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
-                  {/* All Brokers option */}
-                  <button type="button"
-                    onClick={() => { setBrokerId(""); setBrokerOpen(false); setBrokerSearch(""); }}
-                    style={{ width: "100%", padding: "9px 14px", border: "none", background: !brokerId ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
-                    onMouseEnter={e => { if (brokerId) e.currentTarget.style.background = C.gray50; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = !brokerId ? C.green + "15" : "transparent"; }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: !brokerId ? 700 : 500, color: !brokerId ? C.green : C.text }}>All Brokers</span>
-                    {!brokerId && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
-                  </button>
-                  {rowsLoading ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>Loading...</div>
-                    : filteredBrokers.length === 0 && brokerSearch ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No brokers found</div>
-                    : filteredBrokers.map(b => {
-                      const isSelected = b.id === brokerId;
-                      return (
-                        <button key={b.id} type="button"
-                          onClick={() => { setBrokerId(b.id); setBrokerOpen(false); setBrokerSearch(""); }}
-                          style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
-                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
-                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? C.green + "15" : "transparent"; }}
-                        >
-                          <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{b.broker_name}</span>
-                          {isSelected && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
-                        </button>
-                      );
-                    })}
+              )}
+            </div>
+          </div>
+
+          {/* Broker */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={labelStyle}>Broker</div>
+            <div ref={brokerRef} style={{ position: "relative" }}>
+              <button type="button" onClick={() => { setBrokerOpen(o => !o); setBrokerSearch(""); }}
+                style={{ width: "100%", padding: "10px 28px 10px 10px", borderRadius: 8, textAlign: "left", border: `1.5px solid ${brokerOpen ? C.green : C.gray200}`, background: C.white, color: brokerId ? C.text : C.gray400, fontSize: 13, fontFamily: "inherit", cursor: "pointer", transition: "border-color 0.2s", position: "relative", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}
+              >
+                <span>{brokerId ? selectedBrokerName : "All"}</span>
+                <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: C.gray400, fontSize: 11, pointerEvents: "none" }}>{brokerOpen ? "▲" : "▼"}</span>
+              </button>
+              {brokerOpen && (
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+                  <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: C.gray400 }}><Icon name="search" size={13} stroke={C.gray500} /></span>
+                      <input autoFocus type="text" value={brokerSearch} onChange={e => setBrokerSearch(e.target.value)} placeholder="Search broker..."
+                        style={{ width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1.5px solid ${C.gray200}`, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: C.text, background: C.white }}
+                        onFocus={e => (e.target.style.borderColor = C.green)} onBlur={e => (e.target.style.borderColor = C.gray200)}
+                      />
+                    </div>
+                  </div>
+                  <div className="ui-dd-scroll" style={{ maxHeight: 200, overflowY: "auto", scrollbarColor: `${isDark ? C.gray200 : "#cbd5e1"} transparent` }}>
+                    <button type="button"
+                      onClick={() => { setBrokerId(""); setBrokerOpen(false); setBrokerSearch(""); }}
+                      style={{ width: "100%", padding: "9px 14px", border: "none", background: !brokerId ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                      onMouseEnter={e => { if (brokerId) e.currentTarget.style.background = C.gray50; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = !brokerId ? C.green + "15" : "transparent"; }}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: !brokerId ? 700 : 500, color: !brokerId ? C.green : C.text }}>All</span>
+                      {!brokerId && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
+                    </button>
+                    {rowsLoading ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>Loading...</div>
+                      : filteredBrokers.length === 0 && brokerSearch ? <div style={{ padding: "12px 14px", fontSize: 13, color: C.gray400, textAlign: "center" }}>No brokers found</div>
+                      : filteredBrokers.map(b => {
+                        const isSelected = b.id === brokerId;
+                        return (
+                          <button key={b.id} type="button"
+                            onClick={() => { setBrokerId(b.id); setBrokerOpen(false); setBrokerSearch(""); }}
+                            style={{ width: "100%", padding: "9px 14px", border: "none", background: isSelected ? C.green + "15" : "transparent", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontFamily: "inherit", borderBottom: `1px solid ${C.gray100}` }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.gray50; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? C.green + "15" : "transparent"; }}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? C.green : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{b.broker_name}</span>
+                            {isSelected && <span style={{ color: C.green, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>✓</span>}
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -1019,7 +1098,7 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
     showToast(`Portfolio Statement ${format === "excel" ? "downloaded" : "generated"}`, "success");
   }, [showToast]);
 
-  const handleGenerateTransactionHistory = useCallback(async ({ cdsNumber: cds, dateFrom, dateTo, txnType, status, brokerId, brokerName, format = "pdf" }) => {
+  const handleGenerateTransactionHistory = useCallback(async ({ cdsNumber: cds, dateFrom, dateTo, txnType, status, brokerId, brokerName, companyId, companyName, format = "pdf" }) => {
     // Fetch all transactions (large page size to get everything for report)
     const data = await sbGetTransactions(cds, {
       pageSize: 10000, page: 1, sortCol: "date", sortDir: "asc",
@@ -1032,8 +1111,12 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
       throw new Error("No transactions found for the selected parameters.");
     }
 
-    // Filter by broker client-side (API doesn't support broker filter)
+    // Filter by company and broker client-side
     let rows = data.rows;
+    if (companyId) {
+      rows = rows.filter(t => t.company_id === companyId);
+      if (!rows.length) throw new Error("No transactions found for the selected company.");
+    }
     if (brokerId) {
       rows = rows.filter(t => t.broker_id === brokerId);
       if (!rows.length) throw new Error("No transactions found for the selected broker.");
@@ -1042,7 +1125,7 @@ export default function ReportsPage({ cdsNumber, cdsName, cdsList, showToast, ro
     const cdsNameResolved = cdsList?.find(c => c.cds_number === cds)?.cds_name || "";
     const params = {
       cdsNumber: cds, cdsName: cdsNameResolved,
-      dateFrom, dateTo, txnType, status, brokerName,
+      dateFrom, dateTo, txnType, status, brokerName, companyName,
       transactions: rows, logoUrl: logo,
     };
 
