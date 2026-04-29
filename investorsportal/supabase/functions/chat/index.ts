@@ -23,6 +23,10 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODEL = "gemini-2.5-pro";
 
+// ── AI agent toggles — set to false to disable an agent ──────────
+const CLAUDE_ENABLED = true;
+const GEMINI_ENABLED = false;
+
 // ── Swahili detector ──────────────────────────────────────────────
 function isSwahili(text: string): boolean {
   return /\b(nina|nataka|vipi|nini|wapi|nisaidie|habari|shukran|tafadhali|kwa|nikusaidie|saidia|naomba|nimefanya|sijui|eleza|naweza|jinsi|gani|kodi|hisa|soko|bei|faida|hasara|mgao|dalali|akaunti|benki|uwekezaji|mwekezaji|ninaomba|ninahitaji|unaweza|inawezekana|niambie|nipe|nikiwa|ninajua|sijajua|niliuliza|niliambia|kwa nini|inafanya|inamaanisha|inaonyesha|inapatikana|nilikuwa|nitaweza|tutaweza|wanaweza|wawekezaji|hizi|hizo|hili|hilo|yake|yangu|yetu|zake|zangu|zetu)\b/i.test(text);
@@ -1374,7 +1378,7 @@ Deno.serve(async (req: Request) => {
       .slice(-3)
       .map(m => m.content)
       .join(' ');
-    const useGemini = (isSwahili(lastUserMsg) || isSwahili(recentUserText)) && !!GEMINI_API_KEY;
+    const useGemini = GEMINI_ENABLED && (isSwahili(lastUserMsg) || isSwahili(recentUserText)) && !!GEMINI_API_KEY;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20_000);
@@ -1453,17 +1457,17 @@ Deno.serve(async (req: Request) => {
     };
 
     if (useGemini) {
-      // Swahili: Gemini first → Claude fallback
+      // Swahili: Gemini first → Claude fallback (if enabled)
       await withFallback(
         () => tryGemini(controller.signal), GEMINI_MODEL,
-        () => { const c = new AbortController(); return tryClaude(c.signal); }, CLAUDE_MODEL,
+        () => { const c = new AbortController(); return CLAUDE_ENABLED ? tryClaude(c.signal) : Promise.resolve(null); }, CLAUDE_MODEL,
       );
       clearTimeout(timeoutId);
     } else {
-      // English: Claude first → Gemini fallback
+      // English: Claude first → Gemini fallback (if enabled)
       await withFallback(
-        () => tryClaude(controller.signal), CLAUDE_MODEL,
-        () => { const c = new AbortController(); return tryGemini(c.signal); }, GEMINI_MODEL,
+        () => CLAUDE_ENABLED ? tryClaude(controller.signal) : Promise.resolve(null), CLAUDE_MODEL,
+        () => { const c = new AbortController(); return GEMINI_ENABLED ? tryGemini(c.signal) : Promise.resolve(null); }, GEMINI_MODEL,
       );
       clearTimeout(timeoutId);
     }
