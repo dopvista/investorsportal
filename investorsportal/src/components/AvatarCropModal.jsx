@@ -256,7 +256,16 @@ export default function AvatarCropModal({ imageSrc, onConfirm, onCancel }) {
     ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2);
     ctx.clip();
     ctx.drawImage(imgRef.current, srcX, srcY, srcSide, srcSide, 0, 0, CROP_SIZE, CROP_SIZE);
-    out.toBlob(blob => onConfirm(blob), "image/jpeg", 0.9);
+    out.toBlob(blob => {
+      // toBlob can fire with `null` on OOM or unsupported format. If we silently
+      // forward null the parent stays in a "Saving…" state forever — bubble an
+      // explicit error instead so the user gets feedback.
+      if (!blob) {
+        onConfirm(null, new Error("Could not encode image. Please try a smaller photo."));
+        return;
+      }
+      onConfirm(blob);
+    }, "image/jpeg", 0.9);
   }, [cropCircle, currentX, currentY, currentScale, onConfirm]);
 
   const canvasEl = (

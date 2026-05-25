@@ -128,8 +128,17 @@ export default function useIdleLogout({ enabled = true, onLogout } = {}) {
 
     // ── Activity handler ──────────────────────────────────────────
     // Updates the persistent timestamp and resets the timer.
+    //
+    // Throttled to once per 1000 ms — without this, mousemove/scroll/wheel
+    // fire 100+ times per second and each call rewrites localStorage. The
+    // idle limit is measured in minutes, so sub-second resolution is unused
+    // and the writes were a measurable battery / CPU drain on long sessions.
+    let _lastActivityAt = 0;
     const handleActivity = () => {
       if (!enabledRef.current || isLoggingOutRef.current) return;
+      const now = Date.now();
+      if (now - _lastActivityAt < 1000) return;
+      _lastActivityAt = now;
       // Fast O(1) session check from in-memory cache (see supabase.js)
       if (!getSession()?.access_token) return;
       tsWrite(); // persist wall-clock "now" to localStorage

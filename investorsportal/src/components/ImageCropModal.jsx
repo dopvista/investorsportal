@@ -281,7 +281,15 @@ export default function ImageCropModal({ imageSrc, slideIndex, onConfirm, onCanc
     out.height = OUT_H;
     const ctx = out.getContext("2d");
     ctx.drawImage(imgRef.current, srcX, srcY, srcW, srcH, 0, 0, OUT_W, OUT_H);
-    out.toBlob(blob => onConfirm(blob), "image/jpeg", 0.92);
+    out.toBlob(blob => {
+      // toBlob fires with null on OOM / unsupported format. Bubble that as an
+      // error rather than leaving the parent stuck on "Saving…".
+      if (!blob) {
+        onConfirm(null, new Error("Could not encode image. Please try a smaller photo."));
+        return;
+      }
+      onConfirm(blob);
+    }, "image/jpeg", 0.92);
   };
 
   const { C: themeC } = useTheme();

@@ -536,7 +536,10 @@ export async function sbGetAllUsers() {
     { method: "POST", headers: headers(token()), body: JSON.stringify({}) },
     "Failed to fetch users"
   );
-  return res.json();
+  const data = await res.json();
+  // Defensive cap — RPC has no built-in pagination; if it ever returns
+  // an unreasonable amount we'd rather slice than hang the UI.
+  return Array.isArray(data) ? data.slice(0, 10000) : [];
 }
 
 export async function sbAssignRole(userId, roleId) {
@@ -961,9 +964,9 @@ export async function sbUnverifyTransactions(ids) {
 // ══════════════════════════════════════════════════════════════════
 
 export async function sbGetAllBrokers() {
-  // Broker list is stable — cache for 2 minutes
+  // Broker list is stable — cache for 2 minutes; cap defends against runaway tables.
   return _fetchGET(
-    `${BASE}/rest/v1/brokers?order=broker_name.asc`,
+    `${BASE}/rest/v1/brokers?order=broker_name.asc&limit=1000`,
     "Failed to fetch brokers",
     2 * 60_000
   );
@@ -1334,26 +1337,33 @@ export async function sbUpsertCdsPrice({ companyId, companyName, cdsNumber, newP
   const ts            = datetime ? new Date(datetime).toISOString() : new Date().toISOString();
   const currentUserId = getSession()?.user?.id;
 
-  const [upsertRes] = await Promise.all([
-    fetchWithAuthRetry(
-      `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
-      {
-        method:  "POST",
-        headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
-        body:    JSON.stringify({ company_id: companyId, cds_number: cdsNumber, price: newPrice, previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null, updated_at: ts, created_by_id: currentUserId }),
-      },
-      "Failed to update CDS price"
-    ),
-    fetchWithAuthRetry(
-      `${BASE}/rest/v1/cds_price_history`,
-      {
-        method:  "POST",
-        headers: headers(token()),
-        body:    JSON.stringify({ company_id: companyId, company_name: companyName, cds_number: cdsNumber, old_price: oldPrice ?? null, new_price: newPrice, change_amount: changeAmount, change_percent: changePct, notes: reason || null, updated_by: updatedBy, created_at: ts }),
-      },
-      "Failed to save price history"
-    ),
-  ]);
+  // Sequential, history-first. Previously Promise.all let either side succeed
+  // independently — if the price upsert succeeded but history failed (or vice
+  // versa) the system would be left with a price change with no audit trail
+  // (or an orphan history row). Doing history first guarantees that every
+  // committed price change has a corresponding audit entry; if the second
+  // request fails the user retries the whole operation. A true atomic guarantee
+  // would require an RPC running both writes inside a Postgres transaction —
+  // tracked as a backend follow-up.
+  await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_price_history`,
+    {
+      method:  "POST",
+      headers: headers(token()),
+      body:    JSON.stringify({ company_id: companyId, company_name: companyName, cds_number: cdsNumber, old_price: oldPrice ?? null, new_price: newPrice, change_amount: changeAmount, change_percent: changePct, notes: reason || null, updated_by: updatedBy, created_at: ts }),
+    },
+    "Failed to save price history"
+  );
+
+  const upsertRes = await fetchWithAuthRetry(
+    `${BASE}/rest/v1/cds_prices?on_conflict=company_id,cds_number`,
+    {
+      method:  "POST",
+      headers: { ...headers(token()), "Prefer": "return=representation,resolution=merge-duplicates" },
+      body:    JSON.stringify({ company_id: companyId, cds_number: cdsNumber, price: newPrice, previous_price: oldPrice ?? null, updated_by: updatedBy, notes: reason || null, updated_at: ts, created_by_id: currentUserId }),
+    },
+    "Failed to update CDS price"
+  );
 
   _invalidateCache(`${BASE}/rest/v1/cds_prices`);
   _invalidateCache(`${BASE}/rest/v1/cds_price_history`);
@@ -1422,9 +1432,9 @@ export async function sbGetCompanyPriceHistory(companyName, days = 30) {
 }
 
 export async function sbGetAllCompanies() {
-  // Companies change rarely — cache for 2 minutes
+  // Companies change rarely — cache for 2 minutes; cap defends against runaway tables.
   return _fetchGET(
-    `${BASE}/rest/v1/companies?order=name.asc`,
+    `${BASE}/rest/v1/companies?order=name.asc&limit=2000`,
     "Failed to fetch companies",
     2 * 60_000
   );
@@ -1904,8 +1914,9 @@ export async function sbGetDividendEvents(companyId) {
 }
 
 export async function sbGetAllDividendEvents() {
+  // Cap defends against runaway tables; ~25 companies × ~2 events/yr × 20 years = 1k.
   return _fetchGET(
-    `${BASE}/rest/v1/dividend_events?order=closure_date.asc`,
+    `${BASE}/rest/v1/dividend_events?order=closure_date.asc&limit=10000`,
     "Failed to fetch dividend events"
   );
 }

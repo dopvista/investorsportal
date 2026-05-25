@@ -342,6 +342,8 @@ export default function App() {
   const [transactions,    setTransactions]    = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [appBootstrapping,setAppBootstrapping]= useState(true);
+  // Flips true after 5s of continuous loading so we can offer a manual reload escape hatch.
+  const [loadingTooLong,  setLoadingTooLong]  = useState(false);
   const [dbError,         setDbError]         = useState(null);
   const [toast,           setToast]           = useState({ msg: "", type: "" });
   const [recoveryMode,    setRecoveryMode]    = useState(false);
@@ -390,17 +392,20 @@ export default function App() {
   useEffect(() => {
     if (!loading && !appBootstrapping) {
       loadingStartRef.current = null;
+      setLoadingTooLong(false);
       return;
     }
     if (!loadingStartRef.current) loadingStartRef.current = Date.now();
     const elapsed   = Date.now() - loadingStartRef.current;
     const remaining = Math.max(0, 10_000 - elapsed);
+    const nagAt     = Math.max(0, 5_000 - elapsed);
+    const nagTimer = setTimeout(() => setLoadingTooLong(true), nagAt);
     const timer = setTimeout(() => {
       console.warn("Loading timeout – forcing loading/bootstrap false");
       setLoading(false);
       setAppBootstrapping(false);
     }, remaining);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); clearTimeout(nagTimer); };
   }, [loading, appBootstrapping]);
 
   // ── Toast ─────────────────────────────────────────────────────────
@@ -627,13 +632,21 @@ export default function App() {
   }, []);
 
   // ── AI assistant enabled setting ──────────────────────────────────
+  // Gated on session so we don't hit the endpoint as anon at boot, and use
+  // async/await for consistency + a single try/catch surface.
   useEffect(() => {
+    if (!session) return;
     let cancelled = false;
-    sbGetSiteSettings("ai_assistant_enabled").then(data => {
-      if (!cancelled && data) setAiEnabled(data.enabled !== false);
-    }).catch(() => {});
+    (async () => {
+      try {
+        const data = await sbGetSiteSettings("ai_assistant_enabled");
+        if (!cancelled && data) setAiEnabled(data.enabled !== false);
+      } catch {
+        /* keep default */
+      }
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [session]);
 
   // ── App core data load ────────────────────────────────────────────
   useEffect(() => {
@@ -725,6 +738,14 @@ export default function App() {
     }
     const reqId = ++cdsSwitchReqRef.current;
     setSwitching(true);
+    // Safety net: if anything stalls (slow network, hung RPC) the switching
+    // spinner would otherwise be stuck forever. Force-release after 15s.
+    const stallGuard = setTimeout(() => {
+      if (reqId === cdsSwitchReqRef.current) {
+        setSwitching(false);
+        showToast("Switch is taking longer than expected. Please retry.", "error");
+      }
+    }, 15_000);
     try {
       const uid = session.user.id;
       const [freshActive, freshList] = await Promise.all([
@@ -751,6 +772,7 @@ export default function App() {
       if (reqId !== cdsSwitchReqRef.current) return;
       showToast(e.message || "Failed to switch CDS", "error");
     } finally {
+      clearTimeout(stallGuard);
       if (reqId === cdsSwitchReqRef.current) setSwitching(false);
     }
   }, [session, switching, cdsList, showToast]);
@@ -770,7 +792,14 @@ export default function App() {
   }, []); // all deps are stable (setters + refs)
 
   const handleSignOut = useCallback(async () => {
-    await sbSignOut();
+    // Always clear local state, even if the remote sign-out fails (e.g. token already
+    // revoked, network down). Leaving the user in a half-logged-out state is worse than
+    // silently completing the local logout — the next page load will re-auth anyway.
+    try {
+      await sbSignOut();
+    } catch (e) {
+      console.warn("Remote sign-out failed; clearing local session anyway:", e?.message || e);
+    }
     setSession(null); setProfile(undefined); setRole(null);
     setActiveCds(null); setCdsActive(true); setUserActive(true); setCdsList([]); setCompanies([]); setTransactions([]);
     setLoading(false); setAppBootstrapping(false); setDbError(null);
@@ -884,14 +913,16 @@ export default function App() {
   );
 
   // Fetch nav badge counts from server (instant from summary table)
+  // Gated on session so we don't fire RPCs during the logout window between
+  // session=null and activeCdsNumber being cleared by loadAppCore.
   useEffect(() => {
-    if (!activeCdsNumber) return;
+    if (!session || !activeCdsNumber) return;
     let cancelled = false;
     sbGetNavCounts(activeCdsNumber).then((c) => {
       if (!cancelled && c) setNavCounts(c);
-    });
+    }).catch(() => {});
     return () => { cancelled = true; };
-  }, [activeCdsNumber]);
+  }, [session, activeCdsNumber]);
 
   const cdsCompanyCount = navCounts.holdings;
 
@@ -993,6 +1024,18 @@ export default function App() {
           <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
             {[0,1,2].map((i) => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: C.green, opacity: 0.3, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />))}
           </div>
+          {loadingTooLong && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>Taking longer than expected?</div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.06)", color: "#ffffff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Reload
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

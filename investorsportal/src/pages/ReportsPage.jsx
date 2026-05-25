@@ -224,33 +224,39 @@ function TransactionHistoryFilterModal({ cdsNumber, cdsName, cdsList, onGenerate
   const [rowsLoading, setRowsLoading] = useState(false);
   const [defaultsLoaded, setDefaultsLoaded] = useState(false);
 
-  // Fetch transactions when CDS or period changes — derive filters from this
+  // Fetch transactions when CDS or period changes — derive filters from this.
+  // Debounced: rapid date picker changes (typing a date digit-by-digit, or
+  // selecting via calendar widget) used to trigger a fresh 10k-row fetch per
+  // keystroke. 350ms is long enough to coalesce while still feeling responsive.
   useEffect(() => {
     if (!selectedCds) { setAllRows([]); return; }
     let cancelled = false;
-    setRowsLoading(true);
-    sbGetTransactions(selectedCds, {
-      pageSize: 10000, page: 1, sortCol: "date", sortDir: "asc",
-      ...(dateFrom ? { dateFrom } : {}),
-      ...(dateTo ? { dateTo } : {}),
-    }).then(data => {
+    const debounce = setTimeout(() => {
       if (cancelled) return;
-      const rows = data?.rows || [];
-      setAllRows(rows);
-      // Set dateFrom to first transaction date on initial load
-      if (!defaultsLoaded && rows.length > 0) {
-        const firstDate = rows.reduce((min, t) => (t.date && t.date < min ? t.date : min), rows[0].date || "");
-        if (firstDate) setDateFrom(firstDate);
-        setDefaultsLoaded(true);
-      }
-      // Reset selections that are no longer valid
-      setBrokerId(prev => (!prev || rows.some(t => t.broker_id === prev)) ? prev : "");
-      setCompanyId(prev => (!prev || rows.some(t => t.company_id === prev)) ? prev : "");
-      setTxnType(prev => (!prev || rows.some(t => t.type === prev)) ? prev : "");
-      setStatus(prev => (!prev || rows.some(t => t.status === prev)) ? prev : "");
-    }).catch(() => { if (!cancelled) setAllRows([]); })
-      .finally(() => { if (!cancelled) setRowsLoading(false); });
-    return () => { cancelled = true; };
+      setRowsLoading(true);
+      sbGetTransactions(selectedCds, {
+        pageSize: 10000, page: 1, sortCol: "date", sortDir: "asc",
+        ...(dateFrom ? { dateFrom } : {}),
+        ...(dateTo ? { dateTo } : {}),
+      }).then(data => {
+        if (cancelled) return;
+        const rows = data?.rows || [];
+        setAllRows(rows);
+        // Set dateFrom to first transaction date on initial load
+        if (!defaultsLoaded && rows.length > 0) {
+          const firstDate = rows.reduce((min, t) => (t.date && t.date < min ? t.date : min), rows[0].date || "");
+          if (firstDate) setDateFrom(firstDate);
+          setDefaultsLoaded(true);
+        }
+        // Reset selections that are no longer valid
+        setBrokerId(prev => (!prev || rows.some(t => t.broker_id === prev)) ? prev : "");
+        setCompanyId(prev => (!prev || rows.some(t => t.company_id === prev)) ? prev : "");
+        setTxnType(prev => (!prev || rows.some(t => t.type === prev)) ? prev : "");
+        setStatus(prev => (!prev || rows.some(t => t.status === prev)) ? prev : "");
+      }).catch(() => { if (!cancelled) setAllRows([]); })
+        .finally(() => { if (!cancelled) setRowsLoading(false); });
+    }, 350);
+    return () => { cancelled = true; clearTimeout(debounce); };
   }, [selectedCds, dateFrom, dateTo]);
 
   // Derive available companies, brokers, types, statuses with cascading filters

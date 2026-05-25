@@ -648,10 +648,13 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
 
   // ── Snapshot capture + chart data loading ────────────────────────
   // Lazy: capture today's snapshot if it doesn't exist, then load chart data
-  const snapshotCaptured = useRef(false);
+  // snapshotCaptured is keyed by CDS — switching CDS must re-evaluate, otherwise
+  // the second CDS's snapshot never runs in this session.
+  const snapshotCaptured = useRef({});
   useEffect(() => {
-    if (!profile?.cds_number || loading || snapshotCaptured.current) return;
+    if (!profile?.cds_number || loading) return;
     const cds = profile.cds_number;
+    if (snapshotCaptured.current[cds]) return;
 
     (async () => {
       try {
@@ -688,7 +691,7 @@ export default function DashboardPage({ profile, role, showToast, onNavigate, ac
             companyCount: details.length,
             details,
           });
-          snapshotCaptured.current = true;
+          snapshotCaptured.current[cds] = true;
         }
 
         // Load chart data (always, regardless of capture)

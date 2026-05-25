@@ -7,6 +7,7 @@ import {
   DividendFormModal,
 } from "../components/ui";
 import { Icon } from "../lib/icons";
+import { todayInAppTz } from "../lib/constants";
 import {
   sbGetDividends,
   sbGetAllCompanies,
@@ -1267,7 +1268,11 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
   const [divEvents, setDivEvents]               = useState([]);
   const [earliestTxnYear, setEarliestTxnYear]  = useState(null);
   const [refreshingEventId, setRefreshingEventId] = useState(null);
-  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
+  // Anchored to Africa/Dar_es_Salaam so the "today" cutoff used in closure-date
+  // checks matches the business day in Tanzania, not the user's browser TZ /
+  // UTC. Still memoized with [] deps — page reload picks up a new day. A
+  // setInterval-based refresh would be over-engineered for a rare midnight edge.
+  const todayIso = useMemo(() => todayInAppTz(), []);
 
   const effectiveCompanies = useMemo(
     () => (companies?.length ? companies : localCompanies),
@@ -1635,8 +1640,14 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
       .map(id => dividends.find(d => d.id === id))
       .filter(d => d && d.closure_date && d.closure_date > todayIso);
     if (lockedInSelection.length > 0) {
-      const sample = lockedInSelection[0];
-      showToast(`Cannot confirm before Closure Date: ${sample.closure_date}`, "error");
+      // Surface count and the nearest blocking date so DE can see scope, not just a single example.
+      const earliest = lockedInSelection
+        .map(d => d.closure_date)
+        .sort()[0];
+      showToast(
+        `Cannot confirm ${lockedInSelection.length} dividend${lockedInSelection.length > 1 ? "s" : ""} before their closure date (earliest: ${earliest}).`,
+        "error"
+      );
       return;
     }
     const ids = selectedBuckets.confirmable;
@@ -1681,6 +1692,8 @@ export default function DividendsPage({ companies, showToast, role, cdsNumber })
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
+      // Rethrow so the modal's submit guard releases.
+      throw e;
     }
   }, [formModal.dividend, cdsNumber, showToast]);
 

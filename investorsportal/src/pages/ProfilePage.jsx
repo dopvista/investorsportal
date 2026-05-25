@@ -600,8 +600,17 @@ export default function ProfilePage({ profile, setProfile, showToast, session, r
     reader.readAsDataURL(file); e.target.value = "";
   }, [showToast]);
 
-  const handleCropConfirm = useCallback(async (blob) => {
-    setCropSrc(null); setUploadingAvatar(true);
+  const handleCropConfirm = useCallback(async (blob, cropErr) => {
+    setCropSrc(null);
+    // Handle the new error-second-arg signature from AvatarCropModal — if the
+    // browser failed to encode the cropped image, surface that instead of
+    // attempting an upload with a null body (which would 400 with a confusing
+    // "Upload failed: Upload failed").
+    if (cropErr || !blob) {
+      showToast(cropErr?.message || "Could not prepare image. Please try again.", "error");
+      return;
+    }
+    setUploadingAvatar(true);
     try {
       const uid2 = session?.user?.id || profile?.id;
       const tok  = session?.access_token || KEY;

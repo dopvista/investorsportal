@@ -897,10 +897,19 @@ export default function SystemSettingsPage({ role, session, showToast, setLoginS
     e.target.value = "";
   }, [showToast]);
 
-  const handleCropConfirm = useCallback(async (blob) => {
+  const handleCropConfirm = useCallback(async (blob, cropErr) => {
     const idx = cropIdx;
     if (idx == null) return;
-    setCropSrc(null); setUploading(idx);
+    setCropSrc(null);
+    // Surface canvas.toBlob() failures (OOM / format unsupported) instead of
+    // calling the storage upload with a null body and waiting on a confusing
+    // 400 response.
+    if (cropErr || !blob) {
+      showToast(cropErr?.message || "Could not prepare image. Please try again.", "error");
+      setCropIdx(null);
+      return;
+    }
+    setUploading(idx);
     try {
       const url = await sbUploadSlideImage(blob, idx + 1, session);
       if (!isMountedRef.current) return;

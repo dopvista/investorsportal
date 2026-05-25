@@ -34,12 +34,17 @@ import ErrorBoundary from "./components/ErrorBoundary.jsx";
 // Both log a structured error in production and are no-ops in dev
 // (Vite's overlay already surfaces these during development).
 window.addEventListener("unhandledrejection", (event) => {
-  // Prevent the browser from showing a generic "Unhandled Promise
-  // Rejection" in the console with no useful context.
   const reason = event.reason;
+  // Ignore benign AbortErrors — these are emitted whenever we cancel an
+  // in-flight request (CDS switch, modal close, route change). They are not
+  // bugs and would otherwise drown the console.
+  const name = reason?.name || "";
+  const msg  = reason instanceof Error ? reason.message : String(reason || "");
+  if (name === "AbortError" || /aborted|cancelled|signal is aborted/i.test(msg)) return;
+
   console.error(
     "[App] Unhandled Promise Rejection:",
-    reason instanceof Error ? reason.message : reason,
+    msg,
     reason instanceof Error ? reason.stack : ""
   );
   // Do NOT call event.preventDefault() — we want the browser to still

@@ -1,8 +1,9 @@
 // ── src/components/ui.jsx ────────────────────────────────────────
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
 import * as XLSX from "xlsx";
 import html2canvas from "html2canvas";
 import { Icon } from "../lib/icons";
+import { todayInAppTz } from "../lib/constants";
 import logo from "../assets/logo.jpg";
 
 // ── Theme system re-exports ───────────────────────────────────────
@@ -466,9 +467,91 @@ export function ActionMenu({ actions }) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ── MODAL SHELL ───────────────────────────────────────────────────
+// ── Module-level body-scroll-lock with a counter (handles nested modals) ──
+let _modalStackCount = 0;
+let _savedBodyOverflow = "";
+let _savedBodyPaddingRight = "";
+function _acquireBodyScrollLock() {
+  if (typeof document === "undefined") return;
+  if (_modalStackCount === 0) {
+    _savedBodyOverflow = document.body.style.overflow;
+    _savedBodyPaddingRight = document.body.style.paddingRight;
+    // Compensate for the scrollbar that disappears when overflow:hidden, so the
+    // page doesn't jump horizontally as the modal opens.
+    const sbw = window.innerWidth - document.documentElement.clientWidth;
+    if (sbw > 0) document.body.style.paddingRight = `${sbw}px`;
+    document.body.style.overflow = "hidden";
+  }
+  _modalStackCount++;
+}
+function _releaseBodyScrollLock() {
+  if (typeof document === "undefined") return;
+  _modalStackCount = Math.max(0, _modalStackCount - 1);
+  if (_modalStackCount === 0) {
+    document.body.style.overflow = _savedBodyOverflow;
+    document.body.style.paddingRight = _savedBodyPaddingRight;
+  }
+}
+
+const _FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function ModalShell({ title, subtitle, headerRight, onClose, footer, children, maxWidth = 460, maxHeight, lockBackdrop = false, contentPadding }) {
   const { C } = useTheme();
   const isMobile = useIsMobile();
+  const dialogRef = useRef(null);
+  const lastActiveRef = useRef(null);
+  const titleId = useId();
+
+  // Body scroll lock — refcounted so nested modals don't stomp each other.
+  useEffect(() => {
+    _acquireBodyScrollLock();
+    return _releaseBodyScrollLock;
+  }, []);
+
+  // ESC + Tab focus trap. Tracks the previously-focused element so we can restore
+  // focus on close (proper modal accessibility — screen readers and keyboard users
+  // shouldn't lose their place on the page).
+  useEffect(() => {
+    lastActiveRef.current = typeof document !== "undefined" ? document.activeElement : null;
+    // Move focus into the dialog on open.
+    const node = dialogRef.current;
+    if (node) {
+      // Prefer the first focusable child; fall back to the dialog container itself.
+      const first = node.querySelector(_FOCUSABLE_SELECTOR);
+      (first || node).focus({ preventScroll: true });
+    }
+
+    const onKey = (e) => {
+      // Only the modal that currently owns focus responds — so nested modals
+      // don't all fire on a single ESC press. The topmost (most recently
+      // mounted) modal moved focus into itself on open, so it wins.
+      const node = dialogRef.current;
+      if (!node || !node.contains(document.activeElement)) return;
+      if (e.key === "Escape" && !lockBackdrop) {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key === "Tab") {
+        const focusables = Array.from(node.querySelectorAll(_FOCUSABLE_SELECTOR))
+          .filter(el => el.offsetParent !== null || el === document.activeElement);
+        if (focusables.length === 0) { e.preventDefault(); return; }
+        const first = focusables[0];
+        const last  = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      // Restore focus to whatever was focused before the modal opened.
+      const prev = lastActiveRef.current;
+      if (prev && typeof prev.focus === "function") {
+        try { prev.focus({ preventScroll: true }); } catch {}
+      }
+    };
+  }, [onClose, lockBackdrop]);
 
   return (<>
     <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
@@ -476,28 +559,35 @@ export function ModalShell({ title, subtitle, headerRight, onClose, footer, chil
       style={{ position: "fixed", inset: 0, background: "rgba(10,37,64,0.56)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
       onClick={e => { if (!lockBackdrop && e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
-        background: C.white,
-        borderRadius: isMobile ? "18px 18px 0 0" : 18,
-        border: `1.5px solid ${C.gray200}`,
-        borderBottom: isMobile ? "none" : undefined,
-        width: "100%",
-        maxWidth: isMobile ? "100%" : maxWidth,
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
-        animation: "fadeIn 0.2s ease",
-        maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
-      }}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        style={{
+          background: C.white,
+          borderRadius: isMobile ? "18px 18px 0 0" : 18,
+          border: `1.5px solid ${C.gray200}`,
+          borderBottom: isMobile ? "none" : undefined,
+          width: "100%",
+          maxWidth: isMobile ? "100%" : maxWidth,
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+          animation: "fadeIn 0.2s ease",
+          maxHeight: isMobile ? "92vh" : (maxHeight || undefined),
+          outline: "none",
+        }}>
         <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.navyLight} 100%)`, padding: isMobile ? "18px 20px 14px" : "18px 24px 14px", borderRadius: isMobile ? "18px 18px 0 0" : "18px 18px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
+            <div id={titleId} style={{ fontSize: 16, fontWeight: 800, color: "#ffffff" }}>{title}</div>
             {subtitle && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3, fontWeight: 600 }}>{subtitle}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexShrink: 0 }}>
             {headerRight}
             {!lockBackdrop && (
-              <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
+              <button onClick={onClose} aria-label="Close" style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}><Icon name="x" size={16} stroke="#ffffff" sw={2.2} /></button>
             )}
           </div>
         </div>
@@ -805,7 +895,9 @@ export function PriceHistoryModal({ company, history, onClose }) {
 export function TransactionFormModal({ transaction, companies, transactions = [], brokers = [], onConfirm, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
-  const today  = new Date().toISOString().split("T")[0];
+  // EAT-anchored "today" so future-date guards line up with the Tanzania
+  // business day, not the user's browser TZ.
+  const today  = todayInAppTz();
   const isEdit = !!transaction;
 
   const [form, setForm] = useState(() =>
@@ -814,6 +906,8 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       : { date: today, companyId: "", type: "Buy", qty: "", price: "", controlNumber: "", remarks: "", brokerId: "", brokerName: "" }
   );
   const [error, setError]                       = useState("");
+  const [submitting, setSubmitting]             = useState(false);
+  const submittingRef                            = useRef(false);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   const [companySearch, setCompanySearch]       = useState("");
   const [companyOpen, setCompanyOpen]           = useState(false);
@@ -888,15 +982,26 @@ export function TransactionFormModal({ transaction, companies, transactions = []
     setCompanySearch(""); setError("");
   }, [netMap]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!form.date)                              { setError("Date is required."); return; }
+    if (form.date > today)                       { setError("Date cannot be in the future."); return; }
     if (!form.companyId)                         { setError("Please select a company."); return; }
     if (!form.brokerId)                          { setError("Please select a broker."); return; }
     if (!form.qty   || Number(form.qty)   <= 0)  { setError("Quantity must be greater than 0."); return; }
     if (!form.price || Number(form.price) <= 0)  { setError("Price per share must be greater than 0."); return; }
     if (!isBuy && Number(form.qty) > maxSellQty) { setError(`You only have ${fmtInt(maxSellQty)} shares to sell.`); return; }
     setError("");
-    onConfirm({ date: form.date, companyId: form.companyId, type: form.type, qty: form.qty, price: form.price, fees: feeBreakdown.total, controlNumber: form.controlNumber || null, remarks: form.remarks || null, total: tradeValue, brokerId: form.brokerId, brokerName: form.brokerName });
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      await onConfirm({ date: form.date, companyId: form.companyId, type: form.type, qty: form.qty, price: form.price, fees: feeBreakdown.total, controlNumber: form.controlNumber || null, remarks: form.remarks || null, total: tradeValue, brokerId: form.brokerId, brokerName: form.brokerName });
+    } catch (e) {
+      setError(e?.message || "Save failed. Please try again.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   const ddStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, background: C.white, border: `1.5px solid ${C.green}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden" };
@@ -927,7 +1032,7 @@ export function TransactionFormModal({ transaction, companies, transactions = []
       subtitle={isEdit ? "Update the details below and save" : "Fees are calculated automatically"}
       onClose={onClose}
       maxWidth={580}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} icon={<Icon name="save" size={14} stroke="#ffffff" />}>{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
+      footer={<><Btn variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Btn><Btn variant="primary" onClick={handleSubmit} loading={submitting} icon={<Icon name="save" size={14} stroke="#ffffff" />}>{isEdit ? "Save Changes" : "Record Transaction"}</Btn></>}
     >
       {error && <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 8, padding: "9px 14px", fontSize: 13, color: C.red, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alertTriangle" size={14} stroke={C.red} /> {error}</div>}
 
@@ -1468,7 +1573,8 @@ function SmartDividendForm({
   onConfirm, onClose, onSwitchToManual,
 }) {
   const { C, isDark } = useTheme();
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // EAT-anchored — matches DividendsPage.todayIso so closure-date comparisons agree.
+  const todayIso = useMemo(() => todayInAppTz(), []);
   const inpS = makeInputStyle(C);
 
   // Available years = union of (years with events) and (first-purchase-year-1 .. current year).
@@ -1798,6 +1904,8 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
         }
   );
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   // Auto-calculate total and WHT when per-share, shares, or taxRate change.
   useEffect(() => {
@@ -1878,22 +1986,32 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
     return String(Math.round((Number(form.totalAmount) || 0) - (Number(form.withholdingTax) || 0)));
   }, [form.totalAmount, form.withholdingTax]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submittingRef.current) return;
     setError("");
     const cid = resolvedCompany?.id || selectedCompanyId;
     if (!cid) return setError("Select a company");
     if (!form.dividendPerShare || Number(form.dividendPerShare) <= 0) return setError("Enter dividend per share");
     if (!form.totalAmount || Number(form.totalAmount) <= 0) return setError("Total amount is required");
-    onConfirm({
-      company_id: cid, declaration_date: form.declarationDate || null,
-      ex_dividend_date: form.exDividendDate || null, closure_date: form.closureDate || null,
-      payment_date: form.paymentDate || null,
-      dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
-      total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
-      net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
-      dividend_year: Number(form.dividendYear) || new Date().getFullYear(),
-      dividend_type: form.dividendType || "annual",
-    });
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      await onConfirm({
+        company_id: cid, declaration_date: form.declarationDate || null,
+        ex_dividend_date: form.exDividendDate || null, closure_date: form.closureDate || null,
+        payment_date: form.paymentDate || null,
+        dividend_per_share: Number(form.dividendPerShare), shares_held: form.sharesHeld ? Number(form.sharesHeld) : null,
+        total_amount: Number(form.totalAmount), withholding_tax: Number(form.withholdingTax) || 0,
+        net_amount: Number(netAmount), status: form.status, remarks: form.remarks || null,
+        dividend_year: Number(form.dividendYear) || new Date().getFullYear(),
+        dividend_type: form.dividendType || "annual",
+      });
+    } catch (e) {
+      setError(e?.message || "Save failed. Please try again.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   const inpS = (readOnly) => ({ ...makeInputStyle(C)(readOnly), height: 36, fontSize: 13 });
@@ -1906,8 +2024,8 @@ function ManualDividendForm({ company, companies, dividend, initialYear, onFetch
       onClose={onClose} maxWidth={520} contentPadding="12px 24px"
       footer={<>
         {error && <div style={{ flex: 1, fontSize: 12, color: C.red, fontWeight: 600 }}>{error}</div>}
-        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-        <Btn variant="primary" onClick={handleSubmit} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
+        <Btn variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} loading={submitting} icon={<Icon name="checkCircle" size={15} />}>{isEdit ? "Update" : "Record Dividend"}</Btn>
       </>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -2185,8 +2303,16 @@ export function DividendHistoryModal({ companyName, dividends, onClose }) {
 export function ReportsModal({ onGenerate, onClose }) {
   const { C, isDark } = useTheme();
   const isMobile = useIsMobile();
-  const today = new Date().toISOString().split("T")[0];
-  const yearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().split("T")[0]; })();
+  // EAT-anchored — keeps "today" in the same business day as the rest of the app.
+  const today = todayInAppTz();
+  const yearAgo = (() => {
+    // Subtract one year from today using EAT-anchored math; falling back to
+    // browser-local Date.setFullYear is fine here because the displacement
+    // is whole years.
+    const t = new Date(today + "T00:00:00+03:00");
+    t.setFullYear(t.getFullYear() - 1);
+    return t.toISOString().slice(0, 10);
+  })();
 
   const [reportType, setReportType] = useState("portfolio");
   const [format, setFormat] = useState("pdf");

@@ -113,6 +113,9 @@ export default function InstallBanner() {
     () => typeof window !== "undefined" && window.innerWidth < 768
   );
   const timerRef = useRef(null);
+  // Tracks the slide-out animation timer so unmount during the 400ms animation
+  // doesn't leave a setState pending on a torn-down component.
+  const hideTimerRef = useRef(null);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -153,6 +156,7 @@ export default function InstallBanner() {
 
     return () => {
       clearTimeout(timerRef.current);
+      if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
       window.removeEventListener("installprompt:ready", onPromptReady);
       window.removeEventListener("appinstalled", onInstalled);
     };
@@ -187,13 +191,15 @@ export default function InstallBanner() {
   const handleLater = () => {
     saveLater();
     setVisible(false);
-    setTimeout(() => setHidden(true), 400);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => { setHidden(true); hideTimerRef.current = null; }, 400);
   };
 
   const handleNever = () => {
     saveNever();
     setVisible(false);
-    setTimeout(() => setHidden(true), 400);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => { setHidden(true); hideTimerRef.current = null; }, 400);
   };
 
   if (installed || hidden || !visible || !mode) return null;

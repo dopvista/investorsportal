@@ -1436,10 +1436,12 @@ export default function TransactionsPage({ companies, transactions, setTransacti
   const handleFormConfirm = useCallback(async ({ date, companyId, type, qty, price, fees, controlNumber, remarks, total, brokerId, brokerName }) => {
     const isEdit  = !!formModal.transaction;
     const company = companyById.get(companyId);
+    // Preserve 0 fees (legitimate for IPO / zero-fee corporate actions) — only treat empty/undefined as null.
+    const feesNorm = (fees === "" || fees === null || fees === undefined) ? null : Number(fees);
     const payload = {
       date, company_id: companyId, company_name: company?.name, type,
       qty: Number(qty), price: Number(price), total,
-      fees:           fees ? Number(fees) : null,
+      fees:           feesNorm,
       control_number: controlNumber || null,
       remarks:        remarks || null,
       cds_number:     cdsNumber || null,
@@ -1470,6 +1472,8 @@ export default function TransactionsPage({ companies, transactions, setTransacti
     } catch (e) {
       if (!isMountedRef.current) return;
       showToast("Error: " + e.message, "error");
+      // Rethrow so the modal's submit guard can release and surface the error in-form.
+      throw e;
     }
   }, [formModal.transaction, companyById, cdsNumber, setTransactions, refetchEnriched, showToast]);
 
@@ -1517,8 +1521,15 @@ export default function TransactionsPage({ companies, transactions, setTransacti
       }
       if (isMountedRef.current) {
         setConfirmingIds(new Set());
-        if (lastError) showToast("Error: " + lastError.message, "error");
-        else showToast(`${succeededIds.length} transaction${succeededIds.length > 1 ? "s" : ""} confirmed!`, "success");
+        const failed = ids.length - succeededIds.length;
+        if (lastError && succeededIds.length === 0) {
+          showToast("Error: " + lastError.message, "error");
+        } else if (failed > 0) {
+          // Partial failure: tell the user exactly what happened instead of pretending all succeeded.
+          showToast(`${succeededIds.length} confirmed, ${failed} failed: ${lastError?.message || "unknown error"}`, "error");
+        } else {
+          showToast(`${succeededIds.length} transaction${succeededIds.length > 1 ? "s" : ""} confirmed!`, "success");
+        }
       }
     }
   }, [actionModal, refetchEnriched, showToast]);

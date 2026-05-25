@@ -24,12 +24,17 @@ export function getStoredPasskeyInfo() {
     const raw = localStorage.getItem(PASSKEY_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Validate both required fields exist
-    return parsed && parsed.email && parsed.credentialId ? parsed : null;
+    // Strict shape check: both fields must be non-empty strings. Stale or
+    // partially-written entries are treated as "no passkey" rather than
+    // crashing the login UI with a confusing biometric prompt.
+    if (!parsed || typeof parsed.email !== "string" || typeof parsed.credentialId !== "string") return null;
+    if (!parsed.email || !parsed.credentialId) return null;
+    return parsed;
   } catch { return null; }
 }
 
 export function storePasskeyInfo(email, credentialId) {
+  if (!email || !credentialId) return;
   try { localStorage.setItem(PASSKEY_STORAGE_KEY, JSON.stringify({ email, credentialId })); } catch {}
 }
 
@@ -111,6 +116,11 @@ async function callEdgeFunction(name, body, accessToken = null) {
 export async function registerPasskey(accessToken, nickname = "My Device") {
   // 1. Get registration options (challenge) from server
   const options = await callEdgeFunction("webauthn-register-options", {}, accessToken);
+  // Shape-check before passing to @simplewebauthn/browser — its error messages
+  // for missing fields are cryptic and not surfaceable to end-users.
+  if (!options || typeof options.challenge !== "string" || !options.rp || !options.user) {
+    throw new Error("Server returned malformed passkey setup options. Please try again.");
+  }
 
   // 2. Trigger browser biometric prompt
   let registrationResponse;
@@ -151,6 +161,9 @@ export async function loginWithPasskey(email) {
 
   // 1. Get authentication options (challenge) from server
   const options = await callEdgeFunction("webauthn-auth-options", { email: resolvedEmail });
+  if (!options || typeof options.challenge !== "string") {
+    throw new Error("Server returned malformed passkey sign-in options. Please try password sign-in.");
+  }
 
   // 2. If we have a stored credential ID, inject it into allowCredentials
   //    so iOS skips the "Use Passkey?" popup and goes straight to Face ID.
