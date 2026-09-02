@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Property Rentals — Mockup · Investors Portal</title>
+<style>
+  :root{
+    --navy:#0A2540; --navy2:#0E2D4D; --gold:#D4AF37; --green:#00843D;
+    --greenbg:#E6F4EC; --red:#B42318; --redbg:#FEECEB; --amber:#B25E09; --amberbg:#FDF3E7;
+    --blue:#1D4ED8; --bluebg:#E8EFFD;
+    --text:#0F172A; --muted:#64748B; --line:#E5E9F0; --bg:#F4F6FA; --white:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  .app{display:flex;min-height:100vh}
+
+  /* Sidebar */
+  .side{width:248px;background:linear-gradient(180deg,var(--navy),var(--navy2));color:#fff;
+    display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:12px;padding:22px 20px 16px}
+  .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#b8901f);
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--navy);font-size:18px;
+    box-shadow:0 4px 12px rgba(0,0,0,.35)}
+  .brand h1{font-size:16px;font-weight:800;line-height:1.15}
+  .brand h1 .g{color:var(--gold)} .brand h1 sup{font-size:.7em;color:var(--gold)}
+  .ctx{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;display:flex;align-items:center;gap:5px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .subbadge{margin:2px 20px 10px;font-size:10px;color:rgba(255,255,255,.55);
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:8px;
+    padding:6px 10px;display:flex;align-items:center;gap:6px}
+  .navlabel{color:rgba(255,255,255,.5);font-size:10px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.1em;padding:8px 24px 6px}
+  nav{padding:4px 12px;flex:1;overflow:auto}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:10px;cursor:pointer;
+    margin-bottom:3px;color:rgba(255,255,255,.62);font-size:13.5px;font-weight:500;border-left:3px solid transparent}
+  .nav-i:hover{background:rgba(255,255,255,.06)}
+  .nav-i.on{background:rgba(0,132,61,.22);border-left-color:var(--green);color:#fff;font-weight:700}
+  .nav-i .ct{margin-left:auto;background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);
+    font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px}
+  .nav-i.on .ct{background:var(--green);color:#fff}
+  .me{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid rgba(255,255,255,.08)}
+  .me .av{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--navy);font-weight:800;
+    display:flex;align-items:center;justify-content:center;font-size:13px}
+  .me small{display:block;color:rgba(255,255,255,.5);font-size:10.5px}
+  .me b{font-size:12.5px}
+
+  /* Main */
+  main{flex:1;min-width:0}
+  .top{background:var(--white);border-bottom:1px solid var(--line);padding:12px 24px;
+    display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5}
+  .top h2{font-size:17px;font-weight:800}
+  .top .sub{color:var(--muted);font-size:12px}
+  /* company chip in header (like CDS chip) */
+  .cochip{margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--bg);
+    border:1.5px solid var(--line);border-radius:12px;padding:7px 12px;cursor:pointer}
+  .cochip .clogo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--navy),#16456f);
+    color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .cochip .cn{font-size:12.5px;font-weight:800;line-height:1.1}
+  .cochip .cl{font-size:10px;color:var(--muted)}
+  .cochip .car{color:var(--muted);font-size:10px;margin-left:2px}
+  .gear{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:16px}
+  .gear:hover{background:var(--bg)}
+  .tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:10px}
+  .tab{padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none}
+  .tab.on{background:var(--white);color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .wrap{padding:22px 24px}
+  .view{display:none} .view.on{display:block}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:13px;margin-bottom:20px}
+  .kpi{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 15px}
+  .kpi .lab{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .kpi .val{font-size:19px;font-weight:800;margin-top:6px}
+  .kpi .val small{font-size:12px;color:var(--muted);font-weight:600}
+  .kpi .tag{font-size:10px;margin-top:6px;font-weight:700;display:inline-block;padding:2px 8px;border-radius:20px}
+  .t-g{background:var(--greenbg);color:var(--green)} .t-r{background:var(--redbg);color:var(--red)}
+  .t-a{background:var(--amberbg);color:var(--amber)}
+
+  .grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:18px}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card h3{font-size:13px;font-weight:800;padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .card h3 .pill{margin-left:auto;font-size:11px;font-weight:700;color:var(--green);background:var(--greenbg);padding:2px 9px;border-radius:20px}
+  table{width:100%;border-collapse:collapse;font-size:12.6px}
+  th{text-align:left;color:var(--muted);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;
+    padding:10px 18px;background:#FAFBFD;border-bottom:1px solid var(--line)}
+  td{padding:11px 18px;border-bottom:1px solid #F1F4F8}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .b{font-weight:700}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .bg-g{background:var(--greenbg);color:var(--green)} .bg-r{background:var(--redbg);color:var(--red)}
+  .bg-a{background:var(--amberbg);color:var(--amber)} .bg-n{background:#EEF1F6;color:var(--muted)}
+  .bg-b{background:var(--bluebg);color:var(--blue)}
+  .av2{width:28px;height:28px;border-radius:50%;background:#DCE6F5;color:var(--navy);font-weight:800;
+    font-size:11px;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;flex-shrink:0}
+  .who{display:flex;align-items:center}
+  .muted{color:var(--muted)}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn.gold{background:var(--gold);color:var(--navy)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--navy)}
+  .rowbtns{display:flex;gap:8px;align-items:center}
+  .small{font-size:11px}
+
+  /* property header card */
+  .phead{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:18px;
+    display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:16px;align-items:center}
+  .phead .pi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+  .phead .pi .v{font-size:13px;font-weight:700;margin-top:3px}
+  .phead .nm{font-size:17px;font-weight:800}
+
+  /* unit cards — compact */
+  .units{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .unit{background:var(--white);border:1px solid var(--line);border-radius:13px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.04);transition:box-shadow .15s}
+  .unit:hover{box-shadow:0 5px 16px rgba(16,24,40,.09)}
+  .unit .u-top{padding:11px 12px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+  .unit .u-nm{font-size:14px;font-weight:800;line-height:1.15}
+  .unit .u-ty{font-size:9.5px;color:var(--muted);font-weight:600;margin-top:1px}
+  .unit .u-rent{padding:5px 12px 8px;display:flex;align-items:baseline;gap:4px}
+  .unit .u-rent .a{font-size:18px;font-weight:800}
+  .unit .u-rent .p{font-size:10px;color:var(--muted);font-weight:600}
+  .unit .u-rows{padding:0 12px 7px;border-top:1px solid var(--line)}
+  .urow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed #EEF1F6;font-size:11.5px}
+  .urow:last-child{border-bottom:none}
+  .urow .k{color:var(--muted);font-size:10px;font-weight:600;white-space:nowrap}
+  .urow .v{font-weight:700;display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .urow .v .av2{width:20px;height:20px;font-size:9px;margin-right:2px}
+  .stay{font-size:9px;font-weight:700;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:1px 6px;border-radius:20px;flex-shrink:0}
+  .u-foot{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#FAFBFD;border-top:1px solid var(--line);cursor:pointer}
+  .u-foot .ft-lab{font-size:9px;color:var(--muted)}
+  .u-foot .ex{font-size:10px;color:var(--blue);font-weight:700}
+  .u-exp{display:none;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
+  .u-exp.on{display:block}
+  .exlab{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:2px 0 5px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .chips span{font-size:10px;background:var(--bg);color:#334155;padding:2px 7px;border-radius:6px;border:1px solid var(--line)}
+  .svc{display:flex;flex-wrap:wrap;gap:5px}
+  .svc span{font-size:10px;background:var(--bluebg);color:var(--blue);padding:2px 7px;border-radius:6px;font-weight:600}
+  .unit.vac{border-style:dashed}
+  .unit.vac .u-nm,.unit.vac .u-rent .a{color:var(--muted)}
+
+  /* ledger */
+  .ledger td,.ledger th{padding:8px 14px;font-size:12px}
+  .ledger .cr{color:var(--green)} .ledger .due{color:var(--red);font-weight:700}
+  .recon{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+  .recon .box{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .recon .box .l{font-size:11px;color:var(--muted);font-weight:600}
+  .recon .box .v{font-size:19px;font-weight:800;margin-top:5px}
+
+  /* company settings */
+  .settings{display:grid;grid-template-columns:300px 1fr;gap:20px}
+  .logo-card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px;text-align:center}
+  .logo-big{width:110px;height:110px;border-radius:18px;background:linear-gradient(135deg,var(--navy),#16456f);
+    color:#fff;font-weight:800;font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .field{margin-bottom:15px} .field label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(10,37,64,.45);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal-bg.on{display:flex}
+  .modal{background:#fff;width:560px;border-radius:16px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+  .modal .mh{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .modal .mh b{font-size:15px} .modal .mh .x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:20px}
+  .mb{padding:20px 22px}
+  .alloc{background:var(--bg);border:1px dashed #cfd8e6;border-radius:10px;padding:12px 14px;margin-top:6px;font-size:12px}
+  .alloc .r{display:flex;justify-content:space-between;padding:3px 0}
+  .mf{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+  .hint{font-size:11px;color:var(--muted);margin-top:3px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">IP</div>
+      <div>
+        <h1><span>Investors</span> <span class="g">Portal</span><sup>™</sup></h1>
+        <div class="ctx"><span class="dot"></span> property.investorsportal.co.tz</div>
+      </div>
+    </div>
+    <div class="subbadge">🏠 Property Rentals · Admin</div>
+    <div class="navlabel">Property</div>
+    <nav>
+      <div class="nav-i on" onclick="go('dash',this)">▦ Dashboard</div>
+      <div class="nav-i" onclick="go('units',this)">🏢 Properties &amp; Units <span class="ct">4</span></div>
+      <div class="nav-i" onclick="go('dash',this)">👤 Tenants <span class="ct">3</span></div>
+      <div class="nav-i" onclick="go('ledger',this)">💵 Collect Payments</div>
+      <div class="nav-i" onclick="go('ledger',this)">📊 Receivables <span class="ct">1</span></div>
+      <div class="nav-i" onclick="go('dash',this)">🧾 Expenditures</div>
+      <div class="nav-i" onclick="go('dash',this)">📄 Reports</div>
+      <div class="navlabel" style="margin-top:8px">Settings</div>
+      <div class="nav-i" onclick="go('company',this)">⚙️ Company Settings</div>
+    </nav>
+    <div class="me">
+      <div class="av">MJ</div>
+      <div><b>Mike Luzigah</b><small>Super Admin</small></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+    <div class="top">
+      <div>
+        <h2 id="title">Property Dashboard</h2>
+        <div class="sub" id="crumbs">Ilazo · Dodoma</div>
+      </div>
+      <!-- company chip (always in header, like the CDS chip) -->
+      <div class="cochip" onclick="go('company')">
+        <div class="clogo">DC</div>
+        <div>
+          <div class="cn">Dodoma Contemporary Appartments</div>
+          <div class="cl">Active company · 1 property</div>
+        </div>
+        <span class="car">▾</span>
+      </div>
+      <button class="gear" title="Company Settings" onclick="go('company')">⚙️</button>
+    </div>
+
+    <div class="wrap">
+      <!-- DASHBOARD -->
+      <section class="view on" id="dash">
+        <div style="display:flex;align-items:center;margin-bottom:16px;gap:10px">
+          <div class="tabs">
+            <button class="tab on" onclick="go('dash',null,this)">Dashboard</button>
+            <button class="tab" onclick="go('units',null,this)">Properties &amp; Units</button>
+            <button class="tab" onclick="go('ledger',null,this)">Tenant Ledger</button>
+          </div>
+          <button class="btn gold" style="margin-left:auto" onclick="openPay()">+ Collect Payment</button>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="lab">Rent Roll / mo</div><div class="val">3,000,000</div><div class="tag t-g">3 occupied</div></div>
+          <div class="kpi"><div class="lab">Collected (Jun)</div><div class="val">2,100,000</div><div class="tag t-g">70% of roll</div></div>
+          <div class="kpi"><div class="lab">Arrears</div><div class="val">1,800,000</div><div class="tag t-r">1 tenant</div></div>
+          <div class="kpi"><div class="lab">Occupancy</div><div class="val">75<small>%</small></div><div class="tag t-a">1 vacant</div></div>
+          <div class="kpi"><div class="lab">Expenses (YTD)</div><div class="val">1,500,000</div><div class="tag t-a">1 item</div></div>
+          <div class="kpi"><div class="lab">Net Income (YTD)</div><div class="val">18,510,000</div><div class="tag t-g">rent − exp</div></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>Units at Ilazo <span class="pill">3 / 4 occupied</span></h3>
+            <table>
+              <thead><tr><th>Unit</th><th>Tenant</th><th class="num">Rent</th><th>Status</th><th class="num">Balance</th></tr></thead>
+              <tbody>
+                <tr><td class="b">Unit 1 <span class="muted small">· Single</span></td><td><span class="who"><span class="av2">SM</span>Sunday Mtaki</span></td><td class="num">900,000</td><td><span class="badge bg-r">Arrears</span></td><td class="num b" style="color:var(--red)">1,800,000</td></tr>
+                <tr><td class="b">Unit 2 <span class="muted small">· Couples</span></td><td><span class="who"><span class="av2">MM</span>Muhamud Mukhsin</span></td><td class="num">900,000</td><td><span class="badge bg-g">Current</span></td><td class="num">0</td></tr>
+                <tr><td class="b">Unit 3 <span class="muted small">· Family</span></td><td><span class="who"><span class="av2">FM</span>Frederick Mbwana</span></td><td class="num">1,200,000</td><td><span class="badge bg-g">Paid ahead</span></td><td class="num" style="color:var(--green)">2,400,000 cr</td></tr>
+                <tr><td class="b">Unit 4 <span class="muted small">· Studio</span></td><td class="muted">— vacant —</td><td class="num">900,000</td><td><span class="badge bg-n">Vacant</span></td><td class="num muted">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>Receivables — Aged</h3>
+            <table>
+              <thead><tr><th>Tenant · Period</th><th>Bucket</th><th class="num">Due</th></tr></thead>
+              <tbody>
+                <tr><td><span class="who"><span class="av2">SM</span><div><div class="b">Sunday Mtaki</div><div class="muted small">Jan 2026 · Unit 1</div></div></span></td><td><span class="badge bg-a">31–60d</span></td><td class="num b">900,000</td></tr>
+                <tr><td><span class="who"><span class="av2">SM</span><div><div class="b">Sunday Mtaki</div><div class="muted small">Feb 2026 · Unit 1</div></div></span></td><td><span class="badge bg-r">0–30d</span></td><td class="num b">900,000</td></tr>
+                <tr><td class="b">Total arrears</td><td></td><td class="num b" style="color:var(--red)">1,800,000</td></tr>
+              </tbody>
+            </table>
+            <h3 style="border-top:1px solid var(--line)">Recent Payments</h3>
+            <table>
+              <tbody>
+                <tr><td><div class="b">Muhamud Mukhsin</div><div class="muted small">20 Jun · Bank · Unit 2</div></td><td class="num b">900,000</td><td><span class="badge bg-g">Verified</span></td></tr>
+                <tr><td><div class="b">Frederick Mbwana</div><div class="muted small">08 Jun · Bank · 4 months</div></td><td class="num b">1,200,000</td><td><span class="badge bg-a">Pending</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- UNITS -->
+      <section class="view" id="units">
+        <div style="display:flex;align-items:center;margin-bottom:16px">
+          <div><h2 style="font-size:16px">Properties &amp; Units</h2><div class="muted small">Dodoma Contemporary Appartments</div></div>
+          <div class="rowbtns" style="margin-left:auto"><button class="btn ghost">+ Register Property</button><button class="btn gold">+ Register Unit</button></div>
+        </div>
+
+        <!-- property header with the new fields -->
+        <div class="phead">
+          <div class="pi"><div class="nm">🏘️ Ilazo</div><div class="muted small" style="margin-top:3px">4 units · 3 occupied</div></div>
+          <div class="pi"><div class="l">Region</div><div class="v">Dodoma</div><div class="l" style="margin-top:8px">Location</div><div class="v">Ilazo, Nkuhungu</div></div>
+          <div class="pi"><div class="l">Manager</div><div class="v">Mike Luzigah</div><div class="l" style="margin-top:8px">Phone</div><div class="v">+255 712 000 000</div></div>
+          <div class="pi"><div class="l">Email</div><div class="v">ilazo@dca.co.tz</div><div style="margin-top:10px"><button class="btn ghost small">Edit property</button></div></div>
+        </div>
+
+        <div class="units" id="unitgrid"></div>
+      </section>
+
+      <!-- LEDGER -->
+      <section class="view" id="ledger">
+        <div style="display:flex;align-items:center;margin-bottom:16px">
+          <div><h2 style="font-size:16px"><span class="av2">SM</span>Sunday Mtaki — Unit 1 Ledger</h2>
+            <div class="muted small">Lease from 20 Jul 2024 · Rent 900,000/mo · Due 20th · In advance</div></div>
+          <div class="rowbtns" style="margin-left:auto"><button class="btn ghost">Statement PDF</button><button class="btn gold" onclick="openPay()">+ Collect Payment</button></div>
+        </div>
+        <div class="recon">
+          <div class="box"><div class="l">Total charged (20 mo)</div><div class="v">18,000,000</div></div>
+          <div class="box"><div class="l">Total received</div><div class="v" style="color:var(--green)">16,200,000</div></div>
+          <div class="box"><div class="l">Outstanding</div><div class="v" style="color:var(--red)">1,800,000</div></div>
+        </div>
+        <div class="card">
+          <h3>Monthly Ledger <span class="pill">FIFO · in-advance</span></h3>
+          <table class="ledger">
+            <thead><tr><th>Month (due 20th)</th><th class="num">Charged</th><th>Payment received</th><th>Status</th><th class="num">Balance</th></tr></thead>
+            <tbody id="led"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- COMPANY SETTINGS -->
+      <section class="view" id="company">
+        <div style="margin-bottom:16px"><h2 style="font-size:16px">Company Settings</h2><div class="muted small">This profile name shows in the header across the Property module.</div></div>
+        <div class="settings">
+          <div class="logo-card">
+            <div class="logo-big">DC</div>
+            <button class="btn ghost small">Upload logo</button>
+            <div class="muted small" style="margin-top:10px">PNG/JPG · shown in header &amp; reports</div>
+          </div>
+          <div class="card" style="padding:20px">
+            <div class="field"><label>Company name</label><input value="Dodoma Contemporary Appartments" /></div>
+            <div class="two">
+              <div class="field"><label>Phone</label><input value="+255 712 000 000" /></div>
+              <div class="field"><label>Email</label><input value="info@dca.co.tz" /></div>
+            </div>
+            <div class="field"><label>Address</label><input value="P.O. Box 1234, Ilazo, Dodoma, Tanzania" /></div>
+            <div class="field"><label>Other info / notes</label><textarea rows="3">TIN: 123-456-789 · Registered rental company.</textarea></div>
+            <div class="rowbtns" style="justify-content:flex-end"><button class="btn ghost">Cancel</button><button class="btn">Save company profile</button></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Collect Payment modal -->
+<div class="modal-bg" id="paymodal">
+  <div class="modal">
+    <div class="mh">💵 <b>Collect Payment</b><span class="muted small" style="margin-left:8px">Maker → Verifier</span><span class="x" onclick="closePay()">×</span></div>
+    <div class="mb">
+      <div class="field"><label>Tenant / Lease</label><select><option>Sunday Mtaki — Unit 1 (Ilazo)</option><option>Muhamud Mukhsin — Unit 2</option></select></div>
+      <div class="two">
+        <div class="field"><label>Amount (TZS)</label><input value="2,700,000" /></div>
+        <div class="field"><label>Paid date</label><input value="2026-06-20" /></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Covers from</label><input value="2026-01-20" /><div class="hint">lump sum start</div></div>
+        <div class="field"><label>Covers to</label><input value="2026-03-19" /><div class="hint">auto-spreads across months</div></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Method</label><select><option>Bank transfer (CRDB)</option><option>Cash</option><option>Mobile money</option></select></div>
+        <div class="field"><label>Reference</label><input placeholder="receipt / txn no." /></div>
+      </div>
+      <div class="alloc">
+        <b class="small">Auto-allocation preview (FIFO, oldest first)</b>
+        <div class="r"><span>Jan 2026 (arrears)</span><span class="b">900,000 → settled</span></div>
+        <div class="r"><span>Feb 2026 (arrears)</span><span class="b">900,000 → settled</span></div>
+        <div class="r"><span>Mar 2026 (in advance)</span><span class="b">900,000 → settled</span></div>
+        <div class="r" style="border-top:1px dashed #cfd8e6;margin-top:4px;padding-top:6px"><span>New balance</span><span class="b" style="color:var(--green)">0 — current</span></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn ghost" onclick="closePay()">Cancel</button><button class="btn">Submit for verification</button></div>
+  </div>
+</div>
+
+<script>
+  function go(id,navEl,tabEl){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    var titles={dash:'Property Dashboard',units:'Properties & Units',ledger:'Tenant Ledger',company:'Company Settings'};
+    var crumbs={dash:'Ilazo · Dodoma',units:'Ilazo · Dodoma',ledger:'Sunday Mtaki · Unit 1',company:'Profile & branding'};
+    document.getElementById('title').textContent=titles[id]||'Property';
+    document.getElementById('crumbs').textContent=crumbs[id]||'';
+    if(tabEl){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));tabEl.classList.add('on');}
+    if(navEl){document.querySelectorAll('.nav-i').forEach(n=>n.classList.remove('on'));navEl.classList.add('on');}
+  }
+  function openPay(){document.getElementById('paymodal').classList.add('on')}
+  function closePay(){document.getElementById('paymodal').classList.remove('on')}
+  function toggleU(el){el.parentElement.querySelector('.u-exp').classList.toggle('on');
+    var x=el.querySelector('.ex'); x.textContent = x.textContent.indexOf('Details')>-1 ? 'Hide ▴' : 'Details ▾';}
+
+  // ---- Units (redesigned cards) ----
+  var feats=['1 Bedroom','Lounge','Kitchen','Parking','Toilet','Bath'];
+  var units=[
+    {n:'Unit 1',ty:'Single',  rent:'900,000', who:'Sunday Mtaki',   ini:'SM', stay:'23 mo', bal:'1,800,000', balt:'due', st:'Arrears',  sb:'bg-r', svc:['Metered water','Security guard','Garbage']},
+    {n:'Unit 2',ty:'Couples', rent:'900,000', who:'Muhamud Mukhsin',ini:'MM', stay:'23 mo', bal:'0 · current',balt:'ok', st:'Occupied', sb:'bg-g', svc:['Metered water','Security guard','WiFi ready']},
+    {n:'Unit 3',ty:'Family',  rent:'1,200,000',who:'Frederick Mbwana',ini:'FM',stay:'5 mo',  bal:'2,400,000 cr',balt:'cr',st:'Paid ahead',sb:'bg-g',svc:['Metered water','Security guard','Garbage','Backup tank']},
+    {n:'Unit 4',ty:'Studio',  rent:'900,000', who:null,            ini:'',   stay:'—',     bal:'—',         balt:'na', st:'Vacant',   sb:'bg-n', svc:['Metered water','Security guard']}
+  ];
+  document.getElementById('unitgrid').innerHTML=units.map(function(u){
+    var balcol=u.balt==='due'?'color:var(--red)':(u.balt==='cr'?'color:var(--green)':'');
+    var tenantRow = u.who
+      ? '<div class="urow"><span class="k">Tenant</span><span class="v"><span class="av2">'+u.ini+'</span>'+u.who
+        + (u.stay!=='—'?' <span class="stay">'+u.stay+'</span>':'') + '</span></div>'
+      : '<div class="urow"><span class="k">Tenant</span><span class="v muted">— vacant —</span></div>';
+    var balRow = u.who
+      ? '<div class="urow"><span class="k">Balance</span><span class="v" style="'+balcol+'">'+u.bal+'</span></div>'
+      : '<div class="urow"><button class="btn ghost small" style="width:100%;padding:6px 8px">+ Assign Tenant / Lease</button></div>';
+    return '<div class="unit'+(u.who?'':' vac')+'">'
+      + '<div class="u-top"><div><div class="u-nm">'+u.n+'</div><div class="u-ty">'+u.ty+' unit</div></div>'
+      +   '<span class="badge '+u.sb+'">'+u.st+'</span></div>'
+      + '<div class="u-rent"><span class="a">'+u.rent+'</span><span class="p">TZS/mo</span></div>'
+      + '<div class="u-rows">' + tenantRow + balRow + '</div>'
+      + '<div class="u-foot" onclick="toggleU(this)"><span class="ft-lab">Type · features · services</span><span class="ex">Details ▾</span></div>'
+      + '<div class="u-exp">'
+      +   '<div class="exlab">Unit type</div><div class="chips"><span>'+u.ty+'</span></div>'
+      +   '<div class="exlab">General features</div><div class="chips">'+feats.map(f=>'<span>'+f+'</span>').join('')+'</div>'
+      +   '<div class="exlab">Other services</div><div class="svc">'+u.svc.map(s=>'<span>'+s+'</span>').join('')+'</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  // ---- Tenant A ledger ----
+  var rows=[
+    ['Jul 2024','900,000','24 Jul → 900,000','bg-g','Paid (4d late)','0',''],
+    ['Aug 2024','900,000','20 Aug → 900,000','bg-g','Paid on time','0',''],
+    ['Sep 2024','900,000','22 Sep → 500,000','bg-a','Partial','400,000 due','due'],
+    ['Oct 2024','900,000','—','bg-r','Missed','1,300,000 due','due'],
+    ['Nov 2024','900,000','18 Nov → 2,500,000','bg-g','Lump (clears + advance)','300,000 cr','cr'],
+    ['Dec 2024','900,000','28 Dec → 600,000','bg-g','Paid (late)','0',''],
+    ['Jan 2025','900,000','20 Jan → 2,700,000','bg-g','3-month advance','1,800,000 cr','cr'],
+    ['Feb 2025','900,000','(prepaid)','bg-g','Paid in advance','900,000 cr','cr'],
+    ['Mar 2025','900,000','(prepaid)','bg-g','Paid in advance','0',''],
+    ['Apr 2025','900,000','20 Apr → 900,000','bg-g','Paid on time','0',''],
+    ['May 2025','900,000','—','bg-r','Missed','900,000 due','due'],
+    ['Jun 2025','900,000','—','bg-r','Missed','1,800,000 due','due'],
+    ['Jul 2025','900,000','25 Jul → 900,000','bg-a','Clears May (oldest)','1,800,000 due','due'],
+    ['Aug 2025','900,000','20 Aug → 1,800,000','bg-a','Clears Jun + Jul','900,000 due','due'],
+    ['Sep 2025','900,000','19 Sep → 1,800,000','bg-g','Clears Aug + Sep','0',''],
+    ['Oct 2025','900,000','—','bg-r','Missed','900,000 due','due'],
+    ['Nov 2025','900,000','20 Nov → 900,000','bg-r','Clears Oct','900,000 due','due'],
+    ['Dec 2025','900,000','20 Dec → 900,000','bg-r','Clears Nov','900,000 due','due'],
+    ['Jan 2026','900,000','—','bg-r','Missed','1,800,000 due','due'],
+    ['Feb 2026','900,000','20 Feb → 900,000','bg-r','Clears Dec','1,800,000 due','due'],
+  ];
+  document.getElementById('led').innerHTML=rows.map(function(r){
+    var bal=r[6]==='due'?'<span class="due">'+r[5]+'</span>':(r[6]==='cr'?'<span class="cr">'+r[5]+'</span>':r[5]);
+    return '<tr><td class="b">'+r[0]+'</td><td class="num">'+r[1]+'</td><td>'+r[2]+'</td><td><span class="badge '+r[3]+'">'+r[4]+'</span></td><td class="num">'+bal+'</td></tr>';
+  }).join('');
+</script>
+</body>
+</html>

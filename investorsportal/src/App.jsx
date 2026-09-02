@@ -45,6 +45,18 @@ const ReportsPage        = lazy(() => import("./pages/ReportsPage"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const SystemSettingsPage = lazy(() => import("./pages/SystemSettingsPage"));
 const ChatAssistant      = lazy(() => import("./components/ChatAssistant"));
+const PropertyPage       = lazy(() => import("./pages/PropertyPage"));
+
+// Land directly on the Property tab when served from the property.* subdomain
+// (or via ?app=property locally). This is just a default tab selection — the
+// app shell, auth, theme and user management are all the normal ones.
+const LAND_ON_PROPERTY = (() => {
+  try {
+    const host = window.location.hostname || "";
+    const qp   = new URLSearchParams(window.location.search);
+    return host.startsWith("property.") || qp.get("app") === "property";
+  } catch { return false; }
+})();
 
 // ── Static nav data (outside component — never recreated) ─────────
 const NAV = [
@@ -52,6 +64,7 @@ const NAV = [
   { id: "companies",       label: "Portfolio",         roles: ["SA","AD","DE","VR","RO"] },
   { id: "transactions",    label: "Transactions",      roles: ["SA","AD","DE","VR","RO"] },
   { id: "dividends",       label: "Dividends",         roles: ["SA","AD","DE","VR","RO"] },
+  { id: "property",        label: "Property",          roles: ["SA","AD","DE","VR","RO"] },
   { id: "reports",         label: "Reports",           roles: ["SA","AD","DE","VR","RO"] },
   { id: "user-management", label: "User Management",   roles: ["SA","AD"] },
   { id: "system-settings", label: "System Settings",   roles: ["SA"] },
@@ -109,6 +122,16 @@ const NAV_ICONS = {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"/>
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  ),
+  "property": (color, sw = 1.8, size = 20) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 22V4a2 2 0 012-2h8a2 2 0 012 2v18z"/>
+      <path d="M6 12H4a2 2 0 00-2 2v6a2 2 0 002 2h2"/>
+      <path d="M18 9h2a2 2 0 012 2v9a2 2 0 01-2 2h-2"/>
+      <line x1="10" y1="6" x2="14" y2="6"/>
+      <line x1="10" y1="10" x2="14" y2="10"/>
+      <line x1="10" y1="14" x2="14" y2="14"/>
     </svg>
   ),
   "reports": (color, sw = 1.8, size = 20) => (
@@ -334,6 +357,7 @@ export default function App() {
   const [profile,         setProfile]         = useState(undefined);
   const [role,            setRole]            = useState(null);
   const [tab,             setTab]             = useState(() => {
+    if (LAND_ON_PROPERTY) return "property";
     try { return localStorage.getItem("app_active_tab") || "dashboard"; }
     catch { return "dashboard"; }
   });
@@ -940,6 +964,7 @@ export default function App() {
     dashboard:        { title: `Welcome back, ${profile?.full_name?.split(" ")[0] || "Investor"}`, sub: "Here's your portfolio at a glance — holdings, performance and activity." },
     companies:        { title: "Portfolio",        sub: "Your CDS portfolio holdings" },
     transactions:     { title: "Transactions",     sub: "Record and view all buy/sell activity" },
+    property:         { title: "Property Rentals",  sub: "Track properties, units, tenants, rent dues and payments" },
     reports:          { title: "Reports",          sub: "Generate and download portfolio reports" },
     profile:          { title: "My Profile",       sub: "Manage your personal information" },
     "user-management":{ title: "User Management",  sub: "Manage system users and assign roles" },
@@ -1285,6 +1310,7 @@ export default function App() {
             {tab === "companies"        && <CompaniesPage       key={`companies-${activeCdsNumber || "none"}`}    companies={companies} setCompanies={setCompanies} transactions={filteredTransactions} showToast={showToast} role={role} profile={activeProfile} />}
             {tab === "dividends"        && <DividendsPage        key={`dividends-${activeCdsNumber || "none"}`}    companies={companies} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
             {tab === "transactions"     && <TransactionsPage    key={`transactions-${activeCdsNumber || "none"}`} companies={companies} transactions={transactions} setTransactions={setTransactions} showToast={showToast} role={role} cdsNumber={activeCdsNumber} />}
+            {tab === "property"         && <PropertyPage        role={role} showToast={showToast} />}
             {tab === "reports"          && <ReportsPage         key={`reports-${activeCdsNumber || "none"}`}       cdsNumber={activeCdsNumber} cdsName={activeCds?.cds_name} cdsList={cdsList} showToast={showToast} role={role} />}
             {tab === "profile"          && <ProfilePage         profile={profile} setProfile={setProfile} session={session} role={role} email={session?.user?.email || session?.email || ""} showToast={showToast} activeCds={activeCds} cdsList={cdsList} onSwitchCds={handleCdsSwitch} />}
             {tab === "user-management"  && <UserManagementPage  role={role} showToast={showToast} profile={activeProfile} />}
