@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Property Rentals — Redesign · Investors Portal</title>
+<style>
+/* =========================================================================
+   INVESTORS PORTAL — Property module redesign
+   Brand: navy #0A2540 + gold #D4AF37. Craft borrowed from the GAMIS design
+   system (4px grid, soft Material elevation, status-pill patterns).
+   Self-contained: inline CSS + vanilla JS, no external libraries.
+   ========================================================================= */
+
+/* ---- Tokens : light --------------------------------------------------- */
+.appwrap{
+  --navy:#0A2540; --navy2:#0E2D4D; --gold:#D4AF37; --gold-d:#B8901F;
+  --green:#00843D; --green-bg:#E6F4EC; --green-bd:#BBE3CB;
+  --red:#B42318;   --red-bg:#FDECEA;  --red-bd:#F4C9C4;
+  --amber:#B25E09; --amber-bg:#FBF1E3;--amber-bd:#EAD2AF;
+  --blue:#1D4ED8;  --blue-bg:#E8EEFD; --blue-bd:#C7D6FA;
+
+  --text:#0F172A; --muted:#64748B; --faint:#94A3B8;
+  --line:#E5E9F0; --line-2:#F1F4F8;
+  --bg:#F4F6FA; --surface:#FFFFFF; --surface-2:#FAFBFD; --surface-3:#F6F8FB;
+
+  --side-1:#0A2540; --side-2:#0C2A4A; --side-text:#FFFFFF;
+  --side-muted:rgba(255,255,255,.58); --side-faint:rgba(255,255,255,.42);
+  --side-hover:rgba(255,255,255,.07); --side-line:rgba(255,255,255,.09);
+  --side-active-bg:rgba(212,175,55,.16); --side-active-bd:var(--gold);
+
+  --field-bg:#FFFFFF; --field-bd:#D9E0EA; --field-bd-focus:var(--navy);
+
+  --sh-xs:0 1px 2px rgba(16,24,40,.05);
+  --sh-sm:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+  --sh-md:0 6px 18px rgba(16,24,40,.08), 0 2px 5px rgba(16,24,40,.05);
+  --sh-lg:0 24px 60px rgba(10,37,64,.26);
+
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --r-card:14px; --r-sm:9px; --r-field:9px; --r-chip:999px;
+}
+
+/* ---- Tokens : dark ---------------------------------------------------- */
+.appwrap[data-theme="dark"]{
+  --green:#34C97E; --green-bg:rgba(52,201,126,.14); --green-bd:rgba(52,201,126,.30);
+  --red:#F2705F;   --red-bg:rgba(242,112,95,.14);   --red-bd:rgba(242,112,95,.32);
+  --amber:#E59A4A; --amber-bg:rgba(229,154,74,.14); --amber-bd:rgba(229,154,74,.30);
+  --blue:#6FA0FF;  --blue-bg:rgba(111,160,255,.15); --blue-bd:rgba(111,160,255,.30);
+
+  --text:#E9EEF7; --muted:#93A4C0; --faint:#64748B;
+  --line:#1E2C44; --line-2:#17223A;
+  --bg:#08111F; --surface:#0F1C32; --surface-2:#0C1830; --surface-3:#12203A;
+
+  --side-1:#081424; --side-2:#0A1E36; --side-text:#EAF1FB;
+  --side-muted:rgba(233,238,247,.56); --side-faint:rgba(233,238,247,.40);
+  --side-hover:rgba(255,255,255,.06); --side-line:rgba(255,255,255,.08);
+  --side-active-bg:rgba(212,175,55,.18); --side-active-bd:var(--gold);
+
+  --field-bg:#0C1830; --field-bd:#26344E; --field-bd-focus:var(--gold);
+
+  --sh-xs:0 1px 2px rgba(0,0,0,.35);
+  --sh-sm:0 1px 3px rgba(0,0,0,.4);
+  --sh-md:0 8px 24px rgba(0,0,0,.45);
+  --sh-lg:0 24px 60px rgba(0,0,0,.6);
+}
+
+/* ---- Page / showcase chrome ------------------------------------------ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,system-ui,sans-serif;
+  background:#E9EDF4; color:#0F172A; -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.shell{max-width:1320px;margin:0 auto;padding:28px 28px 80px}
+.sh-head{display:flex;align-items:center;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+.sh-head .mark{flex-shrink:0}
+.sh-head h1{font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+.sh-head p{font-size:13px;color:#5A6678;margin-top:2px}
+.sh-nav{margin-left:auto;display:flex;gap:8px;background:#fff;padding:5px;border-radius:12px;
+  box-shadow:0 1px 3px rgba(16,24,40,.08);border:1px solid #E1E6EF}
+.sh-nav a{font-size:12.5px;font-weight:700;color:#5A6678;text-decoration:none;padding:8px 14px;
+  border-radius:8px;display:flex;align-items:center;gap:7px;transition:.15s}
+.sh-nav a:hover{background:#F2F5FA;color:#0A2540}
+.sh-nav a svg{width:15px;height:15px}
+
+.demo{margin-bottom:34px}
+.demo-lab{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-left:2px}
+.demo-lab .n{width:24px;height:24px;border-radius:7px;background:#0A2540;color:#fff;font-size:12px;
+  font-weight:800;display:flex;align-items:center;justify-content:center}
+.demo-lab h2{font-size:15px;font-weight:800;letter-spacing:-.01em}
+.demo-lab .meta{font-size:12px;color:#7A879B;font-weight:500}
+.demo-lab .meta b{color:#5A6678;font-weight:700}
+
+/* desktop window frame */
+.win{border-radius:16px;overflow:hidden;box-shadow:0 30px 70px rgba(10,37,64,.22),0 4px 12px rgba(10,37,64,.10);
+  border:1px solid #D5DCE8;background:#fff}
+.win-bar{height:42px;background:#F0F3F8;border-bottom:1px solid #E1E6EF;display:flex;align-items:center;
+  gap:8px;padding:0 16px}
+.win-dots{display:flex;gap:7px}
+.win-dots i{width:11px;height:11px;border-radius:50%;display:block}
+.win-dots i:nth-child(1){background:#F0625B}.win-dots i:nth-child(2){background:#F6BE4F}.win-dots i:nth-child(3){background:#5BC066}
+.win-url{margin:0 auto;background:#fff;border:1px solid #E1E6EF;border-radius:8px;height:26px;display:flex;
+  align-items:center;gap:7px;padding:0 14px;font-size:12px;color:#5A6678;font-weight:600;max-width:60%}
+.win-url svg{width:13px;height:13px;color:#00843D}
+.win-body{height:740px;overflow:auto;background:var(--bg)}
+.win-body .appwrap{min-width:1080px;height:100%}
+
+/* phone frame */
+.phones{display:flex;gap:30px;flex-wrap:wrap}
+.phone{width:392px;flex-shrink:0}
+.phone-cap{font-size:12px;color:#7A879B;font-weight:600;margin-bottom:10px;text-align:center}
+.phone-cap b{color:#5A6678}
+.phone-frame{width:392px;height:800px;background:#0A1322;border-radius:46px;padding:13px;
+  box-shadow:0 30px 70px rgba(10,37,64,.28),inset 0 0 0 2px #2B3650;position:relative}
+.phone-screen{width:100%;height:100%;border-radius:34px;overflow:hidden;background:var(--bg);position:relative}
+.phone-notch{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:128px;height:30px;
+  background:#0A1322;border-radius:0 0 18px 18px;z-index:60}
+.phone-screen .appwrap{height:100%}
+
+/* =========================================================================
+   APP
+   ========================================================================= */
+.appwrap{position:relative;color:var(--text);background:var(--bg);overflow:hidden}
+.appwrap *{font-family:inherit}
+.app{display:flex;height:100%;min-height:0}
+.icon{display:inline-flex;align-items:center;justify-content:center}
+.icon svg{width:1em;height:1em;stroke:currentColor;stroke-width:1.7;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+.money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ---- Sidebar ---------------------------------------------------------- */
+.side{width:244px;flex-shrink:0;background:linear-gradient(176deg,var(--side-1),var(--side-2));
+  color:var(--side-text);display:flex;flex-direction:column;border-right:1px solid var(--side-line)}
+.brand{display:flex;align-items:center;gap:11px;padding:18px 18px 14px}
+.brand .wm{line-height:1.1}
+.brand .wm .t1{font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+.brand .wm .t1 .g{color:var(--gold)}
+.brand .wm .t2{font-size:9.5px;color:var(--side-faint);margin-top:3px;display:flex;align-items:center;gap:5px;
+  font-weight:600;letter-spacing:.01em}
+.brand .wm .t2 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 0 3px rgba(0,132,61,.22)}
+.ctx-badge{margin:0 16px 8px;display:flex;align-items:center;gap:9px;background:var(--side-hover);
+  border:1px solid var(--side-line);border-radius:10px;padding:9px 11px}
+.ctx-badge .ci{width:26px;height:26px;border-radius:7px;background:rgba(212,175,55,.16);color:var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ctx-badge .cl{font-size:11.5px;font-weight:700;line-height:1.1}
+.ctx-badge .cs{font-size:9.5px;color:var(--side-faint);margin-top:2px}
+.navlabel{color:var(--side-faint);font-size:9.5px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.12em;padding:12px 22px 7px}
+.nav{padding:0 12px;flex:1;overflow:auto}
+.nav-i{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;cursor:pointer;
+  margin-bottom:2px;color:var(--side-muted);font-size:13px;font-weight:600;
+  border-left:2.5px solid transparent;transition:background .14s,color .14s;user-select:none}
+.nav-i .icon{font-size:17px;flex-shrink:0;opacity:.92}
+.nav-i:hover{background:var(--side-hover);color:var(--side-text)}
+.nav-i.on{background:var(--side-active-bg);border-left-color:var(--side-active-bd);color:#fff;font-weight:700}
+.nav-i.on .icon{opacity:1;color:var(--gold)}
+.nav-i .ct{margin-left:auto;background:var(--side-hover);color:var(--side-muted);font-size:10.5px;
+  font-weight:800;min-width:20px;height:19px;padding:0 6px;border-radius:10px;display:inline-flex;
+  align-items:center;justify-content:center}
+.nav-i.on .ct{background:var(--gold);color:var(--navy)}
+.me{display:flex;align-items:center;gap:10px;padding:13px 16px;border-top:1px solid var(--side-line)}
+.me .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-d));
+  color:var(--navy);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12.5px;flex-shrink:0}
+.me .nm{font-size:12.5px;font-weight:700;line-height:1.1}
+.me .ro{font-size:10px;color:var(--side-faint);margin-top:2px}
+.me .out{margin-left:auto;color:var(--side-faint);font-size:16px;cursor:pointer}
+.me .out:hover{color:var(--side-text)}
+
+/* ---- Main / topbar ---------------------------------------------------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.top{background:var(--surface);border-bottom:1px solid var(--line);padding:11px 22px;display:flex;
+  align-items:center;gap:14px;flex-shrink:0;z-index:20}
+.top .ham{display:none}
+.top .ttl h2{font-size:16.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.top .ttl .crumbs{color:var(--muted);font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px}
+.top .ttl .crumbs svg{width:12px;height:12px;color:var(--faint)}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.cochip{display:flex;align-items:center;gap:10px;background:var(--surface-3);border:1px solid var(--line);
+  border-radius:11px;padding:6px 11px 6px 7px;cursor:pointer;transition:.15s}
+.cochip:hover{border-color:var(--field-bd);box-shadow:var(--sh-xs)}
+.cochip .clogo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--navy),#1A4A78);
+  color:#fff;font-weight:800;font-size:11.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  letter-spacing:.02em}
+.cochip .cn{font-size:12px;font-weight:800;line-height:1.15;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cochip .cl{font-size:10px;color:var(--muted);margin-top:1px}
+.cochip .car{color:var(--muted);font-size:15px;display:flex;margin-left:2px}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+  color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:.15s}
+.iconbtn:hover{background:var(--surface-3);color:var(--text);border-color:var(--field-bd)}
+.iconbtn:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+
+.wrap{flex:1;overflow:auto;padding:22px 22px 30px}
+.view{display:none;animation:fade .25s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---- Toolbar / segmented tabs ----------------------------------------- */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.tabs{display:flex;gap:3px;background:var(--surface-3);padding:4px;border-radius:11px;border:1px solid var(--line)}
+.tab{padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;
+  border:none;background:none;font-family:inherit;transition:.14s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{background:var(--surface);color:var(--navy);box-shadow:var(--sh-xs)}
+.appwrap[data-theme="dark"] .tab.on{color:var(--gold)}
+.spacer{flex:1}
+.vhead{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.vhead .vt{font-size:16px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+.vhead .vs{font-size:12px;color:var(--muted);margin-top:3px}
+.vhead .acts{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}
+
+/* ---- Buttons ---------------------------------------------------------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 16px;
+  border:none;border-radius:10px;background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+.btn .icon{font-size:16px}
+.btn:hover{background:var(--navy2);box-shadow:var(--sh-sm)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--navy)}
+.btn.gold:hover{filter:brightness(1.04)}
+.btn.ghost{background:var(--surface);border:1px solid var(--field-bd);color:var(--text)}
+.btn.ghost:hover{background:var(--surface-3);border-color:var(--muted)}
+.btn.sm{height:34px;padding:0 12px;font-size:11.5px;border-radius:9px}
+.btn.block{width:100%}
+
+/* ---- KPI cards -------------------------------------------------------- */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:13px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:15px 15px 13px;
+  box-shadow:var(--sh-xs);position:relative;overflow:hidden}
+.kpi .kt{display:flex;align-items:center;gap:7px;margin-bottom:10px}
+.kpi .kt .ki{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.kpi .kt .kl{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.01em;line-height:1.15}
+.kpi .val{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.kpi .val small{font-size:13px;color:var(--muted);font-weight:700}
+.kpi .tag{font-size:10px;margin-top:9px;font-weight:700;display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:20px}
+.kpi .tag svg{width:11px;height:11px}
+.ki.i-navy{background:rgba(10,37,64,.08);color:var(--navy)}
+.appwrap[data-theme="dark"] .ki.i-navy{background:rgba(111,160,255,.14);color:var(--blue)}
+.ki.i-green{background:var(--green-bg);color:var(--green)}
+.ki.i-red{background:var(--red-bg);color:var(--red)}
+.ki.i-amber{background:var(--amber-bg);color:var(--amber)}
+.ki.i-blue{background:var(--blue-bg);color:var(--blue)}
+.ki.i-gold{background:rgba(212,175,55,.16);color:var(--gold-d)}
+.appwrap[data-theme="dark"] .ki.i-gold{color:var(--gold)}
+.t-g{background:var(--green-bg);color:var(--green)} .t-r{background:var(--red-bg);color:var(--red)}
+.t-a{background:var(--amber-bg);color:var(--amber)} .t-n{background:var(--surface-3);color:var(--muted)}
+
+/* ---- Generic card / table -------------------------------------------- */
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden;
+  box-shadow:var(--sh-xs)}
+.card .ch{display:flex;align-items:center;gap:9px;padding:13px 18px;border-bottom:1px solid var(--line)}
+.card .ch h3{font-size:12.5px;font-weight:800;letter-spacing:.01em}
+.card .ch .pill{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-bg);
+  padding:3px 9px;border-radius:20px;border:1px solid var(--green-bd)}
+.card .ch .ci{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+  padding:9px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+td{padding:11px 18px;border-bottom:1px solid var(--line-2);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--surface-3)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.b{font-weight:700}.muted{color:var(--muted)}.sm{font-size:11px}
+.who{display:flex;align-items:center;gap:9px}
+.av2{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#DCE6F5,#C6D6EE);color:var(--navy);
+  font-weight:800;font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.appwrap[data-theme="dark"] .av2{background:linear-gradient(135deg,#21426B,#1A3556);color:#CFE0F6}
+.badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;
+  align-items:center;gap:4px;border:1px solid transparent}
+.badge svg{width:11px;height:11px}
+.bg-g{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.bg-r{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.bg-a{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.bg-b{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.bg-n{background:var(--surface-3);color:var(--muted);border-color:var(--line)}
+.cr{color:var(--green)}.due{color:var(--red)}
+
+/* ---- Property header card --------------------------------------------- */
+.phead{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:18px 20px;
+  margin-bottom:18px;display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:18px;align-items:center;box-shadow:var(--sh-xs)}
+.phead .pmain{display:flex;align-items:center;gap:13px}
+.phead .pmain .pic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--navy),#1A4A78);
+  color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.phead .nm{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.phead .nm + .muted{font-size:11.5px;margin-top:2px}
+.pi .l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;
+  display:flex;align-items:center;gap:5px}
+.pi .l svg{width:12px;height:12px;color:var(--faint)}
+.pi .v{font-size:13px;font-weight:700;margin-top:3px}
+.pi .v.mono{font-variant-numeric:tabular-nums}
+
+/* ---- Unit cards (hero) ------------------------------------------------- */
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:14px}
+.unit{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden;
+  box-shadow:var(--sh-xs);display:flex;flex-direction:column;transition:box-shadow .18s,transform .18s,border-color .18s}
+.unit:hover{box-shadow:var(--sh-md);transform:translateY(-2px);border-color:var(--field-bd)}
+.u-top{padding:14px 14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.u-id{display:flex;align-items:center;gap:9px}
+.u-id .ut{width:34px;height:34px;border-radius:9px;background:var(--surface-3);border:1px solid var(--line);
+  color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.appwrap[data-theme="dark"] .u-id .ut{color:var(--blue)}
+.u-nm{font-size:14.5px;font-weight:800;line-height:1.1;letter-spacing:-.01em}
+.u-ty{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.03em}
+.u-rent{padding:13px 14px 12px;display:flex;align-items:baseline;gap:5px}
+.u-rent .a{font-size:21px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.u-rent .p{font-size:10.5px;color:var(--muted);font-weight:700}
+.u-body{padding:0 14px;border-top:1px solid var(--line)}
+.urow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;font-size:12px}
+.urow + .urow{border-top:1px dashed var(--line-2)}
+.urow .k{color:var(--muted);font-size:10.5px;font-weight:700;letter-spacing:.01em;display:flex;align-items:center;gap:5px}
+.urow .k svg{width:13px;height:13px;color:var(--faint)}
+.urow .v{font-weight:700;display:flex;align-items:center;gap:7px;min-width:0}
+.urow .v .av2{width:24px;height:24px;font-size:9.5px}
+.urow .v .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:108px}
+.stay{font-size:9.5px;font-weight:800;color:var(--muted);background:var(--surface-3);border:1px solid var(--line);
+  padding:2px 7px;border-radius:20px;flex-shrink:0}
+.bal-v{font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px}
+.bal-v svg{width:13px;height:13px}
+.u-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface-2);
+  border-top:1px solid var(--line);cursor:pointer;margin-top:auto;transition:background .14s;user-select:none}
+.u-foot:hover{background:var(--surface-3)}
+.u-foot .fl{font-size:10.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.u-foot .fl svg{width:13px;height:13px}
+.u-foot .ex{font-size:11px;color:var(--blue);font-weight:800;display:flex;align-items:center;gap:4px}
+.u-foot .ex svg{width:14px;height:14px;transition:transform .22s}
+.u-foot.open .ex svg{transform:rotate(180deg)}
+.u-exp{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease;background:var(--surface)}
+.u-exp.open{grid-template-rows:1fr;border-top:1px solid var(--line)}
+.u-exp .inner{overflow:hidden;min-height:0}
+.u-exp .pad{padding:12px 14px 14px}
+.exlab{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:800;margin:0 0 7px}
+.exlab + .chips,.exlab + .svc{margin-bottom:13px}
+.chips,.svc{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{font-size:10.5px;background:var(--surface-3);color:var(--text);padding:4px 9px;border-radius:7px;
+  border:1px solid var(--line);font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.chips span svg{width:12px;height:12px;color:var(--muted)}
+.svc span{font-size:10.5px;background:var(--blue-bg);color:var(--blue);padding:4px 9px;border-radius:7px;
+  font-weight:700;border:1px solid var(--blue-bd);display:inline-flex;align-items:center;gap:5px}
+.svc span svg{width:12px;height:12px}
+/* vacant */
+.unit.vac{border-style:dashed;border-color:var(--field-bd);box-shadow:none;background:var(--surface-2)}
+.unit.vac:hover{transform:translateY(-2px);border-color:var(--navy)}
+.unit.vac .u-nm,.unit.vac .u-rent .a{color:var(--muted)}
+.unit.vac .u-id .ut{background:transparent;border-style:dashed;color:var(--faint)}
+.vac-cta{padding:14px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;flex:1;
+  justify-content:center}
+.vac-cta .vi{width:42px;height:42px;border-radius:50%;background:var(--surface-3);border:1px dashed var(--field-bd);
+  display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px}
+.vac-cta .vtxt{font-size:11px;color:var(--muted);font-weight:600;line-height:1.4}
+
+/* skeleton */
+.sk-unit{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:14px;
+  box-shadow:var(--sh-xs)}
+.sk{background:var(--line);border-radius:6px;animation:pulse 1.3s ease-in-out infinite}
+.appwrap[data-theme="dark"] .sk{background:var(--line)}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+/* ---- Reconciliation strip + ledger ------------------------------------ */
+.recon{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.recon .box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:15px 17px;
+  box-shadow:var(--sh-xs);position:relative}
+.recon .box .l{font-size:10.5px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px}
+.recon .box .l .ci{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.recon .box .v{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:10px;font-variant-numeric:tabular-nums}
+.recon .box .sub{font-size:10.5px;color:var(--muted);margin-top:3px;font-weight:600}
+.ledger td,.ledger th{padding:9px 16px;font-size:12px}
+.ledger .due{font-weight:700}
+.pay-cell{display:flex;align-items:center;gap:7px}
+.pay-cell .pi{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pay-cell .pi.g{background:var(--green)}.pay-cell .pi.a{background:var(--amber)}.pay-cell .pi.r{background:var(--red)}
+
+/* ---- Company settings ------------------------------------------------- */
+.settings{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+.logo-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:24px 22px;
+  text-align:center;box-shadow:var(--sh-xs)}
+.logo-big{width:104px;height:104px;border-radius:22px;background:linear-gradient(135deg,var(--navy),#1A4A78);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:var(--sh-md)}
+.logo-card .ldesc{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.4}
+.formcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:22px;box-shadow:var(--sh-xs)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.01em}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--field-bd);border-radius:var(--r-field);
+  padding:10px 12px;font-size:13px;font-family:inherit;background:var(--field-bg);color:var(--text);transition:.15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--field-bd-focus);
+  outline-offset:-1px;border-color:var(--field-bd-focus)}
+.field textarea{resize:vertical;line-height:1.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;padding-top:18px;border-top:1px solid var(--line)}
+
+/* ---- Modal ------------------------------------------------------------ */
+.modal-bg{position:absolute;inset:0;background:rgba(8,17,31,.55);backdrop-filter:blur(2px);display:flex;
+  align-items:center;justify-content:center;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px}
+.modal-bg.on{opacity:1;pointer-events:auto}
+.modal{background:var(--surface);width:540px;max-width:100%;max-height:100%;border-radius:18px;overflow:hidden;
+  box-shadow:var(--sh-lg);display:flex;flex-direction:column;transform:translateY(8px) scale(.99);transition:transform .22s}
+.modal-bg.on .modal{transform:none}
+.mh{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;flex-shrink:0}
+.mh .mi{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-d));
+  color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.mh .mt b{font-size:14.5px;font-weight:800}
+.mh .mt .ms{font-size:10.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:5px;margin-top:1px}
+.mh .x{margin-left:auto;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:none;
+  cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:16px}
+.mh .x:hover{background:var(--surface-3);color:var(--text)}
+.mb{padding:18px 20px;overflow:auto}
+.hint{font-size:10.5px;color:var(--muted);margin-top:4px}
+.alloc{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-top:4px}
+.alloc .at{font-size:11px;font-weight:800;display:flex;align-items:center;gap:7px;margin-bottom:9px;color:var(--text)}
+.alloc .at svg{width:14px;height:14px;color:var(--gold-d)}
+.appwrap[data-theme="dark"] .alloc .at svg{color:var(--gold)}
+.alloc .r{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px}
+.alloc .r .lab{color:var(--muted);display:flex;align-items:center;gap:7px}
+.alloc .r .lab .d{width:6px;height:6px;border-radius:50%}
+.alloc .r .amt{font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+.alloc .r .amt .st{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:20px}
+.alloc .tot{border-top:1px dashed var(--field-bd);margin-top:6px;padding-top:9px;font-size:12.5px}
+.alloc .tot .amt{font-weight:800}
+.mf{padding:15px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
+  gap:10px;flex-shrink:0;background:var(--surface-2)}
+.mf .ml{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.mf .ml svg{width:14px;height:14px;color:var(--green)}
+.mf .mr{display:flex;gap:10px}
+
+/* ---- Bottom nav (mobile) ---------------------------------------------- */
+.botnav{display:none}
+
+/* =========================================================================
+   MOBILE MODE  (attribute-driven so it shows on a wide showcase page)
+   ========================================================================= */
+.appwrap[data-mode="mobile"] .side{display:none}
+.appwrap[data-mode="mobile"] .app{flex-direction:column}
+.appwrap[data-mode="mobile"] .top{padding:11px 14px;gap:11px;position:sticky;top:0}
+.appwrap[data-mode="mobile"] .top .ham{display:flex}
+.appwrap[data-mode="mobile"] .top .ttl h2{font-size:15px}
+.appwrap[data-mode="mobile"] .top .ttl .crumbs{display:none}
+.appwrap[data-mode="mobile"] .cochip{padding:5px 8px 5px 5px}
+.appwrap[data-mode="mobile"] .cochip .ctext{display:none}
+.appwrap[data-mode="mobile"] .cochip .car{display:none}
+.appwrap[data-mode="mobile"] .iconbtn{width:36px;height:36px}
+.appwrap[data-mode="mobile"] .wrap{padding:16px 14px 84px}
+.appwrap[data-mode="mobile"] .kpis{grid-template-columns:1fr 1fr;gap:10px}
+.appwrap[data-mode="mobile"] .grid2{grid-template-columns:1fr;gap:14px}
+.appwrap[data-mode="mobile"] .units{grid-template-columns:1fr}
+.appwrap[data-mode="mobile"] .recon{grid-template-columns:1fr;gap:10px}
+.appwrap[data-mode="mobile"] .recon .box{display:flex;align-items:center;justify-content:space-between}
+.appwrap[data-mode="mobile"] .recon .box .v{margin-top:0}
+.appwrap[data-mode="mobile"] .phead{grid-template-columns:1fr 1fr;gap:14px}
+.appwrap[data-mode="mobile"] .phead .pmain{grid-column:1 / -1}
+.appwrap[data-mode="mobile"] .settings{grid-template-columns:1fr}
+.appwrap[data-mode="mobile"] .toolbar{gap:9px}
+.appwrap[data-mode="mobile"] .tabs{width:100%;overflow:auto}
+.appwrap[data-mode="mobile"] .vhead .acts{margin-left:0;width:100%}
+.appwrap[data-mode="mobile"] .vhead .acts .btn{flex:1}
+.appwrap[data-mode="mobile"] .scroll-x{overflow:auto;-webkit-overflow-scrolling:touch}
+.appwrap[data-mode="mobile"] .scroll-x table{min-width:520px}
+.appwrap[data-mode="mobile"] .modal{width:100%;border-radius:18px 18px 0 0;align-self:flex-end;max-height:92%}
+.appwrap[data-mode="mobile"] .modal-bg{align-items:flex-end;padding:0}
+.appwrap[data-mode="mobile"] .botnav{display:flex;position:absolute;left:0;right:0;bottom:0;height:64px;
+  background:var(--surface);border-top:1px solid var(--line);z-index:40;padding:6px 8px;align-items:center;
+  justify-content:space-around;box-shadow:0 -4px 18px rgba(16,24,40,.08)}
+.bn{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:9px;font-weight:700;
+  cursor:pointer;flex:1;padding:4px 0;border-radius:9px;min-height:48px;justify-content:center}
+.bn .icon{font-size:20px}
+.bn.on{color:var(--navy)}
+.appwrap[data-theme="dark"] .bn.on{color:var(--gold)}
+.bn.fab{flex:0 0 auto}
+.bn.fab .icon{width:50px;height:50px;border-radius:16px;background:linear-gradient(135deg,var(--gold),var(--gold-d));
+  color:var(--navy);font-size:24px;box-shadow:0 6px 16px rgba(212,175,55,.45);margin-top:-22px}
+.bn.fab .lbl{margin-top:1px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="sh-head">
+    <span class="mark" id="brandmark"></span>
+    <div>
+      <h1>Property Rentals — Module Redesign</h1>
+      <p>Investors Portal · landlord/admin tool · navy + gold identity, design-system craft</p>
+    </div>
+    <nav class="sh-nav" id="shnav"></nav>
+  </header>
+
+  <section class="demo" id="d-desktop">
+    <div class="demo-lab">
+      <span class="n">1</span><h2>Desktop · Light</h2>
+      <span class="meta">Full module — <b>Dashboard · Properties &amp; Units · Tenant Ledger · Company · Collect Payment</b> are all live</span>
+    </div>
+    <div class="win">
+      <div class="win-bar">
+        <div class="win-dots"><i></i><i></i><i></i></div>
+        <div class="win-url" id="urlchip"></div>
+      </div>
+      <div class="win-body" id="mount-desktop"></div>
+    </div>
+  </section>
+
+  <section class="demo" id="d-dark">
+    <div class="demo-lab">
+      <span class="n">2</span><h2>Dark Mode</h2>
+      <span class="meta">Same tokens, inverted — <b>AA contrast preserved</b>. Each demo's header has a live theme toggle.</span>
+    </div>
+    <div class="win">
+      <div class="win-bar" style="background:#0E1B30;border-color:#1E2C44">
+        <div class="win-dots"><i></i><i></i><i></i></div>
+        <div class="win-url" id="urlchip2" style="background:#0A1626;border-color:#1E2C44;color:#93A4C0"></div>
+      </div>
+      <div class="win-body" id="mount-dark" style="background:#08111F"></div>
+    </div>
+  </section>
+
+  <section class="demo" id="d-mobile">
+    <div class="demo-lab">
+      <span class="n">3</span><h2>Mobile</h2>
+      <span class="meta">1-up cards, bottom nav, gold collect-FAB — <b>PWA layout</b>. Light &amp; dark.</span>
+    </div>
+    <div class="phones">
+      <div class="phone">
+        <div class="phone-cap">Light · <b>Properties &amp; Units</b></div>
+        <div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen" id="mount-mobile"></div></div>
+      </div>
+      <div class="phone">
+        <div class="phone-cap">Dark · <b>Tenant Ledger</b></div>
+        <div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen" id="mount-mobile2"></div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================================
+   ICONS — inline SVG line set (stroke = currentColor)
+   ========================================================================= */
+var P = {
+  dashboard:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/>',
+  building:'<path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M15 21V9h2a2 2 0 0 1 2 2v10"/><path d="M8 7h2M8 11h2M8 15h2"/>',
+  users:'<path d="M16 21v-1.5a4 4 0 0 0-4-4H6.5a4 4 0 0 0-4 4V21"/><circle cx="9.25" cy="7.5" r="3.5"/><path d="M21.5 21v-1.5a4 4 0 0 0-3-3.85"/><path d="M16.5 4.15a3.5 3.5 0 0 1 0 6.7"/>',
+  cash:'<rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>',
+  receivables:'<path d="M22 12h-5.5l-1.6 2.4H9.1L7.5 12H2"/><path d="M5.6 5.2 2 12v5.5A1.5 1.5 0 0 0 3.5 19h17a1.5 1.5 0 0 0 1.5-1.5V12l-3.6-6.8A2 2 0 0 0 16.6 4H7.4a2 2 0 0 0-1.8 1.2z"/>',
+  receipt:'<path d="M5 3v18l2-1.2L9 21l2-1.2L13 21l2-1.2L17 21l2-1.2V3l-2 1.2L15 3l-2 1.2L11 3 9 4.2 7 3z"/><path d="M9 8.5h6M9 12.5h6"/>',
+  reports:'<path d="M3 3v18h18"/><rect x="7" y="11" width="2.6" height="6" rx=".6"/><rect x="11.7" y="7" width="2.6" height="10" rx=".6"/><rect x="16.4" y="13.5" width="2.6" height="3.5" rx=".6"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.6 1.6 0 0 0 15 19.4a1.6 1.6 0 0 0-.97 1.47V21a2 2 0 0 1-4 0v-.09A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-.97H3a2 2 0 0 1 0-4h.09A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 0 1 4 0v.09A1.6 1.6 0 0 0 15 4.6a1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9a1.6 1.6 0 0 0 1.47.97H21a2 2 0 0 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z"/>',
+  chevdown:'<path d="M6 9.5l6 6 6-6"/>',
+  chevright:'<path d="M9.5 6l6 6-6 6"/>',
+  plus:'<path d="M12 5.5v13M5.5 12h13"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  check:'<path d="M20 6.5 9.5 17 4 11.5"/>',
+  checkcircle:'<circle cx="12" cy="12" r="9"/><path d="M8.3 12.3l2.4 2.4 5-5.4"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5M12 17.5h.01"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3.2 1.9"/>',
+  arrowup:'<path d="M7 17 17 7M8.5 7H17v8.5"/>',
+  arrowdown:'<path d="M7 7l10 10M15.5 17H7V8.5"/>',
+  phone:'<path d="M22 16.9v2.8a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h2.8a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.5 2.1L7.8 9.7a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.7 2z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 5.5L20.5 7"/>',
+  pin:'<path d="M20 10.5c0 6-8 11.5-8 11.5S4 16.5 4 10.5a8 8 0 0 1 16 0z"/><circle cx="12" cy="10.3" r="2.7"/>',
+  user:'<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+  doc:'<path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"/><path d="M14 2.5v5h5"/><path d="M8.5 13h7M8.5 16.5h7"/>',
+  bell:'<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.6 8.5-2.6 8.5h17.2S18 15 18 8.5z"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/>',
+  menu:'<path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.5 4.5l1.4 1.4M18.1 18.1l1.4 1.4M2.5 12h2M19.5 12h2M4.5 19.5l1.4-1.4M18.1 5.9l1.4-1.4"/>',
+  home:'<path d="M3 10.8 12 3l9 7.8"/><path d="M5 9.6V21h5v-6.5h4V21h5V9.6"/>',
+  key:'<circle cx="7.5" cy="15.5" r="3.8"/><path d="m10.2 12.8 8-8M16.5 6.3l2.4 2.4M14 8.8l2 2"/>',
+  bed:'<path d="M3 18V7M3 13h15a3 3 0 0 1 3 3v2M21 18v-2"/><path d="M6.5 13v-2.5h4V13"/>',
+  sofa:'<path d="M5 11V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><path d="M3 16v-2.5a1.5 1.5 0 0 1 3 0V16h12v-2.5a1.5 1.5 0 0 1 3 0V16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M6 18v1.5M18 18v1.5"/>',
+  kitchen:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M8 5v2M8 12v6"/>',
+  car:'<path d="M5 16.5h14M6.5 16.5v1.5M17.5 16.5v1.5"/><path d="M4 13l1.6-4.2A2 2 0 0 1 7.5 7.5h9a2 2 0 0 1 1.9 1.3L20 13v3.5H4z"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/>',
+  toilet:'<path d="M6 4h5v6a4 4 0 0 1-8 0V8h3"/><path d="M5 14l-1 6h6l-1-6"/><path d="M13 5h6M16 5v7"/>',
+  bath:'<path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 2-2 2 2 0 0 1 2 2"/><path d="M9 6h1"/>',
+  drop:'<path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/>',
+  shield:'<path d="M12 3 5 6v5.5c0 4.3 3 7.3 7 9.5 4-2.2 7-5.2 7-9.5V6z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/>',
+  trash:'<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
+  wifi:'<path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a6 6 0 0 1 8 0M11 18.5a1.5 1.5 0 0 1 2 0"/><circle cx="12" cy="20.5" r=".6"/>',
+  tank:'<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M5 11h14M8 4v3"/>',
+  upload:'<path d="M21 15v3.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V15"/><path d="M7.5 9 12 4.5 16.5 9M12 4.5V16"/>',
+  logout:'<path d="M15 4.5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9"/><path d="M14 12H9.5M18 12l-3.5-3.5M18 12l-3.5 3.5"/>',
+  lock:'<rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  layers:'<path d="m12 3 9 4.5-9 4.5L3 7.5 12 3z"/><path d="m3 12 9 4.5L21 12M3 16.5 12 21l9-4.5"/>'
+};
+function ic(n){return '<span class="icon"><svg viewBox="0 0 24 24">'+(P[n]||'')+'</svg></span>';}
+function svg(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(P[n]||'')+'</svg>';}
+
+/* IP logo / company mark — navy tile, gold "portal" arch glyph */
+function logoMark(size,r){
+  r = r||(size*0.26);
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 48 48" fill="none">'
+    +'<rect width="48" height="48" rx="'+r+'" fill="#0A2540"/>'
+    +'<rect x="1" y="1" width="46" height="46" rx="'+(r-1)+'" fill="none" stroke="#D4AF37" stroke-opacity=".30"/>'
+    +'<path d="M14 34V21a10 10 0 0 1 20 0v13" stroke="#D4AF37" stroke-width="2.6" stroke-linecap="round"/>'
+    +'<path d="M24 34V16" stroke="#D4AF37" stroke-width="2.6" stroke-linecap="round" stroke-opacity=".55"/>'
+    +'<rect x="11" y="33.5" width="26" height="2.8" rx="1.4" fill="#D4AF37"/>'
+    +'<circle cx="24" cy="20.5" r="2.1" fill="#D4AF37"/>'
+    +'</svg>';
+}
+
+/* =========================================================================
+   DATA  (content preserved verbatim from the working baseline)
+   ========================================================================= */
+var KPIS=[
+  {ic:'cash',  col:'navy', lab:'Rent Roll / mo',  val:'3,000,000', tag:'3 occupied', tt:'t-g', ti:'check'},
+  {ic:'check', col:'green',lab:'Collected (Jun)', val:'2,100,000', tag:'70% of roll',tt:'t-g', ti:'arrowup'},
+  {ic:'alert', col:'red',  lab:'Arrears',         val:'1,800,000', tag:'1 tenant',   tt:'t-r', ti:'alert'},
+  {ic:'building',col:'amber',lab:'Occupancy',     val:'75<small>%</small>', tag:'1 vacant', tt:'t-a', ti:''},
+  {ic:'receipt',col:'blue',lab:'Expenses (YTD)',  val:'1,500,000', tag:'1 item',     tt:'t-a', ti:''},
+  {ic:'reports',col:'gold',lab:'Net Income (YTD)',val:'18,510,000',tag:'rent − exp', tt:'t-g', ti:'arrowup'}
+];
+var UNITS=[
+  {n:'Unit 1',ty:'Single',  rent:'900,000', who:'Sunday Mtaki',    ini:'SM', stay:'23 mo', bal:'1,800,000', balt:'due', st:'Arrears',   sb:'bg-r', si:'alert',
+    svc:[['drop','Metered water'],['shield','Security guard'],['trash','Garbage']]},
+  {n:'Unit 2',ty:'Couples', rent:'900,000', who:'Muhamud Mukhsin', ini:'MM', stay:'23 mo', bal:'0',         balt:'ok',  st:'Current',   sb:'bg-g', si:'check',
+    svc:[['drop','Metered water'],['shield','Security guard'],['wifi','WiFi ready']]},
+  {n:'Unit 3',ty:'Family',  rent:'1,200,000',who:'Frederick Mbwana',ini:'FM',stay:'5 mo',  bal:'2,400,000', balt:'cr',  st:'Paid ahead',sb:'bg-g', si:'arrowup',
+    svc:[['drop','Metered water'],['shield','Security guard'],['trash','Garbage'],['tank','Backup tank']]},
+  {n:'Unit 4',ty:'Studio',  rent:'900,000', who:null,             ini:'',   stay:'—',     bal:'—',         balt:'na',  st:'Vacant',    sb:'bg-n', si:'',
+    svc:[['drop','Metered water'],['shield','Security guard']]}
+];
+var FEATS=[['bed','1 Bedroom'],['sofa','Lounge'],['kitchen','Kitchen'],['car','Parking'],['toilet','Toilet'],['bath','Bath']];
+var LEDGER=[
+  ['Jul 2024','900,000','24 Jul · 900,000','g','bg-g','Paid (4d late)','0',''],
+  ['Aug 2024','900,000','20 Aug · 900,000','g','bg-g','Paid on time','0',''],
+  ['Sep 2024','900,000','22 Sep · 500,000','a','bg-a','Partial','400,000 due','due'],
+  ['Oct 2024','900,000','—','r','bg-r','Missed','1,300,000 due','due'],
+  ['Nov 2024','900,000','18 Nov · 2,500,000','g','bg-g','Lump (clears + advance)','300,000 cr','cr'],
+  ['Dec 2024','900,000','28 Dec · 600,000','g','bg-g','Paid (late)','0',''],
+  ['Jan 2025','900,000','20 Jan · 2,700,000','g','bg-g','3-month advance','1,800,000 cr','cr'],
+  ['Feb 2025','900,000','(prepaid)','g','bg-g','Paid in advance','900,000 cr','cr'],
+  ['Mar 2025','900,000','(prepaid)','g','bg-g','Paid in advance','0',''],
+  ['Apr 2025','900,000','20 Apr · 900,000','g','bg-g','Paid on time','0',''],
+  ['May 2025','900,000','—','r','bg-r','Missed','900,000 due','due'],
+  ['Jun 2025','900,000','—','r','bg-r','Missed','1,800,000 due','due'],
+  ['Jul 2025','900,000','25 Jul · 900,000','a','bg-a','Clears May (oldest)','1,800,000 due','due'],
+  ['Aug 2025','900,000','20 Aug · 1,800,000','a','bg-a','Clears Jun + Jul','900,000 due','due'],
+  ['Sep 2025','900,000','19 Sep · 1,800,000','g','bg-g','Clears Aug + Sep','0',''],
+  ['Oct 2025','900,000','—','r','bg-r','Missed','900,000 due','due'],
+  ['Nov 2025','900,000','20 Nov · 900,000','r','bg-r','Clears Oct','900,000 due','due'],
+  ['Dec 2025','900,000','20 Dec · 900,000','r','bg-r','Clears Nov','900,000 due','due'],
+  ['Jan 2026','900,000','—','r','bg-r','Missed','1,800,000 due','due'],
+  ['Feb 2026','900,000','20 Feb · 900,000','r','bg-r','Clears Dec','1,800,000 due','due']
+];
+var NAV=[
+  {go:'dash',   ic:'dashboard',  lab:'Dashboard'},
+  {go:'units',  ic:'building',   lab:'Properties & Units', ct:'4'},
+  {go:'dash',   ic:'users',      lab:'Tenants', ct:'3'},
+  {go:'ledger', ic:'cash',       lab:'Collect Payments'},
+  {go:'ledger', ic:'receivables',lab:'Receivables', ct:'1'},
+  {go:'dash',   ic:'receipt',    lab:'Expenditures'},
+  {go:'dash',   ic:'reports',    lab:'Reports'}
+];
+var TITLES={dash:'Property Dashboard',units:'Properties & Units',ledger:'Tenant Ledger',company:'Company Settings'};
+var CRUMBS={dash:'Ilazo',units:'Ilazo',ledger:'Sunday Mtaki · Unit 1',company:'Profile & branding'};
+var CRUMB_TAIL={dash:'Dodoma',units:'Dodoma',ledger:'',company:''};
+
+/* allocation model for the Collect Payment modal */
+var ALLOC_QUEUE=[
+  {lab:'Jan 2026',sub:'arrears',due:900000,d:'var(--red)'},
+  {lab:'Feb 2026',sub:'arrears',due:900000,d:'var(--amber)'},
+  {lab:'Mar 2026',sub:'in advance',due:900000,d:'var(--blue)'},
+  {lab:'Apr 2026',sub:'in advance',due:900000,d:'var(--blue)'}
+];
+
+/* =========================================================================
+   BUILDERS
+   ========================================================================= */
+function navHTML(){
+  return NAV.map(function(n,i){
+    return '<div class="nav-i'+(i===0?' on':'')+'" data-go="'+n.go+'">'+ic(n.ic)+'<span>'+n.lab+'</span>'
+      +(n.ct?'<span class="ct">'+n.ct+'</span>':'')+'</div>';
+  }).join('');
+}
+function sidebarHTML(){
+  return '<aside class="side">'
+    +'<div class="brand">'+logoMark(40,11)
+      +'<div class="wm"><div class="t1"><span>Investors</span> <span class="g">Portal</span></div>'
+      +'<div class="t2"><span class="dot"></span>property.investorsportal.co.tz</div></div></div>'
+    +'<div class="ctx-badge"><div class="ci">'+ic('home')+'</div>'
+      +'<div><div class="cl">Property Rentals</div><div class="cs">Admin workspace</div></div></div>'
+    +'<div class="navlabel">Property</div>'
+    +'<nav class="nav">'+navHTML()
+      +'<div class="navlabel" style="margin-top:6px">Settings</div>'
+      +'<div class="nav-i" data-go="company">'+ic('gear')+'<span>Company Settings</span></div>'
+    +'</nav>'
+    +'<div class="me"><div class="av">MJ</div>'
+      +'<div><div class="nm">Mike Luzigah</div><div class="ro">Super Admin</div></div>'
+      +'<span class="out icon" title="Sign out">'+svg('logout')+'</span></div>'
+    +'</aside>';
+}
+function topHTML(){
+  return '<header class="top">'
+    +'<button class="iconbtn ham" data-act="open-nav" title="Menu">'+ic('menu')+'</button>'
+    +'<div class="ttl"><h2 data-title>Property Dashboard</h2>'
+      +'<div class="crumbs"><span data-crumb>Ilazo</span>'+svg('chevright')+'<span data-crumb-tail>Dodoma</span></div></div>'
+    +'<div class="right">'
+      +'<button class="iconbtn" data-act="theme" title="Toggle theme"><span class="th-ic">'+svg('moon')+'</span></button>'
+      +'<div class="cochip" data-go="company">'
+        +'<div class="clogo">DC</div>'
+        +'<div class="ctext"><div class="cn">Dodoma Contemporary Appartments</div><div class="cl">Active company · 1 property</div></div>'
+        +'<span class="car">'+svg('chevdown')+'</span></div>'
+      +'<button class="iconbtn" data-go="company" title="Company Settings">'+ic('gear')+'</button>'
+    +'</div></header>';
+}
+function kpisHTML(){
+  return '<div class="kpis">'+KPIS.map(function(k){
+    return '<div class="kpi"><div class="kt"><div class="ki i-'+k.col+'">'+ic(k.ic)+'</div>'
+      +'<div class="kl">'+k.lab+'</div></div>'
+      +'<div class="val money">'+k.val+'</div>'
+      +'<div class="tag '+k.tt+'">'+(k.ti?svg(k.ti):'')+k.tag+'</div></div>';
+  }).join('')+'</div>';
+}
+function dashHTML(){
+  return '<section class="view on" data-view="dash" data-screen-label="Dashboard">'
+    +'<div class="toolbar"><div class="tabs">'
+      +'<button class="tab on" data-tab="dash">Dashboard</button>'
+      +'<button class="tab" data-tab="units">Properties &amp; Units</button>'
+      +'<button class="tab" data-tab="ledger">Tenant Ledger</button></div>'
+      +'<div class="spacer"></div>'
+      +'<button class="btn gold" data-act="open-pay">'+ic('plus')+'Collect Payment</button></div>'
+    +kpisHTML()
+    +'<div class="grid2">'
+      +'<div class="card"><div class="ch"><div class="ci i-navy">'+ic('building')+'</div>'
+        +'<h3>Units at Ilazo</h3><span class="pill">3 / 4 occupied</span></div>'
+        +'<table><thead><tr><th>Unit</th><th>Tenant</th><th class="num">Rent</th><th>Status</th><th class="num">Balance</th></tr></thead><tbody>'
+        +'<tr><td class="b">Unit 1 <span class="muted sm">· Single</span></td><td><span class="who"><span class="av2">SM</span>Sunday Mtaki</span></td><td class="num money">900,000</td><td><span class="badge bg-r">'+svg('alert')+'Arrears</span></td><td class="num b money due">1,800,000</td></tr>'
+        +'<tr><td class="b">Unit 2 <span class="muted sm">· Couples</span></td><td><span class="who"><span class="av2">MM</span>Muhamud Mukhsin</span></td><td class="num money">900,000</td><td><span class="badge bg-g">'+svg('check')+'Current</span></td><td class="num money">0</td></tr>'
+        +'<tr><td class="b">Unit 3 <span class="muted sm">· Family</span></td><td><span class="who"><span class="av2">FM</span>Frederick Mbwana</span></td><td class="num money">1,200,000</td><td><span class="badge bg-g">'+svg('arrowup')+'Paid ahead</span></td><td class="num money cr">2,400,000 cr</td></tr>'
+        +'<tr><td class="b">Unit 4 <span class="muted sm">· Studio</span></td><td class="muted">— vacant —</td><td class="num money">900,000</td><td><span class="badge bg-n">Vacant</span></td><td class="num muted">—</td></tr>'
+        +'</tbody></table></div>'
+      +'<div class="card"><div class="ch"><div class="ci i-amber">'+ic('receivables')+'</div><h3>Receivables — Aged</h3></div>'
+        +'<table><thead><tr><th>Tenant · Period</th><th>Bucket</th><th class="num">Due</th></tr></thead><tbody>'
+        +'<tr><td><span class="who"><span class="av2">SM</span><span><span class="b">Sunday Mtaki</span><br><span class="muted sm">Jan 2026 · Unit 1</span></span></span></td><td><span class="badge bg-a">31–60d</span></td><td class="num b money">900,000</td></tr>'
+        +'<tr><td><span class="who"><span class="av2">SM</span><span><span class="b">Sunday Mtaki</span><br><span class="muted sm">Feb 2026 · Unit 1</span></span></span></td><td><span class="badge bg-r">0–30d</span></td><td class="num b money">900,000</td></tr>'
+        +'<tr><td class="b">Total arrears</td><td></td><td class="num b money due">1,800,000</td></tr>'
+        +'</tbody></table>'
+        +'<div class="ch" style="border-top:1px solid var(--line)"><div class="ci i-green">'+ic('cash')+'</div><h3>Recent Payments</h3></div>'
+        +'<table><tbody>'
+        +'<tr><td><div class="b">Muhamud Mukhsin</div><div class="muted sm">20 Jun · Bank · Unit 2</div></td><td class="num b money">900,000</td><td><span class="badge bg-g">'+svg('checkcircle')+'Verified</span></td></tr>'
+        +'<tr><td><div class="b">Frederick Mbwana</div><div class="muted sm">08 Jun · Bank · 4 months</div></td><td class="num b money">1,200,000</td><td><span class="badge bg-a">'+svg('clock')+'Pending</span></td></tr>'
+        +'</tbody></table></div>'
+    +'</div></section>';
+}
+function unitCard(u){
+  if(!u.who){
+    return '<div class="unit vac">'
+      +'<div class="u-top"><div class="u-id"><div class="ut">'+ic('building')+'</div>'
+        +'<div><div class="u-nm">'+u.n+'</div><div class="u-ty">'+u.ty+' · vacant</div></div></div>'
+        +'<span class="badge bg-n">Vacant</span></div>'
+      +'<div class="u-rent"><span class="a money">'+u.rent+'</span><span class="p">TZS / mo</span></div>'
+      +'<div class="vac-cta"><div class="vi">'+ic('key')+'</div>'
+        +'<div class="vtxt">No active lease on this unit</div>'
+        +'<button class="btn ghost sm" style="width:100%">'+ic('plus')+'Assign Tenant / Lease</button></div>'
+      +'</div>';
+  }
+  var balCls = u.balt==='due'?'due':(u.balt==='cr'?'cr':'');
+  var balTxt = u.balt==='due'?u.bal:(u.balt==='cr'?u.bal+' cr':u.bal+' · current');
+  var balIco = u.balt==='due'?svg('arrowdown'):(u.balt==='cr'?svg('arrowup'):svg('check'));
+  return '<div class="unit">'
+    +'<div class="u-top"><div class="u-id"><div class="ut">'+ic('building')+'</div>'
+      +'<div><div class="u-nm">'+u.n+'</div><div class="u-ty">'+u.ty+' unit</div></div></div>'
+      +'<span class="badge '+u.sb+'">'+(u.si?svg(u.si):'')+u.st+'</span></div>'
+    +'<div class="u-rent"><span class="a">'+u.rent+'</span><span class="p">TZS / mo</span></div>'
+    +'<div class="u-body">'
+      +'<div class="urow"><span class="k">'+svg('user')+'Tenant</span>'
+        +'<span class="v"><span class="av2">'+u.ini+'</span><span class="tn">'+u.who+'</span>'
+        +(u.stay!=='—'?'<span class="stay">'+u.stay+'</span>':'')+'</span></div>'
+      +'<div class="urow"><span class="k">Balance</span>'
+        +'<span class="v bal-v '+balCls+'">'+balIco+balTxt+'</span></div>'
+    +'</div>'
+    +'<div class="u-foot" data-act="toggle-details"><span class="fl">'+svg('layers')+'Type · features · services</span>'
+      +'<span class="ex">Details'+svg('chevdown')+'</span></div>'
+    +'<div class="u-exp"><div class="inner"><div class="pad">'
+      +'<div class="exlab">Unit type</div><div class="chips"><span>'+ic('home').replace('class="icon"','class="icon" style="width:12px;height:12px"')+u.ty+'</span></div>'
+      +'<div class="exlab">General features</div><div class="chips">'
+        +FEATS.map(function(f){return '<span>'+svg(f[0])+f[1]+'</span>';}).join('')+'</div>'
+      +'<div class="exlab">Other services</div><div class="svc">'
+        +u.svc.map(function(s){return '<span>'+svg(s[0])+s[1]+'</span>';}).join('')+'</div>'
+    +'</div></div></div>'
+    +'</div>';
+}
+function unitsHTML(){
+  return '<section class="view" data-view="units" data-screen-label="Properties & Units">'
+    +'<div class="toolbar"><div class="tabs">'
+      +'<button class="tab" data-tab="dash">Dashboard</button>'
+      +'<button class="tab on" data-tab="units">Properties &amp; Units</button>'
+      +'<button class="tab" data-tab="ledger">Tenant Ledger</button></div>'
+      +'<div class="spacer"></div>'
+      +'<button class="btn ghost" data-act="noop">'+ic('plus')+'Register Property</button>'
+      +'<button class="btn gold" data-act="noop">'+ic('plus')+'Register Unit</button></div>'
+    +'<div class="phead">'
+      +'<div class="pmain"><div class="pic">'+ic('building')+'</div>'
+        +'<div><div class="nm">Ilazo</div><div class="muted">4 units · 3 occupied · 1 vacant</div></div></div>'
+      +'<div class="pi"><div class="l">'+svg('pin')+'Region</div><div class="v">Dodoma</div>'
+        +'<div class="l" style="margin-top:10px">'+svg('home')+'Location</div><div class="v">Ilazo, Nkuhungu</div></div>'
+      +'<div class="pi"><div class="l">'+svg('user')+'Manager</div><div class="v">Mike Luzigah</div>'
+        +'<div class="l" style="margin-top:10px">'+svg('phone')+'Phone</div><div class="v mono">+255 712 000 000</div></div>'
+      +'<div class="pi"><div class="l">'+svg('mail')+'Email</div><div class="v">ilazo@dca.co.tz</div>'
+        +'<div style="margin-top:12px"><button class="btn ghost sm">Edit property</button></div></div>'
+    +'</div>'
+    +'<div class="units" data-units></div></section>';
+}
+function ledgerHTML(){
+  var rows=LEDGER.map(function(r){
+    var bal=r[7]==='due'?'<span class="due money">'+r[6]+'</span>':(r[7]==='cr'?'<span class="cr money">'+r[6]+'</span>':'<span class="money">'+r[6]+'</span>');
+    var pay=r[2]==='—'?'<span class="muted">—</span>':'<span class="pay-cell"><span class="pi '+r[3]+'"></span>'+r[2]+'</span>';
+    return '<tr><td class="b">'+r[0]+'</td><td class="num money">'+r[1]+'</td><td>'+pay+'</td>'
+      +'<td><span class="badge '+r[4]+'">'+r[5]+'</span></td><td class="num">'+bal+'</td></tr>';
+  }).join('');
+  return '<section class="view" data-view="ledger" data-screen-label="Tenant Ledger">'
+    +'<div class="vhead"><div><div class="vt"><span class="av2">SM</span>Sunday Mtaki — Unit 1 Ledger</div>'
+      +'<div class="vs">Lease from 20 Jul 2024 · Rent 900,000/mo · Due 20th · Paid in advance</div></div>'
+      +'<div class="acts"><button class="btn ghost">'+ic('doc')+'Statement PDF</button>'
+      +'<button class="btn gold" data-act="open-pay">'+ic('plus')+'Collect Payment</button></div></div>'
+    +'<div class="recon">'
+      +'<div class="box"><div class="l"><span class="ci i-navy">'+ic('receipt')+'</span>Total charged · 20 mo</div><div class="v money">18,000,000</div><div class="sub">Jul 2024 → Feb 2026</div></div>'
+      +'<div class="box"><div class="l"><span class="ci i-green">'+ic('cash')+'</span>Total received</div><div class="v money cr">16,200,000</div><div class="sub">90% of charges</div></div>'
+      +'<div class="box"><div class="l"><span class="ci i-red">'+ic('alert')+'</span>Outstanding</div><div class="v money due">1,800,000</div><div class="sub">2 months in arrears</div></div>'
+    +'</div>'
+    +'<div class="card"><div class="ch"><div class="ci i-navy">'+ic('layers')+'</div><h3>Monthly Ledger</h3>'
+      +'<span class="pill">FIFO · in-advance</span></div>'
+      +'<div class="scroll-x"><table class="ledger"><thead><tr><th>Month (due 20th)</th><th class="num">Charged</th><th>Payment received</th><th>Status</th><th class="num">Balance</th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table></div></div></section>';
+}
+function companyHTML(){
+  return '<section class="view" data-view="company" data-screen-label="Company Settings">'
+    +'<div class="vhead"><div><div class="vt">'+ic('gear')+'Company Settings</div>'
+      +'<div class="vs">This profile name shows in the header across the Property module.</div></div></div>'
+    +'<div class="settings">'
+      +'<div class="logo-card"><div class="logo-big">'+logoMark(72,18)+'</div>'
+        +'<button class="btn ghost sm">'+ic('upload')+'Upload logo</button>'
+        +'<div class="ldesc">PNG / JPG · shown in the header &amp; on reports</div></div>'
+      +'<div class="formcard">'
+        +'<div class="field"><label>Company name</label><input value="Dodoma Contemporary Appartments" /></div>'
+        +'<div class="two"><div class="field"><label>Phone</label><input value="+255 712 000 000" /></div>'
+          +'<div class="field"><label>Email</label><input value="info@dca.co.tz" /></div></div>'
+        +'<div class="field"><label>Address</label><input value="P.O. Box 1234, Ilazo, Dodoma, Tanzania" /></div>'
+        +'<div class="field"><label>Other info / notes</label><textarea rows="3">TIN: 123-456-789 · Registered rental company.</textarea></div>'
+        +'<div class="form-foot"><button class="btn ghost">Cancel</button><button class="btn">'+ic('check')+'Save company profile</button></div>'
+      +'</div></div></section>';
+}
+function modalHTML(){
+  return '<div class="modal-bg" data-modal><div class="modal">'
+    +'<div class="mh"><div class="mi">'+ic('cash')+'</div>'
+      +'<div class="mt"><b>Collect Payment</b><div class="ms">'+svg('lock')+'Maker → Verifier workflow</div></div>'
+      +'<button class="x" data-act="close-pay">'+svg('x')+'</button></div>'
+    +'<div class="mb">'
+      +'<div class="field"><label>Tenant / Lease</label><select><option>Sunday Mtaki — Unit 1 (Ilazo)</option><option>Muhamud Mukhsin — Unit 2</option><option>Frederick Mbwana — Unit 3</option></select></div>'
+      +'<div class="two"><div class="field"><label>Amount (TZS)</label><input data-amt value="2,700,000" /></div>'
+        +'<div class="field"><label>Paid date</label><input type="date" value="2026-06-20" /></div></div>'
+      +'<div class="two"><div class="field"><label>Covers from</label><input type="date" value="2026-01-20" /><div class="hint">lump-sum start</div></div>'
+        +'<div class="field"><label>Covers to</label><input type="date" value="2026-03-19" /><div class="hint">auto-spreads across months</div></div></div>'
+      +'<div class="two"><div class="field"><label>Method</label><select><option>Bank transfer (CRDB)</option><option>Cash</option><option>Mobile money</option></select></div>'
+        +'<div class="field"><label>Reference</label><input placeholder="receipt / txn no." /></div></div>'
+      +'<div class="alloc"><div class="at">'+svg('layers')+'Auto-allocation preview · FIFO, oldest first</div>'
+        +'<div data-alloc></div></div>'
+    +'</div>'
+    +'<div class="mf"><div class="ml">'+svg('checkcircle')+'Saved as Pending until verified</div>'
+      +'<div class="mr"><button class="btn ghost" data-act="close-pay">Cancel</button>'
+      +'<button class="btn">'+ic('check')+'Submit for verification</button></div></div>'
+  +'</div></div>';
+}
+function appHTML(){
+  return '<div class="app">'+sidebarHTML()+'<main class="main">'+topHTML()
+    +'<div class="wrap">'+dashHTML()+unitsHTML()+ledgerHTML()+companyHTML()+'</div>'
+    +botnavHTML()+'</main></div>'+modalHTML();
+}
+function botnavHTML(){
+  var items=[['dash','dashboard','Home'],['units','building','Units'],['__pay','plus','Collect'],['ledger','receivables','Receiv.'],['company','gear','More']];
+  return '<nav class="botnav">'+items.map(function(b){
+    if(b[0]==='__pay') return '<div class="bn fab" data-act="open-pay">'+ic(b[1])+'<span class="lbl">'+b[2]+'</span></div>';
+    return '<div class="bn'+(b[0]==='dash'?' on':'')+'" data-bnav="'+b[0]+'">'+ic(b[1])+'<span>'+b[2]+'</span></div>';
+  }).join('')+'</nav>';
+}
+
+/* =========================================================================
+   ALLOCATION (live)
+   ========================================================================= */
+function fmt(n){return n.toLocaleString('en-US');}
+function parseAmt(s){return parseInt((s||'').replace(/[^0-9]/g,''),10)||0;}
+function renderAlloc(root){
+  var amtEl=root.querySelector('[data-amt]'); var box=root.querySelector('[data-alloc]');
+  if(!box) return;
+  var amount=parseAmt(amtEl?amtEl.value:'');
+  var remaining=amount, html='';
+  ALLOC_QUEUE.forEach(function(q){
+    var applied=Math.min(remaining,q.due); remaining-=applied;
+    var st, stcol;
+    if(applied>=q.due){st='settled';stcol='background:var(--green-bg);color:var(--green)';}
+    else if(applied>0){st='partial';stcol='background:var(--amber-bg);color:var(--amber)';}
+    else {st='—';stcol='background:var(--surface-3);color:var(--muted)';}
+    html+='<div class="r"><span class="lab"><span class="d" style="background:'+q.d+'"></span>'
+      +q.lab+' <span class="muted" style="font-size:10px">('+q.sub+')</span></span>'
+      +'<span class="amt">'+fmt(applied)+(applied>0?' <span class="st" style="'+stcol+'">'+st+'</span>':'')+'</span></div>';
+  });
+  var arrears=1800000;
+  var newBal, col, label;
+  if(amount>=arrears){var credit=amount-arrears; newBal=credit>0?fmt(credit)+' cr':'0'; col='var(--green)'; label=credit>0?'in credit / advance':'cleared — current';}
+  else {newBal=fmt(arrears-amount)+' due'; col='var(--red)'; label='still in arrears';}
+  html+='<div class="r tot"><span class="lab b" style="color:var(--text)">New balance</span>'
+    +'<span class="amt" style="color:'+col+'">'+newBal+' <span class="muted" style="font-weight:600;font-size:10px">'+label+'</span></span></div>';
+  box.innerHTML=html;
+}
+
+/* =========================================================================
+   WIRING (scoped per app instance)
+   ========================================================================= */
+function setNavActive(root,el,view){
+  root.querySelectorAll('.nav-i[data-go]').forEach(function(n){n.classList.remove('on');});
+  if(el && el.classList.contains('nav-i')) el.classList.add('on');
+  else {var m=root.querySelector('.nav-i[data-go="'+view+'"]'); if(m) m.classList.add('on');}
+}
+function go(root,view,src){
+  root.querySelectorAll('.view').forEach(function(v){v.classList.toggle('on',v.dataset.view===view);});
+  var t=root.querySelector('[data-title]'); if(t)t.textContent=TITLES[view]||'Property';
+  var c=root.querySelector('[data-crumb]'); if(c)c.textContent=CRUMBS[view]||'';
+  var ct=root.querySelector('[data-crumb-tail]'); if(ct){ct.textContent=CRUMB_TAIL[view]||'';ct.parentElement.style.display=CRUMB_TAIL[view]?'':'none';}
+  root.querySelectorAll('.tab').forEach(function(tb){tb.classList.toggle('on',tb.dataset.tab===view);});
+  root.querySelectorAll('.bn[data-bnav]').forEach(function(b){b.classList.toggle('on',b.dataset.bnav===view);});
+  setNavActive(root,src&&src.classList.contains('nav-i')?src:null,view);
+  var wrap=root.querySelector('.wrap'); if(wrap)wrap.scrollTop=0;
+}
+function openPay(root){var m=root.querySelector('[data-modal]');renderAlloc(root);m.classList.add('on');}
+function closePay(root){root.querySelector('[data-modal]').classList.remove('on');}
+function wire(root){
+  root.addEventListener('click',function(e){
+    var goEl=e.target.closest('[data-go]');
+    var actEl=e.target.closest('[data-act]');
+    var tabEl=e.target.closest('[data-tab]');
+    var bnEl=e.target.closest('[data-bnav]');
+    if(actEl){
+      var a=actEl.dataset.act;
+      if(a==='open-pay'){openPay(root);return;}
+      if(a==='close-pay'){closePay(root);return;}
+      if(a==='theme'){
+        var dark=root.getAttribute('data-theme')==='dark';
+        root.setAttribute('data-theme',dark?'light':'dark');
+        var ti=root.querySelector('.th-ic'); if(ti)ti.innerHTML=dark?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+P.moon+'</svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+P.sun+'</svg>';
+        return;
+      }
+      if(a==='toggle-details'){
+        var foot=actEl; foot.classList.toggle('open');
+        var exp=foot.nextElementSibling; if(exp)exp.classList.toggle('open');
+        var ex=foot.querySelector('.ex'); if(ex)ex.firstChild.nodeValue=foot.classList.contains('open')?'Hide':'Details';
+        return;
+      }
+      if(a==='open-nav'){return;} /* hamburger placeholder */
+      if(a==='noop'){return;}
+    }
+    if(tabEl){go(root,tabEl.dataset.tab,tabEl);return;}
+    if(bnEl){go(root,bnEl.dataset.bnav,bnEl);return;}
+    if(goEl){go(root,goEl.dataset.go,goEl);return;}
+    if(e.target.closest('[data-modal]') && e.target.classList.contains('modal-bg')){closePay(root);}
+  });
+  var amt=root.querySelector('[data-amt]');
+  if(amt)amt.addEventListener('input',function(){renderAlloc(root);});
+}
+
+/* render units with a brief skeleton "loading" state, then real cards */
+function renderUnits(root){
+  var grid=root.querySelector('[data-units]'); if(!grid)return;
+  grid.innerHTML=Array(4).join(0).split('0').map(function(){
+    return '<div class="sk-unit"><div class="sk" style="height:18px;width:55%"></div>'
+      +'<div class="sk" style="height:26px;width:70%;margin-top:14px"></div>'
+      +'<div class="sk" style="height:12px;width:100%;margin-top:16px"></div>'
+      +'<div class="sk" style="height:12px;width:80%;margin-top:8px"></div>'
+      +'<div class="sk" style="height:34px;width:100%;margin-top:16px"></div></div>';
+  }).join('');
+  setTimeout(function(){grid.innerHTML=UNITS.map(unitCard).join('');},650);
+}
+
+/* =========================================================================
+   MOUNT
+   ========================================================================= */
+function mount(elId,opts){
+  var host=document.getElementById(elId); if(!host)return;
+  var wrap=document.createElement('div');
+  wrap.className='appwrap';
+  wrap.setAttribute('data-theme',opts.theme||'light');
+  wrap.setAttribute('data-mode',opts.mode||'desktop');
+  wrap.innerHTML=appHTML();
+  host.appendChild(wrap);
+  wire(wrap);
+  renderUnits(wrap);
+  /* dark instance shows sun icon */
+  if((opts.theme||'light')==='dark'){
+    var ti=wrap.querySelector('.th-ic');
+    if(ti)ti.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+P.sun+'</svg>';
+  }
+  if(opts.view&&opts.view!=='dash') go(wrap,opts.view,null);
+  if(opts.view==='units'||opts.mode==='mobile') renderUnits(wrap);
+  return wrap;
+}
+
+/* showcase chrome */
+document.getElementById('brandmark').innerHTML=logoMark(46,12);
+document.getElementById('urlchip').innerHTML=svg('lock')+'property.investorsportal.co.tz/rentals';
+document.getElementById('urlchip2').innerHTML=svg('lock')+'property.investorsportal.co.tz/rentals';
+document.getElementById('shnav').innerHTML=
+  '<a href="#d-desktop">'+svg('dashboard')+'Desktop</a>'
+ +'<a href="#d-dark">'+svg('moon')+'Dark</a>'
+ +'<a href="#d-mobile">'+svg('phone')+'Mobile</a>';
+
+mount('mount-desktop',{theme:'light',mode:'desktop',view:'dash'});
+mount('mount-dark',   {theme:'dark', mode:'desktop',view:'units'});
+mount('mount-mobile', {theme:'light',mode:'mobile', view:'units'});
+mount('mount-mobile2',{theme:'dark', mode:'mobile', view:'ledger'});
+</script>
+</body>
+</html>

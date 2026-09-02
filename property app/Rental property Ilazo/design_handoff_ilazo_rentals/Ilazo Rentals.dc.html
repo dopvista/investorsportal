@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E0D3;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes scr{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes sheetup{from{transform:translateY(105%)}to{transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:radial-gradient(1100px 620px at 50% -8%,#F2ECE1,#E1D9CA);display:flex;flex-direction:column;align-items:center;padding:34px 16px 64px;font-family:'Plus Jakarta Sans',sans-serif">
+
+  <div style="text-align:center;margin-bottom:24px;max-width:540px">
+    <div style="display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #E7DFD2;border-radius:999px;padding:6px 13px;font-size:11px;font-weight:700;color:#10715A;letter-spacing:.06em">
+      <span style="font-family:'Material Symbols Rounded';font-size:15px">smartphone</span>MOBILE · ANDROID
+    </div>
+    <h1 style="font-family:'Space Grotesk';font-size:27px;font-weight:700;color:#17241F;margin-top:12px;letter-spacing:-.02em">Ilazo Rentals</h1>
+    <p style="color:#6E7B74;font-size:14px;line-height:1.55;margin-top:6px">Tracks each tenant's lease tenure — rent accrues automatically once their covered period ends, and every payment clears the due and pushes the next term forward. Tap around; the ＋ button records a payment.</p>
+  </div>
+
+  <div style="width:400px;height:844px;background:#0E1512;border-radius:50px;padding:12px;box-shadow:0 44px 90px rgba(20,40,32,.34),0 10px 26px rgba(0,0,0,.22)">
+    <div style="position:relative;width:100%;height:100%;background:#F6F1E9;border-radius:39px;overflow:hidden;display:flex;flex-direction:column">
+
+      <div style="flex-shrink:0;height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 24px 0 26px">
+        <span style="font-family:'Space Grotesk';font-size:14px;font-weight:600;color:#17241F">9:41</span>
+        <div style="display:flex;gap:7px;align-items:center;color:#17241F">
+          <span style="font-family:'Material Symbols Rounded';font-size:17px">signal_cellular_alt</span>
+          <span style="font-family:'Material Symbols Rounded';font-size:17px">wifi</span>
+          <span style="font-family:'Material Symbols Rounded';font-size:18px">battery_full</span>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow:auto;position:relative">
+
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:6px 16px 30px;animation:scr .3s ease">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+              <div>
+                <div style="font-size:12.5px;color:#8A968E;font-weight:600">{{ company }} · {{ property }}</div>
+                <div style="font-family:'Space Grotesk';font-size:23px;font-weight:700;color:#17241F;letter-spacing:-.01em">Good morning</div>
+              </div>
+              <div style="margin-left:auto;width:44px;height:44px;border-radius:50%;background:#E4EFEA;color:#10715A;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">M</div>
+            </div>
+
+            <div onScroll="{{ onHeroScroll }}" style="display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none">
+              <div style="flex:0 0 100%;scroll-snap-align:start;background:linear-gradient(150deg,#13876311,#0000),linear-gradient(150deg,#12805F,#0B5B45);border-radius:28px;padding:20px 20px 18px;color:#fff;box-shadow:0 16px 34px rgba(11,91,69,.30);position:relative;overflow:hidden">
+                <div style="position:absolute;right:-30px;top:-30px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.06)"></div>
+                <div style="font-size:13px;font-weight:600;opacity:.88">Outstanding rent</div>
+                <div style="font-family:'Space Grotesk';font-size:35px;font-weight:700;margin-top:5px;letter-spacing:-.02em">{{ outstandingStr }} <span style="font-size:15px;font-weight:500;opacity:.8">TZS</span></div>
+                <div style="font-size:12.5px;opacity:.85;margin-top:3px">{{ outstandingSub }}</div>
+                <div style="display:flex;gap:10px;margin-top:17px">
+                  <div style="flex:1;background:rgba(255,255,255,.13);border-radius:15px;padding:11px 13px">
+                    <div style="font-size:11px;opacity:.82">Rent roll / mo</div>
+                    <div style="font-family:'Space Grotesk';font-size:16.5px;font-weight:600;margin-top:3px">{{ monthRollStr }}</div>
+                  </div>
+                  <div style="flex:1;background:rgba(255,255,255,.13);border-radius:15px;padding:11px 13px">
+                    <div style="font-size:11px;opacity:.82">Occupancy</div>
+                    <div style="font-family:'Space Grotesk';font-size:16.5px;font-weight:600;margin-top:3px">{{ occStr }}</div>
+                  </div>
+                </div>
+              </div>
+              <div style="flex:0 0 100%;scroll-snap-align:start;background:linear-gradient(150deg,#2A3F36,#17241F);border-radius:28px;padding:20px 20px 18px;color:#fff;box-shadow:0 16px 34px rgba(23,36,31,.28);position:relative;overflow:hidden">
+                <div style="position:absolute;right:-30px;top:-30px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.05)"></div>
+                <div style="font-size:13px;font-weight:600;opacity:.85">Net income · lifetime</div>
+                <div style="font-family:'Space Grotesk';font-size:35px;font-weight:700;margin-top:5px;letter-spacing:-.02em">{{ netStr }} <span style="font-size:15px;font-weight:500;opacity:.75">TZS</span></div>
+                <div style="font-size:12.5px;opacity:.8;margin-top:3px">since May 2024</div>
+                <div style="display:flex;gap:10px;margin-top:17px">
+                  <div style="flex:1;background:rgba(255,255,255,.1);border-radius:15px;padding:11px 13px">
+                    <div style="font-size:11px;opacity:.8">Collected</div>
+                    <div style="font-family:'Space Grotesk';font-size:16.5px;font-weight:600;margin-top:3px;color:#8FE3C4">{{ collectedStr }}</div>
+                  </div>
+                  <div style="flex:1;background:rgba(255,255,255,.1);border-radius:15px;padding:11px 13px">
+                    <div style="font-size:11px;opacity:.8">Expenses</div>
+                    <div style="font-family:'Space Grotesk';font-size:16.5px;font-weight:600;margin-top:3px;color:#F0A897">{{ expensesStr }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:center;gap:6px;margin-top:11px">
+              <div style="height:7px;border-radius:99px;transition:width .2s,background .2s;width:{{ heroDot0W }};background:{{ heroDot0Bg }}"></div>
+              <div style="height:7px;border-radius:99px;transition:width .2s,background .2s;width:{{ heroDot1W }};background:{{ heroDot1Bg }}"></div>
+            </div>
+
+            <div onClick="{{ openCollect }}" style="margin-top:13px;background:#17241F;color:#fff;border-radius:18px;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 20px rgba(23,36,31,.18)">
+              <span style="font-family:'Material Symbols Rounded';font-size:21px">add_card</span>Record a payment
+            </div>
+
+            <div style="display:flex;align-items:center;margin:24px 4px 11px">
+              <span style="font-size:12.5px;font-weight:700;color:#6E7B74;letter-spacing:.04em;text-transform:uppercase">Needs attention</span>
+              <span style="margin-left:auto;font-size:12px;font-weight:700;color:#BE4B33;background:#F8E5DF;border-radius:999px;padding:3px 9px">{{ attentionCount }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ attention }}" as="a" hint-placeholder-count="2">
+                <div style="background:#fff;border-radius:20px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(20,40,32,.05),0 8px 18px rgba(20,40,32,.05)">
+                  <div style="width:42px;height:42px;border-radius:14px;background:#F8E5DF;color:#BE4B33;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">{{ a.initials }}</div>
+                  <div onClick="{{ a.onOpen }}" style="min-width:0;flex:1;cursor:pointer">
+                    <div style="font-size:14.5px;font-weight:700;color:#17241F">{{ a.tenant }}</div>
+                    <div style="font-size:12px;color:#8A968E;margin-top:1px">{{ a.unitName }} · {{ a.monthsLabel }}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div style="font-family:'Space Grotesk';font-size:15px;font-weight:700;color:#BE4B33">{{ a.dueStr }}</div>
+                    <div onClick="{{ a.onCollect }}" style="margin-top:5px;font-size:12px;font-weight:700;color:#10715A;cursor:pointer">Collect ›</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;align-items:center;margin:24px 4px 11px">
+              <span style="font-size:12.5px;font-weight:700;color:#6E7B74;letter-spacing:.04em;text-transform:uppercase">Your units</span>
+              <span onClick="{{ goUnits }}" style="margin-left:auto;font-size:12.5px;font-weight:700;color:#10715A;cursor:pointer">See all ›</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <sc-for list="{{ unitsView }}" as="u" hint-placeholder-count="3">
+                <div onClick="{{ u.onOpen }}" style="background:#fff;border-radius:18px;padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                  <div style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:{{ u.dotColor }}"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:700;color:#17241F">{{ u.name }} <span style="font-weight:500;color:#9AA79F;font-size:12.5px">· {{ u.tenant }}</span></div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:{{ u.statusBg }};color:{{ u.statusFg }};flex-shrink:0">{{ u.balanceLabel }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isUnits }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 16px 30px;animation:scr .3s ease">
+            <div style="display:flex;align-items:flex-start;margin-bottom:14px">
+              <div>
+                <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;color:#17241F;letter-spacing:-.01em">Units</div>
+                <div style="font-size:13px;color:#8A968E;margin-top:2px">{{ property }} · Dodoma</div>
+              </div>
+              <div onClick="{{ openNewTenant }}" style="margin-left:auto;display:flex;align-items:center;gap:6px;background:#17241F;color:#fff;border-radius:13px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px">person_add</span>New
+              </div>
+            </div>
+
+            <div style="display:flex;gap:9px;margin-bottom:18px">
+              <div style="flex:1;background:#fff;border-radius:16px;padding:12px 13px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                <div style="font-size:10.5px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Occupied</div>
+                <div style="font-family:'Space Grotesk';font-size:19px;font-weight:700;color:#17241F;margin-top:3px">{{ occStr }}</div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:16px;padding:12px 13px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                <div style="font-size:10.5px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Roll / mo</div>
+                <div style="font-family:'Space Grotesk';font-size:19px;font-weight:700;color:#10715A;margin-top:3px">{{ monthRollStr }}</div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:16px;padding:12px 13px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                <div style="font-size:10.5px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Arrears</div>
+                <div style="font-family:'Space Grotesk';font-size:19px;font-weight:700;color:#BE4B33;margin-top:3px">{{ outstandingStr }}</div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:13px">
+              <sc-for list="{{ unitsView }}" as="u" hint-placeholder-count="3">
+                <div onClick="{{ u.onOpen }}" style="background:#fff;border-radius:22px;padding:15px;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.05),0 10px 22px rgba(20,40,32,.05)">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:46px;height:46px;border-radius:15px;background:#EEF4F1;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      <span style="font-family:'Material Symbols Rounded';font-size:24px">apartment</span>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:16.5px;font-weight:700;color:#17241F">{{ u.name }}</div>
+                      <div style="font-size:12px;color:#8A968E;margin-top:1px">{{ u.type }} · {{ u.rentStr }} /mo</div>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:{{ u.statusBg }};color:{{ u.statusFg }};flex-shrink:0">{{ u.statusLabel }}</div>
+                  </div>
+
+                  <div style="display:flex;align-items:center;gap:11px;margin-top:14px">
+                    <div style="width:34px;height:34px;border-radius:11px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0">{{ u.initials }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:14px;font-weight:700;color:#17241F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ u.tenant }}</div>
+                      <div style="font-size:11px;color:#9AA79F">Covered to {{ u.coveredThrough }}</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                      <div style="font-family:'Space Grotesk';font-size:15px;font-weight:700;color:{{ u.balanceColor }}">{{ u.balanceLabel }}</div>
+                    </div>
+                  </div>
+
+                  <div style="height:7px;border-radius:5px;background:#EFE9DF;margin-top:13px;overflow:hidden">
+                    <div style="height:100%;border-radius:5px;width:{{ u.paidPct }}%;background:{{ u.barColor }}"></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11.5px;font-weight:600;color:{{ u.barColor }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:16px">{{ u.tenureIcon }}</span>{{ u.tenureShort }}
+                    <span style="margin-left:auto;font-size:11.5px;color:#B7BEB8;font-weight:600;display:flex;align-items:center;gap:2px">Details<span style="font-family:'Material Symbols Rounded';font-size:16px">chevron_right</span></span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isUnit }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 16px 26px;animation:scr .3s ease">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <div onClick="{{ goUnits }}" style="width:38px;height:38px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+                <span style="font-family:'Material Symbols Rounded';font-size:21px;color:#17241F">arrow_back</span>
+              </div>
+              <div style="font-size:12px;color:#8A968E;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Unit details</div>
+            </div>
+
+            <div style="background:linear-gradient(158deg,#15886B,#0A5741);border-radius:26px;padding:18px 18px 16px;color:#fff;box-shadow:0 18px 36px rgba(10,87,65,.30);position:relative;overflow:hidden">
+              <div style="position:absolute;right:-44px;top:-44px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.06)"></div>
+              <div style="position:absolute;right:26px;bottom:-30px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.04)"></div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="font-family:'Space Grotesk';font-size:23px;font-weight:700;letter-spacing:-.01em">{{ sel.name }}</div>
+                <div style="font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;background:rgba(255,255,255,.2)">{{ sel.statusLabel }}</div>
+                <div style="margin-left:auto"></div>
+                <div onClick="{{ sel.onEdit }}" style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><span style="font-family:'Material Symbols Rounded';font-size:18px">edit</span></div>
+              </div>
+              <div style="font-size:10px;font-weight:800;letter-spacing:.08em;opacity:.7;margin-top:15px">CURRENT TENANT</div>
+              <div style="display:flex;align-items:center;gap:11px;margin-top:7px">
+                <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">{{ sel.initials }}</div>
+                <div onClick="{{ openTenant }}" style="flex:1;min-width:0;cursor:pointer">
+                  <div style="font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.tenant }}</div>
+                  <div style="font-size:10.5px;opacity:.75;margin-top:1px;display:flex;align-items:center;gap:1px">View tenant details<span style="font-family:'Material Symbols Rounded';font-size:14px">chevron_right</span></div>
+                </div>
+                <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><span style="font-family:'Material Symbols Rounded';font-size:18px">call</span></div>
+                <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><span style="font-family:'Material Symbols Rounded';font-size:18px">chat</span></div>
+              </div>
+              <div style="height:1px;background:rgba(255,255,255,.15);margin:15px 0 13px"></div>
+              <div style="display:flex;align-items:flex-end">
+                <div>
+                  <div style="font-size:11.5px;opacity:.82;font-weight:600">Amount due now</div>
+                  <div style="font-family:'Space Grotesk';font-size:30px;font-weight:700;margin-top:2px;letter-spacing:-.01em">{{ sel.balanceLabel }}</div>
+                </div>
+                <div onClick="{{ sel.onCollect }}" style="margin-left:auto;background:#fff;color:#0A5741;border-radius:13px;padding:12px 18px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 8px 18px rgba(0,0,0,.14)">
+                  <span style="font-family:'Material Symbols Rounded';font-size:19px">add_card</span>Record
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#fff;border-radius:20px;padding:14px;margin-top:10px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px;color:#10715A">event_repeat</span>
+                <div style="font-size:12px;font-weight:800;color:#17241F;letter-spacing:.03em;text-transform:uppercase">Lease timeline</div>
+                <div style="margin-left:auto;font-family:'Space Grotesk';font-size:13px;font-weight:700;color:#17241F">{{ sel.rentStr }}<span style="font-size:10px;color:#9AA79F;font-weight:600"> /mo</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex-shrink:0">
+                  <div style="font-size:10.5px;color:#8A968E;font-weight:600">Started</div>
+                  <div style="font-family:'Space Grotesk';font-size:13.5px;font-weight:700;color:#17241F;margin-top:1px">{{ sel.startStr }}</div>
+                </div>
+                <div style="flex:1;height:8px;border-radius:5px;background:#EFE9DF;overflow:hidden;margin:0 2px">
+                  <div style="height:100%;border-radius:5px;width:{{ sel.paidPct }}%;background:{{ sel.barColor }}"></div>
+                </div>
+                <div style="flex-shrink:0;text-align:right">
+                  <div style="font-size:10.5px;color:#8A968E;font-weight:600">Covered to</div>
+                  <div style="font-family:'Space Grotesk';font-size:13.5px;font-weight:700;color:#17241F;margin-top:1px">{{ sel.coveredThrough }}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:12px;padding:9px 11px;border-radius:12px;background:#FAF6EF;font-size:12px;font-weight:600;color:{{ sel.tenureColor }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:17px">{{ sel.tenureIcon }}</span>{{ sel.tenureLine }}
+              </div>
+            </div>
+
+            <div style="background:#fff;border-radius:20px;padding:15px;margin-top:10px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px;color:#10715A">insights</span>
+                <div style="font-size:12px;font-weight:800;color:#17241F;letter-spacing:.03em;text-transform:uppercase">This unit</div>
+              </div>
+              <div style="font-size:11px;color:#8A968E;font-weight:600">Total generated (lifetime)</div>
+              <div style="font-family:'Space Grotesk';font-size:28px;font-weight:700;color:#10715A;margin-top:1px;letter-spacing:-.01em">{{ sel.unitTotalStr }} <span style="font-size:13px;color:#9AA79F;font-weight:600">TZS</span></div>
+              <div style="display:flex;gap:9px;margin-top:14px">
+                <div style="flex:1;background:#F7F3EC;border-radius:13px;padding:10px 11px"><div style="font-size:10px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Payments</div><div style="font-family:'Space Grotesk';font-size:16px;font-weight:700;color:#17241F;margin-top:2px">{{ sel.payCount }}</div></div>
+                <div style="flex:1.5;background:#F7F3EC;border-radius:13px;padding:10px 11px"><div style="font-size:10px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Occupied since</div><div style="font-family:'Space Grotesk';font-size:16px;font-weight:700;color:#17241F;margin-top:2px">{{ sel.unitOccSince }}</div></div>
+                <div style="flex:1.2;background:#F7F3EC;border-radius:13px;padding:10px 11px"><div style="font-size:10px;color:#8A968E;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Rent</div><div style="font-family:'Space Grotesk';font-size:16px;font-weight:700;color:#17241F;margin-top:2px">{{ sel.rentStr }}</div></div>
+              </div>
+            </div>
+
+            <div style="font-size:12.5px;font-weight:700;color:#6E7B74;letter-spacing:.04em;text-transform:uppercase;margin:20px 4px 10px">Tenants of this unit</div>
+            <div style="background:#fff;border-radius:20px;padding:5px 15px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <sc-for list="{{ sel.unitTenants }}" as="t" hint-placeholder-count="2">
+                <div onClick="{{ t.onOpen }}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F3EEE4;cursor:pointer">
+                  <div style="width:38px;height:38px;border-radius:12px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0">{{ t.initials }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:700;color:#17241F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }} <span style="font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;background:{{ t.badgeBg }};color:{{ t.badgeFg }}">{{ t.badgeLabel }}</span></div>
+                    <div style="font-size:11px;color:#9AA79F;margin-top:1px">{{ t.period }} · {{ t.monthsStr }}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:#10715A">{{ t.paidStr }}</div>
+                    <div style="font-size:10px;color:#B7BEB8;font-weight:700;display:flex;align-items:center;justify-content:flex-end;gap:1px">History<span style="font-family:'Material Symbols Rounded';font-size:14px">chevron_right</span></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isTDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 16px 26px;animation:scr .3s ease">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <div onClick="{{ backToUnit }}" style="width:38px;height:38px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+                <span style="font-family:'Material Symbols Rounded';font-size:21px;color:#17241F">arrow_back</span>
+              </div>
+              <div style="font-size:12px;color:#8A968E;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Tenant details</div>
+            </div>
+
+            <div style="background:#fff;border-radius:22px;padding:16px;box-shadow:0 1px 2px rgba(20,40,32,.05),0 10px 22px rgba(20,40,32,.05)">
+              <div style="display:flex;align-items:center;gap:13px">
+                <div style="width:54px;height:54px;border-radius:17px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0">{{ sel.initials }}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#17241F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.tenant }}</div>
+                  <div style="font-size:12px;color:#8A968E;margin-top:2px">{{ sel.name }} · {{ sel.type }} · since {{ sel.since }}</div>
+                </div>
+                <div style="font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:{{ sel.statusBg }};color:{{ sel.statusFg }};flex-shrink:0">{{ sel.statusLabel }}</div>
+              </div>
+              <div style="display:flex;gap:9px;margin-top:14px">
+                <div style="flex:1;border:1px solid #ECE6DB;border-radius:13px;padding:10px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:700;color:#10715A;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">call</span>Call</div>
+                <div style="flex:1;border:1px solid #ECE6DB;border-radius:13px;padding:10px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:700;color:#10715A;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">chat</span>Message</div>
+                <div onClick="{{ sel.onEdit }}" style="border:1px solid #ECE6DB;border-radius:13px;padding:10px 14px;display:flex;align-items:center;justify-content:center;color:#3C5147;cursor:pointer;flex-shrink:0"><span style="font-family:'Material Symbols Rounded';font-size:18px">edit</span></div>
+              </div>
+            </div>
+
+            <div style="background:linear-gradient(158deg,#15886B,#0A5741);border-radius:20px;padding:16px 17px;margin-top:10px;color:#fff;box-shadow:0 14px 28px rgba(10,87,65,.26);display:flex;align-items:center">
+              <div>
+                <div style="font-size:11.5px;opacity:.82;font-weight:600">Amount due now</div>
+                <div style="font-family:'Space Grotesk';font-size:27px;font-weight:700;margin-top:1px">{{ sel.balanceLabel }}</div>
+              </div>
+              <div onClick="{{ sel.onCollect }}" style="margin-left:auto;background:#fff;color:#0A5741;border-radius:13px;padding:12px 18px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 8px 18px rgba(0,0,0,.14)">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px">add_card</span>Record
+              </div>
+            </div>
+
+            <div style="background:#fff;border-radius:20px;padding:14px;margin-top:10px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px;color:#10715A">event_repeat</span>
+                <div style="font-size:12px;font-weight:800;color:#17241F;letter-spacing:.03em;text-transform:uppercase">Lease timeline</div>
+                <div style="margin-left:auto;font-family:'Space Grotesk';font-size:13px;font-weight:700;color:#17241F">{{ sel.rentStr }}<span style="font-size:10px;color:#9AA79F;font-weight:600"> /mo</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex-shrink:0">
+                  <div style="font-size:10.5px;color:#8A968E;font-weight:600">Started</div>
+                  <div style="font-family:'Space Grotesk';font-size:13.5px;font-weight:700;color:#17241F;margin-top:1px">{{ sel.startStr }}</div>
+                </div>
+                <div style="flex:1;height:8px;border-radius:5px;background:#EFE9DF;overflow:hidden;margin:0 2px">
+                  <div style="height:100%;border-radius:5px;width:{{ sel.paidPct }}%;background:{{ sel.barColor }}"></div>
+                </div>
+                <div style="flex-shrink:0;text-align:right">
+                  <div style="font-size:10.5px;color:#8A968E;font-weight:600">Covered to</div>
+                  <div style="font-family:'Space Grotesk';font-size:13.5px;font-weight:700;color:#17241F;margin-top:1px">{{ sel.coveredThrough }}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:12px;padding:9px 11px;border-radius:12px;background:#FAF6EF;font-size:12px;font-weight:600;color:{{ sel.tenureColor }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:17px">{{ sel.tenureIcon }}</span>{{ sel.tenureLine }}
+              </div>
+            </div>
+
+            <sc-if value="{{ sel.hasKin }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border-radius:20px;padding:14px 15px;margin-top:10px;box-shadow:0 1px 2px rgba(20,40,32,.05);display:flex;align-items:center;gap:13px">
+                <div style="width:46px;height:46px;border-radius:14px;background:#FBEFD9;color:#8A6A1F;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">{{ sel.kinInitials }}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:12.5px;font-weight:700;color:#8A6A1F">Next of kin</div>
+                  <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#17241F;line-height:1.15;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.kinName }} <span style="font-family:'Plus Jakarta Sans';font-size:11px;font-weight:700;color:#8A6A1F;background:#FBEFD9;border-radius:999px;padding:2px 8px">{{ sel.kinRel }}</span></div>
+                  <div style="font-size:11.5px;color:#9AA79F;margin-top:1px">{{ sel.kinPhone }}</div>
+                </div>
+                <div style="width:38px;height:38px;border-radius:12px;border:1px solid #ECE6DB;display:flex;align-items:center;justify-content:center;color:#10715A;cursor:pointer;flex-shrink:0">
+                  <span style="font-family:'Material Symbols Rounded';font-size:19px">call</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <div onClick="{{ sel.onToggleHistory }}" style="background:#fff;border-radius:20px;padding:14px 15px;margin-top:10px;box-shadow:0 1px 2px rgba(20,40,32,.05);display:flex;align-items:center;gap:13px;cursor:pointer">
+              <div style="width:46px;height:46px;border-radius:14px;background:#EEF4F1;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:24px">receipt_long</span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:700;color:#8A968E">Total Payments</div>
+                <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;color:#10715A;line-height:1.1;margin-top:1px">{{ sel.payTotalStr }} <span style="font-size:12px;color:#9AA79F;font-weight:600">TZS</span></div>
+                <div style="font-size:11.5px;color:#9AA79F;margin-top:1px">{{ sel.payCount }} payments · tap to view history</div>
+              </div>
+              <span style="font-family:'Material Symbols Rounded';font-size:24px;color:#9AA79F;flex-shrink:0">{{ sel.histChevron }}</span>
+            </div>
+            <sc-if value="{{ sel.histOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border-radius:20px;padding:6px 15px;box-shadow:0 1px 2px rgba(20,40,32,.05);margin-top:9px;animation:scr .22s ease">
+                <sc-for list="{{ sel.history }}" as="t" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F3EEE4">
+                    <div style="width:34px;height:34px;border-radius:11px;background:#EEF4F1;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      <span style="font-family:'Material Symbols Rounded';font-size:18px">south_west</span>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13.5px;font-weight:600;color:#17241F">{{ t.dateStr }}</div>
+                      <div style="font-size:11.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.months }}</div>
+                      <div style="font-size:11.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.range }}</div>
+                    </div>
+                    <div style="font-family:'Space Grotesk';font-size:14.5px;font-weight:700;color:#10715A;flex-shrink:0">+{{ t.amountStr }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isMore }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 16px 30px;animation:scr .3s ease">
+            <div style="margin-bottom:16px">
+              <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;color:#17241F;letter-spacing:-.01em">More</div>
+            </div>
+            <div style="background:linear-gradient(150deg,#12805F,#0B5B45);border-radius:24px;padding:18px;color:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 12px 26px rgba(11,91,69,.24)">
+              <div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center">
+                <span style="font-family:'Material Symbols Rounded';font-size:26px">domain</span>
+              </div>
+              <div style="min-width:0">
+                <div style="font-size:15.5px;font-weight:700;line-height:1.2">{{ companyFull }}</div>
+                <div style="font-size:12px;opacity:.85;margin-top:3px">1 property · {{ tenantsCount }} units · Dodoma</div>
+              </div>
+            </div>
+            <div style="background:#fff;border-radius:22px;margin-top:14px;padding:4px 16px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="5">
+                <div onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #F3EEE4;cursor:pointer">
+                  <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#3C5147">{{ m.icon }}</span>
+                  <div style="flex:1;font-size:14.5px;font-weight:600;color:#17241F">{{ m.label }}</div>
+                  <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#C6CFC9">chevron_right</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="text-align:center;font-size:11.5px;color:#A7B0A9;margin-top:20px">Ilazo Rentals · v1.0 · built for {{ company }}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isCompany }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 16px 30px;animation:scr .3s ease">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <div onClick="{{ goMore }}" style="width:40px;height:40px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+                <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#17241F">arrow_back</span>
+              </div>
+              <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#17241F">Company profile</div>
+            </div>
+
+            <div style="background:#fff;border-radius:22px;padding:20px;display:flex;flex-direction:column;align-items:center;box-shadow:0 1px 2px rgba(20,40,32,.05),0 10px 22px rgba(20,40,32,.05)">
+              <div style="width:88px;height:88px;border-radius:26px;background:linear-gradient(148deg,#13886A,#0B5B45);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-size:30px;font-weight:700;box-shadow:0 10px 22px rgba(11,91,69,.3)">{{ coInitials }}</div>
+              <div style="margin-top:14px;border:1px solid #ECE6DB;border-radius:13px;padding:9px 16px;font-size:13px;font-weight:700;color:#10715A;display:flex;align-items:center;gap:7px;cursor:pointer">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px">photo_camera</span>Change logo
+              </div>
+              <div style="font-size:11px;color:#A7B0A9;margin-top:8px">Shown on the app header and on receipts</div>
+            </div>
+
+            <div style="background:#fff;border-radius:22px;padding:18px;margin-top:13px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Company name</div>
+              <input value="{{ co.name }}" onChange="{{ onCoName }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+
+              <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:15px 0 7px">Short name <span style="font-weight:500;color:#A7B0A9">· shown on dashboard</span></div>
+              <input value="{{ co.short }}" onChange="{{ onCoShort }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+
+              <div style="display:flex;gap:11px;margin-top:15px">
+                <div style="flex:1">
+                  <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Phone</div>
+                  <input value="{{ co.phone }}" onChange="{{ onCoPhone }}" inputmode="tel" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">TIN</div>
+                  <input value="{{ co.tin }}" onChange="{{ onCoTin }}" inputmode="numeric" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+                </div>
+              </div>
+
+              <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:15px 0 7px">Email</div>
+              <input value="{{ co.email }}" onChange="{{ onCoEmail }}" inputmode="email" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+
+              <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:15px 0 7px">Address</div>
+              <textarea value="{{ co.address }}" onChange="{{ onCoAddress }}" rows="2" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F;resize:none;line-height:1.5"></textarea>
+            </div>
+
+            <div onClick="{{ saveCompany }}" style="margin-top:16px;background:#10715A;color:#fff;border-radius:16px;padding:16px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(16,113,90,.3);display:flex;align-items:center;justify-content:center;gap:8px">
+              <span style="font-family:'Material Symbols Rounded';font-size:20px">check</span>Save company profile
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isTenants }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 16px 30px;animation:scr .3s ease">
+            <div style="display:flex;align-items:flex-start;margin-bottom:16px">
+              <div>
+                <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;color:#17241F;letter-spacing:-.01em">Tenants</div>
+                <div style="font-size:12px;color:#8A968E;margin-top:2px">{{ activeCount }} active · {{ pastCount }} former</div>
+              </div>
+              <div onClick="{{ openNewTenant }}" style="margin-left:auto;display:flex;align-items:center;gap:6px;background:#17241F;color:#fff;border-radius:13px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:19px">person_add</span>New
+              </div>
+            </div>
+
+            <div style="font-size:12.5px;font-weight:700;color:#6E7B74;letter-spacing:.04em;text-transform:uppercase;margin:6px 4px 11px">Current tenants</div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <sc-for list="{{ tenantsList }}" as="t" hint-placeholder-count="3">
+                <div onClick="{{ t.onOpen }}" style="background:#fff;border-radius:20px;padding:14px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.05),0 8px 18px rgba(20,40,32,.05)">
+                  <div style="width:46px;height:46px;border-radius:15px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0">{{ t.initials }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:15px;font-weight:700;color:#17241F">{{ t.name }}</div>
+                    <div style="font-size:12px;color:#8A968E;margin-top:2px">{{ t.unitName }} · {{ t.type }}</div>
+                    <div style="display:inline-flex;margin-top:7px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:{{ t.statusBg }};color:{{ t.statusFg }}">{{ t.statusLabel }}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div style="font-family:'Space Grotesk';font-size:15px;font-weight:700;color:{{ t.balanceColor }}">{{ t.balanceLabel }}</div>
+                    <div style="font-size:10.5px;color:#9AA79F;margin-top:2px">to {{ t.coveredThrough }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="font-size:12.5px;font-weight:700;color:#6E7B74;letter-spacing:.04em;text-transform:uppercase;margin:24px 4px 11px">Former tenants</div>
+            <div style="background:#fff;border-radius:20px;padding:6px 16px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <sc-for list="{{ pastTenants }}" as="p" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F3EEE4">
+                  <div style="width:38px;height:38px;border-radius:12px;background:#F1EDE4;color:#A7B0A9;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0">{{ p.initials }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13.5px;font-weight:600;color:#3C5147">{{ p.name }}</div>
+                    <div style="font-size:11.5px;color:#9AA79F">{{ p.unitName }} · {{ p.lastStr }}</div>
+                  </div>
+                  <div style="font-size:10.5px;font-weight:700;color:#A7B0A9;background:#F1EDE4;border-radius:999px;padding:3px 9px">Past</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isStatements }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 16px 30px;animation:scr .3s ease">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <div onClick="{{ goMore }}" style="width:40px;height:40px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+                <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#17241F">arrow_back</span>
+              </div>
+              <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#17241F">Statements &amp; receipts</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+              <div style="flex:1;display:flex;gap:4px;background:#EDE7DB;border-radius:14px;padding:4px">
+                <div onClick="{{ stReceiptsTab }}" style="flex:1;text-align:center;padding:10px;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;background:{{ stRecTabColor }};color:{{ stRecTabFg }}">Receipts</div>
+                <div onClick="{{ stStatementsTab }}" style="flex:1;text-align:center;padding:10px;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;background:{{ stStmTabColor }};color:{{ stStmTabFg }}">Statements</div>
+              </div>
+              <div onClick="{{ toggleFyMenu }}" style="width:46px;height:46px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ fyBtnBg }};border:1px solid {{ fyBtnBd }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:23px;color:{{ fyBtnFg }}">filter_alt</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ stTabReceipts }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size:12px;color:#8A968E;margin:0 4px 11px">{{ receiptCount }} rent receipts · {{ fyNote }}</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ stReceipts }}" as="r" hint-placeholder-count="6">
+                  <div onClick="{{ r.onOpen }}" style="background:#fff;border-radius:18px;padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                    <div style="width:40px;height:40px;border-radius:12px;background:#EEF4F1;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      <span style="font-family:'Material Symbols Rounded';font-size:21px">receipt_long</span>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:14px;font-weight:700;color:#17241F">{{ r.tenant }}</div>
+                      <div style="font-size:11.5px;color:#9AA79F">{{ r.no }} · {{ r.unitName }} · {{ r.dateStr }}</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                      <div style="font-family:'Space Grotesk';font-size:14.5px;font-weight:700;color:#10715A">{{ r.amountStr }}</div>
+                      <div style="font-size:10.5px;color:#A7B0A9">TZS</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ stTabStatements }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12px;color:#8A968E;margin:0 4px 11px">Generate an account statement per tenant{{ stmtScope }}</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ stTenants }}" as="t" hint-placeholder-count="3">
+                  <div onClick="{{ t.onOpen }}" style="background:#fff;border-radius:18px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+                    <div style="width:42px;height:42px;border-radius:13px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0">{{ t.initials }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:14.5px;font-weight:700;color:#17241F">{{ t.name }}</div>
+                      <div style="font-size:11.5px;color:#9AA79F">{{ t.sub }}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                      <span style="font-size:10px;font-weight:800;border-radius:999px;padding:3px 8px;background:{{ t.badgeBg }};color:{{ t.badgeFg }}">{{ t.badgeLabel }}</span>
+                      <div style="font-size:12.5px;font-weight:700;color:#10715A;display:flex;align-items:center;gap:3px">Generate<span style="font-family:'Material Symbols Rounded';font-size:18px">chevron_right</span></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+      </div>
+
+      <div style="flex-shrink:0;height:76px;background:#fff;border-top:1px solid #EFE9DF;display:flex;align-items:flex-start;justify-content:space-around;padding:11px 6px 0;box-shadow:0 -6px 22px rgba(20,40,32,.05)">
+        <div onClick="{{ goHome }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer">
+          <span style="font-family:'Material Symbols Rounded';font-size:25px;color:{{ homeColor }}">home</span>
+          <span style="font-size:10.5px;font-weight:700;color:{{ homeColor }}">Home</span>
+        </div>
+        <div onClick="{{ goUnits }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer">
+          <span style="font-family:'Material Symbols Rounded';font-size:25px;color:{{ unitsColor }}">apartment</span>
+          <span style="font-size:10.5px;font-weight:700;color:{{ unitsColor }}">Units</span>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center">
+          <div onClick="{{ openCollect }}" style="width:58px;height:58px;border-radius:20px;margin-top:-28px;background:linear-gradient(148deg,#13886A,#0B5B45);box-shadow:0 12px 26px rgba(16,113,90,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer">
+            <span style="font-family:'Material Symbols Rounded';font-size:28px;color:#fff">add</span>
+          </div>
+        </div>
+        <div onClick="{{ goTenants }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer">
+          <span style="font-family:'Material Symbols Rounded';font-size:25px;color:{{ tenantsColor }}">groups</span>
+          <span style="font-size:10.5px;font-weight:700;color:{{ tenantsColor }}">Tenants</span>
+        </div>
+        <div onClick="{{ goMore }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer">
+          <span style="font-family:'Material Symbols Rounded';font-size:25px;color:{{ moreColor }}">menu</span>
+          <span style="font-size:10.5px;font-weight:700;color:{{ moreColor }}">More</span>
+        </div>
+      </div>
+
+      <sc-if value="{{ showCollect }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:40;animation:fadein .2s ease">
+          <div onClick="{{ closeCollect }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:94%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+              <div style="width:40px;height:40px;border-radius:13px;background:#E4EFEA;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:22px">payments</span>
+              </div>
+              <div style="flex:1"><div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#17241F">Record a payment</div><div style="font-size:12px;color:#8A968E">Rent is 300,000 / month</div></div>
+              <div onClick="{{ closeCollect }}" style="width:34px;height:34px;border-radius:11px;background:#EDE7DB;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6E7B74">close</span></div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Tenant / unit</div>
+            <select value="{{ payUnit }}" onChange="{{ onUnitChange }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F;-webkit-appearance:none;appearance:none">
+              <option value="ilazo1">Sunday Mtaki — Ilazo 1</option>
+              <option value="ilazo2">Muhamud Mukhsin — Ilazo 2</option>
+              <option value="ilazo3">Frederick Mbwana — Ilazo 3</option>
+            </select>
+
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:16px 0 7px">Amount (TZS)</div>
+            <input value="{{ payAmount }}" onChange="{{ onAmountChange }}" inputmode="numeric" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:14px;font-size:20px;font-weight:700;font-family:'Space Grotesk';background:#fff;color:#17241F" />
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <sc-for list="{{ amtChips }}" as="c" hint-placeholder-count="4">
+                <div onClick="{{ c.onClick }}" style="flex:1;text-align:center;border:1px solid #E1D9CA;border-radius:12px;padding:9px 4px;font-size:12.5px;font-weight:700;color:#3C5147;cursor:pointer;background:#fff">{{ c.label }}</div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;gap:11px;margin-top:16px">
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Paid on</div>
+                <input type="date" value="{{ payDate }}" onChange="{{ onDateChange }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:12px;font-size:13.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Method</div>
+                <select value="{{ payMethod }}" onChange="{{ onMethodChange }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:12px;font-size:13.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F;-webkit-appearance:none;appearance:none">
+                  <option>Bank transfer (CRDB)</option>
+                  <option>Cash</option>
+                  <option>Mobile money</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="background:#EBF3EF;border:1px solid #D5E7DF;border-radius:16px;padding:14px;margin-top:18px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-family:'Material Symbols Rounded';font-size:24px;color:#10715A">event_available</span>
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:700;color:#17241F">{{ coverMonthsLabel }}</div>
+                  <div style="font-size:12px;color:#5B6B62;margin-top:1px">Currently {{ currentBalanceStr }}</div>
+                </div>
+              </div>
+              <div style="height:1px;background:#D5E7DF;margin:12px 0"></div>
+              <div style="display:flex;align-items:center">
+                <div style="font-size:12.5px;color:#5B6B62;font-weight:600">New covered-through date</div>
+                <div style="margin-left:auto;font-family:'Space Grotesk';font-size:14px;font-weight:700;color:#10715A">{{ previewCoverStr }}</div>
+              </div>
+              <div style="display:flex;align-items:center;margin-top:6px">
+                <div style="font-size:12.5px;color:#5B6B62;font-weight:600">Balance after payment</div>
+                <div style="margin-left:auto;font-family:'Space Grotesk';font-size:14px;font-weight:700;color:{{ previewColor }}">{{ previewBalanceLabel }}</div>
+              </div>
+            </div>
+
+            <div onClick="{{ submitPay }}" style="margin-top:18px;background:#10715A;color:#fff;border-radius:16px;padding:16px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(16,113,90,.3)">Save payment</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tenantHist }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:52;animation:fadein .2s ease">
+          <div onClick="{{ closeTenantHist }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:88%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:16px">
+              <div style="width:44px;height:44px;border-radius:14px;background:#EDEFF2;color:#3C5147;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">{{ tenantHist.initials }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-family:'Space Grotesk';font-size:17px;font-weight:700;color:#17241F">{{ tenantHist.name }}</div>
+                <div style="font-size:12px;color:#8A968E">{{ tenantHist.unitName }} · {{ tenantHist.paidStr }} TZS total</div>
+              </div>
+              <div onClick="{{ closeTenantHist }}" style="width:34px;height:34px;border-radius:11px;background:#EDE7DB;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6E7B74">close</span></div>
+            </div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.05em;color:#8A968E;margin:0 2px 8px">PAYMENT HISTORY</div>
+            <div style="background:#fff;border-radius:20px;padding:5px 15px;box-shadow:0 1px 2px rgba(20,40,32,.05)">
+              <sc-for list="{{ tenantHist.rows }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F3EEE4">
+                  <div style="width:34px;height:34px;border-radius:11px;background:#EEF4F1;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <span style="font-family:'Material Symbols Rounded';font-size:18px">south_west</span>
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13.5px;font-weight:600;color:#17241F">{{ r.dateStr }}</div>
+                    <div style="font-size:11.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.months }}</div>
+                    <div style="font-size:11.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.range }}</div>
+                  </div>
+                  <div style="font-family:'Space Grotesk';font-size:14.5px;font-weight:700;color:#10715A;flex-shrink:0">+{{ r.amountStr }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showNewTenant }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:45;animation:fadein .2s ease">
+          <div onClick="{{ closeNewTenant }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:94%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+              <div style="width:40px;height:40px;border-radius:13px;background:#E4EFEA;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:22px">person_add</span>
+              </div>
+              <div style="flex:1"><div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#17241F">Register new tenant</div><div style="font-size:12px;color:#8A968E">Starts a fresh lease · rent 300,000 / month</div></div>
+              <div onClick="{{ closeNewTenant }}" style="width:34px;height:34px;border-radius:11px;background:#EDE7DB;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6E7B74">close</span></div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Unit</div>
+            <select value="{{ ntUnit }}" onChange="{{ onNtUnit }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F;-webkit-appearance:none;appearance:none">
+              <option value="ilazo1">Ilazo 1 — Single</option>
+              <option value="ilazo2">Ilazo 2 — Couples</option>
+              <option value="ilazo3">Ilazo 3 — Family</option>
+            </select>
+
+            <div style="display:flex;align-items:center;gap:8px;background:#FBEFD9;border:1px solid #EAD9B4;border-radius:13px;padding:11px 13px;margin-top:12px">
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#8A6A1F">info</span>
+              <div style="font-size:12px;color:#7A5E1E;font-weight:600">{{ ntCurrentTenant }} (current in {{ ntUnitName }}) will move to Former tenants.</div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:16px 0 7px">Tenant full name</div>
+            <input value="{{ ntName }}" onChange="{{ onNtName }}" placeholder="e.g. Amina Hassan" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+
+            <div style="display:flex;gap:11px;margin-top:16px">
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Phone</div>
+                <input value="{{ ntPhone }}" onChange="{{ onNtPhone }}" inputmode="tel" placeholder="+255 …" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Tenure start</div>
+                <input type="date" value="{{ ntStart }}" onChange="{{ onNtStart }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:12px;font-size:13.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;margin:20px 2px 12px">
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#8A6A1F">diversity_1</span>
+              <div style="font-size:12.5px;font-weight:800;color:#17241F;letter-spacing:.03em;text-transform:uppercase">Next of kin</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Full name</div>
+            <input value="{{ ntKinName }}" onChange="{{ onNtKinName }}" placeholder="e.g. Neema Hassan" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+            <div style="display:flex;gap:11px;margin-top:12px">
+              <div style="flex:1.2">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Phone</div>
+                <input value="{{ ntKinPhone }}" onChange="{{ onNtKinPhone }}" inputmode="tel" placeholder="+255 …" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Relation</div>
+                <input value="{{ ntKinRel }}" onChange="{{ onNtKinRel }}" placeholder="e.g. Sister" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;background:#EBF3EF;border:1px solid #D5E7DF;border-radius:16px;padding:14px;margin-top:18px">
+              <span style="font-family:'Material Symbols Rounded';font-size:24px;color:#10715A">event_repeat</span>
+              <div style="flex:1;font-size:12.5px;color:#5B6B62;font-weight:600">Rent begins accruing from the tenure start date. Record their first payment afterwards to extend the term.</div>
+            </div>
+
+            <div onClick="{{ submitNewTenant }}" style="margin-top:18px;background:#10715A;color:#fff;border-radius:16px;padding:16px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(16,113,90,.3)">Register tenant</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showEditTenant }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:46;animation:fadein .2s ease">
+          <div onClick="{{ closeEditTenant }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:94%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+              <div style="width:40px;height:40px;border-radius:13px;background:#E4EFEA;color:#10715A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-family:'Material Symbols Rounded';font-size:22px">edit</span>
+              </div>
+              <div style="flex:1"><div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#17241F">Update tenant details</div><div style="font-size:12px;color:#8A968E">Lease dates &amp; balances are unaffected</div></div>
+              <div onClick="{{ closeEditTenant }}" style="width:34px;height:34px;border-radius:11px;background:#EDE7DB;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6E7B74">close</span></div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Tenant full name</div>
+            <input value="{{ etName }}" onChange="{{ onEtName }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin:15px 0 7px">Phone</div>
+            <input value="{{ etPhone }}" onChange="{{ onEtPhone }}" inputmode="tel" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+
+            <div style="display:flex;align-items:center;gap:8px;margin:20px 2px 12px">
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#8A6A1F">diversity_1</span>
+              <div style="font-size:12.5px;font-weight:800;color:#17241F;letter-spacing:.03em;text-transform:uppercase">Next of kin</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Full name</div>
+            <input value="{{ etKinName }}" onChange="{{ onEtKinName }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+            <div style="display:flex;gap:11px;margin-top:12px">
+              <div style="flex:1.2">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Phone</div>
+                <input value="{{ etKinPhone }}" onChange="{{ onEtKinPhone }}" inputmode="tel" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;color:#6E7B74;margin-bottom:7px">Relation</div>
+                <input value="{{ etKinRel }}" onChange="{{ onEtKinRel }}" style="width:100%;border:1px solid #E1D9CA;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:inherit;background:#fff;color:#17241F" />
+              </div>
+            </div>
+
+            <div onClick="{{ submitEditTenant }}" style="margin-top:20px;background:#10715A;color:#fff;border-radius:16px;padding:16px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(16,113,90,.3)">Save changes</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ receipt }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:50;animation:fadein .2s ease">
+          <div onClick="{{ closeReceipt }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:94%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="background:#fff;border-radius:20px;padding:22px;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(148deg,#13886A,#0B5B45);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-size:15px;font-weight:700">{{ coInitials }}</div>
+                <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#17241F;line-height:1.2">{{ companyFull }}</div><div style="font-size:10.5px;color:#9AA79F;margin-top:2px">{{ co.address }}</div></div>
+              </div>
+              <div style="display:flex;align-items:center;margin:18px 0 4px">
+                <div style="font-family:'Space Grotesk';font-size:13px;font-weight:700;letter-spacing:.12em;color:#10715A">RENT RECEIPT</div>
+                <div style="margin-left:auto;font-size:11.5px;font-weight:700;color:#8A968E">{{ receipt.no }}</div>
+              </div>
+              <div style="border-top:1px dashed #D9D1C2;margin:10px 0 14px"></div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:9px"><span style="color:#8A968E">Received from</span><span style="font-weight:700;color:#17241F">{{ receipt.tenant }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:9px"><span style="color:#8A968E">Unit</span><span style="font-weight:700;color:#17241F">{{ receipt.unitName }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:9px"><span style="color:#8A968E">Date paid</span><span style="font-weight:700;color:#17241F">{{ receipt.dateStr }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:9px"><span style="color:#8A968E">Method</span><span style="font-weight:700;color:#17241F">{{ receipt.method }}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;font-size:12.5px"><span style="color:#8A968E;flex-shrink:0">For period</span><span style="text-align:right;padding-left:12px"><span style="display:block;font-weight:700;color:#17241F;white-space:nowrap">{{ receipt.coverMonths }}</span><span style="display:block;font-weight:700;color:#17241F;white-space:nowrap">{{ receipt.coverRange }}</span></span></div>
+              <div style="background:#EBF3EF;border-radius:14px;padding:14px 16px;margin-top:16px;display:flex;align-items:center">
+                <div style="font-size:12.5px;font-weight:700;color:#5B6B62">Amount received</div>
+                <div style="margin-left:auto;font-family:'Space Grotesk';font-size:22px;font-weight:700;color:#10715A">{{ receipt.amountStr }} <span style="font-size:12px;color:#8A968E">TZS</span></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:11px;margin-top:16px">
+              <div onClick="{{ closeReceipt }}" style="flex:1;text-align:center;border:1px solid #E1D9CA;background:#fff;border-radius:15px;padding:15px;font-size:14px;font-weight:700;color:#3C5147;cursor:pointer">Close</div>
+              <div onClick="{{ shareDoc }}" style="flex:1.4;text-align:center;background:#10715A;color:#fff;border-radius:15px;padding:15px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 10px 22px rgba(16,113,90,.3)"><span style="font-family:'Material Symbols Rounded';font-size:19px">ios_share</span>Share receipt</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ statement }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:50;animation:fadein .2s ease">
+          <div onClick="{{ closeStatement }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:94%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="background:#fff;border-radius:20px;padding:22px;box-shadow:0 1px 2px rgba(20,40,32,.06)">
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(148deg,#13886A,#0B5B45);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-size:15px;font-weight:700">{{ coInitials }}</div>
+                <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#17241F;line-height:1.2">{{ companyFull }}</div><div style="font-size:10.5px;color:#9AA79F;margin-top:2px">Tenant statement</div></div>
+              </div>
+              <div style="border-top:1px dashed #D9D1C2;margin:16px 0 14px"></div>
+              <div style="font-size:16px;font-weight:800;color:#17241F">{{ statement.tenant }}</div>
+              <div style="font-size:12px;color:#8A968E;margin-top:2px">{{ statement.unitName }} · {{ statement.type }} · rent {{ statement.rentStr }}/mo</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#10715A;background:#E4EFEA;border-radius:999px;padding:3px 10px">{{ statement.periodLabel }}</span><span style="font-size:12px;color:#8A968E">occupied since <b style="color:#17241F;font-weight:700">{{ statement.start }}</b></span></div>
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
+                <div style="display:flex;align-items:center;background:#F6F1E9;border-radius:14px;padding:12px 15px">
+                  <div style="min-width:0"><div style="font-size:12.5px;font-weight:700;color:#17241F">Rent charged</div><div style="font-size:11px;color:#A7B0A9;margin-top:1px">{{ statement.chargedSub }}</div></div>
+                  <div style="margin-left:auto;font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#17241F;white-space:nowrap">{{ statement.chargedStr }}</div>
+                </div>
+                <div style="display:flex;align-items:center;background:#EBF3EF;border-radius:14px;padding:12px 15px">
+                  <div style="min-width:0"><div style="font-size:12.5px;font-weight:700;color:#0B5B45">Paid</div><div style="font-size:11px;color:#8FA79A;margin-top:1px">{{ statement.paidSub }}</div></div>
+                  <div style="margin-left:auto;font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#10715A;white-space:nowrap">{{ statement.receivedStr }}</div>
+                </div>
+                <div style="display:flex;align-items:center;border-radius:14px;padding:12px 15px;background:{{ statement.third.bg }}">
+                  <div style="min-width:0"><div style="font-size:12.5px;font-weight:700;color:{{ statement.third.labelColor }}">{{ statement.third.label }}</div><div style="font-size:11px;margin-top:1px;color:{{ statement.third.subColor }}">{{ statement.third.sub }}</div></div>
+                  <div style="margin-left:auto;font-family:'Space Grotesk';font-size:18px;font-weight:700;white-space:nowrap;color:{{ statement.third.valueColor }}">{{ statement.third.value }}</div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:16px"><span style="color:#8A968E">Paid up to (covered through)</span><span style="font-weight:700;color:#17241F">{{ statement.covered }}</span></div>
+              <div style="border-top:1px dashed #D9D1C2;margin:16px 0 12px"></div>
+              <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#8A968E;margin-bottom:8px">PAYMENTS</div>
+              <sc-for list="{{ statement.pays }}" as="p" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3EEE4">
+                  <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#17241F">{{ p.dateStr }}</div><div style="font-size:10.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.months }}</div><div style="font-size:10.5px;color:#9AA79F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.range }}</div></div>
+                  <div style="font-family:'Space Grotesk';font-size:13px;font-weight:700;color:#10715A;flex-shrink:0">{{ p.amountStr }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:11px;margin-top:16px">
+              <div onClick="{{ closeStatement }}" style="flex:1;text-align:center;border:1px solid #E1D9CA;background:#fff;border-radius:15px;padding:15px;font-size:14px;font-weight:700;color:#3C5147;cursor:pointer">Close</div>
+              <div onClick="{{ shareDoc }}" style="flex:1.4;text-align:center;background:#10715A;color:#fff;border-radius:15px;padding:15px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 10px 22px rgba(16,113,90,.3)"><span style="font-family:'Material Symbols Rounded';font-size:19px">picture_as_pdf</span>Export PDF</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ fyMenu }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:55;animation:fadein .2s ease">
+          <div onClick="{{ closeFyMenu }}" style="position:absolute;inset:0;background:rgba(14,21,18,.5);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#F6F1E9;border-radius:30px 30px 39px 39px;padding:10px 20px 24px;animation:sheetup .32s cubic-bezier(.22,1,.36,1);box-shadow:0 -20px 50px rgba(14,21,18,.3);max-height:80%;overflow:auto">
+            <div style="width:42px;height:5px;border-radius:3px;background:#D6CEBF;margin:4px auto 16px"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#10715A">filter_alt</span>
+              <div style="flex:1;font-family:'Space Grotesk';font-size:17px;font-weight:700;color:#17241F">Filter by year</div>
+              <div onClick="{{ closeFyMenu }}" style="width:34px;height:34px;border-radius:11px;background:#EDE7DB;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6E7B74">close</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ fyMenuItems }}" as="m" hint-placeholder-count="4">
+                <div onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid #ECE6DB;cursor:pointer;background:{{ m.rowBg }}">
+                  <div style="flex:1;font-size:14.5px;font-weight:700;color:#17241F">{{ m.label }}</div>
+                  <span style="font-family:'Material Symbols Rounded';font-size:21px;color:{{ m.tickColor }}">check_circle</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:60;background:#17241F;color:#fff;padding:12px 18px;border-radius:14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;box-shadow:0 12px 28px rgba(14,21,18,.35);animation:toastin .3s ease;white-space:nowrap">
+          <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#8FE3C4">check_circle</span>{{ toast }}
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:1000},&quot;companyName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Dodoma Contemporary&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;propertyName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Ilazo&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  get NOW(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  state = {
+    screen: 'home',
+    selUnit: 'ilazo2',
+    showCollect: false,
+    heroPage: 0,
+    histOpen: false,
+    tenantHist: null,
+    showNewTenant: false,
+    showEditTenant: false,
+    etUnit: 'ilazo1', etName: '', etPhone: '', etKinName: '', etKinPhone: '', etKinRel: '',
+    ntUnit: 'ilazo1', ntName: '', ntPhone: '', ntStart: '', ntKinName: '', ntKinPhone: '', ntKinRel: '',
+    stTab: 'receipts',
+    fy: new Date().getFullYear(),
+    fyMenu: false,
+    receipt: null,
+    statement: null,
+    payUnit: 'ilazo2',
+    payAmount: '600,000',
+    payMethod: 'Bank transfer (CRDB)',
+    payDate: '2026-07-01',
+    toast: null,
+    company: {
+      name:'Dodoma Contemporary Appartments',
+      short:'Dodoma Contemporary',
+      phone:'+255 712 000 000',
+      email:'info@dca.co.tz',
+      address:'P.O. Box 1234, Ilazo, Dodoma, Tanzania',
+      tin:'123-456-789'
+    },
+    units: [
+      { id:'ilazo1', name:'Ilazo 1', type:'Single',  rent:300000, tenant:'Sunday Mtaki',    phone:'+255 712 000 111', leaseStart:'2024-10-24', nextDue:'2026-06-24', kin:{name:'Neema Mtaki', phone:'+255 754 110 220', rel:'Sister'} },
+      { id:'ilazo2', name:'Ilazo 2', type:'Couples', rent:300000, tenant:'Muhamud Mukhsin', phone:'+255 713 000 222', leaseStart:'2024-05-20', nextDue:'2026-05-20', kin:{name:'Fatma Mukhsin', phone:'+255 755 330 440', rel:'Spouse'} },
+      { id:'ilazo3', name:'Ilazo 3', type:'Family',  rent:300000, tenant:'Frederick Mbwana', phone:'+255 714 000 333', leaseStart:'2026-01-08', nextDue:'2026-05-08', kin:{name:'Joseph Mbwana', phone:'+255 756 550 660', rel:'Brother'} }
+    ],
+    txns: [
+      { dateStr:'25 Mar 2026', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:900000,  method:'Bank transfer', covers:'3 months · Apr–Jun 2026', type:'rent' },
+      { dateStr:'03 Mar 2026', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months · Mar–May 2026', type:'rent' },
+      { dateStr:'20 Jan 2026', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'08 Jan 2026', unit:'ilazo3', tenant:'Frederick Mbwana', amount:1200000, method:'Bank transfer', covers:'4 months · Jan–Apr 2026', type:'rent' },
+      { dateStr:'01 Dec 2025', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'20 Nov 2025', unit:'ilazo3', tenant:'Lilian Kowero',   amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'25 Sep 2025', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:900000,  method:'Bank transfer', covers:'24 Sep–23 Nov 2025', type:'rent' },
+      { dateStr:'24 Aug 2025', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'12 Jul 2025', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:900000,  method:'Bank transfer', covers:'24 Jun–23 Sep 2025', type:'rent' },
+      { dateStr:'10 Jun 2025', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:600000,  method:'Bank transfer', covers:'2 months', type:'rent' },
+      { dateStr:'25 May 2025', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'24 Apr 2025', unit:'ilazo3', tenant:'Lilian Kowero',   amount:1500000, method:'Bank transfer', covers:'5 months', type:'rent' },
+      { dateStr:'24 Feb 2025', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'20 Feb–21 May 2025', type:'rent' },
+      { dateStr:'27 Dec 2024', unit:'ilazo3', tenant:'Subira Salum',    amount:1200000, method:'Bank transfer', covers:'20 Dec–19 Apr 2025', type:'rent' },
+      { dateStr:'21 Nov 2024', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'24 Oct 2024', unit:'ilazo1', tenant:'Sunday Mtaki',    amount:1800000, method:'Bank transfer', covers:'6 months', type:'rent' },
+      { dateStr:'20 Oct 2024', unit:'',       tenant:'Athuman Fundi Bomba', amount:1500000, method:'Utilities', covers:'Plumbing repair + 4,000 L Sintank', type:'expense', category:'Utilities' },
+      { dateStr:'21 Aug 2024', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' },
+      { dateStr:'06 Aug 2024', unit:'ilazo3', tenant:'Subira Salum',    amount:1200000, method:'Bank transfer', covers:'4 months', type:'rent' },
+      { dateStr:'01 Jul 2024', unit:'ilazo1', tenant:'Mr. Julius',      amount:810000,  method:'Bank transfer', covers:'first tenant', type:'rent' },
+      { dateStr:'10 May 2024', unit:'ilazo2', tenant:'Muhamud Mukhsin', amount:900000,  method:'Bank transfer', covers:'3 months', type:'rent' }
+    ]
+  };
+
+  fmt(n){ return Math.round(Math.abs(n)).toLocaleString('en-US'); }
+  initials(name){ var p=(name||'').replace(/^(Mr\.|Ms\.|Mrs\.)\s*/,'').trim().split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+  unitName(id){ var u=this.state.units.find(x=>x.id===id); return u?u.name:''; }
+  parseAmt(s){ return parseInt(String(s||'').replace(/[^0-9]/g,''),10)||0; }
+
+  // ---- date engine (rolling lease/tenure) ----
+  addMonths(iso,n){ var p=iso.split('-'); var d=new Date(+p[0], (+p[1]-1)+n, 1); var dim=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); d.setDate(Math.min(+p[2], dim)); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  addDays(iso,n){ var d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  days(iso){ return Math.round(new Date(iso+'T00:00:00').getTime()/86400000); }
+  fmtDate(iso){ var d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  monthYear(iso){ var d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-GB',{month:'short',year:'numeric'}); }
+  isoOf(dateStr){ var d=new Date(dateStr); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  fyStart(dateStr){ var d=new Date(dateStr); return d.getMonth()>=6 ? d.getFullYear() : d.getFullYear()-1; }
+  fyLabel(sy){ return 'FY '+sy+'/'+String(sy+1).slice(2); }
+  rangeStr(a,b){ var da=new Date(a+'T00:00:00'), db=new Date(b+'T00:00:00'); var sameY=da.getFullYear()===db.getFullYear(); var s=da.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+(sameY?'':' '+da.getFullYear()); var e=db.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); return s+' – '+e; }
+  coverLabel(months, startIso){ var end=this.addDays(this.addMonths(startIso,months),-1); return months+(months===1?' Month · ':' Months · ')+this.rangeStr(startIso,end); }
+  splitCover(cv){ var i=(cv||'').indexOf(' · '); return i<0 ? {m:cv||'', r:''} : {m:cv.slice(0,i), r:cv.slice(i+3)}; }
+  computeCovers(){
+    var s=this.state, self=this, out={}, groups={};
+    s.txns.forEach(function(t,idx){ if(t.type!=='rent') return; var k=t.unit+'|'+t.tenant; (groups[k]=groups[k]||[]).push(idx); });
+    Object.keys(groups).forEach(function(k){
+      var idxs=groups[k].slice().sort(function(a,b){ return new Date(s.txns[a].dateStr)-new Date(s.txns[b].dateStr); });
+      var parts=k.split('|'), unitId=parts[0], tenant=parts[1];
+      var u=s.units.find(function(x){ return x.id===unitId && x.tenant===tenant; });
+      var cursor = u ? u.leaseStart : self.isoOf(s.txns[idxs[0]].dateStr);
+      idxs.forEach(function(idx){ var t=s.txns[idx]; var m=Math.round(t.amount/300000); out[idx]=self.coverLabel(m, cursor); cursor=self.addMonths(cursor, m); });
+    });
+    return out;
+  }
+  // months of rent that have fallen due (period starts on/before today, still unpaid)
+  monthsDue(nextDue){ var k=0; while(k<600 && this.addMonths(nextDue,k) <= this.NOW) k++; return k; }
+  dueOf(u){ return this.monthsDue(u.nextDue) * u.rent; }
+
+  status(due, nextDue){
+    if(due>0) return { label:'Arrears', bg:'#F8E5DF', fg:'#BE4B33', dot:'#BE4B33' };
+    if(nextDue > this.addMonths(this.NOW,1)) return { label:'Paid ahead', bg:'#FBEFD9', fg:'#B07417', dot:'#B07417' };
+    return { label:'Up to date', bg:'#E4EFEA', fg:'#10715A', dot:'#10715A' };
+  }
+  balLabel(due){ return due>0 ? this.fmt(due)+' due' : 'Paid up'; }
+  balColor(due){ return due>0 ? '#BE4B33' : '#10715A'; }
+
+  nav(screen){ this.setState({ screen:screen }); }
+  openUnit(id){ this.setState({ screen:'unit', selUnit:id, histOpen:false }); }
+  openTenant(){ this.setState({ screen:'tdetail', histOpen:false }); }
+  openCollect(id){
+    var uid = id || this.state.payUnit;
+    var u = this.state.units.find(x=>x.id===uid);
+    var due = this.dueOf(u);
+    var amt = due>0 ? this.fmt(due) : '300,000';
+    this.setState({ showCollect:true, payUnit:uid, payAmount:amt });
+  }
+  closeCollect(){ this.setState({ showCollect:false }); }
+  closeTenantHist(){ this.setState({ tenantHist:null }); }
+  onHeroScroll(e){ var el=e.target; var p=Math.round(el.scrollLeft/Math.max(1,el.clientWidth)); if(p!==this.state.heroPage) this.setState({ heroPage:p }); }
+  openNewTenant(unitId){ var d=new Date(); var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); this.setState({ showNewTenant:true, ntUnit:unitId||this.state.ntUnit, ntName:'', ntPhone:'', ntStart:today, ntKinName:'', ntKinPhone:'', ntKinRel:'' }); }
+  closeNewTenant(){ this.setState({ showNewTenant:false }); }
+  submitNewTenant(){
+    var name=(this.state.ntName||'').trim();
+    if(!name){ this.setState({ toast:'Enter the tenant name' }); setTimeout(()=>this.setState({toast:null}),2200); return; }
+    var start=this.state.ntStart || this.NOW;
+    var units=this.state.units.map((u)=> u.id===this.state.ntUnit ? Object.assign({}, u, { tenant:name, phone:(this.state.ntPhone||u.phone), leaseStart:start, nextDue:start, kin:{ name:(this.state.ntKinName||'').trim(), phone:(this.state.ntKinPhone||'').trim(), rel:(this.state.ntKinRel||'').trim() } }) : u);
+    this.setState({ units:units, showNewTenant:false, selUnit:this.state.ntUnit, screen:'unit', toast:'Tenant registered · '+name });
+    setTimeout(()=>this.setState({toast:null}), 3000);
+  }
+  setCo(k,v){ this.setState({ company: Object.assign({}, this.state.company, {[k]:v}) }); }
+  openEditTenant(unitId){ var u=this.state.units.find(x=>x.id===unitId); if(!u) return; var k=u.kin||{}; this.setState({ showEditTenant:true, etUnit:unitId, etName:u.tenant, etPhone:u.phone||'', etKinName:k.name||'', etKinPhone:k.phone||'', etKinRel:k.rel||'' }); }
+  closeEditTenant(){ this.setState({ showEditTenant:false }); }
+  submitEditTenant(){
+    var name=(this.state.etName||'').trim();
+    if(!name){ this.setState({ toast:'Enter the tenant name' }); setTimeout(()=>this.setState({toast:null}),2200); return; }
+    var uid=this.state.etUnit; var old=this.state.units.find(x=>x.id===uid); var oldName=old?old.tenant:'';
+    var units=this.state.units.map((u)=> u.id===uid ? Object.assign({}, u, { tenant:name, phone:this.state.etPhone, kin:{ name:(this.state.etKinName||'').trim(), phone:(this.state.etKinPhone||'').trim(), rel:(this.state.etKinRel||'').trim() } }) : u);
+    var txns=this.state.txns;
+    if(name!==oldName){ txns=txns.map((t)=> (t.unit===uid && t.tenant===oldName) ? Object.assign({}, t, { tenant:name }) : t); }
+    this.setState({ units:units, txns:txns, showEditTenant:false, toast:'Tenant details updated' });
+    setTimeout(()=>this.setState({toast:null}), 2600);
+  }
+  saveCompany(){ this.setState({ toast:'Company profile saved' }); setTimeout(()=>this.setState({toast:null}),2600); }
+  openReceipt(r){ this.setState({ receipt:r }); }
+  closeReceipt(){ this.setState({ receipt:null }); }
+  monthsElapsed(startIso, asOfIso){ if(asOfIso < startIso) return 0; var k=0; while(k<1200 && this.addMonths(startIso,k) <= asOfIso) k++; return k; }
+  openAccount(acc){
+    var covers=this.computeCovers();
+    var rent=acc.rent, mw=function(n){ return n+(n===1?' month':' months'); };
+    var yearNum = this.state.fy==='all' ? null : Number(this.state.fy);
+    var stayedCap = acc.current ? this.NOW : acc.coverEndIso;
+
+    var pays=[], scopeReceived=0;
+    acc.idxs.forEach((ix)=>{ var t=this.state.txns[ix]; var yr=new Date(t.dateStr).getFullYear(); if(yearNum===null || yr===yearNum){ scopeReceived+=t.amount; var sp=this.splitCover(covers[ix]||t.covers); pays.push({ dateStr:t.dateStr, months:sp.m, range:sp.r, amountStr:this.fmt(t.amount) }); } });
+    var totalReceived=acc.idxs.reduce((a,ix)=>a+this.state.txns[ix].amount,0);
+
+    var third, chargedStr, chargedSub, paidSub, periodLabel;
+    if(yearNum===null){
+      var monthsPaid=Math.round(totalReceived/rent);
+      var monthsStayed=this.monthsElapsed(acc.leaseStart, stayedCap);
+      var monthsOwed=Math.max(0, monthsStayed-monthsPaid), monthsAhead=Math.max(0, monthsPaid-monthsStayed);
+      chargedStr=this.fmt(monthsStayed*rent); chargedSub=mw(monthsStayed)+' occupied'; paidSub=mw(monthsPaid)+' settled';
+      if(monthsOwed>0){ third={ label:'Outstanding', sub:mw(monthsOwed)+' unpaid', value:this.fmt(monthsOwed*rent)+' due', bg:'#F8E5DF', labelColor:'#A05B49', subColor:'#C79184', valueColor:'#BE4B33' }; }
+      else if(monthsAhead>0){ third={ label:'Advance / prepaid', sub:mw(monthsAhead)+' ahead', value:this.fmt(monthsAhead*rent)+' cr', bg:'#FBEFD9', labelColor:'#8A6A1F', subColor:'#C7A867', valueColor:'#B07417' }; }
+      else { third={ label:'Balance', sub:'nothing unpaid', value:'Nil — up to date', bg:'#EBF3EF', labelColor:'#0B5B45', subColor:'#8FA79A', valueColor:'#10715A' }; }
+      periodLabel=acc.current?'Full account':'Full account · former';
+    } else {
+      var yearEnd=yearNum+'-12-31', prevEnd=(yearNum-1)+'-12-31';
+      var asOf=(yearEnd<=stayedCap)?yearEnd:stayedCap;
+      var chargedToAsOf=this.monthsElapsed(acc.leaseStart, asOf);
+      var monthsChargedYear=Math.max(0, chargedToAsOf - this.monthsElapsed(acc.leaseStart, prevEnd));
+      chargedStr=this.fmt(monthsChargedYear*rent); chargedSub=mw(monthsChargedYear)+' in '+yearNum;
+      paidSub=mw(Math.round(scopeReceived/rent))+' paid in '+yearNum;
+      var receivedThroughAsOf=0; acc.idxs.forEach((ix)=>{ if(this.isoOf(this.state.txns[ix].dateStr) <= asOf) receivedThroughAsOf+=this.state.txns[ix].amount; });
+      var closing=chargedToAsOf*rent - receivedThroughAsOf;
+      var asOfLabel=(yearEnd<=stayedCap)?('31 Dec '+yearNum):this.fmtDate(stayedCap);
+      if(closing>0){ third={ label:'Balance at '+asOfLabel, sub:mw(Math.round(closing/rent))+' unpaid', value:this.fmt(closing)+' due', bg:'#F8E5DF', labelColor:'#A05B49', subColor:'#C79184', valueColor:'#BE4B33' }; }
+      else if(closing<0){ third={ label:'Balance at '+asOfLabel, sub:mw(Math.round(-closing/rent))+' ahead', value:this.fmt(-closing)+' cr', bg:'#FBEFD9', labelColor:'#8A6A1F', subColor:'#C7A867', valueColor:'#B07417' }; }
+      else { third={ label:'Balance at '+asOfLabel, sub:'settled', value:'Nil — up to date', bg:'#EBF3EF', labelColor:'#0B5B45', subColor:'#8FA79A', valueColor:'#10715A' }; }
+      periodLabel=(acc.current?'Year ':'Former · Year ')+yearNum;
+    }
+
+    this.setState({ statement:{
+      tenant:acc.tenant, unitName:acc.unitName, type:acc.type, rentStr:this.fmt(rent),
+      start:this.fmtDate(acc.leaseStart), covered:this.fmtDate(acc.coverEndIso),
+      periodLabel:periodLabel, chargedStr:chargedStr, chargedSub:chargedSub, receivedStr:this.fmt(scopeReceived), paidSub:paidSub,
+      third:third, pays:pays, empty:(pays.length===0)
+    }});
+  }
+  legacyStatement(unitId){
+    var u=this.state.units.find(x=>x.id===unitId);
+    var covers=this.computeCovers();
+    var rent=u.rent, mw=function(n){ return n+(n===1?' month':' months'); };
+    var yearNum = this.state.fy==='all' ? null : Number(this.state.fy);
+
+    var all=[];
+    this.state.txns.forEach((t,idx)=>{ if(t.type==='rent' && t.tenant===u.tenant && t.unit===unitId) all.push({t:t,idx:idx}); });
+    var pays=[], scopeReceived=0;
+    all.forEach((o)=>{ var yr=new Date(o.t.dateStr).getFullYear(); if(yearNum===null || yr===yearNum){ scopeReceived+=o.t.amount; var sp=this.splitCover(covers[o.idx]||o.t.covers); pays.push({ dateStr:o.t.dateStr, months:sp.m, range:sp.r, amountStr:this.fmt(o.t.amount) }); } });
+
+    var third, chargedStr, chargedSub, paidSub, periodLabel;
+    if(yearNum===null){
+      var totalReceived=all.reduce((a,o)=>a+o.t.amount,0);
+      var monthsPaid=Math.round(totalReceived/rent);
+      var monthsStayed=this.monthsElapsed(u.leaseStart, this.NOW);
+      var monthsOwed=Math.max(0, monthsStayed-monthsPaid), monthsAhead=Math.max(0, monthsPaid-monthsStayed);
+      chargedStr=this.fmt(monthsStayed*rent); chargedSub=mw(monthsStayed)+' occupied'; paidSub=mw(monthsPaid)+' settled';
+      if(monthsOwed>0){ third={ label:'Outstanding', sub:mw(monthsOwed)+' unpaid', value:this.fmt(monthsOwed*rent)+' due', bg:'#F8E5DF', labelColor:'#A05B49', subColor:'#C79184', valueColor:'#BE4B33' }; }
+      else if(monthsAhead>0){ third={ label:'Advance / prepaid', sub:mw(monthsAhead)+' ahead', value:this.fmt(monthsAhead*rent)+' cr', bg:'#FBEFD9', labelColor:'#8A6A1F', subColor:'#C7A867', valueColor:'#B07417' }; }
+      else { third={ label:'Balance', sub:'nothing unpaid', value:'Nil — up to date', bg:'#EBF3EF', labelColor:'#0B5B45', subColor:'#8FA79A', valueColor:'#10715A' }; }
+      periodLabel='Full account';
+    } else {
+      var yearEnd=yearNum+'-12-31', prevEnd=(yearNum-1)+'-12-31';
+      var asOf=(yearEnd<=this.NOW)?yearEnd:this.NOW;
+      var chargedToAsOf=this.monthsElapsed(u.leaseStart, asOf);
+      var monthsChargedYear=Math.max(0, chargedToAsOf - this.monthsElapsed(u.leaseStart, prevEnd));
+      chargedStr=this.fmt(monthsChargedYear*rent); chargedSub=mw(monthsChargedYear)+' in '+yearNum;
+      paidSub=mw(Math.round(scopeReceived/rent))+' paid in '+yearNum;
+      var receivedThroughAsOf=0; all.forEach((o)=>{ if(this.isoOf(o.t.dateStr) <= asOf) receivedThroughAsOf+=o.t.amount; });
+      var closing=chargedToAsOf*rent - receivedThroughAsOf;
+      var asOfLabel=(yearEnd<=this.NOW)?('31 Dec '+yearNum):'today';
+      if(closing>0){ third={ label:'Balance at '+asOfLabel, sub:mw(Math.round(closing/rent))+' unpaid', value:this.fmt(closing)+' due', bg:'#F8E5DF', labelColor:'#A05B49', subColor:'#C79184', valueColor:'#BE4B33' }; }
+      else if(closing<0){ third={ label:'Balance at '+asOfLabel, sub:mw(Math.round(-closing/rent))+' ahead', value:this.fmt(-closing)+' cr', bg:'#FBEFD9', labelColor:'#8A6A1F', subColor:'#C7A867', valueColor:'#B07417' }; }
+      else { third={ label:'Balance at '+asOfLabel, sub:'settled', value:'Nil — up to date', bg:'#EBF3EF', labelColor:'#0B5B45', subColor:'#8FA79A', valueColor:'#10715A' }; }
+      periodLabel='Year '+yearNum;
+    }
+
+    this.setState({ statement:{
+      tenant:u.tenant, unitName:u.name, type:u.type, rentStr:this.fmt(u.rent),
+      start:this.fmtDate(u.leaseStart), covered:this.fmtDate(this.addDays(u.nextDue,-1)),
+      periodLabel:periodLabel, chargedStr:chargedStr, chargedSub:chargedSub, receivedStr:this.fmt(scopeReceived), paidSub:paidSub,
+      third:third, pays:pays, empty:(pays.length===0)
+    }});
+  }
+  closeStatement(){ this.setState({ statement:null }); }
+  shareDoc(){ this.setState({ toast:'Prepared to share (demo)' }); setTimeout(()=>this.setState({toast:null}),2200); }
+  submitPay(){
+    var amt = this.parseAmt(this.state.payAmount);
+    if(amt<=0){ this.setState({ toast:'Enter an amount first' }); setTimeout(()=>this.setState({toast:null}),2200); return; }
+    var u = this.state.units.find(x=>x.id===this.state.payUnit);
+    var months = Math.round(amt/u.rent);
+    var newDue = this.addMonths(u.nextDue, months);
+    var units = this.state.units.map(x => x.id===this.state.payUnit ? Object.assign({}, x, { nextDue:newDue }) : x);
+    var txn = { dateStr:this.fmtDate(this.state.payDate), unit:this.state.payUnit, tenant:u.tenant, amount:amt, method:this.state.payMethod.replace(' (CRDB)',''), covers:months+(months===1?' month':' months')+' · to '+this.fmtDate(this.addDays(newDue,-1)), type:'rent' };
+    this.setState({ units:units, txns:[txn].concat(this.state.txns), showCollect:false, toast:'Recorded · covered to '+this.fmtDate(this.addDays(newDue,-1)) });
+    setTimeout(()=>this.setState({toast:null}), 3000);
+  }
+
+  renderVals(){
+    var self=this;
+    var s=this.state;
+    var covers=this.computeCovers();
+    var company = this.state.company.short || this.state.company.name;
+    var companyFull = this.state.company.name;
+    var property = this.props.propertyName || 'Ilazo';
+
+    var unitsView = s.units.map(function(u){
+      var due=self.dueOf(u); var st=self.status(due,u.nextDue); var dm=self.monthsDue(u.nextDue);
+      var ps=self.addMonths(u.nextDue,-1); var tot=self.days(u.nextDue)-self.days(ps); var el=self.days(self.NOW)-self.days(ps);
+      var pct=Math.max(5, Math.min(100, tot>0?Math.round(el/tot*100):100));
+      return {
+        id:u.id, name:u.name, type:u.type, tenant:u.tenant, initials:self.initials(u.tenant),
+        rentStr:self.fmt(u.rent), statusLabel:st.label, statusBg:st.bg, statusFg:st.fg, dotColor:st.dot,
+        balanceLabel:self.balLabel(due), balanceColor:self.balColor(due),
+        coveredThrough:self.fmtDate(self.addDays(u.nextDue,-1)),
+        paidPct:pct, barColor:(due>0?'#BE4B33':'#10715A'),
+        tenureShort:(due>0 ? (dm+(dm===1?' month overdue':' months overdue')) : 'Paid up · on track'),
+        tenureIcon:(due>0?'error':'check_circle'),
+        onOpen:function(){ self.openUnit(u.id); }
+      };
+    });
+
+    var attention = s.units.filter(function(u){ return self.dueOf(u)>0; }).map(function(u){
+      var due=self.dueOf(u); var m=self.monthsDue(u.nextDue);
+      return {
+        initials:self.initials(u.tenant), tenant:u.tenant, unitName:u.name,
+        dueStr:self.fmt(due), monthsLabel:m+(m===1?' month behind':' months behind'),
+        onOpen:function(){ self.openUnit(u.id); },
+        onCollect:function(){ self.openCollect(u.id); }
+      };
+    });
+
+    var outstanding = s.units.reduce(function(a,u){ return a + self.dueOf(u); },0);
+    var monthRoll = s.units.reduce(function(a,u){ return a+u.rent; },0);
+
+    var collected = s.txns.filter(function(t){return t.type==='rent';}).reduce(function(a,t){return a+t.amount;},0);
+    var expenses = s.txns.filter(function(t){return t.type==='expense';}).reduce(function(a,t){return a+t.amount;},0);
+    var monthCollected = s.txns.filter(function(t){return t.type==='rent' && /Jul 2026/.test(t.dateStr);}).reduce(function(a,t){return a+t.amount;},0);
+
+    function mapTxn(t){
+      var isExp = t.type==='expense';
+      return {
+        dateStr:t.dateStr, title:t.tenant,
+        sub: isExp ? ('Expense · '+t.covers) : (self.unitName(t.unit)+' · '+t.method),
+        amountStr: (isExp?'− ':'+ ')+self.fmt(t.amount),
+        color: isExp?'#BE4B33':'#10715A', iconBg: isExp?'#F8E5DF':'#EEF4F1', icon: isExp?'north_east':'south_west'
+      };
+    }
+    var recent = s.txns.slice(0,7).map(mapTxn);
+
+    var selU = s.units.find(function(u){return u.id===s.selUnit;}) || s.units[0];
+    var selDue = this.dueOf(selU); var selM = this.monthsDue(selU.nextDue); var selSt=this.status(selDue,selU.nextDue);
+    // progress bar: how far through the current billing period today is
+    var ps=this.addMonths(selU.nextDue,-1);
+    var tot=this.days(selU.nextDue)-this.days(ps);
+    var el=this.days(this.NOW)-this.days(ps);
+    var pct=Math.max(4, Math.min(100, tot>0 ? Math.round(el/tot*100) : 100));
+    var sel = {
+      name:selU.name, type:selU.type, tenant:selU.tenant, initials:this.initials(selU.tenant),
+      since:this.monthYear(selU.leaseStart), startStr:this.fmtDate(selU.leaseStart),
+      rentStr:this.fmt(selU.rent), coveredThrough:this.fmtDate(this.addDays(selU.nextDue,-1)),
+      statusLabel:selSt.label, statusBg:selSt.bg, statusFg:selSt.fg,
+      balanceLabel:this.balLabel(selDue), balanceColor:this.balColor(selDue),
+      paidPct:pct, barColor:selDue>0?'#BE4B33':'#10715A',
+      tenureColor:selDue>0?'#BE4B33':'#10715A', tenureIcon:selDue>0?'error':'check_circle',
+      tenureLine: selDue>0 ? (selM+(selM===1?' month':' months')+' overdue — accruing since '+this.fmtDate(selU.nextDue)) : ('On track — next rent due '+this.fmtDate(selU.nextDue)),
+      onCollect:function(){ self.openCollect(selU.id); },
+      onEdit:function(){ self.openEditTenant(selU.id); },
+      histOpen:s.histOpen, onToggleHistory:function(){ self.setState({histOpen:!s.histOpen}); },
+      payCount:(function(){ var n=0; s.txns.forEach(function(t){ if(t.type==='rent'&&t.unit===selU.id&&t.tenant===selU.tenant) n++; }); return n; })(),
+      payTotalStr:(function(){ var a=0; s.txns.forEach(function(t){ if(t.type==='rent'&&t.unit===selU.id&&t.tenant===selU.tenant) a+=t.amount; }); return self.fmt(a); })(),
+      histChevron:s.histOpen?'expand_less':'expand_more',
+      unitTotalStr:(function(){ var a=0; s.txns.forEach(function(t){ if(t.type==='rent'&&t.unit===selU.id) a+=t.amount; }); return self.fmt(a); })(),
+      unitOccSince:(function(){ var m=null; s.txns.forEach(function(t){ if(t.type==='rent'&&t.unit===selU.id){ var d=new Date(t.dateStr); if(!m||d<m) m=d; } }); return m?self.fmtDate(self.isoOf(m.toDateString())):'—'; })(),
+      unitTenants:(function(){
+        var by={}; s.txns.forEach(function(t){ if(t.type==='rent'&&t.unit===selU.id){ (by[t.tenant]=by[t.tenant]||[]).push(t); } });
+        var arr=Object.keys(by).map(function(name){
+          var g=by[name].slice().sort(function(a,b){ return new Date(a.dateStr)-new Date(b.dateStr); });
+          var paid=g.reduce(function(a,t){ return a+t.amount; },0); var months=Math.round(paid/300000);
+          var current=(name===selU.tenant); var start=current?selU.leaseStart:self.isoOf(g[0].dateStr);
+          var end=self.addDays(self.addMonths(start,months),-1);
+          var cursor=start; var rows=g.map(function(t){ var mE=Math.round(t.amount/300000); var lab=self.coverLabel(mE,cursor); cursor=self.addMonths(cursor,mE); var sp=self.splitCover(lab); return { dateStr:t.dateStr, months:sp.m, range:sp.r, amountStr:self.fmt(t.amount) }; }).reverse();
+          var obj={ name:name, initials:self.initials(name), current:current, paidStr:self.fmt(paid),
+            period: current ? ('Since '+self.fmtDate(start)) : (self.fmtDate(start)+' – '+self.fmtDate(end)),
+            monthsStr: months+(months===1?' mo':' mo'),
+            badgeLabel:current?'Current':'Past', badgeBg:current?'#E4EFEA':'#F1EDE4', badgeFg:current?'#10715A':'#A7B0A9',
+            unitName:selU.name, rows:rows, lastMs:new Date(g[g.length-1].dateStr).getTime() };
+          obj.onOpen=function(){ self.setState({ tenantHist:obj }); };
+          return obj;
+        });
+        arr.sort(function(a,b){ if(a.current!==b.current) return a.current?-1:1; return b.lastMs-a.lastMs; });
+        return arr;
+      })(),
+      kinName:(selU.kin&&selU.kin.name)?selU.kin.name:'', kinPhone:(selU.kin&&selU.kin.phone)?selU.kin.phone:'', kinRel:(selU.kin&&selU.kin.rel)?selU.kin.rel:'', kinInitials:(selU.kin&&selU.kin.name)?this.initials(selU.kin.name):'', hasKin:!!(selU.kin&&selU.kin.name),
+      history: (function(){ var h=[]; s.txns.forEach(function(t,idx){ if(t.unit===selU.id&&t.tenant===selU.tenant){ var sp=self.splitCover(covers[idx]||t.covers); h.push({ dateStr:t.dateStr, months:sp.m, range:sp.r, amountStr:self.fmt(t.amount) }); } }); return h; })()
+    };
+
+    // collect preview
+    var payU = s.units.find(function(u){return u.id===s.payUnit;}) || s.units[0];
+    var payAmt = this.parseAmt(s.payAmount);
+    var months = payAmt>0 ? Math.round(payAmt/payU.rent) : 0;
+    var newDue = months>0 ? this.addMonths(payU.nextDue, months) : payU.nextDue;
+    var newDueAmt = this.monthsDue(newDue) * payU.rent;
+    var previewLabel = newDueAmt>0 ? this.fmt(newDueAmt)+' due' : 'Paid up';
+    var previewColor = newDueAmt>0 ? '#BE4B33' : '#10715A';
+    var payDueNow = this.dueOf(payU);
+
+    var amtChips = ['300,000','600,000','900,000','1,200,000'].map(function(v){
+      return { label:v, onClick:function(){ self.setState({payAmount:v}); } };
+    });
+
+    function soon(){ self.setState({toast:'Coming soon'}); setTimeout(()=>self.setState({toast:null}),1800); }
+    var moreItems = [
+      { icon:'business', label:'Company profile', onClick:function(){ self.nav('company'); } },
+      { icon:'description', label:'Statements & receipts', onClick:function(){ self.nav('statements'); } },
+      { icon:'insights', label:'Reports', onClick:soon },
+      { icon:'settings', label:'App settings', onClick:soon },
+      { icon:'logout', label:'Sign out', onClick:soon }
+    ];
+
+    var tenantsList = s.units.map(function(u){
+      var due=self.dueOf(u); var st=self.status(due,u.nextDue);
+      return { name:u.tenant, initials:self.initials(u.tenant), unitName:u.name, type:u.type,
+        statusLabel:st.label, statusBg:st.bg, statusFg:st.fg,
+        balanceLabel:self.balLabel(due), balanceColor:self.balColor(due),
+        coveredThrough:self.fmtDate(self.addDays(u.nextDue,-1)),
+        onOpen:function(){ self.openUnit(u.id); } };
+    });
+    var currentNames = s.units.map(function(u){ return u.tenant; });
+    var seen={}, pastTenants=[];
+    s.txns.forEach(function(t){
+      if(t.type!=='rent' || currentNames.indexOf(t.tenant)>=0 || seen[t.tenant]) return;
+      seen[t.tenant]=true;
+      pastTenants.push({ name:t.tenant, initials:self.initials(t.tenant), unitName:self.unitName(t.unit), lastStr:'Last paid '+t.dateStr });
+    });
+
+    var rentTx=[]; s.txns.forEach(function(t,idx){ if(t.type==='rent') rentTx.push({t:t,idx:idx}); });
+    var stReceipts = rentTx.map(function(o,i){
+      var t=o.t;
+      var cv=covers[o.idx]||t.covers; var sp=self.splitCover(cv);
+      var r={ no:'RCP-'+String(rentTx.length-i).padStart(3,'0'), tenant:t.tenant, initials:self.initials(t.tenant), unitName:self.unitName(t.unit), amountStr:self.fmt(t.amount), dateStr:t.dateStr, method:t.method, covers:cv, coverMonths:sp.m, coverRange:sp.r };
+      r.onOpen=function(){ self.openReceipt(r); };
+      return r;
+    });
+    var thisYear=new Date().getFullYear(), prevYear=thisYear-1;
+    var ySet={}; rentTx.forEach(function(o){ ySet[new Date(o.t.dateStr).getFullYear()]=true; });
+    var years=Object.keys(ySet).map(Number).sort(function(a,b){ return b-a; });
+    var stReceiptsF = s.fy==='all' ? stReceipts : stReceipts.filter(function(r){ return new Date(r.dateStr).getFullYear()===Number(s.fy); });
+    var fyNote = s.fy==='all' ? 'newest first' : ('year '+s.fy);
+    var fyActive = s.fy!=='all';
+    function mkItem(key,label){ var on=String(s.fy)===String(key); return { label:label, tickColor:(on?'#10715A':'transparent'), rowBg:(on?'#EBF3EF':'#fff'), onClick:function(){ self.setState({fy:key, fyMenu:false}); } }; }
+    var fyMenuItems=[ mkItem('all','All years') ].concat(years.map(function(y){ return mkItem(y, String(y)); }));
+
+    var accGroups={};
+    s.txns.forEach(function(t,idx){ if(t.type!=='rent') return; var k=t.unit+'|'+t.tenant; (accGroups[k]=accGroups[k]||[]).push(idx); });
+    var accounts=Object.keys(accGroups).map(function(k){
+      var idxs=accGroups[k].slice().sort(function(a,b){ return new Date(s.txns[a].dateStr)-new Date(s.txns[b].dateStr); });
+      var parts=k.split('|'), unitId=parts[0], tenant=parts[1];
+      var unit=s.units.find(function(x){ return x.id===unitId; });
+      var current=!!(unit && unit.tenant===tenant);
+      var leaseStart=current ? unit.leaseStart : self.isoOf(s.txns[idxs[0]].dateStr);
+      var totalMonths=idxs.reduce(function(a,ix){ return a+Math.round(s.txns[ix].amount/300000); },0);
+      var coverEndIso=self.addDays(self.addMonths(leaseStart,totalMonths),-1);
+      var yrs={}; idxs.forEach(function(ix){ yrs[new Date(s.txns[ix].dateStr).getFullYear()]=true; });
+      var acc={ unitId:unitId, tenant:tenant, current:current, leaseStart:leaseStart, coverEndIso:coverEndIso,
+        type:(unit?unit.type:''), rent:300000, name:tenant, initials:self.initials(tenant),
+        unitName:self.unitName(unitId), years:yrs, idxs:idxs, lastMs:new Date(s.txns[idxs[idxs.length-1]].dateStr).getTime() };
+      acc.onOpen=function(){ self.openAccount(acc); };
+      acc.sub=current ? (acc.unitName+' · covered to '+self.fmtDate(coverEndIso)) : (acc.unitName+' · left '+self.fmtDate(coverEndIso));
+      acc.badgeLabel=current?'Active':'Past'; acc.badgeBg=current?'#E4EFEA':'#F1EDE4'; acc.badgeFg=current?'#10715A':'#A7B0A9';
+      return acc;
+    });
+    var stTenants=(s.fy==='all' ? accounts.slice() : accounts.filter(function(a){ return a.years[Number(s.fy)]; }));
+    stTenants.sort(function(a,b){ if(a.current!==b.current) return a.current?-1:1; return b.lastMs-a.lastMs; });
+
+    var active='#10715A', idle='#A7B0A9';
+
+    return {
+      company:company, companyFull:companyFull, property:property, todayStr:this.fmtDate(this.NOW),
+      outstandingSub: (attention.length>0 ? ('across '+attention.length+(attention.length===1?' tenant':' tenants')) : 'all tenants up to date')+' · as of '+this.fmtDate(this.NOW),
+      co:s.company, coInitials:this.initials(s.company.name),
+      tenantsList:tenantsList, pastTenants:pastTenants, activeCount:tenantsList.length, pastCount:pastTenants.length,
+      stReceipts:stReceiptsF, stTenants:stTenants, receiptCount:stReceiptsF.length, fyNote:fyNote,
+      fyMenu:s.fyMenu, fyMenuItems:fyMenuItems, stmtScope:(s.fy==='all'?'':' · '+s.fy),
+      fyBtnBg:(fyActive?'#10715A':'#fff'), fyBtnFg:(fyActive?'#fff':'#3C5147'), fyBtnBd:(fyActive?'#10715A':'#E1D9CA'),
+      toggleFyMenu:function(){ self.setState({fyMenu:!s.fyMenu}); },
+      closeFyMenu:function(){ self.setState({fyMenu:false}); },
+      stTabReceipts:s.stTab==='receipts', stTabStatements:s.stTab==='statements',
+      stRecTabColor:s.stTab==='receipts'?'#fff':'transparent', stRecTabFg:s.stTab==='receipts'?'#10715A':'#6E7B74',
+      stStmTabColor:s.stTab==='statements'?'#fff':'transparent', stStmTabFg:s.stTab==='statements'?'#10715A':'#6E7B74',
+      stReceiptsTab:function(){ self.setState({stTab:'receipts'}); },
+      stStatementsTab:function(){ self.setState({stTab:'statements'}); },
+      receipt:s.receipt, statement:s.statement,
+      closeReceipt:function(){ self.closeReceipt(); },
+      closeStatement:function(){ self.closeStatement(); },
+      shareDoc:function(){ self.shareDoc(); },
+      saveCompany:function(){ self.saveCompany(); },
+      onCoName:function(e){ self.setCo('name', e.target.value); },
+      onCoShort:function(e){ self.setCo('short', e.target.value); },
+      onCoPhone:function(e){ self.setCo('phone', e.target.value); },
+      onCoEmail:function(e){ self.setCo('email', e.target.value); },
+      onCoAddress:function(e){ self.setCo('address', e.target.value); },
+      onCoTin:function(e){ self.setCo('tin', e.target.value); },
+      isHome:s.screen==='home', isUnits:s.screen==='units', isUnit:s.screen==='unit', isTDetail:s.screen==='tdetail', isMoney:s.screen==='money', isMore:s.screen==='more', isCompany:s.screen==='company', isTenants:s.screen==='tenants', isStatements:s.screen==='statements',
+      homeColor: s.screen==='home'?active:idle,
+      unitsColor: (s.screen==='units'||s.screen==='unit'||s.screen==='tdetail')?active:idle,
+      tenantsColor: s.screen==='tenants'?active:idle,
+      moreColor: (s.screen==='more'||s.screen==='company'||s.screen==='statements')?active:idle,
+      heroDot0W: s.heroPage===0?'18px':'7px', heroDot0Bg: s.heroPage===0?'#17241F':'#C9D2CC',
+      heroDot1W: s.heroPage===1?'18px':'7px', heroDot1Bg: s.heroPage===1?'#17241F':'#C9D2CC',
+      onHeroScroll:function(e){ self.onHeroScroll(e); },
+
+      outstandingStr:this.fmt(outstanding), monthRollStr:this.fmt(monthRoll), occStr:s.units.length+' / '+s.units.length,
+      tenantsCount:s.units.length, attentionCount:attention.length,
+      attention:attention, unitsView:unitsView,
+
+      netStr:this.fmt(collected-expenses), collectedStr:this.fmt(collected), expensesStr:this.fmt(expenses),
+      monthExpectedStr:this.fmt(monthRoll), monthCollectedStr:this.fmt(monthCollected), monthOutstandingStr:this.fmt(outstanding),
+      recent:recent,
+
+      sel:sel,
+
+      showCollect:s.showCollect, toast:s.toast,
+      payUnit:s.payUnit, payAmount:s.payAmount, payMethod:s.payMethod, payDate:s.payDate,
+      coverMonthsLabel: months>0 ? ('Extends the lease by '+months+(months===1?' month':' months')) : 'Enter an amount',
+      currentBalanceStr: payDueNow>0 ? this.fmt(payDueNow)+' due' : 'paid up',
+      previewCoverStr: this.fmtDate(this.addDays(newDue,-1)),
+      previewBalanceLabel:previewLabel, previewColor:previewColor,
+      amtChips:amtChips, moreItems:moreItems,
+
+      goHome:function(){ self.nav('home'); },
+      goUnits:function(){ self.nav('units'); },
+      goTenants:function(){ self.nav('tenants'); },
+      goMore:function(){ self.nav('more'); },
+      openCollect:function(){ self.openCollect(); },
+      closeCollect:function(){ self.closeCollect(); },
+      tenantHist:s.tenantHist, closeTenantHist:function(){ self.closeTenantHist(); },
+      openTenant:function(){ self.openTenant(); }, backToUnit:function(){ self.setState({screen:'unit'}); },
+      showNewTenant:s.showNewTenant, ntUnit:s.ntUnit, ntName:s.ntName, ntPhone:s.ntPhone, ntStart:s.ntStart,
+      showEditTenant:s.showEditTenant, etName:s.etName, etPhone:s.etPhone, etKinName:s.etKinName, etKinPhone:s.etKinPhone, etKinRel:s.etKinRel,
+      closeEditTenant:function(){ self.closeEditTenant(); }, submitEditTenant:function(){ self.submitEditTenant(); },
+      onEtName:function(e){ self.setState({etName:e.target.value}); },
+      onEtPhone:function(e){ self.setState({etPhone:e.target.value}); },
+      onEtKinName:function(e){ self.setState({etKinName:e.target.value}); },
+      onEtKinPhone:function(e){ self.setState({etKinPhone:e.target.value}); },
+      onEtKinRel:function(e){ self.setState({etKinRel:e.target.value}); },
+      ntKinName:s.ntKinName, ntKinPhone:s.ntKinPhone, ntKinRel:s.ntKinRel,
+      onNtKinName:function(e){ self.setState({ntKinName:e.target.value}); },
+      onNtKinPhone:function(e){ self.setState({ntKinPhone:e.target.value}); },
+      onNtKinRel:function(e){ self.setState({ntKinRel:e.target.value}); },
+      ntCurrentTenant:(function(){ var u=s.units.find(function(x){return x.id===s.ntUnit;}); return u?u.tenant:''; })(),
+      ntUnitName:(function(){ var u=s.units.find(function(x){return x.id===s.ntUnit;}); return u?u.name:''; })(),
+      openNewTenant:function(){ self.openNewTenant(); },
+      closeNewTenant:function(){ self.closeNewTenant(); },
+      submitNewTenant:function(){ self.submitNewTenant(); },
+      onNtUnit:function(e){ self.setState({ntUnit:e.target.value}); },
+      onNtName:function(e){ self.setState({ntName:e.target.value}); },
+      onNtPhone:function(e){ self.setState({ntPhone:e.target.value}); },
+      onNtStart:function(e){ self.setState({ntStart:e.target.value}); },
+      submitPay:function(){ self.submitPay(); },
+      onUnitChange:function(e){ self.setState({payUnit:e.target.value}); },
+      onAmountChange:function(e){ self.setState({payAmount:e.target.value}); },
+      onDateChange:function(e){ self.setState({payDate:e.target.value}); },
+      onMethodChange:function(e){ self.setState({payMethod:e.target.value}); }
+    };
+  }
+}
+</script>
+</body>
+</html>
