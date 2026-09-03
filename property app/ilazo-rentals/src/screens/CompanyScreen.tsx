@@ -10,6 +10,7 @@ import { colors, font, heroShadow } from '../theme';
 import { useApp } from '../state/StoreProvider';
 import { useUi } from '../state/UiProvider';
 import { initials } from '../../core/names';
+import { DEFAULT_MOTTO } from '../../core/seed';
 import type { MoreStackParamList } from '../navigation';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'Company'>;
@@ -74,6 +75,19 @@ export function CompanyScreen({ navigation }: Props) {
 
           <FieldLabel style={{ marginTop: 12 }}>Address</FieldLabel>
           <Input value={form.address} onChangeText={set('address')} multiline numberOfLines={2} style={{ minHeight: 56, textAlignVertical: 'top' }} />
+
+          <FieldLabel style={{ marginTop: 12 }}>
+            Receipt message <Text style={s.labelHint}>· closing line tenants read</Text>
+          </FieldLabel>
+          <Input
+            value={form.motto ?? ''}
+            onChangeText={set('motto')}
+            placeholder={DEFAULT_MOTTO}
+            multiline
+            numberOfLines={2}
+            style={{ minHeight: 56, textAlignVertical: 'top' }}
+          />
+          <Text style={s.fieldHint}>Prints at the foot of every receipt and statement you share.</Text>
         </Card>
 
         <Pressable accessibilityRole="button" onPress={save} style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.9 }]}>
@@ -88,6 +102,7 @@ export function CompanyScreen({ navigation }: Props) {
 const s = StyleSheet.create({
   logo: { width: 62, height: 62, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   logoText: { fontFamily: font.heading, fontSize: 22, color: '#fff' },
+  fieldHint: { marginTop: 6, fontSize: 11.5, lineHeight: 16, color: colors.muted3, fontFamily: font.body },
   logoBtn: {
     alignSelf: 'flex-start',
     borderWidth: 1,

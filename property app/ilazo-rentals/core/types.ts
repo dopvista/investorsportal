@@ -64,6 +64,10 @@ export interface Company {
   email: string;
   address: string;
   tin: string;
+  /** Closing line on receipts and statements — the tenant reads this, so it
+      is the company's own words, not a system status. Optional: ledgers
+      saved before this existed fall back to DEFAULT_MOTTO. */
+  motto?: string;
 }
 
 export type StatusKind = 'arrears' | 'ahead' | 'current';

@@ -9,6 +9,7 @@ import type { Company } from '../../core/types';
 import type { Receipt, StatementData } from '../../core/statements';
 import { fmt } from '../../core/money';
 import { fmtDate } from '../../core/dates';
+import { DEFAULT_MOTTO } from '../../core/seed';
 
 const LINE = '━━━━━━━━━━━━━━━━━━━━';
 
@@ -28,7 +29,8 @@ export function receiptShareText(company: Company, r: Receipt): string {
     `Method: *${r.method}*`,
     `Date paid: *${fmtDate(r.date)}*`,
     `Receipt no: *${r.no}*`,
-    `Status: ✅ *Completed successfully*`,
+    LINE,
+    `_${company.motto || DEFAULT_MOTTO}_`,
     LINE,
     `_${company.short || company.name} · TIN ${company.tin}_`,
     `_${company.phone}_`,
@@ -69,6 +71,7 @@ export function statementShareText(company: Company, s: StatementData): string {
       if (p.months || p.range) lines.push(`   _${[p.months, p.range].filter(Boolean).join(' · ')}_`);
     }
   }
-  lines.push(LINE, `_${company.short || company.name} · TIN ${company.tin} · ${company.phone}_`);
+  lines.push(LINE, `_${company.motto || DEFAULT_MOTTO}_`, LINE,
+            `_${company.short || company.name} · TIN ${company.tin} · ${company.phone}_`);
   return lines.join('\n');
 }

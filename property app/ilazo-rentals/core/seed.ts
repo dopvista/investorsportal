@@ -12,6 +12,15 @@
  */
 import type { Company, Txn, Unit } from './types';
 
+/**
+ * Closing line on tenant-facing documents when Company profile leaves it blank.
+ *
+ * The company motto, chosen by the owner 2026-09-03. Deliberately just two
+ * words: on a receipt the tenant has already read the numbers, so the last
+ * line only has to be warm. Longer lines were tried and cut.
+ */
+export const DEFAULT_MOTTO = 'Asante sana.';
+
 export const SEED_COMPANY: Company = {
   name: 'Dodoma Contemporary Appartments',
   short: 'Dodoma Contemporary',
@@ -19,6 +28,7 @@ export const SEED_COMPANY: Company = {
   email: 'info@dca.co.tz',
   address: 'P.O. Box 1234, Ilazo, Dodoma, Tanzania',
   tin: '123-456-789',
+  motto: DEFAULT_MOTTO,
 };
 
 export const PROPERTY_NAME = 'Ilazo';

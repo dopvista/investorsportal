@@ -10,6 +10,7 @@ import { colors, font } from '../theme';
 import { useApp } from '../state/StoreProvider';
 import type { StatementData } from '../../core/statements';
 import { fmt } from '../../core/money';
+import { DEFAULT_MOTTO } from '../../core/seed';
 import { fmtDate } from '../../core/dates';
 import { initials } from '../../core/names';
 import { statementShareText } from '../lib/shareText';
@@ -56,17 +57,13 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
             <Text style={s.logoText}>{initials(company.name)}</Text>
           </LinearGradient>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.coName} numberOfLines={1}>
-              {company.name}
-            </Text>
+            <Text style={s.coName}>{company.name}</Text>
             <Text style={s.coSub}>Tenant statement</Text>
           </View>
         </View>
 
         <View style={s.dashed} />
-        <Text style={s.tenant} numberOfLines={1}>
-          {statement.tenant}
-        </Text>
+        <Text style={s.tenant}>{statement.tenant}</Text>
         <Text style={s.meta} numberOfLines={1}>
           {statement.unitName}
           {statement.type ? ` · ${statement.type}` : ''} · rent {fmt(statement.rent)}/mo
@@ -136,6 +133,13 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
             </View>
           ))
         )}
+
+        {/* A statement is shared with the tenant too, so it closes in the
+            company's own words rather than trailing off after the table. */}
+        <View style={s.mottoWrap}>
+          <View style={s.mottoRule} />
+          <Text style={s.motto}>{company.motto || DEFAULT_MOTTO}</Text>
+        </View>
       </Card>
       </View>
 
@@ -176,6 +180,9 @@ const s = StyleSheet.create({
   reconValue: { marginLeft: 'auto', fontFamily: font.heading, fontSize: 18 },
 
   coveredRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
+  mottoWrap: { marginTop: 18, alignItems: 'center' },
+  mottoRule: { width: 34, height: 2, borderRadius: 1, backgroundColor: colors.greenPillBg, marginBottom: 11 },
+  motto: { fontSize: 12.5, lineHeight: 18, color: colors.muted2, fontFamily: font.bodySemi, textAlign: 'center', paddingHorizontal: 6 },
   coveredLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.body },
   coveredValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.ink },
 

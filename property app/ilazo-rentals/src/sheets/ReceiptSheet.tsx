@@ -14,6 +14,7 @@ import type { Receipt } from '../../core/statements';
 import { fmt } from '../../core/money';
 import { fmtDate } from '../../core/dates';
 import { initials } from '../../core/names';
+import { DEFAULT_MOTTO } from '../../core/seed';
 
 export function ReceiptSheet({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
   const company = useApp((s) => s.company);
@@ -47,9 +48,7 @@ export function ReceiptSheet({ receipt, onClose }: { receipt: Receipt; onClose: 
             <Text style={s.logoText}>{initials(company.name)}</Text>
           </LinearGradient>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.coName} numberOfLines={1}>
-              {company.name}
-            </Text>
+            <Text style={s.coName}>{company.name}</Text>
             <Text style={s.coAddress} numberOfLines={1}>
               {company.address}
             </Text>
@@ -85,12 +84,12 @@ export function ReceiptSheet({ receipt, onClose }: { receipt: Receipt; onClose: 
           </Text>
         </View>
 
-        <View style={s.statusRow}>
-          <Text style={s.rowLabel}>Status</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="check-circle" size={16} color={colors.green} />
-            <Text style={s.statusValue}>Completed successfully</Text>
-          </View>
+        {/* The tenant is the reader here. "Completed successfully" told them
+            something they already knew and sounded like a machine; the closing
+            line is the company speaking instead. */}
+        <View style={s.mottoWrap}>
+          <View style={s.mottoRule} />
+          <Text style={s.motto}>{company.motto || DEFAULT_MOTTO}</Text>
         </View>
       </Card>
       </View>
@@ -123,9 +122,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={s.row}>
       <Text style={s.rowLabel}>{label}</Text>
-      <Text style={s.rowValue} numberOfLines={1}>
-        {value}
-      </Text>
+      {/* Wraps rather than truncates: a shared receipt must name the payer
+          in full, even a long one. */}
+      <Text style={s.rowValue}>{value}</Text>
     </View>
   );
 }
@@ -157,8 +156,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 13 },
-  statusValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.green },
+  mottoWrap: { marginTop: 16, alignItems: 'center' },
+  mottoRule: { width: 34, height: 2, borderRadius: 1, backgroundColor: colors.greenPillBg, marginBottom: 11 },
+  motto: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.muted2,
+    fontFamily: font.bodySemi,
+    textAlign: 'center',
+    paddingHorizontal: 6,
+  },
   amountLabel: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.previewSub },
   evidenceLabel: { fontSize: 11, fontFamily: font.bodyXBold, letterSpacing: 0.6, color: colors.muted2 },
   amountValue: { marginLeft: 'auto', fontFamily: font.heading, fontSize: 22, color: colors.green },
