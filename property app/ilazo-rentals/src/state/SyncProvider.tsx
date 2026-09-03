@@ -133,7 +133,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       for (let attempt = 0; ; attempt++) {
         const remote = await fetchRemote();
         const local = snapshot();
-        const merged = remote ? mergeLedgers(local, remote.data, dirtyRef.current) : local;
+        // A phone that has never synced has no claim to be the newer copy —
+        // it may have been sitting on a months-old ledger. Its payments are
+        // still merged in (the union never drops a transaction), but the
+        // cloud wins wherever the two disagree about the same record. Without
+        // this, signing in on a stale phone would quietly push that staleness
+        // over a good copy before anyone could reach "Restore".
+        const preferLocal = stampRef.current !== null && dirtyRef.current;
+        const merged = remote ? mergeLedgers(local, remote.data, preferLocal) : local;
         try {
           const stamp = await pushRemote({
             userId: uid,

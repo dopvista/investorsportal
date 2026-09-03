@@ -99,6 +99,32 @@ describe('mergeLedgers', () => {
     expect(mergeLedgers(local, remote, false).company.name).toBe('Remote Co');
   });
 
+  // The Fold case: a phone that sat unopened for days, then signed in. The
+  // provider passes preferLocal=false for a phone that has never synced, so
+  // its staleness must not travel upward — while anything only it has is
+  // still kept.
+  test('a stale phone signing in does not push its staleness over the cloud', () => {
+    const remote = base();                       // the good, current cloud copy
+    const stale = base();
+    stale.units = stale.units.slice(0, 4);       // missing the newest unit
+    stale.txns = stale.txns.slice(5);            // missing the newest payments
+    stale.units[0] = { ...stale.units[0], rent: 111 };      // an old rent figure
+    stale.company = { ...stale.company, name: 'Stale Co' };
+    const onlyHere = pay('FOLD1', stale.units[1], '2026-08-20', 1);
+    stale.txns = [onlyHere, ...stale.txns];      // ...but one payment only it has
+
+    const merged = mergeLedgers(stale, remote, false);
+
+    // Nothing stale wins.
+    expect(merged.units).toHaveLength(remote.units.length);
+    expect(merged.units.find((u) => u.id === remote.units[0].id)!.rent).toBe(remote.units[0].rent);
+    expect(merged.company.name).toBe(remote.company.name);
+    // Every payment the cloud had is still there...
+    for (const t of remote.txns) expect(merged.txns.map((x) => x.id)).toContain(t.id);
+    // ...and the one the stale phone alone held is kept, not discarded.
+    expect(merged.txns.map((t) => t.id)).toContain('FOLD1');
+  });
+
   test('merged balance stays consistent with the engine', () => {
     const local = base(); const remote = base();
     const u = remote.units[1];
