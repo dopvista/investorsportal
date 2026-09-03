@@ -13,6 +13,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { ConflictError, fetchRemote, getDeviceId, pushRemote } from '../lib/cloud';
@@ -20,6 +21,8 @@ import type { BackupData } from '../lib/backup';
 import { useAppStore } from './StoreProvider';
 
 const STAMP_KEY = 'ilazo-last-synced-stamp';
+/** Must also be listed under Supabase Auth -> URL Configuration -> Redirect URLs. */
+export const REDIRECT_URL = 'ilazorentals://auth-callback';
 
 export type SyncStatus = 'signedOut' | 'idle' | 'syncing' | 'error' | 'conflict';
 
@@ -30,7 +33,8 @@ interface SyncContextValue {
   message: string | null;
   /** Server stamp of the snapshot this phone last agreed with. */
   lastSyncedAt: string | null;
-  signIn(email: string, password: string): Promise<void>;
+  /** Google is the only sign-in method — no passwords are handled by this app. */
+  signInWithGoogle(): Promise<void>;
   signOut(): Promise<void>;
   /** Upload now. `force` overwrites a conflicting cloud copy. */
   backupNow(force?: boolean): Promise<void>;
@@ -161,16 +165,53 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [session, store, backupNow]);
 
-  const signIn = useCallback(async (em: string, password: string) => {
+  /**
+   * Google sign-in via the system browser.
+   *
+   * Uses the Google provider already configured on this Supabase project (the
+   * web portal signs in the same way), so there is no separate Google Cloud
+   * client and no signing-key fingerprint to register. supabase-js defaults to
+   * PKCE, so the callback carries a `code` we exchange for a session; the
+   * implicit `#access_token` form is handled too for safety.
+   */
+  const signInWithGoogle = useCallback(async () => {
     setStatus('syncing');
     setMessage(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: em.trim(), password });
-    if (error) {
+    try {
+      const redirectTo = REDIRECT_URL;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.url) throw new Error('Could not start Google sign-in');
+
+      const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (res.type !== 'success' || !res.url) {
+        // User dismissed the browser — not an error worth shouting about.
+        setStatus('signedOut');
+        return;
+      }
+
+      const url = new URL(res.url);
+      const code = url.searchParams.get('code');
+      if (code) {
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exErr) throw new Error(exErr.message);
+      } else {
+        const hash = new URLSearchParams((res.url.split('#')[1] ?? ''));
+        const access_token = hash.get('access_token');
+        const refresh_token = hash.get('refresh_token');
+        if (!access_token || !refresh_token) throw new Error('Google did not return a session');
+        const { error: sErr } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (sErr) throw new Error(sErr.message);
+      }
+      setStatus('idle');
+    } catch (e: any) {
       setStatus('signedOut');
-      setMessage(error.message);
-      throw new Error(error.message);
+      setMessage(e?.message ?? 'Google sign-in failed');
+      throw e;
     }
-    setStatus('idle');
   }, []);
 
   const signOut = useCallback(async () => {
@@ -187,7 +228,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         status,
         message,
         lastSyncedAt,
-        signIn,
+        signInWithGoogle,
         signOut,
         backupNow,
         restoreFromCloud,

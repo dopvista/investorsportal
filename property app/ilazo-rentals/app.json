@@ -38,7 +38,9 @@
           "cameraPermission": "Allow Ilazo Rentals to photograph payment receipts."
         }
       ],
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      "expo-web-browser"
+    ],
+    "scheme": "ilazorentals"
   }
 }

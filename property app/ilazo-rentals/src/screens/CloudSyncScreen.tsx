@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../ui/Screen';
 import { BackHeader } from '../ui/BackHeader';
-import { Card, FieldLabel, Input } from '../ui/primitives';
+import { Card } from '../ui/primitives';
 import { PrimaryButton } from '../ui/fields';
 import { Icon } from '../ui/Icon';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, font } from '../theme';
 import { useSync } from '../state/SyncProvider';
 import { useUi } from '../state/UiProvider';
 import type { MoreStackParamList } from '../navigation';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'CloudSync'>;
+
+/** Google mark for the sign-in button (MaterialCommunityIcons ships the logo). */
+function GoogleMark() {
+  return <MaterialCommunityIcons name="google" size={20} color="#4285F4" />;
+}
 
 function stamp(iso: string | null) {
   if (!iso) return 'never';
@@ -20,24 +26,17 @@ function stamp(iso: string | null) {
 }
 
 export function CloudSyncScreen({ navigation }: Props) {
-  const { session, email, status, message, lastSyncedAt, signIn, signOut, backupNow, restoreFromCloud } = useSync();
+  const { session, email, status, message, lastSyncedAt, signInWithGoogle, signOut, backupNow, restoreFromCloud } = useSync();
   const { showToast } = useUi();
-  const [em, setEm] = useState('');
-  const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
 
   const doSignIn = async () => {
-    if (!em.trim() || !pw) {
-      showToast('Enter your email and password');
-      return;
-    }
     setBusy(true);
     try {
-      await signIn(em, pw);
-      setPw('');
+      await signInWithGoogle();
       showToast('Signed in — cloud sync on');
     } catch (e: any) {
-      showToast(e?.message ?? 'Sign in failed', 3000);
+      showToast(e?.message ?? 'Google sign-in failed', 3000);
     } finally {
       setBusy(false);
     }
@@ -79,24 +78,21 @@ export function CloudSyncScreen({ navigation }: Props) {
               </Text>
             </Card>
 
-            <FieldLabel style={{ marginTop: 18 }}>Email</FieldLabel>
-            <Input
-              value={em}
-              onChangeText={setEm}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder="you@example.com"
-              placeholderTextColor={colors.muted3}
-            />
-            <FieldLabel style={{ marginTop: 14 }}>Password</FieldLabel>
-            <Input
-              value={pw}
-              onChangeText={setPw}
-              secureTextEntry
-              placeholder="••••••••"
-              placeholderTextColor={colors.muted3}
-            />
-            <PrimaryButton label={busy ? 'Signing in…' : 'Sign in'} onPress={doSignIn} onCancel={() => navigation.goBack()} />
+            <Pressable
+              onPress={doSignIn}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              style={({ pressed }) => [s.googleBtn, pressed && { opacity: 0.85 }]}
+            >
+              <GoogleMark />
+              <Text style={s.googleText}>{busy ? 'Opening Google…' : 'Continue with Google'}</Text>
+            </Pressable>
+
+            <Text style={s.authNote}>
+              Signs you in with the same Google account you use for the Investors Portal. This app never
+              asks for or stores a password.
+            </Text>
           </>
         ) : (
           <>
@@ -162,6 +158,20 @@ export function CloudSyncScreen({ navigation }: Props) {
 }
 
 const s = StyleSheet.create({
+  googleBtn: {
+    marginTop: 20,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 11,
+  },
+  googleText: { fontSize: 15, fontFamily: font.bodyBold, color: colors.ink, includeFontPadding: false },
+  authNote: { marginTop: 14, fontSize: 11.5, lineHeight: 17, color: colors.muted3, fontFamily: font.body, textAlign: 'center' },
   infoCard: { borderRadius: 16, padding: 14, flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   infoText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.muted, fontFamily: font.body },
   statusCard: { borderRadius: 18, padding: 16 },
