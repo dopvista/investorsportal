@@ -56,7 +56,7 @@ export function statementShareText(company: Company, s: StatementData): string {
     `_${s.chargedSub}_`,
     `Paid: *TZS ${fmt(s.received)}*`,
     `_${s.paidSub}_`,
-    `${s.balance.label}: *${balanceValue}*`,
+    `${s.balance.label}${s.balance.at ? ` ${s.balance.at}` : ''}: *${balanceValue}*`,
     `_${s.balance.sub}_`,
     '',
     `Paid up to: *${fmtDate(s.coverEnd)}*`,

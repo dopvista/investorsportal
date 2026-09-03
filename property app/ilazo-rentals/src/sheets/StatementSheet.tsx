@@ -80,22 +80,23 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
         {/* 3-way reconciliation: Rent charged = Paid + Outstanding */}
         <View style={{ gap: 9, marginTop: 14 }}>
           <View style={[s.reconRow, { backgroundColor: colors.bg }]}>
-            <View style={{ minWidth: 0 }}>
+            <View style={s.reconLabelCol}>
               <Text style={[s.reconLabel, { color: colors.ink }]}>Rent charged</Text>
               <Text style={[s.reconSub, { color: colors.faint }]}>{statement.chargedSub}</Text>
             </View>
             <Text style={[s.reconValue, { color: colors.ink }]}>{fmt(statement.charged)}</Text>
           </View>
           <View style={[s.reconRow, { backgroundColor: colors.previewBg }]}>
-            <View style={{ minWidth: 0 }}>
+            <View style={s.reconLabelCol}>
               <Text style={[s.reconLabel, { color: colors.greenDark }]}>Paid</Text>
               <Text style={[s.reconSub, { color: colors.previewMuted }]}>{statement.paidSub}</Text>
             </View>
             <Text style={[s.reconValue, { color: colors.green }]}>{fmt(statement.received)}</Text>
           </View>
           <View style={[s.reconRow, { backgroundColor: bs.bg }]}>
-            <View style={{ minWidth: 0 }}>
+            <View style={s.reconLabelCol}>
               <Text style={[s.reconLabel, { color: bs.label }]}>{b.label}</Text>
+              {!!b.at && <Text style={[s.reconAt, { color: bs.label }]}>{b.at}</Text>}
               <Text style={[s.reconSub, { color: bs.sub }]}>{b.sub}</Text>
             </View>
             <Text style={[s.reconValue, { color: bs.value }]}>{balanceValue}</Text>
@@ -174,16 +175,25 @@ const s = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 15,
+    // The label is the longest thing here ("Balance at 03 Sep 2026") and the
+    // figure is the thing nobody may misread, so a real gap holds them apart
+    // and the label — not the amount — gives way when space runs short.
+    gap: 12,
   },
-  reconLabel: { fontSize: 12.5, fontFamily: font.bodyBold },
-  reconSub: { fontSize: 11, marginTop: 1, fontFamily: font.body },
-  reconValue: { marginLeft: 'auto', fontFamily: font.heading, fontSize: 18 },
+  reconLabelCol: { flex: 1, minWidth: 0 },
+  reconLabel: { fontSize: 12.5, lineHeight: 16, fontFamily: font.bodyBold },
+  // Smaller than the title it belongs to, and on its own line: three short
+  // lines cost less height than a two-line title plus a sub, so the card does
+  // not grow.
+  reconAt: { fontSize: 11, lineHeight: 14, fontFamily: font.bodySemi },
+  reconSub: { fontSize: 11, lineHeight: 14, marginTop: 1, fontFamily: font.body },
+  reconValue: { marginLeft: 'auto', flexShrink: 0, fontFamily: font.heading, fontSize: 18 },
 
-  coveredRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
+  coveredRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
   mottoWrap: { marginTop: 18, alignItems: 'center' },
   mottoRule: { width: 34, height: 2, borderRadius: 1, backgroundColor: colors.greenPillBg, marginBottom: 11 },
   motto: { fontSize: 11.5, lineHeight: 17, color: colors.muted2, fontFamily: font.bodySemi, textAlign: 'center', paddingHorizontal: 2, letterSpacing: -0.1 },
-  coveredLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.body },
+  coveredLabel: { flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 17, color: colors.muted2, fontFamily: font.body },
   coveredValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.ink },
 
   paysEyebrow: { fontSize: 11, fontFamily: font.bodyXBold, letterSpacing: 0.7, color: colors.muted2, marginBottom: 8 },

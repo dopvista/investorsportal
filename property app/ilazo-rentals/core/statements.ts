@@ -102,6 +102,13 @@ export interface StatementData {
   balance: {
     kind: StatementBalanceKind;
     label: string;
+    /**
+     * The date the balance is struck, as its own line ("at 03 Sep 2026").
+     * Kept apart from `label` so the sheet can set it in smaller type instead
+     * of letting a long title wrap and shove the figure out of its box.
+     * Absent for a full-account statement, which is as-of today by definition.
+     */
+    at?: string;
     sub: string;
     /** Absolute TZS amount (0 for nil). */
     amount: number;
@@ -187,13 +194,14 @@ export function buildStatement(
     paidSub = `${mw(monthsPaidInYear)} paid in ${year}`;
     // Carry in months (payments buy whole months), valued at the current rent.
     const closing = (chargedToAsOf - monthsPaidThroughAsOf) * rent;
-    const label = `Balance at ${yearEnd <= stayedCap ? `31 Dec ${year}` : fmtDate(stayedCap)}`;
+    const label = 'Balance';
+    const at = `at ${yearEnd <= stayedCap ? `31 Dec ${year}` : fmtDate(stayedCap)}`;
     if (closing > 0) {
-      balance = { kind: 'due', label, sub: `${mw(Math.round(closing / rent))} unpaid`, amount: closing };
+      balance = { kind: 'due', label, at, sub: `${mw(Math.round(closing / rent))} unpaid`, amount: closing };
     } else if (closing < 0) {
-      balance = { kind: 'credit', label, sub: `${mw(Math.round(-closing / rent))} ahead`, amount: -closing };
+      balance = { kind: 'credit', label, at, sub: `${mw(Math.round(-closing / rent))} ahead`, amount: -closing };
     } else {
-      balance = { kind: 'nil', label, sub: 'settled', amount: 0 };
+      balance = { kind: 'nil', label, at, sub: 'settled', amount: 0 };
     }
     periodLabel = `${account.current ? 'Year ' : 'Former · Year '}${year}`;
   }

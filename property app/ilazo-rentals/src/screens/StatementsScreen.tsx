@@ -133,8 +133,11 @@ export function StatementsScreen({ navigation }: Props) {
                   <Avatar name={a.tenant} size={42} rad={13} fontSize={13} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={s.acctName} numberOfLines={1}>{a.tenant}</Text>
+                    {/* "covered to" cost the date its year on a 360dp row.
+                        The Active/Past pill beside this already says which
+                        state the date describes, so the word is redundant. */}
                     <Text style={s.acctSub} numberOfLines={1}>
-                      {a.unitName} · {a.current ? 'covered to' : 'left'} {fmtDate(a.coverEnd)}
+                      {a.unitName} · {a.current ? 'to' : 'left'} {fmtDate(a.coverEnd)}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -143,10 +146,7 @@ export function StatementsScreen({ navigation }: Props) {
                         {a.current ? 'Active' : 'Past'}
                       </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                      <Text style={s.generate}>Generate</Text>
-                      <Icon name="chevron-right" size={18} color={colors.green} />
-                    </View>
+                    <Icon name="chevron-right" size={18} color={colors.green} />
                   </View>
                 </Card>
               ))
@@ -224,7 +224,6 @@ const s = StyleSheet.create({
   acctSub: { fontSize: 11.5, color: colors.muted3, fontFamily: font.body },
   badge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontFamily: font.bodyXBold },
-  generate: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.green },
 
   fyTitle: { flex: 1, fontFamily: font.heading, fontSize: 17, color: colors.ink },
   closeBtn: {

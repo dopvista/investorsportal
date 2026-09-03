@@ -101,7 +101,7 @@ describe('annual statements with opening/closing carry', () => {
     expect(s.charged).toBe(3600000);
     expect(s.chargedSub).toBe('12 months in 2025');
     expect(s.received).toBe(3600000);
-    expect(s.balance).toMatchObject({ kind: 'credit', amount: 300000, label: 'Balance at 31 Dec 2025' });
+    expect(s.balance).toMatchObject({ kind: 'credit', amount: 300000, label: 'Balance', at: 'at 31 Dec 2025' });
     expect(s.periodLabel).toBe('Year 2025');
   });
 
@@ -116,7 +116,7 @@ describe('annual statements with opening/closing carry', () => {
     const s = buildStatement(mukhsin, covers, 2026, TODAY);
     expect(s.charged).toBe(1800000); // months 21–26 of the lease fall in 2026 up to 2 Jul
     expect(s.received).toBe(900000);
-    expect(s.balance).toMatchObject({ kind: 'due', amount: 600000, label: 'Balance at 02 Jul 2026' });
+    expect(s.balance).toMatchObject({ kind: 'due', amount: 600000, label: 'Balance', at: 'at 02 Jul 2026' });
   });
 
   test('the carry chains in months: closing(y) = closing(y−1) + charged(y) − months paid(y)', () => {
@@ -138,7 +138,7 @@ describe('annual statements with opening/closing carry', () => {
     const s = buildStatement(acc('Subira Salum'), covers, 2025, TODAY);
     expect(s.charged).toBe(900000); // Jan–Apr periods up to her 5 Apr 2025 move-out
     expect(s.received).toBe(0); // both her payments were in 2024
-    expect(s.balance).toMatchObject({ kind: 'nil', label: 'Balance at 05 Apr 2025' });
+    expect(s.balance).toMatchObject({ kind: 'nil', label: 'Balance', at: 'at 05 Apr 2025' });
     expect(s.periodLabel).toBe('Former · Year 2025');
   });
 });
