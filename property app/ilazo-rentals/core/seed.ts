@@ -15,11 +15,15 @@ import type { Company, Txn, Unit } from './types';
 /**
  * Closing line on tenant-facing documents when Company profile leaves it blank.
  *
- * The company motto, chosen by the owner 2026-09-03. Deliberately just two
- * words: on a receipt the tenant has already read the numbers, so the last
- * line only has to be warm. Longer lines were tried and cut.
+ * The company motto, chosen by the owner 2026-09-03.
+ *
+ * It must sit on ONE line. At the receipt's old 12.5px it measured ~246dp
+ * against ~245dp of space on a 360dp phone - it fitted on the Fold and
+ * would have wrapped on the Oppo. The footer type is 11.5px so this line
+ * clears the narrowest screen with room to spare; check that margin before
+ * making the default any longer.
  */
-export const DEFAULT_MOTTO = 'Asante sana.';
+export const DEFAULT_MOTTO = 'Contemporary living, in the heart of Dodoma.';
 
 export const SEED_COMPANY: Company = {
   name: 'Dodoma Contemporary Appartments',

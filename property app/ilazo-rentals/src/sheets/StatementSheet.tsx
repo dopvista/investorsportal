@@ -182,7 +182,7 @@ const s = StyleSheet.create({
   coveredRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
   mottoWrap: { marginTop: 18, alignItems: 'center' },
   mottoRule: { width: 34, height: 2, borderRadius: 1, backgroundColor: colors.greenPillBg, marginBottom: 11 },
-  motto: { fontSize: 12.5, lineHeight: 18, color: colors.muted2, fontFamily: font.bodySemi, textAlign: 'center', paddingHorizontal: 6 },
+  motto: { fontSize: 11.5, lineHeight: 17, color: colors.muted2, fontFamily: font.bodySemi, textAlign: 'center', paddingHorizontal: 2, letterSpacing: -0.1 },
   coveredLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.body },
   coveredValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.ink },
 

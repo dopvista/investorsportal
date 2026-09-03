@@ -52,6 +52,13 @@ export interface AppState {
   saveCompany(company: Company): void;
   /** Replace the entire ledger from a backup file (Import / restore). */
   importData(data: { units: Unit[]; txns: Txn[]; company: Company }): void;
+  /**
+   * Rewrite the evidence entries of specific transactions.
+   *
+   * Used when a legacy device-local image path is migrated to a shared key.
+   * Nothing else on the transaction is touched.
+   */
+  setTxnEvidence(patches: { id: string; evidence: string[] }[]): void;
   resetToSeed(): void;
   markHydrated(): void;
 }
@@ -117,6 +124,14 @@ export function createAppStore(storage: StorageAdapter) {
 
         importData(data) {
           set({ units: data.units, txns: data.txns, company: data.company });
+        },
+
+        setTxnEvidence(patches) {
+          if (patches.length === 0) return;
+          const by = new Map(patches.map((p) => [p.id, p.evidence]));
+          set({
+            txns: get().txns.map((t) => (by.has(t.id) ? { ...t, evidence: by.get(t.id)! } : t)),
+          });
         },
 
         resetToSeed() {

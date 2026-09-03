@@ -15,6 +15,10 @@
  *   only a sync the user asked for is allowed to report an error.
  * - "Restore" is the one deliberate, destructive action — it replaces this
  *   phone's ledger with the cloud copy, so it always asks first.
+ * - Attachments ride along. The ledger only carries evidence KEYS, so after
+ *   each ledger sync the images themselves are reconciled against Storage
+ *   (see lib/evidenceStore.ts). That step is best-effort and never fails a
+ *   sync: a missing photo must not hold up a payment record.
  */
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
@@ -24,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { ConflictError, fetchRemote, fetchRemoteStamp, getDeviceId, pushRemote } from '../lib/cloud';
 import { mergeLedgers } from '../../core/merge';
+import { syncEvidence } from '../lib/evidenceStore';
 import type { BackupData } from '../lib/backup';
 import { useAppStore } from './StoreProvider';
 
@@ -108,6 +113,32 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [store]);
 
   /**
+   * Push and pull the attachment images.
+   *
+   * Deliberately detached from the ledger sync: it runs after the write has
+   * landed and its failures are swallowed, because an unreachable photo is not
+   * a reason to report that a payment failed to sync.
+   *
+   * Migrating a legacy device-local path to a shared key edits the ledger, so
+   * it marks the phone dirty and asks for one more sync to publish the new
+   * keys to the other device.
+   */
+  const reconcileEvidence = useCallback(
+    async (uid: string) => {
+      try {
+        const res = await syncEvidence(uid, store.getState().txns);
+        if (res.patches.length > 0) {
+          store.getState().setTxnEvidence(res.patches);
+          dirtyRef.current = true;
+        }
+      } catch {
+        // Retried on the next sync.
+      }
+    },
+    [store],
+  );
+
+  /**
    * Pull, merge, push — a compare-and-swap.
    *
    * We read the cloud copy, merge it with this phone's ledger (union of
@@ -154,6 +185,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           setStamp(stamp);
           setStatus('idle');
           setMessage('Synced');
+          void reconcileEvidence(uid);
           return;
         } catch (e) {
           // The other phone wrote between our read and our write — merge again.
@@ -169,7 +201,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       busyRef.current = false;
     }
-  }, [session, snapshot, store, setStamp]);
+  }, [session, snapshot, store, setStamp, reconcileEvidence]);
 
   const restoreFromCloud = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -186,11 +218,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setStamp(remote.updatedAt);
       setStatus('idle');
       setMessage('Restored from cloud');
+      // The restored ledger references images this phone may never have held.
+      void reconcileEvidence(session.user.id);
     } catch (e: any) {
       setStatus('error');
       setMessage(e?.message ?? 'Restore failed');
     }
-  }, [session, store, setStamp]);
+  }, [session, store, setStamp, reconcileEvidence]);
 
   /**
    * The poll. With nothing to push, it asks only for the server's timestamp —

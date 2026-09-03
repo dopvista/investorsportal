@@ -2,13 +2,12 @@
  * Payment-evidence images: picking (gallery/camera) and persisting.
  *
  * Picker results live in a temporary cache, so before a payment is saved the
- * images are copied into the app's document directory — they then survive
- * restarts and cache clears, and their URIs are stored on the transaction.
+ * image is copied into the app's document directory. What goes on the
+ * transaction is the KEY (a bare filename), never the device path — a path
+ * means nothing on the other phone. See lib/evidenceStore.ts.
  */
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-
-const EVIDENCE_DIR = `${FileSystem.documentDirectory}evidence/`;
+import { adoptLocalFile, newEvidenceKey } from './evidenceStore';
 
 /**
  * Pick an image from the gallery (screenshots, saved photos).
@@ -35,31 +34,19 @@ export async function captureEvidencePhoto(): Promise<string[]> {
   return res.assets.map((a) => a.uri);
 }
 
-/** Copy picked images into permanent app storage; returns the stored URIs. */
+/**
+ * Copy picked images into permanent app storage; returns their keys.
+ *
+ * The key is what the transaction stores and what syncs, so it is minted here
+ * once and never derived from the device path again.
+ */
 export async function persistEvidence(uris: string[]): Promise<string[]> {
-  if (uris.length === 0) return [];
-  const dir = await FileSystem.getInfoAsync(EVIDENCE_DIR);
-  if (!dir.exists) {
-    await FileSystem.makeDirectoryAsync(EVIDENCE_DIR, { intermediates: true });
-  }
   const out: string[] = [];
-  for (let i = 0; i < uris.length; i++) {
-    const src = uris[i];
-    // Already persisted (e.g. editing flow) — keep as-is.
-    if (src.startsWith(EVIDENCE_DIR)) {
-      out.push(src);
-      continue;
-    }
-    const extMatch = /\.(\w{3,4})(\?|$)/.exec(src);
-    const ext = extMatch ? extMatch[1] : 'jpg';
-    const dest = `${EVIDENCE_DIR}ev-${Date.now()}-${i}.${ext}`;
-    try {
-      await FileSystem.copyAsync({ from: src, to: dest });
-      out.push(dest);
-    } catch {
-      // If the copy fails keep the original URI rather than losing the attachment.
-      out.push(src);
-    }
+  for (const src of uris) {
+    const key = newEvidenceKey(src);
+    // On a copy failure keep the original URI rather than losing the
+    // attachment; the next sync retries the migration.
+    out.push((await adoptLocalFile(src, key)) ? key : src);
   }
   return out;
 }

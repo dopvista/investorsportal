@@ -155,20 +155,27 @@ const s = StyleSheet.create({
     marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    // On a 360dp phone "Amount received" plus a 7-digit figure fills the box
+    // almost exactly, and with only marginLeft:'auto' holding them apart they
+    // ran together. A real gap, plus a label that yields before the figure
+    // does, keeps them separate at any amount.
+    gap: 12,
   },
   mottoWrap: { marginTop: 16, alignItems: 'center' },
   mottoRule: { width: 34, height: 2, borderRadius: 1, backgroundColor: colors.greenPillBg, marginBottom: 11 },
   motto: {
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 11.5,
+    lineHeight: 17,
     color: colors.muted2,
     fontFamily: font.bodySemi,
     textAlign: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 2,
+    letterSpacing: -0.1,
   },
-  amountLabel: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.previewSub },
+  amountLabel: { flexShrink: 1, fontSize: 12.5, lineHeight: 17, fontFamily: font.bodyBold, color: colors.previewSub },
   evidenceLabel: { fontSize: 11, fontFamily: font.bodyXBold, letterSpacing: 0.6, color: colors.muted2 },
-  amountValue: { marginLeft: 'auto', fontFamily: font.heading, fontSize: 22, color: colors.green },
+  // The figure is the point of the receipt: it never shrinks and never wraps.
+  amountValue: { marginLeft: 'auto', flexShrink: 0, fontFamily: font.heading, fontSize: 22, color: colors.green },
   amountCurrency: { fontSize: 12, color: colors.muted2, fontFamily: font.body },
   closeBtn: {
     flex: 1,
