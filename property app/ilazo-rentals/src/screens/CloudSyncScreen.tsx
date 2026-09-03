@@ -26,7 +26,7 @@ function stamp(iso: string | null) {
 }
 
 export function CloudSyncScreen({ navigation }: Props) {
-  const { session, email, status, message, lastSyncedAt, signInWithGoogle, signOut, backupNow, restoreFromCloud } = useSync();
+  const { session, email, status, message, lastSyncedAt, signInWithGoogle, signOut, syncNow, restoreFromCloud } = useSync();
   const { showToast } = useUi();
   const [busy, setBusy] = useState(false);
 
@@ -49,16 +49,6 @@ export function CloudSyncScreen({ navigation }: Props) {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Restore', style: 'destructive', onPress: () => void restoreFromCloud() },
-      ],
-    );
-
-  const confirmOverwrite = () =>
-    Alert.alert(
-      'Overwrite the cloud copy?',
-      'Another device backed up more recently. Uploading now replaces that copy with this phone’s data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Overwrite', style: 'destructive', onPress: () => void backupNow(true) },
       ],
     );
 
@@ -129,20 +119,20 @@ export function CloudSyncScreen({ navigation }: Props) {
               <Card style={[s.infoCard, { borderColor: colors.red, borderWidth: 1, marginTop: 14 }]}>
                 <Icon name="warning" size={20} color={colors.red} />
                 <Text style={[s.infoText, { color: colors.red }]}>
-                  Your other phone backed up after this one last synced. Restore to take the cloud copy, or
-                  overwrite it with what is on this phone. Nothing is changed until you choose.
+                  Could not settle with the cloud copy after several tries — the other phone may be
+                  syncing at the same time. Tap Sync now again; nothing has been changed or lost.
                 </Text>
               </Card>
             )}
 
             <Text style={s.note}>
-              Changes on this phone upload automatically. Downloading replaces this phone’s data, so it
-              always asks first.
+              Both phones sync automatically — changes are merged, so payments recorded on either phone
+              are kept. "Restore" is an escape hatch that replaces this phone with the cloud copy.
             </Text>
 
             <PrimaryButton
-              label="Back up now"
-              onPress={() => (status === 'conflict' ? confirmOverwrite() : void backupNow(false))}
+              label={status === 'syncing' ? 'Syncing…' : 'Sync now'}
+              onPress={() => void syncNow()}
               onCancel={confirmRestore}
               cancelLabel="Restore"
             />

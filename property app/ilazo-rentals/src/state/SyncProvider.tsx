@@ -17,6 +17,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { ConflictError, fetchRemote, getDeviceId, pushRemote } from '../lib/cloud';
+import { mergeLedgers } from '../../core/merge';
 import type { BackupData } from '../lib/backup';
 import { useAppStore } from './StoreProvider';
 
@@ -36,8 +37,8 @@ interface SyncContextValue {
   /** Google is the only sign-in method — no passwords are handled by this app. */
   signInWithGoogle(): Promise<void>;
   signOut(): Promise<void>;
-  /** Upload now. `force` overwrites a conflicting cloud copy. */
-  backupNow(force?: boolean): Promise<void>;
+  /** Pull, merge, push. Safe to call any time. */
+  syncNow(): Promise<void>;
   /** Download and replace the local ledger. */
   restoreFromCloud(): Promise<void>;
 }
@@ -52,6 +53,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   const stampRef = useRef<string | null>(null);
+  /** Local edits not yet pushed — decides who wins for edited fields on merge. */
+  const dirtyRef = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setStamp = useCallback((s: string | null) => {
@@ -89,36 +92,51 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     return { units: s.units, txns: s.txns, company: s.company };
   }, [store]);
 
-  const backupNow = useCallback(
-    async (force = false) => {
-      const uid = session?.user?.id;
-      if (!uid) return;
-      setStatus('syncing');
-      setMessage(null);
-      try {
-        const deviceId = await getDeviceId();
-        const stamp = await pushRemote({
-          userId: uid,
-          data: snapshot(),
-          deviceId,
-          expectedStamp: stampRef.current,
-          force,
-        });
-        setStamp(stamp);
-        setStatus('idle');
-        setMessage('Backed up');
-      } catch (e: any) {
-        if (e instanceof ConflictError) {
-          setStatus('conflict');
-          setMessage('Another device updated the cloud copy since this phone last synced.');
-        } else {
-          setStatus('error');
-          setMessage(e?.message ?? 'Backup failed');
+  /**
+   * Pull, merge, push — a compare-and-swap.
+   *
+   * We read the cloud copy, merge it with this phone's ledger (union of
+   * payments, coverage recomputed), write the result back only if the cloud
+   * has not moved since we read it, and retry the whole merge if it has. That
+   * way concurrent edits from the other phone are absorbed rather than
+   * overwritten, and a race can never silently drop a payment.
+   */
+  const syncNow = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    setStatus('syncing');
+    setMessage(null);
+    try {
+      const deviceId = await getDeviceId();
+      for (let attempt = 0; ; attempt++) {
+        const remote = await fetchRemote();
+        const local = snapshot();
+        const merged = remote ? mergeLedgers(local, remote.data, dirtyRef.current) : local;
+        try {
+          const stamp = await pushRemote({
+            userId: uid,
+            data: merged,
+            deviceId,
+            expectedStamp: remote?.updatedAt ?? null,
+          });
+          // Only adopt the merged ledger once the write actually landed.
+          if (remote) store.getState().importData(merged);
+          dirtyRef.current = false;
+          setStamp(stamp);
+          setStatus('idle');
+          setMessage('Synced');
+          return;
+        } catch (e) {
+          // The other phone wrote between our read and our write — merge again.
+          if (e instanceof ConflictError && attempt < 2) continue;
+          throw e;
         }
       }
-    },
-    [session, snapshot, setStamp],
-  );
+    } catch (e: any) {
+      setStatus('error');
+      setMessage(e?.message ?? 'Sync failed');
+    }
+  }, [session, snapshot, store, setStamp]);
 
   const restoreFromCloud = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -145,25 +163,22 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!session) return;
     const schedule = () => {
+      dirtyRef.current = true;
       if (pushTimer.current) clearTimeout(pushTimer.current);
-      pushTimer.current = setTimeout(() => {
-        // Never auto-overwrite a conflicting cloud copy — the user decides.
-        setStatus((cur) => {
-          if (cur !== 'conflict') void backupNow(false);
-          return cur;
-        });
-      }, 2500);
+      pushTimer.current = setTimeout(() => void syncNow(), 2500);
     };
     const unsub = store.subscribe(schedule);
     const appSub = RNAppState.addEventListener('change', (s) => {
       if (s !== 'active') schedule();
+      else void syncNow(); // returning to the app: pick up the other phone's changes
     });
+    void syncNow(); // and once on sign-in
     return () => {
       unsub();
       appSub.remove();
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [session, store, backupNow]);
+  }, [session, store, syncNow]);
 
   /**
    * Google sign-in via the system browser.
@@ -230,7 +245,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         lastSyncedAt,
         signInWithGoogle,
         signOut,
-        backupNow,
+        syncNow,
         restoreFromCloud,
       }}
     >
