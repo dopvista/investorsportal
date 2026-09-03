@@ -25,7 +25,11 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
   const company = useApp((s) => s.company);
   const b = statement.balance;
   const bs = BALANCE_STYLES[b.kind];
-  const balanceValue = b.kind === 'due' ? `${fmt(b.amount)} due` : b.kind === 'credit' ? `${fmt(b.amount)} cr` : 'Nil — up to date';
+  // The value column carries a figure, not a sentence: "Nil — up to date" was
+  // three times the width of any amount and wrapped inside its own column. The
+  // reassurance is already on the line below it ("settled" / "nothing unpaid").
+  const balanceValue =
+    b.kind === 'due' ? `${fmt(b.amount)} due` : b.kind === 'credit' ? `${fmt(b.amount)} cr` : 'Nil';
 
   const shotRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
@@ -99,13 +103,21 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
               {!!b.at && <Text style={[s.reconAt, { color: bs.label }]}>{b.at}</Text>}
               <Text style={[s.reconSub, { color: bs.sub }]}>{b.sub}</Text>
             </View>
-            <Text style={[s.reconValue, { color: bs.value }]}>{balanceValue}</Text>
+            <Text style={[s.reconValue, { color: bs.value }]} numberOfLines={1}>
+              {balanceValue}
+            </Text>
           </View>
         </View>
 
         <View style={s.coveredRow}>
-          <Text style={s.coveredLabel}>Paid up to (covered through)</Text>
-          <Text style={s.coveredValue}>{fmtDate(statement.coverEnd)}</Text>
+          {/* "Paid up to (covered through)" said the same thing twice and was
+              long enough to wrap. The unit cards already say "Covered to". */}
+          <Text style={s.coveredLabel} numberOfLines={1}>
+            Covered through
+          </Text>
+          <Text style={s.coveredValue} numberOfLines={1}>
+            {fmtDate(statement.coverEnd)}
+          </Text>
         </View>
 
         <View style={s.dashed} />
