@@ -81,7 +81,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>Enable Server Cron</div>
-              <div style={{ fontSize: 12, color: C.gray500 }}>Fetches DSE prices every 5 minutes during market hours (09:00–17:00 EAT)</div>
+              <div style={{ fontSize: 12, color: C.gray500 }}>Fetches DSE end-of-day prices every 30 min during the fetch window (09:00–18:00 EAT)</div>
             </div>
             <button onClick={toggleAutoFetch} disabled={toggling}
               style={{ position: "relative", width: 52, height: 28, borderRadius: 14, border: "none", cursor: toggling ? "wait" : "pointer", background: enabled ? C.green : (isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1"), transition: "background 0.2s", flexShrink: 0, outline: "none" }}>
@@ -97,7 +97,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
             const day = eat.getUTCDay();
             const hour = eat.getUTCHours();
             const isWeekend = day === 0 || day === 6;
-            const isMarketOpen = !isWeekend && hour >= 9 && hour < 17;
+            const isMarketOpen = !isWeekend && hour >= 9 && hour < 18;
 
             const pillColor = !enabled ? C.gray400 : isMarketOpen ? C.green : "#f59e0b";
             const pillBg = !enabled ? (isDark ? "rgba(255,255,255,0.05)" : C.gray50)
@@ -110,8 +110,8 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
             const statusText = !enabled ? "Disabled"
               : isMarketOpen ? "Active"
               : isWeekend ? "Paused — Weekend"
-              : hour < 9 ? "Paused — Market opens at 09:00 EAT"
-              : "Paused — Market closed, resumes 09:00 EAT";
+              : hour < 9 ? "Paused — Fetch window opens at 09:00 EAT"
+              : "Paused — Fetch window closed, resumes 09:00 EAT";
 
             return (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 20, background: pillBg, border: `1px solid ${pillBorder}`, marginBottom: 16 }}>
@@ -119,7 +119,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                 <span style={{ fontSize: 12, fontWeight: 700, color: pillColor }}>{statusText}</span>
                 {enabled && isMarketOpen && (
                   <span style={{ fontSize: 11, color: C.gray500 }}>
-                    — Every 5 min · Mon–Fri · 09:00–17:00 EAT
+                    — Every 30 min · Mon–Fri · 09:00–18:00 EAT (EOD snapshot)
                   </span>
                 )}
               </div>
@@ -226,8 +226,8 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
 
       {/* ── Info footer ───────────────────────────────────────────── */}
       <div style={{ padding: "12px 16px", borderRadius: 10, background: isDark ? "rgba(59,130,246,0.07)" : "#eff6ff", border: `1px solid ${isDark ? "rgba(59,130,246,0.2)" : "#bfdbfe"}`, fontSize: 12, color: isDark ? "#93c5fd" : "#1d4ed8", lineHeight: 1.6, flexShrink: 0 }}>
-        <strong>How it works:</strong> The server cron fetches prices from DSE every 5 minutes during market hours and updates the global <em>companies</em> table.
-        Users with Auto-Sync ON in their Portfolio get prices copied to their CDS automatically every 60 seconds.
+        <strong>How it works:</strong> DSE now publishes end-of-day snapshots only, so we fetch every 30 minutes during the 09:00–18:00 EAT fetch window and update the global <em>companies</em> table (the post-15:00 close is when fresh prices actually land).
+        Users with Auto-Sync ON in their Portfolio get prices copied to their CDS automatically every 30 minutes.
         <strong>This is the master switch</strong> — when disabled, all user auto-sync is paused system-wide. When re-enabled, each user's previous toggle state is restored.
       </div>
     </>

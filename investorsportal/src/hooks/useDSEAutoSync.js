@@ -1,14 +1,16 @@
 // src/hooks/useDSEAutoSync.js
-// Client-side 1-minute auto-polling: calls existing edge function → syncs to CDS prices
-// Only runs during market hours (Mon–Fri 09:00–17:00 EAT), pauses when tab is hidden.
-// Respects the master switch in site_settings (SA System Settings).
+// Client-side auto-polling: calls existing edge function → syncs to CDS prices.
+// DSE public feed is EOD-snapshot (not intraday tick), so cadence is coarse:
+// polls every 30 min during the fetch window (Mon–Fri 09:00–18:00 EAT — window
+// extends past the 15:00 close to catch the post-settlement update).
+// Pauses when the tab is hidden. Respects the master switch in site_settings.
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { sbCopyMarketPricesToCds } from "../lib/supabase";
 
-const POLL_INTERVAL = 60_000; // 60 seconds
-const STALENESS_MS  = 30_000; // skip edge function if companies updated within 30s
-const SERVER_CHECK_INTERVAL = 5 * 60_000; // re-check server setting every 5 min
+const POLL_INTERVAL = 30 * 60_000; // 30 minutes — matches EOD data cadence
+const STALENESS_MS  = 15 * 60_000; // skip edge function if companies updated within 15 min
+const SERVER_CHECK_INTERVAL = 15 * 60_000; // re-check server setting every 15 min
 
 function getSupabaseBase() {
   return import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
@@ -17,7 +19,8 @@ function getAnonKey() {
   return import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
 
-/** True when EAT is weekday 09:00–17:00 */
+/** True during the DSE fetch window: weekday 09:00–18:00 EAT.
+ *  (Extends past the 15:00 close so we still poll for the EOD snapshot.) */
 function isMarketOpen() {
   const now = new Date();
   const eatMs = now.getTime() + 3 * 60 * 60 * 1000;
@@ -25,7 +28,7 @@ function isMarketOpen() {
   const day = eat.getUTCDay();   // 0=Sun, 6=Sat
   const hour = eat.getUTCHours();
   if (day === 0 || day === 6) return false;
-  return hour >= 9 && hour < 17;
+  return hour >= 9 && hour < 18;
 }
 
 /** Check if another client already updated companies within STALENESS_MS */
