@@ -47,7 +47,9 @@ export function ReceiptSheet({ receipt, onClose }: { receipt: Receipt; onClose: 
             <Text style={s.logoText}>{initials(company.name)}</Text>
           </LinearGradient>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.coName}>{company.name}</Text>
+            <Text style={s.coName} numberOfLines={1}>
+              {company.name}
+            </Text>
             <Text style={s.coAddress} numberOfLines={1}>
               {company.address}
             </Text>
@@ -121,7 +123,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={s.row}>
       <Text style={s.rowLabel}>{label}</Text>
-      <Text style={s.rowValue}>{value}</Text>
+      <Text style={s.rowValue} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -142,8 +146,8 @@ const s = StyleSheet.create({
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9 },
   periodRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  rowLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.body },
-  rowValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.ink },
+  rowLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.body, flexShrink: 0 },
+  rowValue: { fontSize: 12.5, fontFamily: font.bodyBold, color: colors.ink, flex: 1, textAlign: 'right', paddingLeft: 12 },
   amountBox: {
     backgroundColor: colors.previewBg,
     borderRadius: 14,

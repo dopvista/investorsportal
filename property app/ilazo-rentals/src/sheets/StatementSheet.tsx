@@ -56,14 +56,18 @@ export function StatementSheet({ statement, onClose }: { statement: StatementDat
             <Text style={s.logoText}>{initials(company.name)}</Text>
           </LinearGradient>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.coName}>{company.name}</Text>
+            <Text style={s.coName} numberOfLines={1}>
+              {company.name}
+            </Text>
             <Text style={s.coSub}>Tenant statement</Text>
           </View>
         </View>
 
         <View style={s.dashed} />
-        <Text style={s.tenant}>{statement.tenant}</Text>
-        <Text style={s.meta}>
+        <Text style={s.tenant} numberOfLines={1}>
+          {statement.tenant}
+        </Text>
+        <Text style={s.meta} numberOfLines={1}>
           {statement.unitName}
           {statement.type ? ` · ${statement.type}` : ''} · rent {fmt(statement.rent)}/mo
         </Text>

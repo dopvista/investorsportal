@@ -4,11 +4,17 @@
  * Design notes:
  * - Signing in is OPTIONAL. The app remains fully usable offline exactly as
  *   before; sync is an added safety net, never a gate in front of your data.
- * - Uploads are automatic (debounced after any change, and when the app goes to
- *   the background). Downloads are deliberate — pulling replaces the ledger, so
- *   it always asks first.
- * - If another phone wrote to the cloud since we last looked, an upload is
- *   refused and `status` becomes 'conflict' rather than silently overwriting.
+ * - Sync is automatic in both directions and needs no button: it runs on
+ *   sign-in, shortly after any edit, when the app is opened or backgrounded,
+ *   and on a quiet timer while the app is in use, so a payment recorded on one
+ *   phone reaches the other without anybody tapping anything.
+ * - Every sync is a pull-merge-push, so "automatic" never means "overwrites":
+ *   the two ledgers are merged (see core/merge.ts) before anything is written.
+ * - Background ticks stay silent. A tick that fails (no signal, plane mode)
+ *   leaves the last good state on screen and simply tries again next time;
+ *   only a sync the user asked for is allowed to report an error.
+ * - "Restore" is the one deliberate, destructive action — it replaces this
+ *   phone's ledger with the cloud copy, so it always asks first.
  */
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
@@ -16,12 +22,16 @@ import type { Session } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
-import { ConflictError, fetchRemote, getDeviceId, pushRemote } from '../lib/cloud';
+import { ConflictError, fetchRemote, fetchRemoteStamp, getDeviceId, pushRemote } from '../lib/cloud';
 import { mergeLedgers } from '../../core/merge';
 import type { BackupData } from '../lib/backup';
 import { useAppStore } from './StoreProvider';
 
 const STAMP_KEY = 'ilazo-last-synced-stamp';
+/** Debounce after an edit — long enough to batch a burst of typing. */
+const AFTER_EDIT_MS = 2500;
+/** Quiet poll while the app is open, so the other phone's work turns up. */
+const POLL_MS = 60_000;
 /** Must also be listed under Supabase Auth -> URL Configuration -> Redirect URLs. */
 export const REDIRECT_URL = 'ilazorentals://auth-callback';
 
@@ -34,6 +44,8 @@ interface SyncContextValue {
   message: string | null;
   /** Server stamp of the snapshot this phone last agreed with. */
   lastSyncedAt: string | null;
+  /** True while signed in — sync then runs by itself, with no user action. */
+  autoSync: boolean;
   /** Google is the only sign-in method — no passwords are handled by this app. */
   signInWithGoogle(): Promise<void>;
   signOut(): Promise<void>;
@@ -56,6 +68,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   /** Local edits not yet pushed — decides who wins for edited fields on merge. */
   const dirtyRef = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** One sync at a time: the edit debounce, the poll and the foreground hook
+      can all come due together, and three concurrent merges would race. */
+  const busyRef = useRef(false);
 
   const setStamp = useCallback((s: string | null) => {
     stampRef.current = s;
@@ -100,12 +115,19 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
    * has not moved since we read it, and retry the whole merge if it has. That
    * way concurrent edits from the other phone are absorbed rather than
    * overwritten, and a race can never silently drop a payment.
+   *
+   * `quiet` marks an automatic run: it neither announces itself nor reports
+   * failure, because a dropped signal is not something to interrupt the user
+   * over — the next tick will pick it up.
    */
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (opts?: { quiet?: boolean }) => {
     const uid = session?.user?.id;
-    if (!uid) return;
-    setStatus('syncing');
-    setMessage(null);
+    if (!uid || busyRef.current) return;
+    busyRef.current = true;
+    if (!opts?.quiet) {
+      setStatus('syncing');
+      setMessage(null);
+    }
     try {
       const deviceId = await getDeviceId();
       for (let attempt = 0; ; attempt++) {
@@ -133,8 +155,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (e: any) {
+      // An automatic run stays invisible; the next one will try again.
+      if (opts?.quiet) return;
       setStatus('error');
       setMessage(e?.message ?? 'Sync failed');
+    } finally {
+      busyRef.current = false;
     }
   }, [session, snapshot, store, setStamp]);
 
@@ -159,26 +185,72 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, store, setStamp]);
 
-  // Auto-upload: debounce local edits, and flush when the app is backgrounded.
+  /**
+   * The poll. With nothing to push, it asks only for the server's timestamp —
+   * a single-column read — and stops there if the cloud has not moved. So the
+   * common case (both phones idle) costs one tiny query a minute and writes
+   * nothing, rather than re-uploading an unchanged ledger.
+   */
+  const autoTick = useCallback(async () => {
+    if (!session?.user?.id || busyRef.current) return;
+    if (!dirtyRef.current) {
+      try {
+        if ((await fetchRemoteStamp()) === stampRef.current) return; // nothing new either side
+      } catch {
+        return; // offline — leave the screen alone and retry next tick
+      }
+    }
+    await syncNow({ quiet: true });
+  }, [session, syncNow]);
+
+  /**
+   * The automatic loop. Everything that can produce or reveal a change is
+   * wired to a sync: signing in, editing, opening the app, leaving it, and a
+   * quiet timer for the case where both phones sit open at once.
+   */
   useEffect(() => {
     if (!session) return;
-    const schedule = () => {
+
+    const afterEdit = () => {
       dirtyRef.current = true;
       if (pushTimer.current) clearTimeout(pushTimer.current);
-      pushTimer.current = setTimeout(() => void syncNow(), 2500);
+      pushTimer.current = setTimeout(() => void syncNow({ quiet: true }), AFTER_EDIT_MS);
     };
-    const unsub = store.subscribe(schedule);
-    const appSub = RNAppState.addEventListener('change', (s) => {
-      if (s !== 'active') schedule();
-      else void syncNow(); // returning to the app: pick up the other phone's changes
+    const unsub = store.subscribe(afterEdit);
+
+    // The timer only runs while the app is actually on screen; polling a
+    // backgrounded app would burn battery for changes nobody is looking at.
+    let poll: ReturnType<typeof setInterval> | null = setInterval(() => void autoTick(), POLL_MS);
+    const stopPoll = () => {
+      if (poll) clearInterval(poll);
+      poll = null;
+    };
+
+    const appSub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') {
+        void syncNow({ quiet: true }); // pick up whatever the other phone did
+        if (!poll) poll = setInterval(() => void autoTick(), POLL_MS);
+      } else {
+        stopPoll();
+        // Flush on the way out, but only if there is actually something to
+        // flush — marking the ledger dirty every time the screen turns off
+        // would cost a pointless upload on the next tick.
+        if (dirtyRef.current) {
+          if (pushTimer.current) clearTimeout(pushTimer.current);
+          void syncNow({ quiet: true });
+        }
+      }
     });
-    void syncNow(); // and once on sign-in
+
+    void syncNow({ quiet: true }); // and once on sign-in
+
     return () => {
       unsub();
       appSub.remove();
+      stopPoll();
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [session, store, syncNow]);
+  }, [session, store, syncNow, autoTick]);
 
   /**
    * Google sign-in via the system browser.
@@ -243,6 +315,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         status,
         message,
         lastSyncedAt,
+        autoSync: !!session,
         signInWithGoogle,
         signOut,
         syncNow,

@@ -67,12 +67,16 @@ export function UnitsScreen() {
                 <Icon name="apartment" size={24} color={colors.green} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.unitName}>{v.unit.name}</Text>
-                <Text style={s.unitMeta}>
+                <Text style={s.unitName} numberOfLines={1}>
+                  {v.unit.name}
+                </Text>
+                <Text style={s.unitMeta} numberOfLines={1}>
                   {v.unit.type} · {fmt(v.unit.rent)} /mo
                 </Text>
               </View>
-              <Pill label={v.statusLabel} bg={v.statusBg} fg={v.statusFg} />
+              {/* Short label here: the full "Owner-occupied" pill is wide enough
+                  to starve the meta line into a second row on a 360dp screen. */}
+              <Pill label={v.statusShort} bg={v.statusBg} fg={v.statusFg} />
               {/* Affordance for the whole-card tap → UnitDetails (replaces the
                   old footer "Details ›" link, which cost a full row of height). */}
               <Icon name="chevron-right" size={18} color={colors.chevronFaint} />
@@ -97,7 +101,7 @@ export function UnitsScreen() {
                   <Text style={s.tenantName} numberOfLines={1}>
                     {v.unit.tenant}
                   </Text>
-                  <Text style={s.covered}>
+                  <Text style={s.covered} numberOfLines={1}>
                     {v.ownerOccupied ? 'Lives here · owner' : `Covered to ${v.coveredThrough}`}
                   </Text>
                 </View>
@@ -145,11 +149,11 @@ const s = StyleSheet.create({
   statValue: { fontFamily: font.heading, fontSize: 19, color: colors.ink, marginTop: 3 },
 
   unitCard: { borderRadius: 20, padding: vs(12, 10) },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   unitIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     backgroundColor: colors.greenTintBg,
     alignItems: 'center',
     justifyContent: 'center',

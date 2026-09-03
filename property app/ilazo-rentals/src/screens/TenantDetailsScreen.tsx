@@ -70,11 +70,11 @@ export function TenantDetailsScreen({ navigation, route }: Props) {
             <Text style={s.name} numberOfLines={1}>
               {unit.tenant}
             </Text>
-            <Text style={s.meta}>
+            <Text style={s.meta} numberOfLines={1}>
               {unit.name} · {unit.type} · since {monthYear(unit.leaseStart)}
             </Text>
           </View>
-          <Pill label={v.statusLabel} bg={v.statusBg} fg={v.statusFg} />
+          <Pill label={v.statusShort} bg={v.statusBg} fg={v.statusFg} />
         </View>
         <View style={{ flexDirection: 'row', gap: 9, marginTop: 14 }}>
           <Pressable style={s.actionBtn} onPress={() => call(unit.phone)}>
@@ -159,7 +159,7 @@ export function TenantDetailsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-            <Text style={s.kinPhone}>{unit.kin.phone}</Text>
+            <Text style={s.kinPhone} numberOfLines={1}>{unit.kin.phone}</Text>
           </View>
           <Pressable accessibilityLabel="Call next of kin" style={s.kinCall} onPress={() => call(unit.kin.phone)}>
             <Icon name="call" size={19} color={colors.green} />

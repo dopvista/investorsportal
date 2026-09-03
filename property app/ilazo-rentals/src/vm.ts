@@ -12,6 +12,9 @@ export interface UnitVM {
   due: number;
   monthsBehind: number;
   statusLabel: string;
+  /** Same status, trimmed for tight list rows where a long pill would starve
+      the text beside it (see UnitsScreen/TenantsScreen card headers). */
+  statusShort: string;
   statusKind: 'arrears' | 'ahead' | 'current' | 'vacant' | 'owner';
   statusBg: string;
   statusFg: string;
@@ -34,6 +37,7 @@ export function unitVM(unit: Unit, today: ISODate): UnitVM {
       due: 0,
       monthsBehind: 0,
       statusLabel: 'Vacant',
+      statusShort: 'Vacant',
       statusKind: 'vacant',
       statusBg: colors.pastBg,
       statusFg: colors.faint,
@@ -55,6 +59,7 @@ export function unitVM(unit: Unit, today: ISODate): UnitVM {
       due: 0,
       monthsBehind: 0,
       statusLabel: 'Owner-occupied',
+      statusShort: 'Owner',
       statusKind: 'owner',
       statusBg: colors.ownerBg,
       statusFg: colors.owner,
@@ -79,6 +84,7 @@ export function unitVM(unit: Unit, today: ISODate): UnitVM {
     due,
     monthsBehind: dm,
     statusLabel: status.label,
+    statusShort: status.label,
     statusKind: status.kind,
     statusBg: sc.bg,
     statusFg: sc.fg,

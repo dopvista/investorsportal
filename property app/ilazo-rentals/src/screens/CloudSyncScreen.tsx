@@ -26,7 +26,8 @@ function stamp(iso: string | null) {
 }
 
 export function CloudSyncScreen({ navigation }: Props) {
-  const { session, email, status, message, lastSyncedAt, signInWithGoogle, signOut, syncNow, restoreFromCloud } = useSync();
+  const { session, email, status, message, lastSyncedAt, autoSync, signInWithGoogle, signOut, syncNow, restoreFromCloud } =
+    useSync();
   const { showToast } = useUi();
   const [busy, setBusy] = useState(false);
 
@@ -109,8 +110,19 @@ export function CloudSyncScreen({ navigation }: Props) {
 
               <View style={s.divider} />
               <View style={s.metaRow}>
+                <Text style={s.metaLabel}>Auto-sync</Text>
+                <View style={s.autoWrap}>
+                  <View style={[s.dot, { backgroundColor: autoSync ? colors.green : colors.faint }]} />
+                  <Text style={[s.metaValue, autoSync && { color: colors.green }]} numberOfLines={1}>
+                    {autoSync ? 'On' : 'Off'}
+                  </Text>
+                </View>
+              </View>
+              <View style={[s.metaRow, { marginTop: 8 }]}>
                 <Text style={s.metaLabel}>Last synced</Text>
-                <Text style={s.metaValue}>{stamp(lastSyncedAt)}</Text>
+                <Text style={s.metaValue} numberOfLines={1}>
+                  {stamp(lastSyncedAt)}
+                </Text>
               </View>
               {message && <Text style={[s.msg, (status === 'error' || status === 'conflict') && { color: colors.red }]}>{message}</Text>}
             </Card>
@@ -126,8 +138,10 @@ export function CloudSyncScreen({ navigation }: Props) {
             )}
 
             <Text style={s.note}>
-              Both phones sync automatically — changes are merged, so payments recorded on either phone
-              are kept. "Restore" is an escape hatch that replaces this phone with the cloud copy.
+              Nothing to press. Every phone signed in to this account syncs on its own — after each
+              change, whenever the app is opened, and every minute while it is in use. Changes are
+              merged, so payments recorded on either phone are kept. "Sync now" just does it this
+              second; "Restore" is the escape hatch that replaces this phone with the cloud copy.
             </Text>
 
             <PrimaryButton
@@ -170,6 +184,8 @@ const s = StyleSheet.create({
   statusSub: { fontSize: 12, color: colors.muted2, marginTop: 2, fontFamily: font.body },
   divider: { height: 1, backgroundColor: colors.hairline, marginVertical: 13 },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
+  autoWrap: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
   metaLabel: { fontSize: 12.5, color: colors.muted2, fontFamily: font.bodySemi },
   metaValue: { marginLeft: 'auto', fontSize: 12.5, color: colors.ink, fontFamily: font.bodyBold },
   msg: { marginTop: 10, fontSize: 12, color: colors.muted2, fontFamily: font.body },

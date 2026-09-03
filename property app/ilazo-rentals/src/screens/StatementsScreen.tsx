@@ -96,9 +96,9 @@ export function StatementsScreen({ navigation }: Props) {
                     <Icon name="receipt-long" size={21} color={colors.green} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={s.receiptTenant}>{r.tenant}</Text>
+                    <Text style={s.receiptTenant} numberOfLines={1}>{r.tenant}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={s.receiptMeta}>
+                      <Text style={s.receiptMeta} numberOfLines={1}>
                         {r.no} · {r.unitName} · {fmtDate(r.date)}
                       </Text>
                       {r.evidence.length > 0 && <Icon name="attachment" size={13} color={colors.green} />}
@@ -132,7 +132,7 @@ export function StatementsScreen({ navigation }: Props) {
                 >
                   <Avatar name={a.tenant} size={42} rad={13} fontSize={13} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={s.acctName}>{a.tenant}</Text>
+                    <Text style={s.acctName} numberOfLines={1}>{a.tenant}</Text>
                     <Text style={s.acctSub} numberOfLines={1}>
                       {a.unitName} · {a.current ? 'covered to' : 'left'} {fmtDate(a.coverEnd)}
                     </Text>

@@ -61,7 +61,7 @@ export function TenantsScreen() {
                 <Text style={s.tenantMeta} numberOfLines={1}>
                   {v.unit.name} · {v.unit.type}
                 </Text>
-                <Pill label={v.statusLabel} bg={v.statusBg} fg={v.statusFg} small />
+                <Pill label={v.statusShort} bg={v.statusBg} fg={v.statusFg} small />
               </View>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
@@ -83,8 +83,10 @@ export function TenantsScreen() {
             <View key={p.name} style={[s.pastRow, i < past.length - 1 && s.pastRowBorder]}>
               <Avatar name={p.name} size={38} rad={12} bg={colors.pastBg} fg={colors.faint} fontSize={12} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.pastName}>{p.name}</Text>
-                <Text style={s.pastMeta}>
+                <Text style={s.pastName} numberOfLines={1}>
+                  {p.name}
+                </Text>
+                <Text style={s.pastMeta} numberOfLines={1}>
                   {p.unitName} · Last paid {fmtDate(p.lastPaymentDate)}
                 </Text>
               </View>

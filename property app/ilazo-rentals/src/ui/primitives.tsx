@@ -25,7 +25,9 @@ export function Card({
 export function Pill({ label, bg, fg, small }: { label: string; bg: string; fg: string; small?: boolean }) {
   return (
     <View style={[s.pill, { backgroundColor: bg }, small && s.pillSmall]}>
-      <Text style={[s.pillText, { color: fg }, small && s.pillTextSmall]}>{label}</Text>
+      <Text style={[s.pillText, { color: fg }, small && s.pillTextSmall]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -104,6 +106,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 5,
     alignSelf: 'flex-start',
+    // A pill states a fact in two or three words — it keeps its natural width
+    // and the flexible text beside it gives way, never the other way round.
+    flexShrink: 0,
   },
   pillSmall: { paddingHorizontal: 8, paddingVertical: 3 },
   pillText: { fontFamily: font.bodyBold, fontSize: 12 },
