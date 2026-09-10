@@ -7,8 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Only currently listed DSE companies (21). Keys = symbol as returned by
-// `company` field on dse.co.tz range-duration API. Values = companies.name in DB.
+/**
+ * Sources
+ * -------
+ * PRIMARY   snapshot  investor.dse.co.tz/core/api/v1/market-watch/snapshot
+ *                     (last-trade prices + priceChange + high/low/volume + bid/offer;
+ *                     undocumented internal API of the DSE investor web app)
+ * SECONDARY history   dse.co.tz/api/get/market/prices/for/range/duration
+ *                     (official EOD closes for `closing_price` and daily history;
+ *                     also serves as full fallback if snapshot fails)
+ */
+
+// Only currently listed DSE companies (21). Keys = symbol as returned by both
+// sources (snapshot `symbol` + range/duration `company`). Values = companies.name in DB.
 const DSE_TO_DB_MAP: Record<string, string> = {
   "AFRIPRISE": "AFRIPRISE",
   "CRDB": "CRDB",
@@ -33,6 +44,19 @@ const DSE_TO_DB_MAP: Record<string, string> = {
   "VERTEX-ETF": "VERTEX ETF",
 };
 
+interface SnapshotRow {
+  symbol: string;
+  lastPrice: number;
+  priceChange: number;
+  priceChangePct: number;
+  high: number;
+  low: number;
+  volume: number;
+  updatedAt: string;
+  bestBidPrice?: number;
+  bestOfferPrice?: number;
+}
+
 interface DseRow {
   company: string;
   fullName?: string;
@@ -47,78 +71,143 @@ interface DseRow {
 
 interface PriceData {
   symbol: string;
-  marketPrice: number;   // latest closing_price
-  previousClose: number; // 2nd-latest closing_price (0 if unknown)
-  openingPrice: number;  // latest opening_price
-  change: number;        // marketPrice - previousClose
+  marketPrice: number;      // last trade if snapshot, else latest close
+  previousClose: number;    // yesterday's official close (from range/duration)
+  change: number;           // priceChange from snapshot, else close-vs-prev-close
   high: number;
   low: number;
   volume: number;
-  tradeDate: string;     // YYYY-MM-DD from the latest row
+  quoteUpdatedAt: string | null;   // per-symbol snapshot updatedAt
+  latestTradeDate: string | null;  // YYYY-MM-DD (from range/duration)
+  source: "snapshot" | "closing-feed";
   history: { date: string; price: number; high: number; low: number; volume: number; change: number }[];
 }
 
-// 10s timeout on DSE API fetch
-async function fetchDseClass(cls: "EQUITY" | "BOND" | "ETF", days: number): Promise<DseRow[]> {
+// 10s timeout on any DSE fetch
+async function timedFetch(url: string, label: string): Promise<any> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
-  const url = `https://dse.co.tz/api/get/market/prices/for/range/duration?days=${days}&class=${cls}`;
   try {
     const res = await fetch(url, {
       headers: { "Accept": "application/json", "User-Agent": "InvestorsPortal/1.0" },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    if (!res.ok) throw new Error(`DSE API ${cls} failed: ${res.status}`);
-    const json = await res.json();
-    if (json?.success !== true || !Array.isArray(json.data)) {
-      throw new Error(`DSE API ${cls} returned unexpected envelope`);
-    }
-    return json.data as DseRow[];
+    if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+    return await res.json();
   } catch (e: any) {
     clearTimeout(timeoutId);
-    if (e.name === "AbortError") throw new Error(`DSE API ${cls} timeout (10s)`);
+    if (e.name === "AbortError") throw new Error(`${label} timeout (10s)`);
     throw e;
   }
 }
 
+async function fetchSnapshot(): Promise<{ rows: SnapshotRow[]; refreshedAt: string | null }> {
+  const url = "https://investor.dse.co.tz/core/api/v1/market-watch/snapshot?page=0&size=100&sort=volume,desc";
+  const json = await timedFetch(url, "snapshot");
+  if (String(json?.code) !== "2000" || !Array.isArray(json?.data?.page?.content)) {
+    throw new Error("snapshot returned unexpected envelope");
+  }
+  return { rows: json.data.page.content as SnapshotRow[], refreshedAt: json?.data?.lastRefreshedAt ?? null };
+}
+
+async function fetchClosingFeed(cls: "EQUITY" | "BOND" | "ETF", days: number): Promise<DseRow[]> {
+  const url = `https://dse.co.tz/api/get/market/prices/for/range/duration?days=${days}&class=${cls}`;
+  const json = await timedFetch(url, `closing-feed:${cls}`);
+  if (json?.success !== true || !Array.isArray(json.data)) {
+    throw new Error(`closing-feed ${cls} returned unexpected envelope`);
+  }
+  return json.data as DseRow[];
+}
+
 /**
- * Fetch EQUITY + ETF in parallel, group rows by symbol, and derive a single
- * PriceData per known company. Change is computed as latest_close − prev_close.
+ * Merge snapshot (last-trade) + closing feed (EOD + history) into one PriceData
+ * per known symbol. Snapshot takes precedence for live values; closing feed is
+ * authoritative for previous-close and daily history. Falls back cleanly when
+ * snapshot is unavailable.
  */
-async function fetchAllPrices(): Promise<PriceData[]> {
-  const [equityRows, etfRows] = await Promise.all([
-    fetchDseClass("EQUITY", 5),
-    fetchDseClass("ETF", 5).catch(() => [] as DseRow[]), // ETF is nice-to-have
+async function fetchAllPrices(): Promise<{ prices: PriceData[]; snapshotStatus: string; snapshotRefreshedAt: string | null; latestTradeDate: string | null }> {
+  const [snapshotSettled, equitySettled, etfSettled] = await Promise.allSettled([
+    fetchSnapshot(),
+    fetchClosingFeed("EQUITY", 5),
+    fetchClosingFeed("ETF", 5),
   ]);
 
-  const bySymbol = new Map<string, DseRow[]>();
-  for (const r of [...equityRows, ...etfRows]) {
-    const sym = (r.company || "").trim();
-    if (!sym || DSE_TO_DB_MAP[sym] === undefined) continue;
-    if (!bySymbol.has(sym)) bySymbol.set(sym, []);
-    bySymbol.get(sym)!.push(r);
+  const snapshotOk = snapshotSettled.status === "fulfilled";
+  const snapshotStatus = snapshotOk
+    ? "ok"
+    : `failed: ${(snapshotSettled as PromiseRejectedResult).reason?.message ?? "unknown"}`;
+  const snapshotRefreshedAt = snapshotOk ? snapshotSettled.value.refreshedAt : null;
+
+  const snapshotBySymbol = new Map<string, SnapshotRow>();
+  if (snapshotOk) {
+    for (const r of snapshotSettled.value.rows) {
+      const sym = (r.symbol || "").trim();
+      if (sym && DSE_TO_DB_MAP[sym] !== undefined) snapshotBySymbol.set(sym, r);
+    }
   }
 
-  const out: PriceData[] = [];
-  for (const [symbol, rows] of bySymbol) {
-    // sort desc by trade_date
-    rows.sort((a, b) => (b.trade_date || "").localeCompare(a.trade_date || ""));
-    const latest = rows[0];
-    const prev = rows[1];
-    if (!latest || !(latest.closing_price > 0)) continue;
+  const closingRows: DseRow[] = [];
+  if (equitySettled.status === "fulfilled") closingRows.push(...equitySettled.value);
+  if (etfSettled.status === "fulfilled") closingRows.push(...etfSettled.value);
 
-    out.push({
+  if (!snapshotOk && closingRows.length === 0) {
+    throw new Error(`both sources failed: snapshot=${snapshotStatus}; closing-feed unavailable`);
+  }
+
+  const closingBySymbol = new Map<string, DseRow[]>();
+  for (const r of closingRows) {
+    const sym = (r.company || "").trim();
+    if (!sym || DSE_TO_DB_MAP[sym] === undefined) continue;
+    if (!closingBySymbol.has(sym)) closingBySymbol.set(sym, []);
+    closingBySymbol.get(sym)!.push(r);
+  }
+  for (const [_, rows] of closingBySymbol) {
+    rows.sort((a, b) => (b.trade_date || "").localeCompare(a.trade_date || ""));
+  }
+
+  let latestTradeDate: string | null = null;
+  for (const [_, rows] of closingBySymbol) {
+    const d = rows[0]?.trade_date?.slice(0, 10);
+    if (d && (!latestTradeDate || d > latestTradeDate)) latestTradeDate = d;
+  }
+
+  const knownSymbols = new Set<string>([...snapshotBySymbol.keys(), ...closingBySymbol.keys()]);
+  const prices: PriceData[] = [];
+
+  for (const symbol of knownSymbols) {
+    if (DSE_TO_DB_MAP[symbol] === undefined) continue;
+    const snap = snapshotBySymbol.get(symbol);
+    const closes = closingBySymbol.get(symbol) ?? [];
+    const latestClose = closes[0];
+    const prevClose = closes[1];
+
+    const snapUsable = !!snap && Number.isFinite(snap.lastPrice) && snap.lastPrice > 0;
+    if (!snapUsable && !(latestClose && latestClose.closing_price > 0)) continue;
+
+    const marketPrice = snapUsable
+      ? snap!.lastPrice
+      : latestClose.closing_price;
+
+    const previousClose = prevClose?.closing_price
+      ?? (snapUsable && Number.isFinite(snap!.priceChange) ? snap!.lastPrice - snap!.priceChange : 0);
+
+    const change = snapUsable
+      ? snap!.priceChange
+      : (prevClose?.closing_price ? latestClose.closing_price - prevClose.closing_price : 0);
+
+    prices.push({
       symbol,
-      marketPrice: latest.closing_price,
-      previousClose: prev?.closing_price || 0,
-      openingPrice: latest.opening_price || 0,
-      change: prev?.closing_price ? latest.closing_price - prev.closing_price : 0,
-      high: latest.high || 0,
-      low: latest.low || 0,
-      volume: latest.volume || 0,
-      tradeDate: (latest.trade_date || "").slice(0, 10),
-      history: rows
+      marketPrice,
+      previousClose: previousClose > 0 ? previousClose : 0,
+      change: Number.isFinite(change) ? change : 0,
+      high:   snapUsable ? (snap!.high   || 0) : (latestClose?.high   || 0),
+      low:    snapUsable ? (snap!.low    || 0) : (latestClose?.low    || 0),
+      volume: snapUsable ? (snap!.volume || 0) : (latestClose?.volume || 0),
+      quoteUpdatedAt: snapUsable ? (snap!.updatedAt ?? null) : null,
+      latestTradeDate: latestClose?.trade_date?.slice(0, 10) ?? null,
+      source: snapUsable ? "snapshot" : "closing-feed",
+      history: closes
         .filter(r => r.closing_price > 0 && r.trade_date)
         .map(r => ({
           date: r.trade_date.slice(0, 10),
@@ -131,8 +220,8 @@ async function fetchAllPrices(): Promise<PriceData[]> {
     });
   }
 
-  // Fill per-row change in history (chronological)
-  for (const p of out) {
+  // Fill per-row change in history (chronological, official close-to-close)
+  for (const p of prices) {
     const chrono = [...p.history].sort((a, b) => a.date.localeCompare(b.date));
     for (let i = 1; i < chrono.length; i++) {
       chrono[i].change = chrono[i].price - chrono[i - 1].price;
@@ -140,13 +229,14 @@ async function fetchAllPrices(): Promise<PriceData[]> {
     p.history = chrono;
   }
 
-  return out;
+  return { prices, snapshotStatus, snapshotRefreshedAt, latestTradeDate };
 }
 
 /**
  * Cron gate: check site_settings for enabled/fetch_days, then market window.
- * DSE public feed is EOD-snapshot — data lands after 15:00 EAT close, so
- * the window is 09:00–18:00 EAT to catch the post-close settlement.
+ * DSE publishes intraday-ish last-trade prices via the snapshot endpoint during
+ * session, and the EOD close lands after 15:00 EAT. The 09:00–18:00 EAT window
+ * catches both.
  */
 async function shouldProceed(supabase: any): Promise<{ proceed: boolean; reason?: string }> {
   let fetchDays = "weekdays";
@@ -227,17 +317,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 1: Fetch latest DSE snapshot (equities + ETFs)
-    const dsePrices = await fetchAllPrices();
+    // Step 1: Fetch snapshot + closing feed and merge
+    const { prices: dsePrices, snapshotStatus, snapshotRefreshedAt, latestTradeDate } = await fetchAllPrices();
     if (dsePrices.length === 0) {
-      await updateFetchStatus(supabase, "error: no prices from DSE API", 0);
+      await updateFetchStatus(supabase, "error: no prices from DSE", 0);
       return new Response(
-        JSON.stringify({ success: false, error: "Could not fetch any prices from DSE API" }),
+        JSON.stringify({ success: false, error: "Could not fetch any prices from DSE" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Step 2: Load current companies row for each known symbol
+    // Step 2: Load current companies rows
     const { data: companies, error: compErr } = await supabase
       .from("companies")
       .select("id, name, price, closing_price");
@@ -259,8 +349,6 @@ Deno.serve(async (req: Request) => {
       const oldPrice   = parseFloat(company.price) || 0;
       const oldClosing = parseFloat(company.closing_price) || 0;
       const newPrice   = dsePrice.marketPrice;
-      // `closing_price` DB column = actual previous-day close from API (was
-      // approximated by `opening_price` on the old endpoint).
       const newClosing = dsePrice.previousClose > 0 ? dsePrice.previousClose : oldClosing;
 
       const dseFields = {
@@ -270,7 +358,7 @@ Deno.serve(async (req: Request) => {
         dse_volume: dsePrice.volume,
       };
 
-      const priceChanged = oldPrice !== newPrice;
+      const priceChanged   = oldPrice !== newPrice;
       const closingChanged = newClosing > 0 && oldClosing !== newClosing;
 
       const update: Record<string, any> = { ...dseFields, updated_at: now };
@@ -316,14 +404,16 @@ Deno.serve(async (req: Request) => {
           closing_price: op.dsePrice.previousClose,
           change: op.dsePrice.change,
           volume: op.dsePrice.volume,
+          quote_updated_at: op.dsePrice.quoteUpdatedAt,
+          source: op.dsePrice.source,
           status: "updated",
         });
       }
     }
     const unchangedCount = updateOps.length - updatedCount - errorCount;
 
-    // Step 4: Upsert daily price history — one row per (company, trade_date)
-    // across ALL dates returned by the API (backfills any missed days).
+    // Step 4: Upsert daily price history — ONLY from official EOD closes, never
+    // from intraday last-trades. Covers all dates returned so gaps get backfilled.
     const historyRows: any[] = [];
     for (const dp of dsePrices) {
       const dbName = DSE_TO_DB_MAP[dp.symbol];
@@ -352,15 +442,22 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await updateFetchStatus(supabase, "success", updatedCount);
+    const primarySnapshotCount = dsePrices.filter(p => p.source === "snapshot").length;
+    const statusLabel = primarySnapshotCount > 0
+      ? `success (${primarySnapshotCount}/${dsePrices.length} via snapshot)`
+      : "success (closing-feed fallback)";
+    await updateFetchStatus(supabase, statusLabel, updatedCount);
 
     return new Response(
       JSON.stringify({
         success: true,
-        source: "dse.co.tz/api/get/market/prices/for/range/duration",
+        source: "investor.dse.co.tz snapshot (primary) + dse.co.tz range/duration (secondary)",
+        snapshot_status: snapshotStatus,
+        snapshot_refreshed_at: snapshotRefreshedAt,
+        latest_trade_date: latestTradeDate,
         fetched_at: now,
-        latest_trade_date: dsePrices[0]?.tradeDate ?? null,
         total_dse_prices: dsePrices.length,
+        snapshot_used_count: primarySnapshotCount,
         updated_count: updatedCount,
         skipped_unchanged: unchangedCount,
         updates,

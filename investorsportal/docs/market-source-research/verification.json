@@ -1,0 +1,238 @@
+{
+  "observedAt": "2026-09-10T23:28:34.627Z",
+  "endpoint": "https://investor.dse.co.tz/core/api/v1/market-watch/snapshot?page=0&size=100&sort=volume,desc",
+  "authenticated": false,
+  "responseMilliseconds": 1070,
+  "snapshotRefreshedAt": "2026-09-11T02:25:49.684446+03:00",
+  "returnedRows": 28,
+  "metadataTotal": 49,
+  "expectedSymbols": 21,
+  "validExpectedSymbols": 21,
+  "differingPrices": 14,
+  "zeroSymbols": [
+    "EABL",
+    "JHL",
+    "KA",
+    "NMG",
+    "USL"
+  ],
+  "results": [
+    {
+      "symbol": "AFRIPRISE",
+      "lastPrice": 610,
+      "closingPrice": 610,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.383+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 605,
+      "bestOffer": 610
+    },
+    {
+      "symbol": "CRDB",
+      "lastPrice": 2880,
+      "closingPrice": 2840,
+      "difference": 40,
+      "quoteUpdatedAt": "2026-09-10T16:58:50.984+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 2860,
+      "bestOffer": 2880
+    },
+    {
+      "symbol": "DCB",
+      "lastPrice": 440,
+      "closingPrice": 445,
+      "difference": -5,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.68+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 420,
+      "bestOffer": 440
+    },
+    {
+      "symbol": "DSE",
+      "lastPrice": 6380,
+      "closingPrice": 6380,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.321+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 6380,
+      "bestOffer": 6400
+    },
+    {
+      "symbol": "MBP",
+      "lastPrice": 2020,
+      "closingPrice": 2070,
+      "difference": -50,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.008+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 2020,
+      "bestOffer": 2100
+    },
+    {
+      "symbol": "MCB",
+      "lastPrice": 395,
+      "closingPrice": 395,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.258+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 390,
+      "bestOffer": 395
+    },
+    {
+      "symbol": "MKCB",
+      "lastPrice": 3750,
+      "closingPrice": 3750,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.242+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 3740,
+      "bestOffer": 3750
+    },
+    {
+      "symbol": "MUCOBA",
+      "lastPrice": 455,
+      "closingPrice": 460,
+      "difference": -5,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.289+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 445,
+      "bestOffer": 455
+    },
+    {
+      "symbol": "NICO",
+      "lastPrice": 3880,
+      "closingPrice": 3830,
+      "difference": 50,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.024+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 3860,
+      "bestOffer": 3880
+    },
+    {
+      "symbol": "NMB",
+      "lastPrice": 2200,
+      "closingPrice": 2190,
+      "difference": 10,
+      "quoteUpdatedAt": "2026-09-10T16:06:28.977+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 2190,
+      "bestOffer": 2200
+    },
+    {
+      "symbol": "PAL",
+      "lastPrice": 315,
+      "closingPrice": 310,
+      "difference": 5,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.071+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 300,
+      "bestOffer": 315
+    },
+    {
+      "symbol": "SWIS",
+      "lastPrice": 2670,
+      "closingPrice": 2790,
+      "difference": -120,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.086+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 2650,
+      "bestOffer": 2670
+    },
+    {
+      "symbol": "TBL",
+      "lastPrice": 9980,
+      "closingPrice": 9980,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:28.477+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 9980,
+      "bestOffer": 10000
+    },
+    {
+      "symbol": "TCC",
+      "lastPrice": 13250,
+      "closingPrice": 13250,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.117+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 13250,
+      "bestOffer": null
+    },
+    {
+      "symbol": "TCCL",
+      "lastPrice": 4000,
+      "closingPrice": 3940,
+      "difference": 60,
+      "quoteUpdatedAt": "2026-09-10T16:06:28.305+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 3650,
+      "bestOffer": 4000
+    },
+    {
+      "symbol": "TOL",
+      "lastPrice": 1770,
+      "closingPrice": 1830,
+      "difference": -60,
+      "quoteUpdatedAt": "2026-09-10T16:08:34.505+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 1760,
+      "bestOffer": 1770
+    },
+    {
+      "symbol": "TPCC",
+      "lastPrice": 5780,
+      "closingPrice": 5790,
+      "difference": -10,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.18+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 5780,
+      "bestOffer": 5790
+    },
+    {
+      "symbol": "TTP",
+      "lastPrice": 450,
+      "closingPrice": 450,
+      "difference": 0,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.196+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 425,
+      "bestOffer": 450
+    },
+    {
+      "symbol": "VODA",
+      "lastPrice": 1120,
+      "closingPrice": 1110,
+      "difference": 10,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.336+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 1120,
+      "bestOffer": 1130
+    },
+    {
+      "symbol": "IEACLC-ETF",
+      "lastPrice": 1440,
+      "closingPrice": 1460,
+      "difference": -20,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.492+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 1440,
+      "bestOffer": 1470
+    },
+    {
+      "symbol": "VERTEX-ETF",
+      "lastPrice": 315,
+      "closingPrice": 310,
+      "difference": 5,
+      "quoteUpdatedAt": "2026-09-10T16:06:27.461+03:00",
+      "closeDate": "2026-09-10",
+      "bestBid": 310,
+      "bestOffer": 315
+    }
+  ],
+  "caveats": [
+    "Off-hours verification does not prove intraday refresh latency.",
+    "updatedAt is the quote-record update time, not a guaranteed last-trade execution timestamp.",
+    "Snapshot refresh time must not be substituted for quote-record update time.",
+    "Server totalElements can differ from returned rows; validate required-symbol coverage.",
+    "Public access is observed behavior, not a documented uptime or redistribution agreement."
+  ]
+}
