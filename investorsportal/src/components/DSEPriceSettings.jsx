@@ -199,11 +199,12 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                     </thead>
                     <tbody>
                       {fetchMsg.result.updates.map((u, i) => {
-                        // Prefer server-supplied change_pct (from snapshot's priceChangePct);
-                        // else derive from absolute change vs closing_price (previous close).
-                        const pct = Number.isFinite(u.change_pct)
-                          ? u.change_pct
-                          : (u.closing_price > 0 ? (u.change / u.closing_price) * 100 : 0);
+                        // Match Portfolio's convention: (new − prev) / prev × 100.
+                        // "prev" here is the row's previous companies.price (before this fetch),
+                        // not DSE's previous EOD close — mirrors what users see on the Portfolio page.
+                        const pct = u.old_price > 0
+                          ? ((u.market_price - u.old_price) / u.old_price) * 100
+                          : 0;
                         const up = pct > 0, dn = pct < 0;
                         return (
                           <tr key={i} style={{ borderBottom: `1px solid ${C.gray100}` }}
