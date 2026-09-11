@@ -1119,10 +1119,13 @@ function CompanyDetailPopup({ company, cdsNumber, onClose, onConfirmPrice, initi
 function PortfolioMobileCard({ company: c, onTap, isBusy }) {
   const { C, isDark } = useTheme();
   const hasCdsPrice = c.cds_price != null;
-  const priceUp     = hasCdsPrice && c.cds_previous_price != null
-    ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
-  const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
-    ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
+  // DSE-native day-change: pct = dse_change / opening_price × 100,
+  // where opening_price = market_price − dse_change. Matches what
+  // investor.dse.co.tz's Buy Stocks table shows for the same symbol.
+  const dseOpen     = Number(c.market_price) - Number(c.dse_change);
+  const changePct   = hasCdsPrice && Number.isFinite(dseOpen) && dseOpen > 0
+    ? (Number(c.dse_change) / dseOpen) * 100 : null;
+  const priceUp     = changePct !== null ? changePct >= 0 : null;
   const accentColor = !hasCdsPrice ? "#D97706" : priceUp === false ? C.red : C.green;
   const changeBdr   = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");
 
@@ -1745,9 +1748,13 @@ export default function CompaniesPage({ companies: globalCompanies, setCompanies
                     <tbody>
                       {filteredPortfolio.map((c, i) => {
                         const hasCdsPrice = c.cds_price != null;
-                        const priceUp     = hasCdsPrice && c.cds_previous_price != null ? Number(c.cds_price) >= Number(c.cds_previous_price) : null;
-                        const changePct   = hasCdsPrice && c.cds_previous_price != null && Number(c.cds_previous_price) !== 0
-                          ? ((Number(c.cds_price) - Number(c.cds_previous_price)) / Number(c.cds_previous_price)) * 100 : null;
+                        // DSE-native day-change: pct = dse_change / opening × 100
+                        // (opening = market_price − dse_change). Same value the DSE
+                        // Buy Stocks page displays.
+                        const dseOpen     = Number(c.market_price) - Number(c.dse_change);
+                        const changePct   = hasCdsPrice && Number.isFinite(dseOpen) && dseOpen > 0
+                          ? (Number(c.dse_change) / dseOpen) * 100 : null;
+                        const priceUp     = changePct !== null ? changePct >= 0 : null;
                         const rowBg      = !hasCdsPrice ? (isDark ? "#D9770610" : "#FFFBEB") : "transparent";
                         const rowBgHover = !hasCdsPrice ? (isDark ? "#D9770620" : "#FFF8DC") : C.gray50;
                         const changeBdr  = priceUp ? (isDark ? `${C.green}55` : "#BBF7D0") : (isDark ? `${C.red}55` : "#FECACA");

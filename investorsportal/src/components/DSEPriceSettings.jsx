@@ -199,11 +199,11 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                     </thead>
                     <tbody>
                       {fetchMsg.result.updates.map((u, i) => {
-                        // Match Portfolio's convention: (new − prev) / prev × 100.
-                        // "prev" here is the row's previous companies.price (before this fetch),
-                        // not DSE's previous EOD close — mirrors what users see on the Portfolio page.
-                        const pct = u.old_price > 0
-                          ? ((u.market_price - u.old_price) / u.old_price) * 100
+                        // DSE-native day-change: pct = change / opening × 100, where
+                        // opening = market_price − change. Matches investor.dse.co.tz.
+                        const dseOpen = Number(u.market_price) - Number(u.change);
+                        const pct = Number.isFinite(dseOpen) && dseOpen > 0
+                          ? (Number(u.change) / dseOpen) * 100
                           : 0;
                         const up = pct > 0, dn = pct < 0;
                         return (
