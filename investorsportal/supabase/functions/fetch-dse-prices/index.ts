@@ -73,7 +73,8 @@ interface PriceData {
   symbol: string;
   marketPrice: number;      // last trade if snapshot, else latest close
   previousClose: number;    // yesterday's official close (from range/duration)
-  change: number;           // priceChange from snapshot, else close-vs-prev-close
+  change: number;           // absolute TZS: priceChange from snapshot, else close-vs-prev-close
+  changePct: number;        // percent: snapshot's priceChangePct, else computed (change / previousClose) * 100
   high: number;
   low: number;
   volume: number;
@@ -196,11 +197,18 @@ async function fetchAllPrices(): Promise<{ prices: PriceData[]; snapshotStatus: 
       ? snap!.priceChange
       : (prevClose?.closing_price ? latestClose.closing_price - prevClose.closing_price : 0);
 
+    // Percent change: prefer snapshot's own priceChangePct; else compute from
+    // absolute change vs previous close. Guard against divide-by-zero.
+    const changePctRaw = snapUsable && Number.isFinite(snap!.priceChangePct)
+      ? snap!.priceChangePct
+      : (previousClose > 0 ? (change / previousClose) * 100 : 0);
+
     prices.push({
       symbol,
       marketPrice,
       previousClose: previousClose > 0 ? previousClose : 0,
       change: Number.isFinite(change) ? change : 0,
+      changePct: Number.isFinite(changePctRaw) ? changePctRaw : 0,
       high:   snapUsable ? (snap!.high   || 0) : (latestClose?.high   || 0),
       low:    snapUsable ? (snap!.low    || 0) : (latestClose?.low    || 0),
       volume: snapUsable ? (snap!.volume || 0) : (latestClose?.volume || 0),
@@ -403,6 +411,7 @@ Deno.serve(async (req: Request) => {
           market_price: op.dsePrice.marketPrice,
           closing_price: op.dsePrice.previousClose,
           change: op.dsePrice.change,
+          change_pct: op.dsePrice.changePct,
           volume: op.dsePrice.volume,
           quote_updated_at: op.dsePrice.quoteUpdatedAt,
           source: op.dsePrice.source,

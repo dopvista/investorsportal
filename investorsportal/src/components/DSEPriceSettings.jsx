@@ -199,7 +199,12 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                     </thead>
                     <tbody>
                       {fetchMsg.result.updates.map((u, i) => {
-                        const up = u.change > 0, dn = u.change < 0;
+                        // Prefer server-supplied change_pct (from snapshot's priceChangePct);
+                        // else derive from absolute change vs closing_price (previous close).
+                        const pct = Number.isFinite(u.change_pct)
+                          ? u.change_pct
+                          : (u.closing_price > 0 ? (u.change / u.closing_price) * 100 : 0);
+                        const up = pct > 0, dn = pct < 0;
                         return (
                           <tr key={i} style={{ borderBottom: `1px solid ${C.gray100}` }}
                             onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.03)" : C.gray50; }}
@@ -208,7 +213,7 @@ const DSEPriceSettings = memo(function DSEPriceSettings({ supabase }) {
                             <td style={{ padding: "8px 16px", textAlign: "right", fontSize: 12, color: C.gray500 }}>{u.old_price?.toLocaleString()}</td>
                             <td style={{ padding: "8px 16px", textAlign: "right", fontSize: 13, fontWeight: 700, color: C.text }}>{u.market_price?.toLocaleString()}</td>
                             <td style={{ padding: "8px 16px", textAlign: "right", fontSize: 12, fontWeight: 700, color: up ? C.green : dn ? C.red : C.gray400 }}>
-                              {up ? "+" : ""}{u.change?.toLocaleString()}
+                              {up ? "▲" : dn ? "▼" : ""} {Math.abs(pct).toFixed(2)}%
                             </td>
                           </tr>
                         );
